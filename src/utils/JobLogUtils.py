@@ -27,9 +27,16 @@ def GetJobLog(jobId, cursor=None, size=None):
             },
             "sort": [
                 "@timestamp",
-                {"time_nsec": {"unmapped_type": "long", "missing": 0}},
+                {
+                    "time_nsec": {
+                        "unmapped_type": "long",
+                        "missing": 0
+                    }
+                },
             ],
-            "_source": ["docker.container_id", "kubernetes.pod_name", "stream", "log"]
+            "_source": [
+                "docker.container_id", "kubernetes.pod_name", "stream", "log"
+            ]
         }
         if cursor is not None:
             search_after = TryParseCursor(cursor)
@@ -38,9 +45,8 @@ def GetJobLog(jobId, cursor=None, size=None):
         if size is not None:
             request_json['size'] = size
 
-        response_json = elasticsearch.search(
-            index="logstash-*",
-            body=request_json)
+        response_json = elasticsearch.search(index="logstash-*",
+                                             body=request_json)
         documents = response_json["hits"]["hits"]
 
         next_cursor = None

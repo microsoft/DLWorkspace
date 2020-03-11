@@ -5,12 +5,15 @@ import logging
 from common import override
 from resource_stat import make_resource
 
-
 logger = logging.getLogger(__name__)
 
 
 class JobResourcePolicy(object):
-    def __init__(self, sku=None, gpu_limit=0, config=None, quota=None,
+    def __init__(self,
+                 sku=None,
+                 gpu_limit=0,
+                 config=None,
+                 quota=None,
                  metadata=None):
         self.sku = sku
         self.gpu_limit = int(gpu_limit)
@@ -122,7 +125,8 @@ def make_job_resource_policy(sku, gpu_limit, config, quota, metadata):
                                                           config, quota,
                                                           metadata)
     except:
-        logger.exception("Failed to make job resource policy with sku %s, "
-                         "gpu_limit %s, config %s, quota %s, metadata %s",
-                         sku, gpu_limit, config, quota, metadata)
+        logger.exception(
+            "Failed to make job resource policy with sku %s, "
+            "gpu_limit %s, config %s, quota %s, metadata %s", sku, gpu_limit,
+            config, quota, metadata)
     return policy

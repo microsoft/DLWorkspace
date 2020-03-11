@@ -39,7 +39,8 @@ class JobStateChangedMsg(NotifyMsg):
         return {"job_name": self.job_name, "job_state": self.job_state}
 
     def subject(self):
-        return "Your job %s has changed to state of %s" % (self.job_name, self.job_state)
+        return "Your job %s has changed to state of %s" % (self.job_name,
+                                                           self.job_state)
 
 
 def new_job_state_change_message(email, job_name, state):
@@ -83,8 +84,7 @@ class Notifier(object):
     def start(self):
         if not self.running:
             self.running = True
-            self.thread = threading.Thread(
-                target=self.process, name="notifier")
+            self.thread = threading.Thread(target=self.process, name="notifier")
             self.thread.start()
 
     def stop(self):
@@ -99,7 +99,7 @@ class Notifier(object):
     def process(self):
         while self.running:
             try:
-                msg = self.queue.get(block=True, timeout=1)  # 1s timeout
+                msg = self.queue.get(block=True, timeout=1) # 1s timeout
             except Empty:
                 continue
 
@@ -130,8 +130,11 @@ class Notifier(object):
                     "subject": subject,
                 })
 
-                resp = requests.post(self.alert_manager_url, timeout=5,
-                                     data=json.dumps([{"labels": labels}]))
+                resp = requests.post(self.alert_manager_url,
+                                     timeout=5,
+                                     data=json.dumps([{
+                                         "labels": labels
+                                     }]))
                 resp.raise_for_status()
                 return True
             elif self.smtp_url is not None and \
@@ -150,9 +153,10 @@ class Notifier(object):
             return False
 
 
-def smtp_send_email(smtp_url, smtp_from, smtp_auth_name, smtp_auth_pass, to, subject, body):
-    msg = "From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s" % (
-        smtp_from, to, subject, body)
+def smtp_send_email(smtp_url, smtp_from, smtp_auth_name, smtp_auth_pass, to,
+                    subject, body):
+    msg = "From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s" % (smtp_from, to,
+                                                           subject, body)
     conn = smtplib.SMTP(smtp_url)
     conn.starttls()
     conn.login(smtp_auth_name, smtp_auth_pass)
@@ -160,12 +164,16 @@ def smtp_send_email(smtp_url, smtp_from, smtp_auth_name, smtp_auth_pass, to, sub
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
-    notifier = Notifier({"notifier": {
-                        "cluster": "local", "alert-manager-url": "http://localhost:9093/alert-manager"}})
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',
+                        level=logging.INFO)
+    notifier = Notifier({
+        "notifier": {
+            "cluster": "local",
+            "alert-manager-url": "http://localhost:9093/alert-manager"
+        }
+    })
     notifier.start()
 
-    notifier.notify(new_job_state_change_message(
-        "dixu@microsoft.com", "job-id", "stopped"))
+    notifier.notify(
+        new_job_state_change_message("dixu@microsoft.com", "job-id", "stopped"))
     notifier.stop()

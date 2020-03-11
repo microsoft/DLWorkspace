@@ -14,15 +14,17 @@ from config import config, global_vars
 
 logger = logging.getLogger(__name__)
 
-data_handler_fn_histogram = Histogram("datahandler_fn_latency_seconds",
-        "latency for executing data handler function (seconds)",
-        buckets=(.05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0,
-            7.5, 10.0, 12.5, 15.0, 17.5, 20.0, float("inf")),
-        labelnames=("fn_name",))
+data_handler_fn_histogram = Histogram(
+    "datahandler_fn_latency_seconds",
+    "latency for executing data handler function (seconds)",
+    buckets=(.05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0,
+             17.5, 20.0, float("inf")),
+    labelnames=("fn_name",))
 
 db_connect_histogram = Histogram("db_connect_latency_seconds",
-        "latency for connecting to db (seconds)",
-        buckets=(.05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, float("inf")))
+                                 "latency for connecting to db (seconds)",
+                                 buckets=(.05, .075, .1, .25, .5, .75, 1.0, 2.5,
+                                          5.0, 7.5, float("inf")))
 
 
 def record(fn):
@@ -34,6 +36,7 @@ def record(fn):
         finally:
             elapsed = timeit.default_timer() - start
             data_handler_fn_histogram.labels(fn.__name__).observe(elapsed)
+
     return wrapped
 
 
@@ -63,8 +66,10 @@ class DataHandler(object):
         self.CreateDatabase()
 
         with db_connect_histogram.time():
-            self.conn = mysql.connector.connect(user=username, password=password,
-                                                host=server, database=self.database)
+            self.conn = mysql.connector.connect(user=username,
+                                                password=password,
+                                                host=server,
+                                                database=self.database)
 
         self.CreateTable()
 
@@ -83,9 +88,11 @@ class DataHandler(object):
             username = config["mysql"]["username"]
             password = config["mysql"]["password"]
 
-            conn = mysql.connector.connect(user=username, password=password,
-                                          host=server)
-            sql = " CREATE DATABASE IF NOT EXISTS `%s` DEFAULT CHARACTER SET 'utf8' " % (self.database)
+            conn = mysql.connector.connect(user=username,
+                                           password=password,
+                                           host=server)
+            sql = " CREATE DATABASE IF NOT EXISTS `%s` DEFAULT CHARACTER SET 'utf8' " % (
+                self.database)
             cursor = conn.cursor()
             cursor.execute(sql)
             conn.commit()
@@ -215,8 +222,6 @@ class DataHandler(object):
 
             self.init_vc_sqls(config)
 
-
-
             sql = """
                 CREATE TABLE IF NOT EXISTS  `%s`
                 (
@@ -237,7 +242,6 @@ class DataHandler(object):
             self.conn.commit()
             cursor.close()
 
-
             sql = """
                 CREATE TABLE IF NOT EXISTS  `%s`
                 (
@@ -257,7 +261,6 @@ class DataHandler(object):
             cursor.execute(sql)
             self.conn.commit()
             cursor.close()
-
 
             sql = """
                 CREATE TABLE IF NOT EXISTS `%s`
@@ -296,9 +299,10 @@ class DataHandler(object):
     @record
     def AddStorage(self, vcName, url, storageType, metadata, defaultMountPath):
         try:
-            sql = "INSERT INTO `"+self.storagetablename+"` (storageType, url, metadata, vcName, defaultMountPath) VALUES (%s,%s,%s,%s,%s)"
+            sql = "INSERT INTO `" + self.storagetablename + "` (storageType, url, metadata, vcName, defaultMountPath) VALUES (%s,%s,%s,%s,%s)"
             cursor = self.conn.cursor()
-            cursor.execute(sql, (storageType, url, metadata, vcName, defaultMountPath))
+            cursor.execute(
+                sql, (storageType, url, metadata, vcName, defaultMountPath))
             self.conn.commit()
             cursor.close()
             return True
@@ -309,7 +313,8 @@ class DataHandler(object):
     @record
     def DeleteStorage(self, vcName, url):
         try:
-            sql = "DELETE FROM `%s` WHERE url = '%s' and vcName = '%s'" % (self.storagetablename, url, vcName)
+            sql = "DELETE FROM `%s` WHERE url = '%s' and vcName = '%s'" % (
+                self.storagetablename, url, vcName)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
@@ -322,11 +327,13 @@ class DataHandler(object):
     @record
     def ListStorages(self, vcName):
         cursor = self.conn.cursor()
-        query = "SELECT `storageType`,`url`,`metadata`,`vcName`,`defaultMountPath` FROM `%s` WHERE vcName = '%s' " % (self.storagetablename, vcName)
+        query = "SELECT `storageType`,`url`,`metadata`,`vcName`,`defaultMountPath` FROM `%s` WHERE vcName = '%s' " % (
+            self.storagetablename, vcName)
         ret = []
         try:
             cursor.execute(query)
-            for (storageType,url,metadata,vcName,defaultMountPath) in cursor:
+            for (storageType, url, metadata, vcName,
+                 defaultMountPath) in cursor:
                 record = {}
                 record["vcName"] = vcName
                 record["url"] = url
@@ -341,11 +348,13 @@ class DataHandler(object):
         cursor.close()
         return ret
 
-
     @record
-    def UpdateStorage(self, vcName, url, storageType, metadata, defaultMountPath):
+    def UpdateStorage(self, vcName, url, storageType, metadata,
+                      defaultMountPath):
         try:
-            sql = """update `%s` set storageType = '%s', metadata = '%s', defaultMountPath = '%s' where vcName = '%s' and url = '%s' """ % (self.storagetablename, storageType, metadata, defaultMountPath, vcName, url)
+            sql = """update `%s` set storageType = '%s', metadata = '%s', defaultMountPath = '%s' where vcName = '%s' and url = '%s' """ % (
+                self.storagetablename, storageType, metadata, defaultMountPath,
+                vcName, url)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
@@ -354,7 +363,6 @@ class DataHandler(object):
         except Exception as e:
             logger.error('Exception: %s', str(e))
             return False
-
 
     def init_vc_sqls(self, config):
         ratio_dict = {config['defalt_virtual_cluster_name']: 1.0}
@@ -370,11 +378,11 @@ class DataHandler(object):
         for vc, vc_res_quota in res_quota.items():
             self.AddVC(vc, quota, metadata, vc_res_quota, res_meta)
 
-
     @record
     def AddVC(self, vcName, quota, metadata, res_quota, res_meta):
         try:
-            sql = "INSERT INTO `{}` (vcName, quota, metadata, resourceQuota, resourceMetadata) VALUES ('{}', '{}', '{}', '{}', '{}')".format(self.vctablename, vcName, quota, metadata, res_quota, res_meta)
+            sql = "INSERT INTO `{}` (vcName, quota, metadata, resourceQuota, resourceMetadata) VALUES ('{}', '{}', '{}', '{}', '{}')".format(
+                self.vctablename, vcName, quota, metadata, res_quota, res_meta)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
@@ -407,11 +415,11 @@ class DataHandler(object):
         cursor.close()
         return ret
 
-
     @record
     def DeleteVC(self, vcName):
         try:
-            sql = "DELETE FROM `%s` WHERE vcName = '%s'" % (self.vctablename, vcName)
+            sql = "DELETE FROM `%s` WHERE vcName = '%s'" % (self.vctablename,
+                                                            vcName)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
@@ -421,11 +429,11 @@ class DataHandler(object):
             logger.error('DeleteVC Exception: %s', str(e))
             return False
 
-
     @record
     def UpdateVC(self, vcName, quota, metadata):
         try:
-            sql = """update `%s` set quota = '%s', metadata = '%s' where vcName = '%s' """ % (self.vctablename, quota, metadata, vcName)
+            sql = """update `%s` set quota = '%s', metadata = '%s' where vcName = '%s' """ % (
+                self.vctablename, quota, metadata, vcName)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
@@ -435,17 +443,18 @@ class DataHandler(object):
             logger.error('Exception: %s', str(e))
             return False
 
-
     @record
     def GetIdentityInfo(self, identityName):
         cursor = self.conn.cursor()
         query = """SELECT `identityName`,`uid`,`gid`,`groups`,`public_key`,`private_key`
-        FROM `%s` WHERE `identityName` = '%s'""" % (self.identitytablename, identityName)
+        FROM `%s` WHERE `identityName` = '%s'""" % (self.identitytablename,
+                                                    identityName)
         ret = []
 
         try:
             cursor.execute(query)
-            for (identity_name, uid, gid, groups, public_key, private_key) in cursor:
+            for (identity_name, uid, gid, groups, public_key,
+                 private_key) in cursor:
                 record = {}
                 record["identityName"] = identity_name
                 record["uid"] = uid
@@ -461,9 +470,9 @@ class DataHandler(object):
         cursor.close()
         return ret
 
-
     @record
-    def UpdateIdentityInfo(self, identityName, uid, gid, groups, public_key, private_key):
+    def UpdateIdentityInfo(self, identityName, uid, gid, groups, public_key,
+                           private_key):
         try:
             cursor = self.conn.cursor()
 
@@ -477,7 +486,7 @@ class DataHandler(object):
             uid=%s, gid=%s, groups=%s""".format(self.identitytablename)
 
             cursor.execute(sql, (identityName, uid, gid, groups, public_key,
-                private_key, uid, gid, groups))
+                                 private_key, uid, gid, groups))
 
             # do not update public_key and private_key if already exist, maybe
             # this key is currently in use
@@ -495,10 +504,13 @@ class DataHandler(object):
             return False
 
     @record
-    def UpdateAce(self, identityName, identityId, resource, permissions, isDeny):
+    def UpdateAce(self, identityName, identityId, resource, permissions,
+                  isDeny):
         try:
             cursor = self.conn.cursor()
-            sql = "insert into {0} (identityName, identityId, resource, permissions, isDeny) values ('{1}', '{2}', '{3}', '{4}', '{5}') on duplicate key update permissions='{4}'".format(self.acltablename, identityName, identityId, resource, permissions, isDeny)
+            sql = "insert into {0} (identityName, identityId, resource, permissions, isDeny) values ('{1}', '{2}', '{3}', '{4}', '{5}') on duplicate key update permissions='{4}'".format(
+                self.acltablename, identityName, identityId, resource,
+                permissions, isDeny)
             cursor.execute(sql)
 
             self.conn.commit()
@@ -508,12 +520,12 @@ class DataHandler(object):
             logger.error('UpdateAce Exception: %s', str(e))
             return False
 
-
     @record
     def UpdateAclIdentityId(self, identityName, identityId):
         try:
             cursor = self.conn.cursor()
-            sql = """update `%s` set identityId = '%s' where `identityName` = '%s' """ % (self.acltablename, identityId, identityName)
+            sql = """update `%s` set identityId = '%s' where `identityName` = '%s' """ % (
+                self.acltablename, identityId, identityName)
             cursor.execute(sql)
 
             self.conn.commit()
@@ -522,14 +534,14 @@ class DataHandler(object):
         except Exception as e:
             logger.error('Exception: %s', str(e))
             return False
-
 
     @record
     def DeleteResourceAcl(self, resource):
         try:
             cursor = self.conn.cursor()
 
-            sql = "DELETE FROM `%s` WHERE `resource` = '%s'" % (self.acltablename, resource)
+            sql = "DELETE FROM `%s` WHERE `resource` = '%s'" % (
+                self.acltablename, resource)
             cursor.execute(sql)
 
             self.conn.commit()
@@ -539,13 +551,13 @@ class DataHandler(object):
             logger.error('Exception: %s', str(e))
             return False
 
-
     @record
     def DeleteAce(self, identityName, resource):
         try:
             cursor = self.conn.cursor()
 
-            sql = "DELETE FROM `%s` WHERE `identityName` = '%s' and `resource` = '%s'" % (self.acltablename, identityName, resource)
+            sql = "DELETE FROM `%s` WHERE `identityName` = '%s' and `resource` = '%s'" % (
+                self.acltablename, identityName, resource)
             cursor.execute(sql)
 
             self.conn.commit()
@@ -555,15 +567,16 @@ class DataHandler(object):
             logger.error('DeleteAce Exception: %s', str(e))
             return False
 
-
     @record
     def GetAcl(self):
         cursor = self.conn.cursor()
-        query = "SELECT `identityName`,`identityId`,`resource`,`permissions`,`isDeny` FROM `%s`" % (self.acltablename)
+        query = "SELECT `identityName`,`identityId`,`resource`,`permissions`,`isDeny` FROM `%s`" % (
+            self.acltablename)
         ret = []
         try:
             cursor.execute(query)
-            for (identityName,identityId,resource,permissions,isDeny) in cursor:
+            for (identityName, identityId, resource, permissions,
+                 isDeny) in cursor:
                 record = {}
                 record["identityName"] = identityName
                 record["identityId"] = identityId
@@ -578,15 +591,16 @@ class DataHandler(object):
         cursor.close()
         return ret
 
-
     @record
     def GetResourceAcl(self, resource):
         cursor = self.conn.cursor()
-        query = "SELECT `identityName`,`identityId`,`resource`,`permissions`,`isDeny` FROM `%s` where `resource` = '%s'" % (self.acltablename, resource)
+        query = "SELECT `identityName`,`identityId`,`resource`,`permissions`,`isDeny` FROM `%s` where `resource` = '%s'" % (
+            self.acltablename, resource)
         ret = []
         try:
             cursor.execute(query)
-            for (identityName,identityId,resource,permissions,isDeny) in cursor:
+            for (identityName, identityId, resource, permissions,
+                 isDeny) in cursor:
                 record = {}
                 record["identityName"] = identityName
                 record["identityId"] = identityId
@@ -600,14 +614,16 @@ class DataHandler(object):
         cursor.close()
         return ret
 
-
     @record
     def AddJob(self, jobParams):
         try:
-            sql = "INSERT INTO `"+self.jobtablename+"` (jobId, familyToken, isParent, jobName, userName, vcName, jobType,jobParams ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
+            sql = "INSERT INTO `" + self.jobtablename + "` (jobId, familyToken, isParent, jobName, userName, vcName, jobType,jobParams ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
             cursor = self.conn.cursor()
             jobParam = base64encode(json.dumps(jobParams))
-            cursor.execute(sql, (jobParams["jobId"], jobParams["familyToken"], jobParams["isParent"], jobParams["jobName"], jobParams["userName"], jobParams["vcName"], jobParams["jobType"],jobParam))
+            cursor.execute(sql, (jobParams["jobId"], jobParams["familyToken"],
+                                 jobParams["isParent"], jobParams["jobName"],
+                                 jobParams["userName"], jobParams["vcName"],
+                                 jobParams["jobType"], jobParam))
             self.conn.commit()
             cursor.close()
             return True
@@ -615,13 +631,18 @@ class DataHandler(object):
             logger.error('Exception: %s', str(e))
             return False
 
-
     @record
-    def GetJobList(self, userName, vcName, num = None, status = None, op = ("=","or")):
+    def GetJobList(self,
+                   userName,
+                   vcName,
+                   num=None,
+                   status=None,
+                   op=("=", "or")):
         ret = []
         cursor = self.conn.cursor()
         try:
-            query = "SELECT `jobId`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where 1" % (self.jobtablename)
+            query = "SELECT `jobId`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where 1" % (
+                self.jobtablename)
             if userName != "all":
                 query += " and `userName` = '%s'" % userName
 
@@ -632,8 +653,11 @@ class DataHandler(object):
                 if "," not in status:
                     query += " and `jobStatus` %s '%s'" % (op[0], status)
                 else:
-                    status_list = [" `jobStatus` %s '%s' " % (op[0], s) for s in status.split(',')]
-                    status_statement = (" "+op[1]+" ").join(status_list)
+                    status_list = [
+                        " `jobStatus` %s '%s' " % (op[0], s)
+                        for s in status.split(',')
+                    ]
+                    status_statement = (" " + op[1] + " ").join(status_list)
                     query += " and ( %s ) " % status_statement
 
             query += " order by `jobTime` Desc"
@@ -644,7 +668,9 @@ class DataHandler(object):
             cursor.execute(query)
 
             data = cursor.fetchall()
-            for (jobId,jobName,userName, vcName, jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in data:
+            for (jobId, jobName, userName, vcName, jobStatus, jobStatusDetail,
+                 jobType, jobDescriptionPath, jobDescription, jobTime,
+                 endpoints, jobParams, errorMsg, jobMeta) in data:
                 record = {}
                 record["jobId"] = jobId
                 record["jobName"] = jobName
@@ -668,7 +694,12 @@ class DataHandler(object):
         return ret
 
     @record
-    def GetJobListV2(self, userName, vcName, num = None, status = None, op = ("=","or")):
+    def GetJobListV2(self,
+                     userName,
+                     vcName,
+                     num=None,
+                     status=None,
+                     op=("=", "or")):
         ret = {}
         ret["queuedJobs"] = []
         ret["runningJobs"] = []
@@ -690,8 +721,11 @@ class DataHandler(object):
                 if "," not in status:
                     query += " and jobStatus %s '%s'" % (op[0], status)
                 else:
-                    status_list = [" jobStatus %s '%s' " % (op[0], s) for s in status.split(',')]
-                    status_statement = (" "+op[1]+" ").join(status_list)
+                    status_list = [
+                        " jobStatus %s '%s' " % (op[0], s)
+                        for s in status.split(',')
+                    ]
+                    status_statement = (" " + op[1] + " ").join(status_list)
                     query += " and ( %s ) " % status_statement
 
             query += " order by jobTime Desc"
@@ -706,16 +740,20 @@ class DataHandler(object):
             for item in data:
                 record = dict(list(zip(columns, item)))
                 if record["jobStatusDetail"] is not None:
-                    record["jobStatusDetail"] = self.load_json(base64decode(record["jobStatusDetail"]))
+                    record["jobStatusDetail"] = self.load_json(
+                        base64decode(record["jobStatusDetail"]))
                 if record["jobParams"] is not None:
-                    record["jobParams"] = self.load_json(base64decode(record["jobParams"]))
+                    record["jobParams"] = self.load_json(
+                        base64decode(record["jobParams"]))
 
                 if record["jobStatus"] == "running":
                     if record["jobType"] == "training":
                         ret["runningJobs"].append(record)
                     elif record["jobType"] == "visualization":
                         ret["visualizationJobs"].append(record)
-                elif record["jobStatus"] == "queued" or record["jobStatus"] == "scheduling" or record["jobStatus"] == "unapproved":
+                elif record["jobStatus"] == "queued" or record[
+                        "jobStatus"] == "scheduling" or record[
+                            "jobStatus"] == "unapproved":
                     ret["queuedJobs"].append(record)
                 else:
                     ret["finishedJobs"].append(record)
@@ -726,7 +764,12 @@ class DataHandler(object):
             if cursor is not None:
                 cursor.close()
 
-        ret["meta"] = {"queuedJobs": len(ret["queuedJobs"]),"runningJobs": len(ret["runningJobs"]),"finishedJobs": len(ret["finishedJobs"]),"visualizationJobs": len(ret["visualizationJobs"])}
+        ret["meta"] = {
+            "queuedJobs": len(ret["queuedJobs"]),
+            "runningJobs": len(ret["runningJobs"]),
+            "finishedJobs": len(ret["finishedJobs"]),
+            "visualizationJobs": len(ret["visualizationJobs"])
+        }
         return ret
 
     @record
@@ -830,7 +873,8 @@ class DataHandler(object):
             self.conn.commit()
         except:
             logger.error("Exception in getting union job list. status %s",
-                         status, exc_info=True)
+                         status,
+                         exc_info=True)
         finally:
             if cursor is not None:
                 cursor.close()
@@ -899,7 +943,7 @@ class DataHandler(object):
         visualization_jobs = []
         try:
             jobs = self.jobtablename
-            
+
             cols = [
                 "jobId",
                 "jobName",
@@ -912,10 +956,7 @@ class DataHandler(object):
                 "jobParams",
                 "priority",
             ]
-            query_prefix = "SELECT %s FROM %s WHERE 1" % (
-                ",".join(cols),
-                jobs
-            )
+            query_prefix = "SELECT %s FROM %s WHERE 1" % (",".join(cols), jobs)
 
             if username != "all":
                 query_prefix += " AND userName = '%s'" % username
@@ -969,7 +1010,8 @@ class DataHandler(object):
             self.conn.commit()
         except:
             logger.exception("Exception in getting union job list. status %s",
-                             status, exc_info=True)
+                             status,
+                             exc_info=True)
         finally:
             if cursor is not None:
                 cursor.close()
@@ -990,12 +1032,13 @@ class DataHandler(object):
         ret = []
         cursor = self.conn.cursor()
         try:
-            query = "SELECT `jobId`, `userName`, `vcName`, `jobParams`, `jobStatus` FROM `%s` WHERE `jobStatus` = 'scheduling' OR `jobStatus` = 'running'" % (self.jobtablename)
+            query = "SELECT `jobId`, `userName`, `vcName`, `jobParams`, `jobStatus` FROM `%s` WHERE `jobStatus` = 'scheduling' OR `jobStatus` = 'running'" % (
+                self.jobtablename)
 
             cursor.execute(query)
             data = cursor.fetchall()
 
-            for (jobId,userName,vcName,jobParams,jobStatus) in data:
+            for (jobId, userName, vcName, jobParams, jobStatus) in data:
                 record = {}
                 record["jobId"] = jobId
                 record["userName"] = userName
@@ -1011,14 +1054,19 @@ class DataHandler(object):
 
     @record
     def GetJob(self, **kwargs):
-        valid_keys = ["jobId", "familyToken", "isParent", "jobName", "userName", "vcName", "jobStatus", "jobType", "jobTime"]
-        if len(kwargs) != 1: return []
+        valid_keys = [
+            "jobId", "familyToken", "isParent", "jobName", "userName", "vcName",
+            "jobStatus", "jobType", "jobTime"
+        ]
+        if len(kwargs) != 1:
+            return []
         key, expected = kwargs.popitem()
         if key not in valid_keys:
             logger.error("DataHandler_GetJob: key is not in valid keys list...")
             return []
         cursor = self.conn.cursor()
-        query = "SELECT `jobId`,`familyToken`,`isParent`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta`  FROM `%s` where `%s` = '%s' " % (self.jobtablename,key,expected)
+        query = "SELECT `jobId`,`familyToken`,`isParent`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta`  FROM `%s` where `%s` = '%s' " % (
+            self.jobtablename, key, expected)
         cursor.execute(query)
         columns = [column[0] for column in cursor.description]
         ret = [dict(list(zip(columns, row))) for row in cursor.fetchall()]
@@ -1032,7 +1080,8 @@ class DataHandler(object):
         cursor = None
         try:
             cursor = self.conn.cursor()
-            query = "SELECT `jobId`, `jobName`, `userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobTime`, `jobParams`  FROM `%s` where `jobId` = '%s' " % (self.jobtablename, jobId)
+            query = "SELECT `jobId`, `jobName`, `userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobTime`, `jobParams`  FROM `%s` where `jobId` = '%s' " % (
+                self.jobtablename, jobId)
             cursor.execute(query)
 
             columns = [column[0] for column in cursor.description]
@@ -1040,9 +1089,11 @@ class DataHandler(object):
             for item in data:
                 record = dict(list(zip(columns, item)))
                 if record["jobStatusDetail"] is not None:
-                    record["jobStatusDetail"] = self.load_json(base64decode(record["jobStatusDetail"]))
+                    record["jobStatusDetail"] = self.load_json(
+                        base64decode(record["jobStatusDetail"]))
                 if record["jobParams"] is not None:
-                    record["jobParams"] = self.load_json(base64decode(record["jobParams"]))
+                    record["jobParams"] = self.load_json(
+                        base64decode(record["jobParams"]))
                 ret.append(record)
             self.conn.commit()
         except Exception as e:
@@ -1055,7 +1106,7 @@ class DataHandler(object):
     @record
     def AddCommand(self, jobId, command):
         try:
-            sql = "INSERT INTO `"+self.commandtablename+"` (jobId, command) VALUES (%s,%s)"
+            sql = "INSERT INTO `" + self.commandtablename + "` (jobId, command) VALUES (%s,%s)"
             cursor = self.conn.cursor()
             cursor.execute(sql, (jobId, command))
             self.conn.commit()
@@ -1068,7 +1119,8 @@ class DataHandler(object):
     @record
     def GetPendingCommands(self):
         cursor = self.conn.cursor()
-        query = "SELECT `id`, `jobId`, `command` FROM `%s` WHERE `status` = 'pending' order by `time`" % (self.commandtablename)
+        query = "SELECT `id`, `jobId`, `command` FROM `%s` WHERE `status` = 'pending' order by `time`" % (
+            self.commandtablename)
         cursor.execute(query)
         ret = []
         for (id, jobId, command) in cursor:
@@ -1084,7 +1136,8 @@ class DataHandler(object):
     @record
     def FinishCommand(self, commandId):
         try:
-            sql = """update `%s` set status = 'run' where `id` = '%s' """ % (self.commandtablename, commandId)
+            sql = """update `%s` set status = 'run' where `id` = '%s' """ % (
+                self.commandtablename, commandId)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
@@ -1097,7 +1150,8 @@ class DataHandler(object):
     @record
     def GetCommands(self, jobId):
         cursor = self.conn.cursor()
-        query = "SELECT `time`, `command`, `status`, `output` FROM `%s` WHERE `jobId` = '%s' order by `time`" % (self.commandtablename, jobId)
+        query = "SELECT `time`, `command`, `status`, `output` FROM `%s` WHERE `jobId` = '%s' order by `time`" % (
+            self.commandtablename, jobId)
         cursor.execute(query)
         ret = []
         for (time, command, status, output) in cursor:
@@ -1127,7 +1181,8 @@ class DataHandler(object):
         ret = {}
         try:
             cursor = self.conn.cursor()
-            query = "SELECT `endpoints` from `%s` where `jobStatus` = '%s' and `endpoints` is not null" % (self.jobtablename, "running")
+            query = "SELECT `endpoints` from `%s` where `jobStatus` = '%s' and `endpoints` is not null" % (
+                self.jobtablename, "running")
             cursor.execute(query)
             jobs = cursor.fetchall()
             self.conn.commit()
@@ -1136,7 +1191,11 @@ class DataHandler(object):
             endpoints = [self.load_json(job[0]) for job in jobs]
             # {endpoint1: {}, endpoint2: {}, ... }
             # endpoint["status"] == "pending"
-            ret = {k: v for d in endpoints for k, v in list(d.items()) if v["status"] == "pending"}
+            ret = {
+                k: v for d in endpoints
+                for k, v in list(d.items())
+                if v["status"] == "pending"
+            }
         except Exception as e:
             logger.exception("Query pending endpoints failed!")
         finally:
@@ -1150,7 +1209,8 @@ class DataHandler(object):
         ret = {}
         try:
             cursor = self.conn.cursor()
-            query = "SELECT `endpoints` from `%s` where `jobId` = '%s'" % (self.jobtablename, job_id)
+            query = "SELECT `endpoints` from `%s` where `jobId` = '%s'" % (
+                self.jobtablename, job_id)
             cursor.execute(query)
             jobs = cursor.fetchall()
             self.conn.commit()
@@ -1161,7 +1221,8 @@ class DataHandler(object):
             # endpoint["status"] == "pending"
             ret = {k: v for d in endpoints for k, v in list(d.items())}
         except Exception as e:
-            logger.warning("Query job endpoints failed! Job {}".format(job_id), exc_info=True)
+            logger.warning("Query job endpoints failed! Job {}".format(job_id),
+                           exc_info=True)
         finally:
             if cursor is not None:
                 cursor.close()
@@ -1176,7 +1237,11 @@ class DataHandler(object):
             cursor.execute(query)
             dead_endpoints = {}
             for [endpoints] in cursor:
-                endpoint_list = {k: v for k, v in list(self.load_json(endpoints).items()) if v["status"] == "running"}
+                endpoint_list = {
+                    k: v
+                    for k, v in list(self.load_json(endpoints).items())
+                    if v["status"] == "running"
+                }
                 dead_endpoints.update(endpoint_list)
             self.conn.commit()
             cursor.close()
@@ -1200,16 +1265,20 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.exception("Update endpoints failed! Endpoints: {}".format(endpoint))
+            logger.exception(
+                "Update endpoints failed! Endpoints: {}".format(endpoint))
             return False
 
     @record
     def GetPendingJobs(self):
         cursor = self.conn.cursor()
-        query = "SELECT `jobId`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where `jobStatus` <> 'error' and `jobStatus` <> 'failed' and `jobStatus` <> 'finished' and `jobStatus` <> 'killed' order by `jobTime` DESC" % (self.jobtablename)
+        query = "SELECT `jobId`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where `jobStatus` <> 'error' and `jobStatus` <> 'failed' and `jobStatus` <> 'finished' and `jobStatus` <> 'killed' order by `jobTime` DESC" % (
+            self.jobtablename)
         cursor.execute(query)
         ret = []
-        for (jobId,jobName,userName,vcName, jobStatus, jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
+        for (jobId, jobName, userName, vcName, jobStatus, jobStatusDetail,
+             jobType, jobDescriptionPath, jobDescription, jobTime, endpoints,
+             jobParams, errorMsg, jobMeta) in cursor:
             record = {}
             record["jobId"] = jobId
             record["jobName"] = jobName
@@ -1230,11 +1299,11 @@ class DataHandler(object):
         cursor.close()
         return ret
 
-
     @record
     def SetJobError(self, jobId, errorMsg):
         try:
-            sql = """update `%s` set jobStatus = 'error', `errorMsg` = '%s' where `jobId` = '%s' """ % (self.jobtablename, errorMsg, jobId)
+            sql = """update `%s` set jobStatus = 'error', `errorMsg` = '%s' where `jobId` = '%s' """ % (
+                self.jobtablename, errorMsg, jobId)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
@@ -1247,7 +1316,8 @@ class DataHandler(object):
     @record
     def UpdateJobTextField(self, jobId, field, value):
         try:
-            sql = "update `%s` set `%s` = '%s' where `jobId` = '%s' " % (self.jobtablename, field, value, jobId)
+            sql = "update `%s` set `%s` = '%s' where `jobId` = '%s' " % (
+                self.jobtablename, field, value, jobId)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
@@ -1261,19 +1331,28 @@ class DataHandler(object):
     def UpdateJobTextFields(self, conditionFields, dataFields):
         cursor = None
         ret = False
-        if not isinstance(conditionFields, dict) or not conditionFields or not isinstance(dataFields, dict) or not dataFields:
+        if not isinstance(conditionFields,
+                          dict) or not conditionFields or not isinstance(
+                              dataFields, dict) or not dataFields:
             return ret
 
         try:
-            sql = "update `%s` set" % (self.jobtablename) + ",".join([" `%s` = '%s'" % (field, value) for field, value in list(dataFields.items())]) + " where" + "and".join([" `%s` = '%s'" % (field, value) for field, value in list(conditionFields.items())])
+            sql = "update `%s` set" % (self.jobtablename) + ",".join([
+                " `%s` = '%s'" % (field, value)
+                for field, value in list(dataFields.items())
+            ]) + " where" + "and".join([
+                " `%s` = '%s'" % (field, value)
+                for field, value in list(conditionFields.items())
+            ])
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
             ret = True
         except Exception as e:
-            logger.exception('failed to UpdateJobTextFields conditions %s, data %s',
-                    conditionFields, dataFields)
+            logger.exception(
+                'failed to UpdateJobTextFields conditions %s, data %s',
+                conditionFields, dataFields)
         finally:
             if cursor is not None:
                 cursor.close()
@@ -1282,7 +1361,8 @@ class DataHandler(object):
     @record
     def GetJobTextField(self, jobId, field):
         cursor = self.conn.cursor()
-        query = "SELECT `jobId`, `%s` FROM `%s` where `jobId` = '%s' " % (field, self.jobtablename, jobId)
+        query = "SELECT `jobId`, `%s` FROM `%s` where `jobId` = '%s' " % (
+            field, self.jobtablename, jobId)
         ret = None
         try:
             cursor.execute(query)
@@ -1303,7 +1383,9 @@ class DataHandler(object):
             return ret
 
         try:
-            sql = "select " + ",".join(fields) + " from " + self.jobtablename + " where jobId='%s'" % (jobId)
+            sql = "select " + ",".join(
+                fields) + " from " + self.jobtablename + " where jobId='%s'" % (
+                    jobId)
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -1319,17 +1401,18 @@ class DataHandler(object):
                 cursor.close()
         return ret
 
-
     @record
     def AddandGetJobRetries(self, jobId):
-        sql = """update `%s` set `retries` = `retries` + 1 where `jobId` = '%s' """ % (self.jobtablename, jobId)
+        sql = """update `%s` set `retries` = `retries` + 1 where `jobId` = '%s' """ % (
+            self.jobtablename, jobId)
         cursor = self.conn.cursor()
         cursor.execute(sql)
         self.conn.commit()
         cursor.close()
 
         cursor = self.conn.cursor()
-        query = "SELECT `jobId`, `retries` FROM `%s` where `jobId` = '%s' " % (self.jobtablename, jobId)
+        query = "SELECT `jobId`, `retries` FROM `%s` where `jobId` = '%s' " % (
+            self.jobtablename, jobId)
         cursor.execute(query)
         ret = None
 
@@ -1342,9 +1425,11 @@ class DataHandler(object):
     @record
     def UpdateClusterStatus(self, clusterStatus):
         try:
-            status = base64encode(json.dumps(clusterStatus, separators=(",", ":")))
+            status = base64encode(
+                json.dumps(clusterStatus, separators=(",", ":")))
 
-            sql = "INSERT INTO `%s` (status) VALUES ('%s')" % (self.clusterstatustablename, status)
+            sql = "INSERT INTO `%s` (status) VALUES ('%s')" % (
+                self.clusterstatustablename, status)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
@@ -1357,7 +1442,8 @@ class DataHandler(object):
     @record
     def GetClusterStatus(self):
         cursor = self.conn.cursor()
-        query = "SELECT `time`, `status` FROM `%s` order by `time` DESC limit 1" % (self.clusterstatustablename)
+        query = "SELECT `time`, `status` FROM `%s` order by `time` DESC limit 1" % (
+            self.clusterstatustablename)
         ret = None
         time = None
         try:
@@ -1371,16 +1457,16 @@ class DataHandler(object):
         cursor.close()
         return ret, time
 
-
     @record
     def GetUsers(self):
         cursor = self.conn.cursor()
-        query = "SELECT `identityName`,`uid`,`public_key`,`private_key` FROM `%s`" % (self.identitytablename)
+        query = "SELECT `identityName`,`uid`,`public_key`,`private_key` FROM `%s`" % (
+            self.identitytablename)
         ret = []
         try:
             cursor.execute(query)
             for (identityName, uid, public_key, private_key) in cursor:
-                ret.append((identityName,uid, public_key, private_key))
+                ret.append((identityName, uid, public_key, private_key))
         except Exception as e:
             logger.error('Exception: %s', str(e))
         self.conn.commit()
@@ -1390,7 +1476,8 @@ class DataHandler(object):
     @record
     def GetActiveJobsCount(self):
         cursor = self.conn.cursor()
-        query = "SELECT count(ALL id) as c FROM `%s` where `jobStatus` = 'running'" % (self.jobtablename)
+        query = "SELECT count(ALL id) as c FROM `%s` where `jobStatus` = 'running'" % (
+            self.jobtablename)
         cursor.execute(query)
         ret = 0
         for c in cursor:
@@ -1416,7 +1503,8 @@ class DataHandler(object):
     @record
     def GetTemplates(self, scope):
         cursor = self.conn.cursor()
-        query = "SELECT `name`, `json` FROM `%s` WHERE `scope` = '%s'" % (self.templatetablename, scope)
+        query = "SELECT `name`, `json` FROM `%s` WHERE `scope` = '%s'" % (
+            self.templatetablename, scope)
         cursor.execute(query)
         ret = []
         for name, json in cursor:
@@ -1469,9 +1557,14 @@ class DataHandler(object):
 
     @record
     def update_job_priority(self, job_priorites):
-        cases = " ".join(["WHEN '%s' THEN %i" % (jobId, priority) for jobId, priority in list(job_priorites.items())])
-        jobIds = ",".join(["'%s'" % jobId for jobId in list(job_priorites.keys())])
-        query = "update {0} set priority = CASE jobId {1} END WHERE jobId in ({2})".format(self.jobtablename, cases, jobIds)
+        cases = " ".join([
+            "WHEN '%s' THEN %i" % (jobId, priority)
+            for jobId, priority in list(job_priorites.items())
+        ])
+        jobIds = ",".join(
+            ["'%s'" % jobId for jobId in list(job_priorites.keys())])
+        query = "update {0} set priority = CASE jobId {1} END WHERE jobId in ({2})".format(
+            self.jobtablename, cases, jobIds)
         cursor = self.conn.cursor()
         cursor.execute(query)
         self.conn.commit()
@@ -1512,7 +1605,9 @@ class DataHandler(object):
             self.conn.commit()
         except Exception:
             logger.exception("Exception in getting fields %s for jobs %s",
-                             fields, job_ids, exc_info=True)
+                             fields,
+                             job_ids,
+                             exc_info=True)
         finally:
             if cursor is not None:
                 cursor.close()
@@ -1543,8 +1638,7 @@ class DataHandler(object):
 
         try:
             sql_col_vals = ",".join(
-                [" %s = '%s'" % (k, v) for k, v in fields.items()]
-            )
+                [" %s = '%s'" % (k, v) for k, v in fields.items()])
             sql_job_ids = ",".join(["'%s'" % job_id for job_id in job_ids])
             sql = "UPDATE %s SET %s WHERE jobId IN (%s)" % (
                 self.jobtablename, sql_col_vals, sql_job_ids)
@@ -1555,7 +1649,9 @@ class DataHandler(object):
             ret = True
         except Exception:
             logger.exception("Exception in updating fields %s for jobs %s",
-                             fields, job_ids, exc_info=True)
+                             fields,
+                             job_ids,
+                             exc_info=True)
         finally:
             if cursor is not None:
                 cursor.close()
@@ -1582,7 +1678,9 @@ class DataHandler(object):
                 cursor.close()
         return ret
 
-    def delete_rows_from_table_older_than_days(self, table, days_ago,
+    def delete_rows_from_table_older_than_days(self,
+                                               table,
+                                               days_ago,
                                                col="time"):
         cursor = None
         ret = False
@@ -1594,15 +1692,18 @@ class DataHandler(object):
             self.conn.commit()
             ret = True
         except:
-            logger.error("Exception in deleting rows older than %s in col %s "
-                         "for table %s", days_ago, col, table)
+            logger.error(
+                "Exception in deleting rows older than %s in col %s "
+                "for table %s", days_ago, col, table)
         finally:
             if cursor is not None:
                 cursor.close()
         return ret
 
     def __del__(self):
-        logger.debug("********************** deleted a DataHandler instance *******************")
+        logger.debug(
+            "********************** deleted a DataHandler instance *******************"
+        )
         self.Close()
 
     def Close(self):

@@ -6,7 +6,6 @@ import numbers
 
 from resource_stat import make_resource, dictionarize
 
-
 logger = logging.getLogger(__name__)
 
 

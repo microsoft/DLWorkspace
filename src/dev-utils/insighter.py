@@ -24,9 +24,7 @@ class PrometheusMetric(object):
         self.url = url
 
     def format_url_query(self, query):
-        arg = urllib.parse.urlencode({
-            "query": query
-        })
+        arg = urllib.parse.urlencode({"query": query})
         return urllib.parse.urljoin(self.url, PROMETHEUS_API_V1_QUERY) \
             + "?" + arg
 
@@ -236,7 +234,9 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--prometheus_url", "-p", default="http://127.0.0.1:9091",
+    parser.add_argument("--prometheus_url",
+                        "-p",
+                        default="http://127.0.0.1:9091",
                         help="Prometheus url, eg: http://127.0.0.1:9091")
 
     args = parser.parse_args()

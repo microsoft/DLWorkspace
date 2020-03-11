@@ -678,8 +678,7 @@ class AddVC(Resource):
         metadata = args["metadata"]
         userName = args["userName"]
         ret = {}
-        ret["result"] = JobRestAPIUtils.AddVC(userName, vcName, quota,
-                                              metadata)
+        ret["result"] = JobRestAPIUtils.AddVC(userName, vcName, quota, metadata)
         return generate_response(ret)
 
 
@@ -918,8 +917,8 @@ class Templates(Resource):
             else:
                 return "access denied", 403
         elif database == "vc":
-            if AuthorizationManager.HasAccess(userName, ResourceType.VC,
-                                              vcName, Permission.Admin):
+            if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName,
+                                              Permission.Admin):
                 scope = "vc:" + vcName
             else:
                 return "access denied", 403
@@ -951,8 +950,8 @@ class Templates(Resource):
             else:
                 return "access denied", 403
         elif database == "vc":
-            if AuthorizationManager.HasAccess(userName, ResourceType.VC,
-                                              vcName, Permission.Admin):
+            if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName,
+                                              Permission.Admin):
                 scope = "vc:" + vcName
             else:
                 return "access denied", 403

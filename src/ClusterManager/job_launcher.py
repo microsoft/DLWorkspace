@@ -370,7 +370,8 @@ class Launcher(object):
     def create_secrets(self, secrets):
         # Clean up secrets first
         secret_names = [
-            secret["metadata"]["name"] for secret in secrets
+            secret["metadata"]["name"]
+            for secret in secrets
             if secret["kind"] == "Secret"
         ]
         logger.info("Trying to delete secrets %s" % secret_names)
@@ -498,9 +499,8 @@ class LauncherStub(Launcher):
                 return "Running"
             result = walk_json_field_safe(completion_status, "type", "name")
             if result is None:
-                logger.warning(
-                    "unknown completion_status %s, assuming Running",
-                    completion_status)
+                logger.warning("unknown completion_status %s, assuming Running",
+                               completion_status)
             return result or "Running"
         else:
             logger.error("unknown framework_state %s, completion_status %s",
@@ -608,9 +608,9 @@ class LauncherStub(Launcher):
             job_object.params["uid"] = user_info["uid"]
             job_object.params["user"] = job_object.get_alias()
             job_object.params["private_key"] = user_info["private_key"]
-            job_object.params["ssh_public_keys"] = job_object.params.get("ssh_public_keys", [])
+            job_object.params["ssh_public_keys"] = job_object.params.get(
+                "ssh_public_keys", [])
             job_object.params["ssh_public_keys"].append(user_info["public_key"])
-
 
             if "job_token" not in job_object.params:
                 if "master_token" in config and config[
@@ -625,14 +625,11 @@ class LauncherStub(Launcher):
             if "envs" not in job_object.params:
                 job_object.params["envs"] = []
             job_object.params["envs"].append({
-                "name":
-                "DLTS_JOB_TOKEN",
-                "value":
-                job_object.params["job_token"]
+                "name": "DLTS_JOB_TOKEN",
+                "value": job_object.params["job_token"]
             })
 
-            blobfuse_secret_template = job_object.get_blobfuse_secret_template(
-            )
+            blobfuse_secret_template = job_object.get_blobfuse_secret_template()
             image_pull_secret_template = job_object.get_image_pull_secret_template(
             )
             secret_templates = {
@@ -664,7 +661,8 @@ class LauncherStub(Launcher):
                 logger.error("failed to generate params for %s job %s",
                              job_object.params["jobtrainingtype"], error)
                 return False
-            framework_desc = framework.transform_job(job_object.params["jobtrainingtype"], params, config)
+            framework_desc = framework.transform_job(
+                job_object.params["jobtrainingtype"], params, config)
 
             job_description = yaml.dump(framework_desc)
 
@@ -697,14 +695,14 @@ class LauncherStub(Launcher):
 
             dataFields = {
                 "jobStatus":
-                "scheduling",
+                    "scheduling",
                 "jobDescription":
-                base64.b64encode(
-                    job_description.encode("utf-8")).decode("utf-8"),
+                    base64.b64encode(job_description.encode("utf-8")
+                                    ).decode("utf-8"),
                 "lastUpdated":
-                datetime.datetime.now().isoformat(),
+                    datetime.datetime.now().isoformat(),
                 "jobMeta":
-                jobMetaStr
+                    jobMetaStr
             }
             conditionFields = {"jobId": job_object.job_id}
             dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -719,12 +717,12 @@ class LauncherStub(Launcher):
 
                 dataFields = {
                     "jobStatus":
-                    "error",
+                        "error",
                     "errorMsg":
-                    "Cannot submit job!" + str(e),
+                        "Cannot submit job!" + str(e),
                     "jobStatusDetail":
-                    base64.b64encode(
-                        json.dumps(detail).encode("utf-8")).decode("utf-8")
+                        base64.b64encode(json.dumps(detail).encode("utf-8")
+                                        ).decode("utf-8")
                 }
                 conditionFields = {"jobId": job["jobId"]}
                 dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -771,10 +769,10 @@ class LauncherStub(Launcher):
 
         dataFields = {
             "jobStatusDetail":
-            base64.b64encode(
-                json.dumps(detail).encode("utf-8")).decode("utf-8"),
+                base64.b64encode(json.dumps(detail).encode("utf-8")
+                                ).decode("utf-8"),
             "lastUpdated":
-            datetime.datetime.now().isoformat()
+                datetime.datetime.now().isoformat()
         }
         conditionFields = {"jobId": job_id}
         if len(errors) == 0:
@@ -805,7 +803,7 @@ class PythonLauncher(Launcher):
 
             for i in range(self.pool_size):
                 p = multiprocessing.Process(target=self.run,
-                                            args=(self.queue, ),
+                                            args=(self.queue,),
                                             name="py-launcher-" + str(i))
                 self.processes.append(p)
                 p.start()
@@ -863,7 +861,8 @@ class PythonLauncher(Launcher):
         ]
         self._cleanup_pods(pod_names)
         deployment_names = [
-            pod["metadata"]["name"] for pod in pods
+            pod["metadata"]["name"]
+            for pod in pods
             if pod["kind"] == "Deployment"
         ]
         self._cleanup_deployment(pod_names)
@@ -931,7 +930,7 @@ class PythonLauncher(Launcher):
         return all([status == "NotFound" for status in statuses])
 
     def submit_job(self, job):
-        self.queue.put(("submit_job", (job, ), {}))
+        self.queue.put(("submit_job", (job,), {}))
 
     def submit_job_impl(self, job):
         # check if existing any pod with label: run=job_id
@@ -943,8 +942,7 @@ class PythonLauncher(Launcher):
                     job_id))
             errors = self.delete_job(job_id, force=True)
             if errors:
-                logger.warning("Force delete job {}: {}".format(
-                    job_id, errors))
+                logger.warning("Force delete job {}: {}".format(job_id, errors))
             return
 
         ret = {}
@@ -980,7 +978,8 @@ class PythonLauncher(Launcher):
             job_object.params["uid"] = user_info["uid"]
             job_object.params["user"] = job_object.get_alias()
             job_object.params["private_key"] = user_info["private_key"]
-            job_object.params["ssh_public_keys"] = job_object.params.get("ssh_public_keys", [])
+            job_object.params["ssh_public_keys"] = job_object.params.get(
+                "ssh_public_keys", [])
             job_object.params["ssh_public_keys"].append(user_info["public_key"])
 
             if "job_token" not in job_object.params:
@@ -996,14 +995,11 @@ class PythonLauncher(Launcher):
             if "envs" not in job_object.params:
                 job_object.params["envs"] = []
             job_object.params["envs"].append({
-                "name":
-                "DLTS_JOB_TOKEN",
-                "value":
-                job_object.params["job_token"]
+                "name": "DLTS_JOB_TOKEN",
+                "value": job_object.params["job_token"]
             })
 
-            blobfuse_secret_template = job_object.get_blobfuse_secret_template(
-            )
+            blobfuse_secret_template = job_object.get_blobfuse_secret_template()
             image_pull_secret_template = job_object.get_image_pull_secret_template(
             )
             secret_templates = {
@@ -1064,14 +1060,14 @@ class PythonLauncher(Launcher):
 
             dataFields = {
                 "jobStatus":
-                "scheduling",
+                    "scheduling",
                 "jobDescription":
-                base64.b64encode(
-                    job_description.encode("utf-8")).decode("utf-8"),
+                    base64.b64encode(job_description.encode("utf-8")
+                                    ).decode("utf-8"),
                 "lastUpdated":
-                datetime.datetime.now().isoformat(),
+                    datetime.datetime.now().isoformat(),
                 "jobMeta":
-                jobMetaStr
+                    jobMetaStr
             }
             conditionFields = {"jobId": job_object.job_id}
             dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -1086,12 +1082,12 @@ class PythonLauncher(Launcher):
 
                 dataFields = {
                     "jobStatus":
-                    "error",
+                        "error",
                     "errorMsg":
-                    "Cannot submit job!" + str(e),
+                        "Cannot submit job!" + str(e),
                     "jobStatusDetail":
-                    base64.b64encode(
-                        json.dumps(detail).encode("utf-8")).decode("utf-8")
+                        base64.b64encode(json.dumps(detail).encode("utf-8")
+                                        ).decode("utf-8")
                 }
                 conditionFields = {"jobId": job["jobId"]}
                 dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -1110,7 +1106,7 @@ class PythonLauncher(Launcher):
         return ret
 
     def kill_job(self, job_id, desired_state="killed"):
-        self.queue.put(("kill_job", (job_id, ), {
+        self.queue.put(("kill_job", (job_id,), {
             "desired_state": desired_state
         }))
 
@@ -1137,10 +1133,10 @@ class PythonLauncher(Launcher):
 
         dataFields = {
             "jobStatusDetail":
-            base64.b64encode(
-                json.dumps(detail).encode("utf-8")).decode("utf-8"),
+                base64.b64encode(json.dumps(detail).encode("utf-8")
+                                ).decode("utf-8"),
             "lastUpdated":
-            datetime.datetime.now().isoformat()
+                datetime.datetime.now().isoformat()
         }
         conditionFields = {"jobId": job_id}
         if len(errors) == 0:
