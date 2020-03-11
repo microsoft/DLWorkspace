@@ -52,11 +52,11 @@ spec:
             cpu: 1.0
         {% else %}
           requests:
-            cpu: job["cpurequest"]
+            cpu: {{ job["cpurequest"] }}
         {% endif %}
         {% if job["memoryrequest"] %}
           requests:
-            memory: job["memoryrequest"]
+            memory: {{ job["memoryrequest"] }}
         {% endif %}
         volumeMounts:
         - name: "dlws-scripts"
