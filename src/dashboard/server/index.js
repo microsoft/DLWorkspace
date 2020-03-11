@@ -10,23 +10,21 @@ app.use(require('./frontend'))
 if (require.main === module) {
   const http = require('http')
   const http2 = require('http2')
-  const fs = require('fs')
 
   const {
     HOST,
-    PORT = 3000,
-    SSL_KEY,
-    SSL_CERT
+    PORT = '3000',
+    HTTPS
   } = process.env
 
-  const server = SSL_KEY && SSL_CERT
-    ? http2.createSecureServer({
-      allowHTTP1: true,
-      key: fs.readFileSync(SSL_KEY),
-      cert: fs.readFileSync(SSL_CERT)
-    })
+  const server = HTTPS
+    ? http2.createSecureServer({ allowHTTP1: true })
     : http.createServer()
 
+  if (HTTPS) {
+    require('./ssl')(server)
+  }
+
   server.on('request', app.callback())
-  server.listen(PORT, HOST)
+  server.listen(Number(PORT), HOST)
 }

@@ -12,8 +12,9 @@ The configuration schema (with description) is maintained in [config.schema.json
 
 - `HOST` the host of server listening, default `::` (IPv6) or `0.0.0.0` (IPv4).
 - `PORT` the port of server listening, default `3000`.
-- `SSL_KEY` the SSL/TLS private key file for HTTPS / HTTP2 support.
-- `SSL_CERT` the SSL/TLS certificate file for HTTPS / HTTP2 support.
+- `HTTPS` set to `true` to enable HTTPS / HTTP2 support.
+- `SSL_KEY_FILE` the SSL/TLS private key file for HTTPS / HTTP2 support.
+- `SSL_CERT_FILE` the SSL/TLS certificate file for HTTPS / HTTP2 support.
 
 ## Local Development
 
