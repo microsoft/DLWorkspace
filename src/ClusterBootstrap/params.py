@@ -746,6 +746,11 @@ default_config_parameters = {
             "memory_ratio": 0.9
         }
     },
+
+    "acme": {
+        "server": "https://acme-staging-v02.api.letsencrypt.org/directory",
+        "email": "root@example.com"
+    },
 }
 
 # These are super scripts

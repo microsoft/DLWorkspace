@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: certbot
+spec:
+  template:
+    metadata:
+      name: certbot
+    spec:
+      containers:
+      - name: certbot
+        image: certbot/certbot
+        imagePullPolicy: Always
+        args:
+        - certonly
+        - --non-interactive
+        - --standalone
+        - --agree-tos
+        - --email
+        - '{{cnf["acme"]["email"]}}'
+        - --server
+        - '{{cnf["acme"]["server"]}}'
+        - --domain
+        - '{{cnf["kubernetes_master_node"][0]}}'
+        ports:
+        - name: http
+          containerPort: 80
+        volumeMounts:
+        - name: etc
+          mountPath: /etc/letsencrypt
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
+      volumes:
+      - name: etc
+        hostPath:
+          path: /etc/letsencrypt
+      nodeSelector:
+        dashboard: active
+      hostNetwork: true
+      restartPolicy: Never
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
