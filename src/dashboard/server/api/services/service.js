@@ -5,14 +5,17 @@
 
 /**
  * @abstract
- * @template State
  */
 class Service {
   /**
    * @param {import('koa').ParameterizedContext<State>} context
    */
   constructor (context) {
-    Object.defineProperty(this, 'context', { value: context })
+    this.context = context
+    Object.defineProperty(this, 'context', {
+      enumerable: false,
+      writable: false
+    })
   }
 }
 
