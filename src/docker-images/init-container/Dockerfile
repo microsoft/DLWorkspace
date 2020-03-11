@@ -1,6 +1,6 @@
-FROM ubuntu:16.04 as builder
+FROM ubuntu:18.04 as builder
 
-RUN apt-get update && apt-get --no-install-recommends install -y wget gzip build-essential
+RUN apt-get update && apt-get install -y wget gzip build-essential
 
 WORKDIR /ssh_build
 
