@@ -13,14 +13,11 @@ spec:
       labels:
         repairmanager-node: pod
         app: repairmanager
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/path: "/metrics"
     spec:
-      {% if cnf["dnsPolicy"] %}    
+      {% if cnf["dnsPolicy"] %}
       dnsPolicy: {{cnf["dnsPolicy"]}}
       {% endif %}
-      hostNetwork: true    
+      hostNetwork: true
       nodeSelector:
         repairmanager: active
       containers:
@@ -39,7 +36,7 @@ spec:
         - mountPath: {{cnf["storage-mount-path"]}}/work
           name: dlwsdatawork
         - mountPath: {{cnf["storage-mount-path"]}}/storage
-          name: dlwsdatadata 
+          name: dlwsdatadata
         - mountPath: {{cnf["storage-mount-path"]}}/jobfiles
           name: dlwsdatajobfiles
         - mountPath: {{cnf["dltsdata-storage-mount-path"]}}
@@ -50,14 +47,6 @@ spec:
           name: log
         - mountPath: /etc/RepairManager
           name: backup
-        readinessProbe:
-          failureThreshold: 3
-          initialDelaySeconds: 3
-          periodSeconds: 30
-          successThreshold: 1
-          tcpSocket:
-            port: 9200
-          timeoutSeconds: 10
       {% if cnf["private_docker_registry_username"] %}
       imagePullSecrets:
       - name: svccred
@@ -71,7 +60,7 @@ spec:
           path: /etc/kubernetes/restapi-kubeconfig.yaml
       - name: dlwsdatawork
         hostPath:
-          path: {{cnf["storage-mount-path"]}}/work 
+          path: {{cnf["storage-mount-path"]}}/work
       - name: dlwsdatadata
         hostPath:
           path: {{cnf["storage-mount-path"]}}/storage
