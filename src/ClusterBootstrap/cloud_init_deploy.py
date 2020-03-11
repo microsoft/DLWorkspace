@@ -864,7 +864,6 @@ def render_for_infra_generic(config, args):
     render_mount(config, args)
     render_repairmanager(config)
     gen_pass_secret_script(config)
-    # check user/env vars for cloudinit
 
 
 def get_all_services():
@@ -890,11 +889,9 @@ def get_all_services():
                     yamls = glob.glob("*.yaml")
                     yamlname = yamls[0]
                 with open(yamlname) as f:
-                    content = f.read()
-                    f.close()
-                    if content.find("Deployment") >= 0 or content.find("DaemonSet") >= 0 or content.find("ReplicaSet") >= 0:
-                        # Only add service if it is a daemonset.
-                        servicedic[service] = yamlname
+                    kind = yaml.safe_load(f).get("kind", "no kind")
+                    if kind in ["Deployment", "DaemonSet", "ReplicaSet", "CronJob", "StatefulSet"]:
+                        servicedic[service] = yamlname                        
     return servicedic
 
 
