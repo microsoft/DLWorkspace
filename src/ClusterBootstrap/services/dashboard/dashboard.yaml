@@ -81,7 +81,7 @@ metadata:
   name: letsencrypt
 spec:
   acme:
-    server: https://acme-v02.api.letsencrypt.org/directory
+    server: '{{cnf["acme"]["server"]}}'
     privateKeySecretRef:
       name: letsencrypt
     solvers:
