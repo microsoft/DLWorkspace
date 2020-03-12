@@ -62,10 +62,19 @@ class InspectResult(object):
 
 keys = {
     "PAI_JOB_NAME", "PAI_USER_NAME", "PAI_CURRENT_TASK_ROLE_NAME", "GPU_ID",
-    "PAI_TASK_INDEX", "DLTS_JOB_ID", "DLTS_USER_NAME", "POD_NAME",
+    "PAI_TASK_INDEX", "POD_NAME", "FC_TASK_INDEX", "DLWS_JOB_ID",
+    "DLWS_USER_NAME", "DLWS_USER_EMAIL", "DLWS_VC_NAME", "DLWS_ROLE_NAME",
+    "DLWS_ROLE_IDX", "DLWS_HOST_NETWORK", "DLTS_JOB_ID", "DLTS_USER_NAME",
     "DLTS_USER_EMAIL", "DLTS_VC_NAME", "DLTS_ROLE_NAME", "DLTS_ROLE_IDX",
-    "FC_TASK_INDEX", "DLTS_HOST_NETWORK"
+    "DLTS_HOST_NETWORK"
 }
+
+
+def select_value_with_key(m, keys):
+    for key in keys:
+        if key in m:
+            return m[key]
+    return None
 
 
 def parse_docker_inspect(inspect_output):
@@ -93,19 +102,27 @@ def parse_docker_inspect(inspect_output):
                 m["GPU_ID"] = v
 
     pid = utils.walk_json_field_safe(obj, 0, "State", "Pid")
+    logger.info("m is %s", m)
 
     return InspectResult(
-        m.get("PAI_USER_NAME") or m.get("DLTS_USER_NAME"),
-        m.get("PAI_JOB_NAME") or m.get("DLTS_JOB_ID"),
-        m.get("PAI_CURRENT_TASK_ROLE_NAME") or m.get("DLTS_ROLE_NAME"),
-        m.get("PAI_TASK_INDEX") or m.get("DLTS_ROLE_IDX")
-        or m.get("FC_TASK_INDEX"),
-        m.get("POD_NAME") or m.get("PAI_JOB_NAME"),
+        select_value_with_key(
+            m, ["PAI_USER_NAME", "DLWS_USER_NAME", "DLTS_USER_NAME"]),
+        select_value_with_key(m,
+                              ["PAI_JOB_NAME", "DLWS_JOB_ID", "DLTS_JOB_ID"]),
+        select_value_with_key(
+            m,
+            ["PAI_CURRENT_TASK_ROLE_NAME", "DLWS_ROLE_NAME", "DLTS_ROLE_NAME"
+             ]),
+        select_value_with_key(m, [
+            "PAI_TASK_INDEX", "DLWS_ROLE_IDX", "DLTS_ROLE_IDX", "FC_TASK_INDEX"
+        ]),
+        select_value_with_key(m, ["POD_NAME", "PAI_JOB_NAME"]),
         m.get("GPU_ID"),
         pid,
-        m.get("DLTS_USER_EMAIL"),
-        m.get("DLTS_VC_NAME"),
-        m.get("DLTS_HOST_NETWORK") == "enable",
+        select_value_with_key(m, ["DLWS_USER_EMAIL", "DLTS_USER_EMAIL"]),
+        select_value_with_key(m, ["DLWS_VC_NAME", "DLTS_VC_NAME"]),
+        m.get("DLWS_HOST_NETWORK") == "enable"
+        or m.get("DLTS_HOST_NETWORK") == "enable",
     )
 
 
