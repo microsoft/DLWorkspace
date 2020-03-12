@@ -23,7 +23,7 @@ FILE_MAP_PATH = 'deploy/cloud-config/file_map.yaml'
 
 def load_config_4_ctl(args, command):
     need_deploy_config = False
-    if (command == "svc" and args.nargs[0] in ["render", "configupdate"]) or command in ["render_template", "download"]:
+    if command in ["svc", "render_template", "download"]:
         need_deploy_config = True
     if not args.config and need_deploy_config:
         args.config = ['config.yaml', 'az_complementary.yaml']
@@ -52,12 +52,18 @@ def connect_to_machine(config, args):
 
 
 def run_kubectl(config, args, commands):
+    if not os.path.exists("./deploy/bin/kubectl"):
+        print("please make sure ./deploy/bin/kubectl exists. One way is to use ./ctl.py download")
+        exit(-1)
     one_command = " ".join(commands)
-    nodes, _ = load_node_list_by_role_from_config(config, ["infra"])
+    nodes, _ = load_node_list_by_role_from_config(config, ["infra"], False)
     master_node = random.choice(nodes)
     kube_command = "./deploy/bin/kubectl --server=https://{}:{} --certificate-authority={} --client-key={} --client-certificate={} {}".format(
         config["machines"][master_node]["fqdns"], config["k8sAPIport"], "./deploy/ssl/ca/ca.pem", "./deploy/ssl/kubelet/apiserver-key.pem", "./deploy/ssl/kubelet/apiserver.pem", one_command)
-    output = utils.exec_cmd_local(kube_command, verbose=args.verbose)
+    output = utils.exec_cmd_local(kube_command, verbose=False)
+    if args.verbose:
+        print(kube_command)
+    print(output)
     return output
 
 
@@ -124,7 +130,7 @@ def get_multiple_machines(config, args):
     if invalid_rom:
         print("Warning: invalid roles/machine names detected, the following names \\\
             are neither valid role names nor machines in our cluster: " + ",".join(list(invalid_rom)))
-    nodes, _ = load_node_list_by_role_from_config(config, list(valid_roles))
+    nodes, _ = load_node_list_by_role_from_config(config, list(valid_roles), False)
     return nodes + list(valid_machine_names)
 
 
@@ -153,6 +159,12 @@ def change_kube_service(config, args, operation, service_list):
     assert operation in [
         "start", "stop"] and "you can only start or stop a service"
     kubectl_action = "create" if operation == "start" else "delete"
+    if operation == "start": 
+        render_services(config, service_list)
+    elif not os.path.exists("./deploy/services"):
+        utils.render_template_directory("./services/", "./deploy/services/", config)
+    config.pop("machines", [])
+    config = add_configs_in_order(["status.yaml"], config)
     service2path = update_service_path()
     for service_name in service_list:
         fname = service2path[service_name]
@@ -177,9 +189,9 @@ def change_kube_service(config, args, operation, service_list):
                         "{} -f {}".format(kubectl_action, fname)])
 
 
-def render_services(config, args):
+def render_services(config, service_list):
     '''render services, ./ctl.py svc render <service name, e.g. monitor>'''
-    for svc in args.nargs[1:]:
+    for svc in service_list:
         if not os.path.exists("./services/{}".format(svc)):
             print("Warning: folder of service {} not found under ./services directory")
             continue
@@ -196,6 +208,8 @@ def remote_config_update(config, args):
     assert args.nargs[1] in ["restful_api", "storage_manager",
                              "dashboard"] and "only support updating config file of restfulapi and storagemanager"
     # need to get node list for this subcommand of svc, so load status.yaml
+    if not os.path.exists(FILE_MAP_PATH):
+        utils.render_template("template/cloud-config/file_map.yaml", FILE_MAP_PATH, config)
     with open(FILE_MAP_PATH) as f:
         file_map = yaml.load(f)
     if args.nargs[1] in ["restful_api", "dashboard"]:
@@ -269,7 +283,7 @@ def run_command(args, command):
         elif args.nargs[0] == "stop":
             change_kube_service(config, args, "stop", args.nargs[1:])
         elif args.nargs[0] == "render":
-            render_services(config, args)
+            render_services(config, args.nargs[1:])
         elif args.nargs[0] == "configupdate":
             remote_config_update(config, args)
     if command == "render_template":
