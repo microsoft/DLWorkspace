@@ -71,19 +71,19 @@ spec:
   tls:
     - hosts:
       - '{{cnf["kubernetes_master_node"][0]}}'
-      secretName: domain-tls
+      secretName: dashboard-tls
 
 ---
 
 kind: Issuer
 apiVersion: cert-manager.io/v1alpha2
 metadata:
-  name: letsencrypt
+  name: dashboard
 spec:
   acme:
     server: '{{cnf["acme"]["server"]}}'
     privateKeySecretRef:
-      name: letsencrypt
+      name: dashboard
     solvers:
     - selector: {}
       http01:
@@ -95,10 +95,10 @@ spec:
 kind: Certificate
 apiVersion: cert-manager.io/v1alpha2
 metadata:
-  name: domain-certificate
+  name: dashboard
 spec:
-  secretName: domain-tls
+  secretName: dashboard-tls
   issuerRef:
-    name: letsencrypt
+    name: dashboard
   dnsNames:
   - '{{cnf["kubernetes_master_node"][0]}}'
