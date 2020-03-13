@@ -16,7 +16,7 @@ spec:
         dashboard: active
       containers:
       - name: dashboard
-        image: '{{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}dashboard:{{cnf["dockertag"]}}'
+        image: '{{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/dashboard:{{cnf["dockertag"]}}'
         imagePullPolicy: Always
         env:
         - name: TRUST_PROXY
