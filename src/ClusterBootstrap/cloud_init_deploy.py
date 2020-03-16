@@ -81,10 +81,10 @@ def load_az_params_as_default(config):
     domain_mapping = {"regular": "%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low": config.get(
         "network", {}).get("domain", config["azure_cluster"]["default_low_priority_domain"])}
     config["network"] = {"domain": domain_mapping[config["priority"]]}
-    homo_vmsize = config["machines"][config["worker_node"][0].split('.')[
-        0]]["vm_size"]
-    config['gpu_type'] = config.get("sku_mapping", {}).get(
-        homo_vmsize, {}).get("gpu-type", "None")
+    # homo_vmsize = config["machines"][config["worker_node"][0].split('.')[
+    #     0]]["vm_size"]
+    # config['gpu_type'] = config.get("sku_mapping", {}).get(
+    #     homo_vmsize, {}).get("gpu-type", "None")
     return config
 
 
@@ -232,7 +232,7 @@ def load_default_config(config):
         config["prometheus"]["host"] = None if len(get_node_lists_for_service("prometheus", config)) == 0 \
             else get_node_lists_for_service("prometheus", config)[0]
     config = update_docker_image_config(config)
-
+    config["admin_username"] = config.get("admin_username", config["cloud_config_nsg_rules"]["default_admin_username"])
     config["api_servers"] = "https://" + \
         config["kubernetes_master_node"][0] + ":" + str(config["k8sAPIport"])
 
@@ -267,6 +267,25 @@ def load_default_config(config):
     return config
 
 
+def create_basic_auth_4_k8s(overwrite=False):
+    basic_auth = load_basic_auth()
+    if basic_auth is None or overwrite:
+        os.system("rm -f ./deploy/k8s_basic_auth.yml || true")
+        basic_auth = "{},admin,1000".format(uuid.uuid4().hex[:16])
+        k8s_auth = {"basic_auth": basic_auth}
+        with open('./deploy/k8s_basic_auth.yml', 'w') as f:
+            yaml.dump(k8s_auth, f)
+    return basic_auth
+
+
+def load_basic_auth():
+    if (not os.path.exists('./deploy/k8s_basic_auth.yml')):
+        return None
+    with open('./deploy/k8s_basic_auth.yml', 'r') as f:
+        ID = yaml.safe_load(f).get('basic_auth', None)
+        return ID
+
+
 def create_cluster_id(overwrite=False):
     ID = load_cluster_ID()
     if ID is None or overwrite:
@@ -277,8 +296,6 @@ def create_cluster_id(overwrite=False):
         print("Cluster ID generated: " + clusterId["clusterId"])
         return clusterId["clusterId"]
     else:
-        with open('./deploy/clusterID.yml', 'r') as f:
-            ID = yaml.safe_load(f)['clusterId']
         print('Cluster ID file exists -- ./deploy/clusterID.yml:\n{}'.format(ID))
         return ID
 
@@ -303,12 +320,10 @@ def load_config(args):
         print("Args = {0}".format(args))
     # deploy new cluster or load info of an existing cluster? specify the yaml file to specify explicitly
     config = add_configs_in_order(args.config, config)
+    config = gen_platform_wise_config(config)
     load_node_list_by_role_from_config(
         config, ['infra', 'worker', 'nfs', 'etcd', 'kubernetes_master', 'elasticsearch'])
-    config = gen_platform_wise_config(config)
-
     config = load_default_config(config)
-
     config = get_ssh_config(config)
     configuration(config, args.verbose)
     if args.verbose:
@@ -568,6 +583,7 @@ def render_ETCD(config):
     etcd_server_user = config["etcd_user"]
     config["etcd_node_ip"] = "$ETCDIP"
     config["hostname"] = "$HOSTNAME"
+    config["etcd_node_num"] = len([mv for mv in config["machines"].values() if 'etcd' in mv['role']])
     # docker_etcd.sh not used even in original deployment pipeline, docker_etcd_ssl.sh not used in regular code
     # path of original deployment pipeline, to make it clear, we are not rendering the whole folder
     utils.render_template("./template/etcd/etcd3.cloud.service",
@@ -844,6 +860,7 @@ def render_for_infra_generic(config, args):
     if gen_new_key:
         utils.gen_SSH_key(regenerate_key)
         utils.backup_keys(config["cluster_name"])
+        config["basic_auth"] = create_basic_auth_4_k8s(regenerate_key)
 
     config = GetCertificateProperty(config)
     utils.render_template_directory(
