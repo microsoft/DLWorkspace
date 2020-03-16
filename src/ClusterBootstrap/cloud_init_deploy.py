@@ -500,6 +500,14 @@ def get_kube_labels_of_machine_name(config, node_name):
     return [ky.replace("/", "\\/") + '=' + val.replace("/", "\\/") for ky, val in default_labels.items()]
 
 
+def add_implied_services_based_on_config(config):
+    additional_svcs = []
+    if config.get("job-manager", {}).get("launcher", "") == "controller":
+        additional_svcs.append("launcher")
+        print(additional_svcs)
+    return additional_svcs
+
+
 def render_infra_node_specific(config, args):
     assert config["priority"] in ["regular", "low"]
 
@@ -516,8 +524,9 @@ def render_infra_node_specific(config, args):
     hostname = config["kubernetes_master_node"][0].split(".")[0]
     config["master_ip"] = config["machines"][hostname].get(
         "private-ip", "127.0.0.1")
-    config["kube_services"] = get_services_path_list(
-        config["machines"][hostname].get("kube_services", config["kube_services_2_start"]))
+    service_list = config["machines"][hostname].get("kube_services", config["kube_services_2_start"])
+    service_list = list(set(service_list + add_implied_services_based_on_config(config)))
+    config["kube_services"] = get_services_path_list(service_list)
     config["kube_labels"] = get_kube_labels_of_machine_name(config, hostname)
     # TODO zx: we may need to def get_file_modules_2_copy_by_node_role() to make it more extendable.
     config["file_modules_2_copy"] = ["kubernetes_common", "kubernetes_infra", "etcd",
