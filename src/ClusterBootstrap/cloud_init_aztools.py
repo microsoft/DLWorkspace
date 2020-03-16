@@ -77,11 +77,11 @@ def set_subscription(config):
     subscription = config["azure_cluster"]["subscription"]
 
     chkcmd = "az account list | grep -A5 -B5 '\"isDefault\": true'"
-    output = utils.exec_cmd_local(chkcmd, True)
+    output = utils.exec_cmd_local(chkcmd)
     if not subscription in output:
         setcmd = "az account set --subscription \"{}\"".format(subscription)
         setout = utils.exec_cmd_local(setcmd)
-    assert subscription in utils.exec_cmd_local(chkcmd)
+    assert subscription in utils.exec_cmd_local(chkcmd, True)
 
 
 def create_group(config, args):
