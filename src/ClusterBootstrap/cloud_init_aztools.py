@@ -609,7 +609,7 @@ def add_nsg_rule_whitelist(ips, dry_run=False):
 
     source_address_prefixes = " ".join(list(set(source_address_prefixes)))
 
-    resource_group = config["azure_cluster"]["resource_group_name"]
+    resource_group = config["azure_cluster"]["resource_group"]
     nsg_name = config["azure_cluster"]["nsg_name"]
     tcp_port_ranges = config["cloud_config_nsg_rules"]["tcp_port_ranges"]
 
@@ -634,7 +634,7 @@ def add_nsg_rule_whitelist(ips, dry_run=False):
 
 
 def delete_nsg_rule_whitelist(dry_run=False):
-    resource_group = config["azure_cluster"]["resource_group_name"]
+    resource_group = config["azure_cluster"]["resource_group"]
     nsg_name = config["azure_cluster"]["nsg_name"]
 
     cmd = """
