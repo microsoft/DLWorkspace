@@ -69,25 +69,26 @@ def execute_or_dump_locally(cmd, verbose, dryrun, output_file):
         return output
 
 
-def check_subscription(config):
+def set_subscription(config):
+    if "subscription" not in config["azure_cluster"]:
+        print("No subscription to set")
+        return
+
+    subscription = config["azure_cluster"]["subscription"]
+
     chkcmd = "az account list | grep -A5 -B5 '\"isDefault\": true'"
     output = utils.exec_cmd_local(chkcmd, True)
-    if not config["azure_cluster"]["subscription"] in output:
-        setcmd = "az account set --subscription \"{}\"".format(
-            config["azure_cluster"]["subscription"])
+    if not subscription in output:
+        setcmd = "az account set --subscription \"{}\"".format(subscription)
         setout = utils.exec_cmd_local(setcmd)
-        print("Set your subscription to {}, please login.\nIf you want to specify another subscription, please configure azure_cluster.subscription".format(
-            config["azure_cluster"]["subscription"]))
-        utils.exec_cmd_local("az login")
-    assert config["azure_cluster"]["subscription"] in utils.exec_cmd_local(
-        chkcmd)
+    assert subscription in utils.exec_cmd_local(chkcmd)
 
 
 def create_group(config, args):
     subscription = "--subscription \"{}\"".format(
         config["azure_cluster"]["subscription"]) if "subscription" in config["azure_cluster"] else ""
     if subscription != "":
-        check_subscription(config)
+        set_subscription(config)
     cmd = """az group create --name {} --location {} {}
         """.format(config["azure_cluster"]["resource_group"], config["azure_cluster"]["azure_location"], subscription)
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
@@ -665,6 +666,7 @@ def run_command(command, config, args, nargs):
     if command == "listcluster":
         get_deployed_cluster_info(config, args)
     elif command == "whitelist":
+        set_subscription(config)
         if nargs[0] == "add":
             ips = None if len(nargs) == 1 else nargs[1]
             add_nsg_rule_whitelist(ips, args.dryrun)
