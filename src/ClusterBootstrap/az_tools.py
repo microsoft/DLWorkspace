@@ -309,6 +309,9 @@ def add_nsg_rule_whitelist(ips):
     if ips is not None and ips != "":
         source_address_prefixes += ips.split(",")
 
+    # Safe guard against overlapping IP range
+    source_address_prefixes = utils.keep_widest_subnet(source_address_prefixes)
+
     source_address_prefixes = " ".join(list(set(source_address_prefixes)))
 
     resource_group = config["azure_cluster"]["resource_group_name"]

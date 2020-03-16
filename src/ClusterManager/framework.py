@@ -336,7 +336,7 @@ def gen_containers(job, role):
             "periodSeconds": 10
         },
         "securityContext": {
-            #"runAsUser": job.uid,
+            "runAsUser": 0,
             "privileged": job.is_privileged,
             "capabilities": {
                 "add": ["IPC_LOCK", "SYS_ADMIN"]
