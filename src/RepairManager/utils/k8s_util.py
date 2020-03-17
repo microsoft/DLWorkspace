@@ -48,7 +48,7 @@ def list_namespaced_pod(namespace):
     return api_instance.list_namespaced_pod(namespace)
 
 
-def _get_job_info_from_nodes(nodes, portal_url, cluster_name):
+def get_job_info_from_nodes(nodes, portal_url, cluster_name):
     pods = list_namespaced_pod("default")
     jobs = {}
     for pod in pods.items:
@@ -68,3 +68,21 @@ def _get_job_info_from_nodes(nodes, portal_url, cluster_name):
                     else:
                         jobs[job_id]['node_names'].add(node_name)
     return jobs
+
+
+def get_node_address_info():
+    # map InternalIP to Hostname
+    node_info = list_node()
+    address_map = {}
+    if node_info:
+        for node in node_info.items:
+            internal_ip = None
+            hostname = None
+            for address in node.status.addresses:
+                if address.type == 'InternalIP':
+                    internal_ip = address.address
+                if address.type == 'Hostname':
+                    hostname = address.address
+                address_map[internal_ip] = hostname
+    logging.debug(f'node address map: {address_map}')
+    return address_map

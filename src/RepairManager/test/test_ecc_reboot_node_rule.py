@@ -105,7 +105,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(mock_datetime_two, result_boot_times["192.168.0.2"])
 
 
-    @mock.patch('rules.ecc_detect_error_rule.requests.get')
+    @mock.patch('requests.get')
     @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
@@ -148,7 +148,7 @@ class Testing(unittest.TestCase):
         self.assertEqual("node1", ecc_reboot_node_rule_instance.nodes_ready_for_action[0])
 
 
-    @mock.patch('rules.ecc_detect_error_rule.requests.get')
+    @mock.patch('requests.get')
     @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
@@ -192,7 +192,7 @@ class Testing(unittest.TestCase):
         self.assertTrue("node1" not in rule_alert_handler_instance.rule_cache["ecc_rule"])
 
 
-    @mock.patch('rules.ecc_detect_error_rule.requests.get')
+    @mock.patch('requests.get')
     @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
@@ -297,10 +297,10 @@ class Testing(unittest.TestCase):
         self.assertEqual(3, mock_create_email_for_pause_resume_job.call_count)
 
     @mock.patch('rules.ecc_reboot_node_rule._create_email_for_issue_with_pause_resume_job')
-    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
+    @mock.patch('utils.k8s_util.list_namespaced_pod')
     @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
     @mock.patch('utils.email_util.EmailHandler')
-    @mock.patch('rules.ecc_detect_error_rule.requests.get')
+    @mock.patch('requests.get')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     def test_take_action_pause_failed(self, 
         mock_load_rule_config,

@@ -10,7 +10,7 @@ from actions.migrate_job_action import MigrateJobAction
 from actions.send_alert_action import SendAlertAction
 from datetime import datetime, timedelta, timezone
 from rules_abc import Rule
-from utils import prometheus_url, k8s_util
+from utils import prometheus_util, k8s_util
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -74,7 +74,7 @@ class ECCRebootNodeRule(Rule):
     def check_status(self):
         url = f"http://{self.ecc_config['prometheus']['ip']}:{self.ecc_config['prometheus']['port']}"
         query = self.ecc_config['prometheus']['node_boot_time_query']
-        reboot_url = prometheus_url.format_prometheus_url_query(url, query)
+        reboot_url = prometheus_util.format_url_query(url, query)
 
         try:
             response = requests.get(reboot_url, timeout=10)
@@ -121,7 +121,7 @@ class ECCRebootNodeRule(Rule):
     def take_action(self):
         alert_action = SendAlertAction(self.alert)
         unsuccessful_pause_resume_jobs = {}
-        job_info = k8s_util._get_job_info_from_nodes(
+        job_info = k8s_util.get_job_info_from_nodes(
             nodes=self.nodes_ready_for_action,
             portal_url=self.config['portal_url'],
             cluster_name=self.config['cluster_name'])

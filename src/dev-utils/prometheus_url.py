@@ -28,7 +28,7 @@ if __name__ == "__main__":
             level=logging.INFO)
 
     parser = argparse.ArgumentParser(description="Generate prometheus api url for dev")
-    parser.add_argument("query", help="query to prometheus")
+    parser.add_argument("--query", help="query to prometheus")
     parser.add_argument("--prometheus_url", "-p", default="http://127.0.0.1:9091",
             help="Prometheus url, eg: http://127.0.0.1:9091")
 
