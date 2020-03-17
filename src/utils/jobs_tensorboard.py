@@ -5,12 +5,12 @@ from jinja2 import Environment, FileSystemLoader
 
 def GenTensorboardMeta(jobParams, serviceTemplate, tensorboardAppTemplate):
     ENV = Environment(loader=FileSystemLoader("/"))
-    jobParams["svc-name"] = "tensorboard-"+jobParams["id"]
-    jobParams["app-name"] = "tensorboard-"+jobParams["id"]
+    jobParams["svc-name"] = "tensorboard-" + jobParams["id"]
+    jobParams["app-name"] = "tensorboard-" + jobParams["id"]
     jobParams["port"] = "6006"
     jobParams["port-name"] = "tensorboard"
     jobParams["port-type"] = "TCP"
-    jobParams["tensorboard-id"] = "tensorboard-"+jobParams["id"]
+    jobParams["tensorboard-id"] = "tensorboard-" + jobParams["id"]
 
     template = ENV.get_template(serviceTemplate)
 

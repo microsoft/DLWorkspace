@@ -26,12 +26,7 @@ ResourceType = enum(Cluster=1, VC=2, Job=3)
 INVALID_RANGE_START = 900000000
 INVALID_ID = 999999999
 
-INVALID_INFO = {
-    "uid": INVALID_ID,
-    "gid": INVALID_ID,
-    "groups": [INVALID_ID]
-}
-
+INVALID_INFO = {"uid": INVALID_ID, "gid": INVALID_ID, "groups": [INVALID_ID]}
 
 DEFAULT_CACHE_EXPIRATION = 30 * 60
 DEFAULT_CACHE_SIZE = 10240
@@ -144,7 +139,7 @@ class AuthorizationManager:
 
 
 class ACLManager:
-    # Add/Update a specific access control entry. 
+    # Add/Update a specific access control entry.
     @staticmethod
     def UpdateAce(name, resource, perm, is_deny):
         ret = False
@@ -283,8 +278,8 @@ class ACLManager:
                 acl_cache[res_key] = ret
                 acl_cache.update(identities)
         except Exception as e:
-            logger.error("Failed to get resource acl for %s. Ex: %s",
-                         resource, e)
+            logger.error("Failed to get resource acl for %s. Ex: %s", resource,
+                         e)
         finally:
             if data_handler is not None:
                 data_handler.Close()

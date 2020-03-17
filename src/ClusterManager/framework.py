@@ -35,38 +35,38 @@ class Role(object):
 
 
 class Framework(object):
-    def __init__(self, init_image, labels, annotations, roles, job_id,
-                 pod_name, user_cmd, alias, email, gid, uid, mount_points,
-                 plugins, family_token, vc_name, dns_policy, node_selector,
+    def __init__(self, init_image, labels, annotations, roles, job_id, pod_name,
+                 user_cmd, alias, email, gid, uid, mount_points, plugins,
+                 family_token, vc_name, dns_policy, node_selector,
                  home_folder_host_path, ssh_private_key, ssh_public_keys,
                  is_preemption_allowed, is_host_network, is_host_ipc,
                  is_privileged, is_nccl_ib_disabled, is_debug):
-        self.init_image = init_image  # str, maybe None
-        self.labels = labels  # map
-        self.annotations = annotations  # map
-        self.roles = roles  # a map, key is role name, value is Role object
-        self.job_id = job_id  # str
-        self.pod_name = pod_name  # str
-        self.user_cmd = user_cmd  # str
-        self.alias = alias  # str
-        self.email = email  # str
-        self.gid = gid  # str
-        self.uid = uid  #str
+        self.init_image = init_image # str, maybe None
+        self.labels = labels # map
+        self.annotations = annotations # map
+        self.roles = roles # a map, key is role name, value is Role object
+        self.job_id = job_id # str
+        self.pod_name = pod_name # str
+        self.user_cmd = user_cmd # str
+        self.alias = alias # str
+        self.email = email # str
+        self.gid = gid # str
+        self.uid = uid #str
         self.mount_points = mount_points
         self.plugins = plugins
-        self.family_token = family_token  # str
-        self.vc_name = vc_name  # str
-        self.dns_policy = dns_policy  # str
-        self.node_selector = node_selector  # map
-        self.home_folder_host_path = home_folder_host_path  # str
-        self.ssh_private_key = ssh_private_key  # str
-        self.ssh_public_keys = ssh_public_keys  # list of str
-        self.is_preemption_allowed = is_preemption_allowed  # bool
-        self.is_host_network = is_host_network  # bool
-        self.is_host_ipc = is_host_ipc  # bool
-        self.is_privileged = is_privileged  # bool
-        self.is_nccl_ib_disabled = is_nccl_ib_disabled  # bool
-        self.is_debug = is_debug  # bool
+        self.family_token = family_token # str
+        self.vc_name = vc_name # str
+        self.dns_policy = dns_policy # str
+        self.node_selector = node_selector # map
+        self.home_folder_host_path = home_folder_host_path # str
+        self.ssh_private_key = ssh_private_key # str
+        self.ssh_public_keys = ssh_public_keys # list of str
+        self.is_preemption_allowed = is_preemption_allowed # bool
+        self.is_host_network = is_host_network # bool
+        self.is_host_ipc = is_host_ipc # bool
+        self.is_privileged = is_privileged # bool
+        self.is_nccl_ib_disabled = is_nccl_ib_disabled # bool
+        self.is_debug = is_debug # bool
 
 
 def gen_init_container(job, role):
@@ -76,7 +76,7 @@ def gen_init_container(job, role):
     if job.roles.get("worker") is not None:
         worker_count = job.roles["worker"].task_count
     else:
-        worker_count = 1  # regular job, role will be master
+        worker_count = 1 # regular job, role will be master
 
     envs = [
         {
@@ -119,14 +119,14 @@ def gen_init_container(job, role):
 
     return [{
         "name":
-        "init",
+            "init",
         "imagePullPolicy":
-        "Always",
+            "Always",
         "image":
-        job.init_image,
+            job.init_image,
         "command": ["sh", "/dlts-init/init.sh"],
         "env":
-        envs,
+            envs,
         "volumeMounts": [{
             "mountPath": "/dlts-runtime",
             "name": "dlts-runtime"
@@ -156,7 +156,7 @@ def gen_container_envs(job, role):
     if job.roles.get("worker") is not None:
         worker_count = job.roles["worker"].task_count
     else:
-        worker_count = 1  # regular job, role will be master
+        worker_count = 1 # regular job, role will be master
 
     result = [
         {
@@ -336,7 +336,7 @@ def gen_containers(job, role):
             "periodSeconds": 10
         },
         "securityContext": {
-            #"runAsUser": job.uid,
+            "runAsUser": 0,
             "privileged": job.is_privileged,
             "capabilities": {
                 "add": ["IPC_LOCK", "SYS_ADMIN"]
@@ -419,7 +419,7 @@ def gen_affinity(job, role):
                             }],
                         },
                         "topologyKey":
-                        "failure-domain.beta.kubernetes.io/region",
+                            "failure-domain.beta.kubernetes.io/region",
                     }
                 },
             ]
@@ -500,8 +500,7 @@ def gen_task_role(job, role):
             continue
 
         options = {"container": bf["containerName"]}
-        if bf.get("root_tmppath") is not None and bf.get(
-                "tmppath") is not None:
+        if bf.get("root_tmppath") is not None and bf.get("tmppath") is not None:
             options["tmppath"] = "%s/%s/%s/%s" % (
                 bf["root_tmppath"], job.job_id, job.pod_name, bf["tmppath"])
         if bf.get("mountOptions") is not None:
@@ -563,12 +562,12 @@ def gen_task_role(job, role):
 
     return {
         "name":
-        role.name,
+            role.name,
         "taskNumber":
-        role.task_count,
+            role.task_count,
         "frameworkAttemptCompletionPolicy":
-        gen_completion_policy(role.min_failed_task_count,
-                              role.succeeded_task_count),
+            gen_completion_policy(role.min_failed_task_count,
+                                  role.succeeded_task_count),
         "task": {
             "retryPolicy": {
                 "fancyRetryPolicy": False
@@ -625,17 +624,14 @@ def transform_resource(params, default_cpu_req, default_cpu_limit,
                        default_mem_req, default_mem_limit):
     cpu_req, cpu_limit = transform_req_limit(params.get("cpurequest"),
                                              params.get("cpulimit"),
-                                             default_cpu_req,
-                                             default_cpu_limit)
+                                             default_cpu_req, default_cpu_limit)
     mem_req, mem_limit = transform_req_limit(params.get("memoryrequest"),
                                              params.get("memorylimit"),
-                                             default_mem_req,
-                                             default_mem_limit)
+                                             default_mem_req, default_mem_limit)
     gpu_limit = params.get("gpuLimit", 0)
     gpu_type = params.get("gpuType")
 
-    return Resource(cpu_req, mem_req, cpu_limit, mem_limit, gpu_limit,
-                    gpu_type)
+    return Resource(cpu_req, mem_req, cpu_limit, mem_limit, gpu_limit, gpu_type)
 
 
 def transform_name(name):
@@ -668,8 +664,7 @@ def transform_regular_job(params, cluster_config):
         annotations,
         roles,
         params["jobId"],
-        params[
-            "jobId"],  # pod_name here, should fix this before using blobfuse
+        params["jobId"], # pod_name here, should fix this before using blobfuse
         params["cmd"],
         params["user"],
         params["user_email"],
@@ -723,10 +718,10 @@ def transform_distributed_job(params, cluster_config):
 
     roles = {
         "ps":
-        Role("ps", int(params["numps"]), image, envs, ps_resource, 1, 1),
+            Role("ps", int(params["numps"]), image, envs, ps_resource, 1, 1),
         "worker":
-        Role("worker", int(params["numpsworker"]), image, envs,
-             worker_resource, 1, 1),
+            Role("worker", int(params["numpsworker"]), image, envs,
+                 worker_resource, 1, 1),
     }
 
     labels = params.get("label", {})
@@ -738,8 +733,7 @@ def transform_distributed_job(params, cluster_config):
         annotations,
         roles,
         params["jobId"],
-        params[
-            "jobId"],  # pod_name here, should fix this before using blobfuse
+        params["jobId"], # pod_name here, should fix this before using blobfuse
         params["cmd"],
         params["user"],
         params["user_email"],
@@ -789,23 +783,22 @@ def transform_inference_job(params, cluster_config):
 
     roles = {
         "master":
-        Role("master", 1, image, envs, master_resource, 1, 1),
+            Role("master", 1, image, envs, master_resource, 1, 1),
         "worker":
-        Role("worker", int(params["resourcegpu"]), image, envs,
-             worker_resource, 1, 1),
+            Role("worker", int(params["resourcegpu"]), image, envs,
+                 worker_resource, 1, 1),
     }
 
     labels = params.get("label", {})
     annotations = params.get("annotations", {})
 
     framework = Framework(
-        None,  # init container
+        None, # init container
         labels,
         annotations,
         roles,
         params["jobId"],
-        params[
-            "jobId"],  # pod_name here, should fix this before using blobfuse
+        params["jobId"], # pod_name here, should fix this before using blobfuse
         params["cmd"],
         params["user"],
         params["user_email"],

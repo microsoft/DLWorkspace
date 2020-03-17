@@ -60,13 +60,15 @@ def merge_config(config1, config2):
                 if isinstance(config2[entry], dict):
                     merge_config(config1[entry], config2[entry])
                 else:
-                    print("Error in configuration: %s should be of type %s, but is written as type %s in configuration" % (
-                        entry, type(config1[entry]), type(config2[entry])))
+                    print(
+                        "Error in configuration: %s should be of type %s, but is written as type %s in configuration"
+                        % (entry, type(config1[entry]), type(config2[entry])))
                     exit(1)
             else:
                 config1[entry] = config2[entry]
         else:
             config1[entry] = config2[entry]
+
 
 # Find entries in config1 that does not exist in config2
 
@@ -110,14 +112,15 @@ def update_one_config(config, name, entry, type, defval):
     elif isinstance(val, type):
         config[name] = val
         if verbose:
-            print("config["+name+"]="+str(val))
+            print("config[" + name + "]=" + str(val))
     else:
-        print("Error: Configuration " + name + " needs a " +
-              str(type) + ", but is given:" + str(val))
+        print("Error: Configuration " + name + " needs a " + str(type) +
+              ", but is given:" + str(val))
 
 
 def update_config(config, default_config_mapping):
     apply_config_mapping(config, default_config_mapping)
+
 
 # translate a config entry to another, check type and do format conversion along the way
 
@@ -136,8 +139,10 @@ def translate_config_entry(config, entry, name, type, leading_space=0):
                 print(adj_content)
         else:
             print("In configuration file, " + str(entry) +
-                  " should be type of " + str(type) + ", rather than: " + str(content))
+                  " should be type of " + str(type) + ", rather than: " +
+                  str(content))
             exit()
+
 
 # Certain configuration that is default in system
 

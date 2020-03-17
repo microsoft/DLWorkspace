@@ -201,7 +201,7 @@ def check_pod_status(pod):
 
     try:
         if pod["status"]["phase"] == "Unknown":
-            return "Unknown"  # host is dead/cannot be reached.
+            return "Unknown" # host is dead/cannot be reached.
     except Exception as e:
         pass
 
@@ -235,8 +235,8 @@ def get_pod_pending_detail(pod):
         if "fit failure summary on nodes" in line:
             ret += [
                 item.strip()
-                for item in line.replace("fit failure summary on nodes : ", "")
-                .replace("(.*)", "").strip().split(",")
+                for item in line.replace("fit failure summary on nodes : ", "").
+                replace("(.*)", "").strip().split(",")
             ]
     return ret
 
@@ -360,9 +360,7 @@ def GetJobStatus(jobId):
         elif any([status == "Running" for status in podStatus]):
             output = "Running"
 
-        detail = [
-            get_pod_status(pod) for i, pod in enumerate(podInfo["items"])
-        ]
+        detail = [get_pod_status(pod) for i, pod in enumerate(podInfo["items"])]
 
     return output, detail
 

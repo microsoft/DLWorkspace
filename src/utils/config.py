@@ -4,8 +4,9 @@ from queue import Queue
 import threading
 
 try:
-    f = open(os.path.join(os.path.dirname(
-        os.path.realpath(__file__)), "config.yaml"))
+    f = open(
+        os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                     "config.yaml"))
     config = yaml.full_load(f)
 except Exception:
     config = {}
@@ -13,14 +14,14 @@ except Exception:
 
 
 def GetWorkPath(workpath):
-    workPath = "work/"+workpath
+    workPath = "work/" + workpath
     return workPath
 
 
 def GetStoragePath(jobpath, workpath, datapath):
-    jobPath = "work/"+jobpath
-    workPath = "work/"+workpath
-    dataPath = "storage/"+datapath
+    jobPath = "work/" + jobpath
+    workPath = "work/" + workpath
+    dataPath = "storage/" + datapath
     return jobPath, workPath, dataPath
 
 

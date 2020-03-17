@@ -286,9 +286,12 @@ class InferenceJobParams(JobParams):
                                                  config)
 
     def gen_policy(self):
-        self.policy = make_job_resource_policy(self.sku, 1,  # 1 GPU per worker
-                                               self.config, self.quota,
-                                               self.metadata)
+        self.policy = make_job_resource_policy(
+            self.sku,
+            1, # 1 GPU per worker
+            self.config,
+            self.quota,
+            self.metadata)
 
 
 JOB_PARAMS_MAPPING = {

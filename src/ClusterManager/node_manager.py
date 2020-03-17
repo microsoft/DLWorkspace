@@ -10,8 +10,8 @@ import logging
 import logging.config
 import copy
 
-sys.path.append(os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), "../utils"))
+sys.path.append(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 from cluster_manager import setup_exporter_thread, \
     manager_iteration_histogram, register_stack_trace_dump, \
@@ -44,11 +44,7 @@ def check_cluster_status_change(o_cluster_status, cluster_status):
     if o_cluster_status is None:
         return True
 
-    check_list = [
-        "available_job_num",
-        "gpu_used",
-        "user_status",
-        "node_status"]
+    check_list = ["available_job_num", "gpu_used", "user_status", "node_status"]
     for item in check_list:
         if item not in o_cluster_status or item not in cluster_status or \
                 o_cluster_status[item] != cluster_status[item]:
@@ -131,10 +127,12 @@ def run():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--port", "-p", help="port of exporter", type=int, default=9202)
+    parser.add_argument("--port",
+                        "-p",
+                        help="port of exporter",
+                        type=int,
+                        default=9202)
     args = parser.parse_args()
     setup_exporter_thread(args.port)
 
     run()
-

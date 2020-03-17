@@ -623,7 +623,12 @@ def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
                     job_info["sort_key"])
 
         vc_name = job_info["job"]["vcName"]
-        vc_schedulable = vc_schedulables[vc_name]
+        vc_schedulable = vc_schedulables.get(vc_name)
+        if vc_schedulable is None:
+            logger.warning(
+                "vc %s is not exist as provided by %s, ignore this job",
+                vc_name, job_id)
+            continue
 
         preemption_allowed = job_info.get("preemptionAllowed", False)
         if preemption_allowed:
@@ -809,7 +814,7 @@ def Run(redis_port, target_status):
                             logger.error("unknown job status %s for job %s",
                                          job["jobStatus"], job["jobId"])
             except Exception as e:
-                logger.warning("Process job failed!", exc_info=True)
+                logger.exception("Process jobs failed!")
             finally:
                 try:
                     data_handler.Close()
