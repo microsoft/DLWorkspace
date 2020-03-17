@@ -25,8 +25,9 @@ from authorization import ResourceType, Permission, AuthorizationManager, Identi
 import authorization
 from job_op import KillOp, PauseOp, ResumeOp, ApproveOp
 
-sys.path.append(os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), "../ClusterManager"))
+sys.path.append(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                 "../ClusterManager"))
 
 from job_params_util import make_job_params
 from JobLogUtils import GetJobLog as UtilsGetJobLog
@@ -34,7 +35,6 @@ from JobLogUtils import GetJobLog as UtilsGetJobLog
 DEFAULT_JOB_PRIORITY = 100
 USER_JOB_PRIORITY_RANGE = (100, 200)
 ADMIN_JOB_PRIORITY_RANGE = (1, 1000)
-
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +68,7 @@ def walk_json_field_safe(obj, *fields):
     except:
         return None
 
+
 def base64encode(str_val):
     return base64.b64encode(str_val.encode("utf-8")).decode("utf-8")
 
@@ -75,7 +76,10 @@ def base64encode(str_val):
 def base64decode(str_val):
     return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
-elasticsearch_deployed = isinstance(config.get('elasticsearch'), list) and len(config['elasticsearch']) > 0
+
+elasticsearch_deployed = isinstance(config.get('elasticsearch'),
+                                    list) and len(config['elasticsearch']) > 0
+
 
 def adjust_job_priority(priority, permission):
     priority_range = (DEFAULT_JOB_PRIORITY, DEFAULT_JOB_PRIORITY)
@@ -203,7 +207,9 @@ def SubmitJob(jobParamsJsonStr):
 
     userName = getAlias(jobParams["userName"])
 
-    if not AuthorizationManager.HasAccess(jobParams["userName"], ResourceType.VC, jobParams["vcName"].strip(), Permission.User):
+    if not AuthorizationManager.HasAccess(
+            jobParams["userName"], ResourceType.VC, jobParams["vcName"].strip(),
+            Permission.User):
         ret["error"] = "Access Denied!"
         return ret
 
@@ -220,7 +226,8 @@ def SubmitJob(jobParamsJsonStr):
             ret["error"] = "ERROR: invalided job directory"
             return ret
 
-        if jobParams["jobPath"].startswith("/") or jobParams["jobPath"].startswith("\\"):
+        if jobParams["jobPath"].startswith(
+                "/") or jobParams["jobPath"].startswith("\\"):
             ret["error"] = "ERROR: job directory should not start with '/' or '\\' "
             return ret
 
@@ -243,7 +250,8 @@ def SubmitJob(jobParamsJsonStr):
         ret["error"] = "ERROR: invalided work directory"
         return ret
 
-    if jobParams["workPath"].startswith("/") or jobParams["workPath"].startswith("\\"):
+    if jobParams["workPath"].startswith(
+            "/") or jobParams["workPath"].startswith("\\"):
         ret["error"] = "ERROR: work directory should not start with '/' or '\\' "
         return ret
 
@@ -294,7 +302,7 @@ def SubmitJob(jobParamsJsonStr):
             #    tensorboardParams["cmd"] = match.group(1) + "/worker0" + match.group(2)
 
         tensorboardParams["jobId"] = uniqId
-        tensorboardParams["jobName"] = "tensorboard-"+jobParams["jobName"]
+        tensorboardParams["jobName"] = "tensorboard-" + jobParams["jobName"]
         tensorboardParams["jobPath"] = jobPath
         tensorboardParams["jobType"] = "visualization"
         tensorboardParams["cmd"] = "tensorboard --logdir " + \
@@ -319,7 +327,10 @@ def SubmitJob(jobParamsJsonStr):
                     pass
 
                 permission = Permission.User
-                if AuthorizationManager.HasAccess(jobParams["userName"], ResourceType.VC, jobParams["vcName"].strip(), Permission.Admin):
+                if AuthorizationManager.HasAccess(jobParams["userName"],
+                                                  ResourceType.VC,
+                                                  jobParams["vcName"].strip(),
+                                                  Permission.Admin):
                     permission = Permission.Admin
 
                 priority = adjust_job_priority(priority, permission)
@@ -338,24 +349,17 @@ def get_job_list(username, vc_name, job_owner, num=20):
         with DataHandler() as data_handler:
             if job_owner == "all" and \
                     has_access(username, VC, vc_name, COLLABORATOR):
-                jobs = data_handler.get_union_job_list(
-                    "all",
-                    vc_name,
-                    num,
-                    ACTIVE_STATUS
-                )
+                jobs = data_handler.get_union_job_list("all", vc_name, num,
+                                                       ACTIVE_STATUS)
             else:
-                jobs = data_handler.get_union_job_list(
-                    username,
-                    vc_name,
-                    num,
-                    ACTIVE_STATUS
-                )
+                jobs = data_handler.get_union_job_list(username, vc_name, num,
+                                                       ACTIVE_STATUS)
             for job in jobs:
                 job.pop('jobMeta', None)
     except:
         logger.exception("Exception in getting job list for username %s",
-                         username, exc_info=True)
+                         username,
+                         exc_info=True)
         jobs = []
 
     return jobs
@@ -367,21 +371,14 @@ def get_job_list_v2(username, vc_name, job_owner, num=None):
             if job_owner == "all" and \
                     has_access(username, VC, vc_name, COLLABORATOR):
                 jobs = data_handler.get_union_job_list_v2(
-                    "all",
-                    vc_name,
-                    num,
-                    ACTIVE_STATUS
-                )
+                    "all", vc_name, num, ACTIVE_STATUS)
             else:
                 jobs = data_handler.get_union_job_list_v2(
-                    username,
-                    vc_name,
-                    num,
-                    ACTIVE_STATUS
-                )
+                    username, vc_name, num, ACTIVE_STATUS)
     except:
         logger.exception("Exception in getting job list v2 for username %s",
-                         username, exc_info=True)
+                         username,
+                         exc_info=True)
         jobs = {}
 
     return jobs
@@ -401,7 +398,9 @@ def GetCommands(userName, jobId):
     dataHandler = DataHandler()
     job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName"])
     if job is not None:
-        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Collaborator):
+        if job["userName"] == userName or AuthorizationManager.HasAccess(
+                userName, ResourceType.VC, job["vcName"],
+                Permission.Collaborator):
             commands = dataHandler.GetCommands(jobId=jobId)
     dataHandler.Close()
     return commands
@@ -428,8 +427,8 @@ def op_job(username, job_id, op):
 
     ret = False
     with DataHandler() as data_handler:
-        job = data_handler.GetJobTextFields(
-            job_id, ["userName", "vcName", "jobStatus"])
+        job = data_handler.GetJobTextFields(job_id,
+                                            ["userName", "vcName", "jobStatus"])
 
         if job is None:
             return ret
@@ -437,25 +436,25 @@ def op_job(username, job_id, op):
         allowed, role = get_access_to_job(username, job)
 
         if not allowed:
-            logger.info("%s (%s) attempted to %s job %s",
-                        username, role, op_name, job_id)
+            logger.info("%s (%s) attempted to %s job %s", username, role,
+                        op_name, job_id)
             return ret
 
         job_status = job["jobStatus"]
         if job_status not in from_states:
-            logger.info("%s (%s) attempted to %s a(n) \"%s\" job %s",
-                        username, role, op_name, job_status, job_id)
+            logger.info("%s (%s) attempted to %s a(n) \"%s\" job %s", username,
+                        role, op_name, job_status, job_id)
             return ret
 
         data_fields = {"jobStatus": to_state}
         cond_fields = {"jobId": job_id}
         ret = data_handler.UpdateJobTextFields(cond_fields, data_fields)
         if ret is True:
-            logger.info("%s (%s) successfully %s job %s",
-                        username, role, op_past_tense, job_id)
+            logger.info("%s (%s) successfully %s job %s", username, role,
+                        op_past_tense, job_id)
         else:
-            logger.info("%s (%s) failed to %s job %s",
-                        username, role, op_name, job_id)
+            logger.info("%s (%s) failed to %s job %s", username, role, op_name,
+                        job_id)
     return ret
 
 
@@ -505,14 +504,14 @@ def _op_jobs_in_one_batch(username, job_ids, op, data_handler):
 
         if not allowed:
             result[job_id] = "unauthorized to %s" % op_name
-            logger.info("%s (%s) attempted to %s job %s",
-                        username, role, op_name, job_id)
+            logger.info("%s (%s) attempted to %s job %s", username, role,
+                        op_name, job_id)
             continue
 
         if job_status not in from_states:
             result[job_id] = "cannot %s a(n) \"%s\" job" % (op_name, job_status)
-            logger.info("%s (%s) attempted to %s a(n) \"%s\" job %s",
-                        username, role, op_name, job_status, job_id)
+            logger.info("%s (%s) attempted to %s a(n) \"%s\" job %s", username,
+                        role, op_name, job_status, job_id)
             continue
 
         job_ids_to_op.append(job_id)
@@ -543,13 +542,13 @@ def op_jobs(username, job_ids, op, batch_size=20):
 
     # Partition jobs into processing batches
     batch_starts = range(0, len(job_ids), batch_size)
-    job_id_batches = [job_ids[x:x+batch_size] for x in batch_starts]
+    job_id_batches = [job_ids[x:x + batch_size] for x in batch_starts]
 
     result = {}
     with DataHandler() as data_handler:
         for job_id_batch in job_id_batches:
-            batch_result = _op_jobs_in_one_batch(
-                username, job_id_batch, op, data_handler)
+            batch_result = _op_jobs_in_one_batch(username, job_id_batch, op,
+                                                 data_handler)
             result.update(batch_result)
     return result
 
@@ -575,7 +574,9 @@ def AddCommand(userName, jobId, command):
     ret = False
     job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName"])
     if job is not None:
-        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Collaborator):
+        if job["userName"] == userName or AuthorizationManager.HasAccess(
+                userName, ResourceType.VC, job["vcName"],
+                Permission.Collaborator):
             ret = dataHandler.AddCommand(jobId, command)
     dataHandler.Close()
     return ret
@@ -595,7 +596,9 @@ def GetJobDetail(userName, jobId):
     dataHandler = DataHandler()
     jobs = dataHandler.GetJob(jobId=jobId)
     if len(jobs) == 1:
-        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(
+                userName, ResourceType.VC, jobs[0]["vcName"],
+                Permission.Collaborator):
             job = jobs[0]
             if "jobDescription" in job:
                 job.pop("jobDescription", None)
@@ -610,11 +613,14 @@ def GetJobDetailV2(userName, jobId):
         dataHandler = DataHandler()
         jobs = dataHandler.GetJobV2(jobId)
         if len(jobs) == 1:
-            if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+            if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(
+                    userName, ResourceType.VC, jobs[0]["vcName"],
+                    Permission.Collaborator):
                 job = jobs[0]
     except Exception as e:
         logger.error(
-            "get job detail v2 exception for user: %s, jobId: %s, exception: %s", userName, jobId, str(e))
+            "get job detail v2 exception for user: %s, jobId: %s, exception: %s",
+            userName, jobId, str(e))
     finally:
         if dataHandler is not None:
             dataHandler.Close()
@@ -624,8 +630,8 @@ def GetJobDetailV2(userName, jobId):
 def GetJobStatus(jobId):
     result = None
     dataHandler = DataHandler()
-    result = dataHandler.GetJobTextFields(
-        jobId, ["jobStatus", "jobTime", "errorMsg"])
+    result = dataHandler.GetJobTextFields(jobId,
+                                          ["jobStatus", "jobTime", "errorMsg"])
     dataHandler.Close()
     return result
 
@@ -634,13 +640,18 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
     dataHandler = DataHandler()
     jobs = dataHandler.GetJob(jobId=jobId)
     if len(jobs) == 1:
-        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(
+                userName, ResourceType.VC, jobs[0]["vcName"],
+                Permission.Collaborator):
             if elasticsearch_deployed:
                 (lines, cursor) = UtilsGetJobLog(jobId, cursor, size)
 
                 pod_logs = {}
-                for (pod_name, pod_lines) in itertools.groupby(lines, lambda line: line["_source"]["kubernetes"]["pod_name"]):
-                    pod_logs[pod_name] = ''.join(line["_source"]["log"] for line in pod_lines)                   
+                for (pod_name, pod_lines) in itertools.groupby(
+                        lines,
+                        lambda line: line["_source"]["kubernetes"]["pod_name"]):
+                    pod_logs[pod_name] = ''.join(
+                        line["_source"]["log"] for line in pod_lines)
 
                 return {
                     "log": pod_logs,
@@ -687,8 +698,10 @@ def UpdateAce(userName, identityName, resourceType, resourceName, permissions):
     ret = None
     resourceAclPath = AuthorizationManager.GetResourceAclPath(
         resourceName, resourceType)
-    if AuthorizationManager.HasAccess(userName, resourceType, resourceName, Permission.Admin):
-        ret =  ACLManager.UpdateAce(identityName, resourceAclPath, permissions, 0)
+    if AuthorizationManager.HasAccess(userName, resourceType, resourceName,
+                                      Permission.Admin):
+        ret = ACLManager.UpdateAce(identityName, resourceAclPath, permissions,
+                                   0)
     else:
         ret = "Access Denied!"
     return ret
@@ -698,7 +711,8 @@ def DeleteAce(userName, identityName, resourceType, resourceName):
     ret = None
     resourceAclPath = AuthorizationManager.GetResourceAclPath(
         resourceName, resourceType)
-    if AuthorizationManager.HasAccess(userName, resourceType, resourceName, Permission.Admin):
+    if AuthorizationManager.HasAccess(userName, resourceType, resourceName,
+                                      Permission.Admin):
         ret = ACLManager.DeleteAce(identityName, resourceAclPath)
     else:
         ret = "Access Denied!"
@@ -709,8 +723,8 @@ def AddStorage(userName, vcName, url, storageType, metadata, defaultMountPath):
     ret = None
     dataHandler = DataHandler()
     if AuthorizationManager.IsClusterAdmin(userName):
-        ret = dataHandler.AddStorage(
-            vcName, url, storageType, metadata, defaultMountPath)
+        ret = dataHandler.AddStorage(vcName, url, storageType, metadata,
+                                     defaultMountPath)
     else:
         ret = "Access Denied!"
     dataHandler.Close()
@@ -720,7 +734,8 @@ def AddStorage(userName, vcName, url, storageType, metadata, defaultMountPath):
 def ListStorages(userName, vcName):
     ret = []
     dataHandler = DataHandler()
-    if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.User):
+    if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName,
+                                      Permission.User):
         ret = dataHandler.ListStorages(vcName)
     dataHandler.Close()
     return ret
@@ -729,7 +744,8 @@ def ListStorages(userName, vcName):
 def DeleteStorage(userName, vcName, url):
     ret = None
     dataHandler = DataHandler()
-    if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Admin):
+    if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName,
+                                      Permission.Admin):
         ret = dataHandler.DeleteStorage(vcName, url)
     else:
         ret = "Access Denied!"
@@ -737,12 +753,14 @@ def DeleteStorage(userName, vcName, url):
     return ret
 
 
-def UpdateStorage(userName, vcName, url, storageType, metadata, defaultMountPath):
+def UpdateStorage(userName, vcName, url, storageType, metadata,
+                  defaultMountPath):
     ret = None
     dataHandler = DataHandler()
-    if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Admin):
-        ret = dataHandler.UpdateStorage(
-            vcName, url, storageType, metadata, defaultMountPath)
+    if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName,
+                                      Permission.Admin):
+        ret = dataHandler.UpdateStorage(vcName, url, storageType, metadata,
+                                        defaultMountPath)
     else:
         ret = "Access Denied!"
     dataHandler.Close()
@@ -755,11 +773,7 @@ def AddVC(userName, vcName, quota, metadata):
     if AuthorizationManager.IsClusterAdmin(userName):
         ret = dataHandler.AddVC(vcName, quota, metadata)
         if ret:
-            cacheItem = {
-                "vcName": vcName,
-                "quota": quota,
-                "metadata": metadata
-            }
+            cacheItem = {"vcName": vcName, "quota": quota, "metadata": metadata}
             with vc_cache_lock:
                 vc_cache[vcName] = cacheItem
     else:
@@ -790,7 +804,8 @@ def ListVCs(userName):
     vcList = getClusterVCs()
 
     for vc in vcList:
-        if AuthorizationManager.HasAccess(userName, ResourceType.VC, vc["vcName"], Permission.User):
+        if AuthorizationManager.HasAccess(userName, ResourceType.VC,
+                                          vc["vcName"], Permission.User):
             vc['admin'] = AuthorizationManager.HasAccess(
                 userName, ResourceType.VC, vc["vcName"], Permission.Admin)
             ret.append(vc)
@@ -803,13 +818,11 @@ def get_gpu_idle(vc_name):
     try:
         gpu_idle_url = config["gpu_reporter"] + '/gpu_idle'
         gpu_idle_params = {"vc": vc_name}
-        gpu_idle_response = requests.get(
-            gpu_idle_url, params=gpu_idle_params)
+        gpu_idle_response = requests.get(gpu_idle_url, params=gpu_idle_params)
         gpu_idle_json = gpu_idle_response.json()
         ret = gpu_idle_json
     except Exception:
-        logger.exception("Failed to fetch gpu_idle from "
-                         "gpu-exporter")
+        logger.exception("Failed to fetch gpu_idle from " "gpu-exporter")
     return ret
 
 
@@ -865,27 +878,21 @@ def get_node_status_simplified(node_status):
 
         simplified_node = {
             "name": node.get("name"),
-
             "gpu_capacity": node.get("gpu_capacity"),
             "gpu_allocatable": node.get("gpu_capacity"),
             "gpu_used": node.get("gpu_used"),
             "gpu_preemptable_used": node.get("gpu_preemptable_used"),
-
             "cpu_capacity": node.get("cpu_capacity"),
             "cpu_allocatable": node.get("cpu_allocatable"),
             "cpu_used": node.get("cpu_used"),
             "cpu_preemptable_used": node.get("cpu_preemptable_used"),
-
             "memory_capacity": node.get("memory_capacity"),
             "memory_allocatable": node.get("memory_allocatable"),
             "memory_used": node.get("memory_used"),
             "memory_preemptable_used": node.get("memory_preemptable_used"),
-
             "labels": worker_labels,
-
             "InternalIP": node.get("InternalIP"),
             "unschedulable": node.get("unschedulable"),
-
             "pods": node.get("pods")
         }
         simplified_node_status.append(simplified_node)
@@ -1017,11 +1024,7 @@ def UpdateVC(userName, vcName, quota, metadata):
     if AuthorizationManager.IsClusterAdmin(userName):
         ret = dataHandler.UpdateVC(vcName, quota, metadata)
         if ret:
-            cacheItem = {
-                "vcName": vcName,
-                "quota": quota,
-                "metadata": metadata
-            }
+            cacheItem = {"vcName": vcName, "quota": quota, "metadata": metadata}
             with vc_cache_lock:
                 vc_cache[vcName] = cacheItem
     else:
@@ -1034,10 +1037,11 @@ def GetEndpoints(userName, jobId):
     dataHandler = DataHandler()
     ret = []
     try:
-        job = dataHandler.GetJobTextFields(
-            jobId, ["userName", "vcName", "endpoints"])
+        job = dataHandler.GetJobTextFields(jobId,
+                                           ["userName", "vcName", "endpoints"])
         if job is not None:
-            if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
+            if job["userName"] == userName or AuthorizationManager.HasAccess(
+                    userName, ResourceType.VC, job["vcName"], Permission.Admin):
                 endpoints = {}
                 if job["endpoints"] is not None:
                     endpoints = json.loads(job["endpoints"])
@@ -1055,8 +1059,8 @@ def GetEndpoints(userName, jobId):
                         epItem["podPort"] = endpoint["podPort"]
                     if endpoint["status"] == "running":
                         if endpoint["hostNetwork"]:
-                            port = int(
-                                endpoint["endpointDescription"]["spec"]["ports"][0]["port"])
+                            port = int(endpoint["endpointDescription"]["spec"]
+                                       ["ports"][0]["port"])
                         else:
                             port = int(
                                 walk_json_field_safe(endpoint,
@@ -1084,7 +1088,8 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             msg = "Job %s cannot be found in database" % jobId
             logger.error(msg)
             return msg, 404
-        if job["userName"] != userName and (not AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin)):
+        if job["userName"] != userName and (not AuthorizationManager.HasAccess(
+                userName, ResourceType.VC, job["vcName"], Permission.Admin)):
             msg = "You are not authorized to enable endpoint for job %s" % jobId
             logger.error(msg)
             return msg, 403
@@ -1100,8 +1105,10 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
         if job_type == "RegularJob":
             pod_names.append(jobId)
         else:
-            nums = {"ps": int(job_params["numps"]), "worker": int(
-                job_params["numpsworker"])}
+            nums = {
+                "ps": int(job_params["numps"]),
+                "worker": int(job_params["numpsworker"])
+            }
             for role in ["ps", "worker"]:
                 for i in range(nums[role]):
                     pod_names.append(jobId + "-" + role + str(i))
@@ -1220,8 +1227,8 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             else:
                 logger.info("Endpoint %s exists. Skip.", endpoint_id)
 
-        dataHandler.UpdateJobTextField(
-            jobId, "endpoints", json.dumps(endpoints))
+        dataHandler.UpdateJobTextField(jobId, "endpoints",
+                                       json.dumps(endpoints))
         return endpoints, 200
     except Exception as e:
         logger.error("Get endpoint exception, ex: %s", str(e))
@@ -1273,8 +1280,9 @@ def update_job_priorites(username, job_priorities):
             if job is None:
                 continue
 
-            vc_admin = AuthorizationManager.HasAccess(
-                username, ResourceType.VC, job["vcName"], Permission.Admin)
+            vc_admin = AuthorizationManager.HasAccess(username, ResourceType.VC,
+                                                      job["vcName"],
+                                                      Permission.Admin)
             if job["userName"] != username and (not vc_admin):
                 return False
 
@@ -1314,9 +1322,15 @@ if __name__ == '__main__':
 
     if TEST_SUB_REG_JOB:
         parser = argparse.ArgumentParser(description='Launch a kubernetes job')
-        parser.add_argument('-f', '--param-file', required=True, type=str,
+        parser.add_argument('-f',
+                            '--param-file',
+                            required=True,
+                            type=str,
                             help='Path of the Parameter File')
-        parser.add_argument('-t', '--template-file', required=True, type=str,
+        parser.add_argument('-t',
+                            '--template-file',
+                            required=True,
+                            type=str,
                             help='Path of the Job Template File')
         args, unknown = parser.parse_known_args()
         with open(args.param_file, "r") as f:
@@ -1339,4 +1353,3 @@ if __name__ == '__main__':
 
     if TEST_GET_LOG:
         print(GetLog("tf-i-1483566214-12"))
-

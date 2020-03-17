@@ -45,8 +45,8 @@ def build_docker(dockername, dirname, verbose=False, nocache=False):
 def build_docker_with_config(dockername, config, verbose=False, nocache=False):
     usedockername = dockername.lower()
     build_docker(config["dockers"]["container"][dockername]["name"],
-                 config["dockers"]["container"][dockername]["dirname"],
-                 verbose, nocache)
+                 config["dockers"]["container"][dockername]["dirname"], verbose,
+                 nocache)
 
 
 def push_docker(dockername, docker_register, verbose=False):
@@ -192,7 +192,8 @@ def build_docker_fullname(config, dockername, verbose=False):
             "dockers"]["container"][dockername]["name"]
     dockerprefix = config["dockerprefix"]
     dockertag = config["dockertag"]
-    infra_dockers = config["infrastructure-dockers"] if "infrastructure-dockers" in config else {}
+    infra_dockers = config[
+        "infrastructure-dockers"] if "infrastructure-dockers" in config else {}
     infra_docker_registry = config[
         "infrastructure-dockerregistry"] if "infrastructure-dockerregistry" in config else config[
             "dockerregistry"]
@@ -299,35 +300,38 @@ def config_dockers(rootdir, dockerprefix, dockertag, verbose, config):
                     dockerregistry = worker_docker_registry
             # overwrite dockerregistry if want to use other registry
             if "private_docker_registry" in config:
-                dockerregistry = config["private_docker_registry"].get(dockername, dockerregistry)
+                dockerregistry = config["private_docker_registry"].get(
+                    dockername, dockerregistry)
             usedockername = dockername.lower()
             if "container" not in config["dockers"]:
                 config["dockers"]["container"] = {}
             config["dockers"]["container"][dockername] = {
-                "dirname": os.path.join("./deploy/docker-images", dockername),
+                "dirname":
+                    os.path.join("./deploy/docker-images", dockername),
                 "fullname":
-                '/'.join([dockerregistry, prefix, usedockername]) + ":" + tag,
-                "name": '/'.join([prefix, usedockername]) + ":" + tag,
+                    '/'.join([dockerregistry, prefix, usedockername]) + ":" +
+                    tag,
+                "name":
+                    '/'.join([prefix, usedockername]) + ":" + tag,
             }
         # pxe-ubuntu and pxe-coreos is in template
         for dockername in config["dockers"]["infrastructure"]:
             config["dockers"]["container"][dockername] = {
                 "dirname":
-                os.path.join("./deploy/docker-images", dockername),
+                    os.path.join("./deploy/docker-images", dockername),
                 "fullname":
-                '/'.join([infra_docker_registry, dockerprefix, dockername]) + ":" +
-                dockertag,
+                    '/'.join([infra_docker_registry, dockerprefix, dockername])
+                    + ":" + dockertag,
                 "name":
-                '/'.join([dockerprefix, dockername]) + ":" + dockertag,
+                    '/'.join([dockerprefix, dockername]) + ":" + dockertag,
             }
         # pxe-ubuntu and pxe-coreos is in template
         for dockername in config["dockers"]["external"]:
             usedockername = dockername.lower()
             config["dockers"]["container"][dockername] = {}
             if "fullname" in config["dockers"]["external"][dockername]:
-                config["dockers"]["container"][dockername][
-                    "fullname"] = config["dockers"]["external"][dockername][
-                        "fullname"]
+                config["dockers"]["container"][dockername]["fullname"] = config[
+                    "dockers"]["external"][dockername]["fullname"]
             else:
                 config["dockers"]["container"][dockername][
                     "fullname"] = system_docker_registry + usedockername + ":" + system_docker_tag

@@ -7,7 +7,6 @@ import numbers
 import re
 import math
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -32,35 +31,35 @@ def to_byte(data):
     data = str(data).lower()
     number = float(re.findall(r"[-+]?[0-9]*[.]?[0-9]+", data)[0])
     if "ki" in data:
-        return number * 2 ** 10
+        return number * 2**10
     elif "mi" in data:
-        return number * 2 ** 20
+        return number * 2**20
     elif "gi" in data:
-        return number * 2 ** 30
+        return number * 2**30
     elif "ti" in data:
-        return number * 2 ** 40
+        return number * 2**40
     elif "pi" in data:
-        return number * 2 ** 50
+        return number * 2**50
     elif "ei" in data:
-        return number * 2 ** 60
+        return number * 2**60
     elif "k" in data:
-        return number * 10 ** 3
+        return number * 10**3
     elif "m" in data:
-        return number * 10 ** 6
+        return number * 10**6
     elif "g" in data:
-        return number * 10 ** 9
+        return number * 10**9
     elif "t" in data:
-        return number * 10 ** 12
+        return number * 10**12
     elif "p" in data:
-        return number * 10 ** 15
+        return number * 10**15
     elif "e" in data:
-        return number * 10 ** 18
+        return number * 10**18
     else:
         return number
 
 
 def mbyte(byte):
-    return "%sMi" % int(byte / 2 ** 20)
+    return "%sMi" % int(byte / 2**20)
 
 
 class ResourceStat(object):
@@ -91,9 +90,7 @@ class ResourceStat(object):
         elif not isinstance(params, dict):
             params = {}
 
-        self.res = {
-            k: float(self.convert(v)) for k, v in params.items()
-        }
+        self.res = {k: float(self.convert(v)) for k, v in params.items()}
         self.normalize()
 
     def to_dict(self):
@@ -101,15 +98,13 @@ class ResourceStat(object):
 
     @property
     def floor(self):
-        return self.__class__(params={
-            k: math.floor(v) for k, v in self.res.items()
-        })
+        return self.__class__(
+            params={k: math.floor(v) for k, v in self.res.items()})
 
     @property
     def ceil(self):
-        return self.__class__(params={
-            k: math.ceil(v) for k, v in self.res.items()
-        })
+        return self.__class__(
+            params={k: math.ceil(v) for k, v in self.res.items()})
 
     @override
     def convert(self, data):
@@ -264,8 +259,9 @@ class ResourceStat(object):
                 other_v = other.res.get(k, 0)
                 # Division by zero gives zero
                 if other_v == 0:
-                    logger.warning("Div by 0 at key %s by value %s in other "
-                                   "%s. Set to 0.", k, other_v, other)
+                    logger.warning(
+                        "Div by 0 at key %s by value %s in other "
+                        "%s. Set to 0.", k, other_v, other)
                     result.res[k] = 0
                 else:
                     result.res[k] = self_v / other_v
@@ -299,8 +295,9 @@ class ResourceStat(object):
                 self_v = self.res.get(k, 0)
                 other_v = other.res.get(k, 0)
                 if other_v == 0:
-                    logger.warning("Div by 0 at key %s by value %s in other "
-                                   "%s. Set to 0.", k, other_v, other)
+                    logger.warning(
+                        "Div by 0 at key %s by value %s in other "
+                        "%s. Set to 0.", k, other_v, other)
                     self.res[k] = 0
                 else:
                     self.res[k] = self_v / other_v
@@ -408,15 +405,14 @@ def make_resource(resource_type, params=None):
         else:
             resource = ResourceStat.create(resource_type, params)
     except ValueError:
-        logger.exception("Bad resource type %s",
-                         params,
-                         exc_info=True)
+        logger.exception("Bad resource type %s", params, exc_info=True)
     except Exception:
-        logger.exception("Exception in creating resource of type %s with "
-                         "params %s",
-                         resource_type,
-                         params,
-                         exc_info=True)
+        logger.exception(
+            "Exception in creating resource of type %s with "
+            "params %s",
+            resource_type,
+            params,
+            exc_info=True)
     return resource
 
 
@@ -434,5 +430,3 @@ def dictionarize(d):
         return d
     else:
         return d
-
-

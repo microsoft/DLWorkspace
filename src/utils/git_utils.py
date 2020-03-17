@@ -24,8 +24,9 @@ def github_hash(repo, branch, verbose=True):
         # try as tag
         retObj = getresp("repos/" + repo + "/git/refs/tags/" + branch, verbose)
         if ("object" in retObj and "sha" in retObj["object"]):
-            ret = getresp("repos/" + repo + "/git/tags/" +
-                          retObj["object"]["sha"], verbose)
+            ret = getresp(
+                "repos/" + repo + "/git/tags/" + retObj["object"]["sha"],
+                verbose)
             if ("object" in ret and "sha" in ret["object"]):
                 sha = ret["object"]["sha"]
 
