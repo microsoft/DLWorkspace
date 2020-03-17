@@ -453,7 +453,7 @@ def gen_SSH_key(regenerate_key):
     print("===============================================")
     print("generating ssh key...")
     if regenerate_key:
-        os.system("rm -rf ./deploy/sshkey || true")
+        os.system("rm -rf ./deploy/sshkey")
 
     os.system("mkdir -p ./deploy/sshkey")
     if not os.path.exists("./deploy/sshkey/id_rsa"):
@@ -511,7 +511,7 @@ def execute_backup_to_dir(pname):
     os.system("cp -r ./*.yaml %s" % backup_dir)
     os.system("cp -r ./deploy/sshkey %s" % backup_dir)
     os.system("cp -r ./deploy/ssl %s" % backup_dir)
-    os.system("cp -r ./deploy/clusterID.yml %s/clusterID/" % backup_dir)
+    os.system("cp -r ./deploy/*.yml %s/clusterID/" % backup_dir)
     if os.path.exists("./deploy/acs_kubeclusterconfig"):
         os.system("cp -r ./deploy/acs_kubeclusterconfig %s/" % backup_dir)
 

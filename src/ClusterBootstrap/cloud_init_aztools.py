@@ -272,14 +272,6 @@ def validate_machine_spec(config, spec):
 def gen_machine_list_4_deploy_action(complementary_file_name, config):
     """based on info from config.yaml, generate the expected machine names etc."""
     cc = {}
-    cc["cluster_name"] = config["cluster_name"]
-    cc["useclusterfile"] = True
-    cc["deploydockerETCD"] = False
-    cc["platform-scripts"] = "ubuntu"
-    cc["basic_auth"] = "%s,admin,1000" % uuid.uuid4().hex[:16]
-    domain_mapping = {
-        "regular": "%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"],
-        "low": config.get("network", {}).get("domain", config["azure_cluster"]["default_low_priority_domain"])}
     cc["machines"] = {}
     for spec in config["azure_cluster"]["virtual_machines"]:
         validate_machine_spec(config, spec)
@@ -304,10 +296,6 @@ def gen_machine_list_4_deploy_action(complementary_file_name, config):
                         cc["machines"][vmname]["kube_label_groups"].append(
                             role)
 
-    cc["etcd_node_num"] = len(
-        [mv for mv in list(cc["machines"].values()) if 'infra' in mv['role']])
-    cc["admin_username"] = config["cloud_config_nsg_rules"]["default_admin_username"]
-    cc["network"] = {"domain": domain_mapping[config["priority"]]}
     complementary_file_name = "az_complementary.yaml" if complementary_file_name == '' else complementary_file_name
     with open(complementary_file_name, 'w') as outfile:
         yaml.safe_dump(cc, outfile, default_flow_style=False)
