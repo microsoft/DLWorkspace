@@ -504,23 +504,29 @@ def add_implied_services_based_on_config(config):
     additional_svcs = []
     if config.get("job-manager", {}).get("launcher", "") == "controller":
         additional_svcs.append("launcher")
-        print(additional_svcs)
     return additional_svcs
 
 
-def render_infra_node_specific(config, args):
-    assert config["priority"] in ["regular", "low"]
-
-    config["etcd_endpoints"] = ",".join(
-        ["https://" + x + ":" + config["etcd3port1"] for x in config["etcd_node"]]).replace("/", "\\/")
-
+def nfs_client_config(config):
     with open("./deploy/storage/auto_share/mounting.yaml", 'r') as mf:
         mounting = yaml.safe_load(mf)
     config["mount_and_link"] = []
     for mnt_itm in mounting.values():
         for fs in mnt_itm["fileshares"]:
             config["mount_and_link"] += fs["remote_mount_path"],
+    return config
 
+
+def escaped_etcd_end_point_and_k8s_api_server(config):
+    config["escaped_etcd_endpoints"] = ",".join(
+        ["https://" + x + ":" + config["etcd3port1"] for x in config["etcd_node"]]).replace("/", "\\/")
+    config["escaped_api_servers"] = config["api_servers"].replace("/", "\\/")
+    return config
+
+def render_infra_node_specific(config, args):
+    assert config["priority"] in ["regular", "low"]
+    config = escaped_etcd_end_point_and_k8s_api_server(config)
+    config = nfs_client_config(config)
     hostname = config["kubernetes_master_node"][0].split(".")[0]
     config["master_ip"] = config["machines"][hostname].get(
         "private-ip", "127.0.0.1")
@@ -536,15 +542,8 @@ def render_infra_node_specific(config, args):
 
 
 def render_worker_node_specific(config, args):
-    config["etcd_endpoints"] = ",".join(
-        ["https://" + x + ":" + config["etcd3port1"] for x in config["etcd_node"]]).replace("/", "\\/")
-    config["api_servers"] = config["api_servers"].replace("/", "\\/")
-    with open("./deploy/storage/auto_share/mounting.yaml", 'r') as mf:
-        mounting = yaml.safe_load(mf)
-    config["mount_and_link"] = []
-    for mnt_itm in mounting.values():
-        for fs in mnt_itm["fileshares"]:
-            config["mount_and_link"] += fs["remote_mount_path"],
+    config = escaped_etcd_end_point_and_k8s_api_server(config)
+    config = nfs_client_config(config)
     worker_name = config["worker_node"][0].split(".")[0]
     common_worker_labels = get_kube_labels_of_machine_name(config, worker_name)
     config = get_stat_of_sku(config)
@@ -561,13 +560,26 @@ def render_worker_node_specific(config, args):
                               "./deploy/cloud-config/cloud_init_worker_{}.txt".format(sku), config)
 
 
+def render_elasticsearch_node_specific(config, args):
+    if not "elasticsearch_node" in config or len(config["elasticsearch_node"]) == 0:
+        print("Warning: no elasticsearch node specified, logging service might not work as expected.")
+        return
+    config.pop("mount_and_link", [])
+    config = escaped_etcd_end_point_and_k8s_api_server(config)
+    example_node_name = config["elasticsearch_node"][0].split(".")[0]
+    common_labels = get_kube_labels_of_machine_name(config, example_node_name)
+    default_f2cp = ["kubernetes_common", "kubelet_worker"]
+    config["kube_labels"] = common_labels
+    config["file_modules_2_copy"] = [mod for mod in default_f2cp]
+    utils.render_template("./template/cloud-config/cloud_init_worker.txt.template",
+            "./deploy/cloud-config/cloud_init_elasticsearch.txt", config)
+
+
 def render_nfs_node_specific(config, args):
     assert config["priority"] in ["regular", "low"]
+    config = escaped_etcd_end_point_and_k8s_api_server(config)
     with open("./deploy/storage/auto_share/mounting.yaml", 'r') as mf:
         mounting = yaml.safe_load(mf)
-    config["etcd_endpoints"] = ",".join(
-        ["https://" + x + ":" + config["etcd3port1"] for x in config["etcd_node"]]).replace("/", "\\/")
-    config["api_servers"] = config["api_servers"].replace("/", "\\/")
     default_nfs_f2cp = ["kubernetes_common", "kubelet_worker"]
     for nfs in config["nfs_node"]:
         nfs_machine_name = nfs.split(".")[0]
@@ -991,6 +1003,7 @@ def run_command(args, command, parser):
         render_infra_node_specific(config, args)
         render_worker_node_specific(config, args)
         render_nfs_node_specific(config, args)
+        render_elasticsearch_node_specific(config, args)
     if command == "rendergeneric":
         if args.nargs[0] == 'infra':
             render_for_infra_generic(config, args)
@@ -999,12 +1012,11 @@ def run_command(args, command, parser):
     if command == "rendermount":
         render_mount(config, args)
     if command == "renderspecific":
-        if args.nargs[0] == 'infra':
-            render_infra_node_specific(config, args)
-        if args.nargs[0] == 'worker':
-            render_worker_node_specific(config, args)
-        if args.nargs[0] == 'nfs':
-            render_nfs_node_specific(config, args)
+        if len(args.nargs) == 0:
+            args.nargs = ["infra", "worker", "nfs", "elasticsearch"]
+        for compo in args.nargs:
+            func = eval("render_{}_node_specific".format(compo))
+            func(config, args)
     if command == "pack":
         pack_cloudinit_roles(config, args)
     if command == "docker":

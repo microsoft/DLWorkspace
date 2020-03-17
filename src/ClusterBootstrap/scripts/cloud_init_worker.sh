@@ -15,5 +15,8 @@ source ../boot.env
 ./render_env_vars.sh worker.kubelet.service.template /etc/systemd/system/kubelet.service KUBE_LABELS
 
 bash ./post-worker-deploy.sh
+
+if [ ! -z "$MNT_N_LNK" ]; then
 bash ./fileshare_install.sh
 bash ./mnt_fs_svc.sh
+fi
