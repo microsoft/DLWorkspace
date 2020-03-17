@@ -1,11 +1,20 @@
-FROM ubuntu:18.04 as builder
+FROM ubuntu:16.04 as builder
 
 RUN apt-get update && apt-get install -y wget gzip build-essential
 
 WORKDIR /ssh_build
 
-COPY build-openssh-static.sh /ssh_build
-RUN sh build-openssh-static.sh
+ENV DIST_DIR=/ssh_build/dist ROOT=/ssh_build/root BUILD_DIR=/ssh_build/build
+
+# make it cache friendly
+COPY download.sh  /ssh_build
+RUN sh download.sh
+COPY build_zlib.sh /ssh_build
+RUN sh build_zlib.sh
+COPY build_openssl.sh /ssh_build
+RUN sh build_openssl.sh
+COPY build_ssh.sh /ssh_build/
+RUN sh build_ssh.sh
 
 FROM python:3.8.0-alpine3.10
 
