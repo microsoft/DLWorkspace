@@ -78,7 +78,7 @@ def main(args):
 
     logger.info("spent %s in executing %d cases %s, %d failed %s",
                 datetime.datetime.now() - start, len(case_names), case_names,
-                len(failed), failed)
+                len(failed), ",".join(failed))
 
     if len(failed) > 0:
         sys.exit(1)
