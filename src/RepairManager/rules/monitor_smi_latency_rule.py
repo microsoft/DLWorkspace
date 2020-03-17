@@ -21,8 +21,8 @@ activity_log = logging.getLogger('activity')
 def _create_email_for_dris(impacted_nodes, cluster_name):
     message = MIMEMultipart()
     message['Subject'] = f'Repair Manager Alert [NVIDIA SMI LATENCY TOO LARGE] [{cluster_name}]'
-    body = '<p>95th nvidia-smi call latency is larger than 40s in the following nodes" \
-    "please check the gpu status.</p>'
+    body = '<p>95th nvidia-smi call latency is larger than 40s in the following nodes. ' \
+    'Please check the GPU status.</p>'
     body += f'<table border="1"><tr><th>Node Name</th><th>Instance</th></tr>'
     for node in impacted_nodes:
         body += f'''<tr><td>{node}</td><td>{impacted_nodes[node]}</td></tr>'''
