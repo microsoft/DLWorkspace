@@ -453,7 +453,7 @@ def gen_SSH_key(regenerate_key):
     print("===============================================")
     print("generating ssh key...")
     if regenerate_key:
-        os.system("rm -rf ./deploy/sshkey || true")
+        os.system("rm -rf ./deploy/sshkey")
 
     os.system("mkdir -p ./deploy/sshkey")
     if not os.path.exists("./deploy/sshkey/id_rsa"):

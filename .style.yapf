@@ -1,0 +1,4 @@
+[style]
+based_on_style = google
+spaces_before_comment = 1
+blank_line_before_nested_class_or_def = false

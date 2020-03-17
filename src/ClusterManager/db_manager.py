@@ -14,11 +14,10 @@ from cluster_manager import setup_exporter_thread, \
     register_stack_trace_dump, \
     update_file_modification_time
 
-sys.path.append(os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), "../utils"))
+sys.path.append(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 from DataHandler import DataHandler
-
 
 DAYS_AGO = 1
 logger = logging.getLogger(__name__)
@@ -40,7 +39,7 @@ def delete_old_cluster_status():
     table = "clusterstatus"
     with DataHandler() as data_handler:
         num_rows = data_handler.count_rows(table)
-        if num_rows <= 10:  # Retain 10 rows for safety
+        if num_rows <= 10: # Retain 10 rows for safety
             return
 
         logger.info("Deleting rows from table %s older than %s day(s)", table,
@@ -70,8 +69,11 @@ def run():
 if __name__ == '__main__':
     # TODO: This can be made as a separate service to GC DB and orphaned pods
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--port", "-p", help="port of exporter", type=int, default=9209)
+    parser.add_argument("--port",
+                        "-p",
+                        help="port of exporter",
+                        type=int,
+                        default=9209)
     args = parser.parse_args()
     setup_exporter_thread(args.port)
 

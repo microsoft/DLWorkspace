@@ -92,15 +92,14 @@ class Job:
         # only allow alphanumeric in "name"
         if "name" not in mountpoint or mountpoint["name"] == "":
             mountpoint["name"] = mountpoint["containerPath"]
-        mountpoint["name"] = ''.join(c for c in mountpoint["name"]
-                                     if c.isalnum() or c == "-")
+        mountpoint["name"] = ''.join(
+            c for c in mountpoint["name"] if c.isalnum() or c == "-")
 
         # skip duplicate entry
         # NOTE: mountPath "/data" is the same as "data" in k8s
         for item in self.mountpoints:
-            if item["name"] == mountpoint["name"] or item[
-                    "containerPath"].strip(
-                        "/") == mountpoint["containerPath"].strip("/"):
+            if item["name"] == mountpoint["name"] or item["containerPath"].strip(
+                    "/") == mountpoint["containerPath"].strip("/"):
                 logger.warn(
                     "Current mountpoint: %s is a duplicate of mountpoint: %s" %
                     (mountpoint, item))
@@ -140,10 +139,9 @@ class Job:
 
         for job_mountpoint in self.job_mountpoints:
             if mountpoint == job_mountpoint:
-                logger.warning("mountpoint %s is a duplicate of an existing "
-                               "job mountpoint %s",
-                               mountpoint,
-                               job_mountpoint)
+                logger.warning(
+                    "mountpoint %s is a duplicate of an existing "
+                    "job mountpoint %s", mountpoint, job_mountpoint)
                 return True
         return False
 
@@ -234,7 +232,7 @@ class Job:
                 continue
             vc_mount = {
                 "name": name.lower(),
-                "containerPath": container_path,  # TODO deprecate containerPath
+                "containerPath": container_path, # TODO deprecate containerPath
                 "mountPath": container_path,
                 "hostPath": host_path,
                 "enabled": True,
@@ -258,7 +256,7 @@ class Job:
         for storage in os.listdir(dltsdata_vc_path):
             vc_mountpoint = {
                 "name": ("%s-%s" % (vc_name, storage)).lower(),
-                "containerPath": "/" + storage,  # TODO deprecate containerPath
+                "containerPath": "/" + storage, # TODO deprecate containerPath
                 "mountPath": "/" + storage,
                 "hostPath": os.path.join(dltsdata_vc_path, storage),
                 "enabled": True,

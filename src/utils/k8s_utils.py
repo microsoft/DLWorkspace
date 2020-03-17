@@ -34,8 +34,7 @@ class K8sUtil(object):
             resp = self.core_api.list_namespaced_pod(
                 namespace,
                 pretty=self.pretty,
-                timeout_seconds=self.timeout_seconds
-            )
+                timeout_seconds=self.timeout_seconds)
             logger.debug("Namespaced pods for %s: %s", namespace, resp)
             pods = resp.items
         except ApiException:
@@ -52,9 +51,7 @@ class K8sUtil(object):
         pods = []
         try:
             resp = self.core_api.list_pod_for_all_namespaces(
-                pretty=self.pretty,
-                timeout_seconds=self.timeout_seconds
-            )
+                pretty=self.pretty, timeout_seconds=self.timeout_seconds)
             logger.debug("All pods: %s", resp)
             pods = resp.items
         except ApiException:
@@ -70,10 +67,8 @@ class K8sUtil(object):
         """
         nodes = []
         try:
-            resp = self.core_api.list_node(
-                pretty=self.pretty,
-                timeout_seconds=self.timeout_seconds
-            )
+            resp = self.core_api.list_node(pretty=self.pretty,
+                                           timeout_seconds=self.timeout_seconds)
             logger.debug("All nodes: %s", resp)
             nodes = resp.items
         except ApiException:

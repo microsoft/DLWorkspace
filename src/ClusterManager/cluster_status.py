@@ -7,14 +7,13 @@ import json
 import logging
 import requests
 
-sys.path.append(os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), "../utils"))
+sys.path.append(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 from resource_stat import dictionarize, Gpu, Cpu, Memory
 from cluster_resource import ClusterResource
 from job_params_util import get_resource_params_from_job_params
 from common import base64decode
-
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +102,7 @@ class ClusterStatus(object):
         self.user_statuses_preemptable = None
 
         self.exclusion = [
-            "exclusion",  # exclude self
+            "exclusion", # exclude self
             "jobs",
             "jobs_without_pods",
             "node_statuses",
@@ -116,7 +115,8 @@ class ClusterStatus(object):
 
     def to_dict(self):
         return dictionarize({
-            k: v for k, v in copy.deepcopy(self.__dict__).items()
+            k: v
+            for k, v in copy.deepcopy(self.__dict__).items()
             if k not in self.exclusion
         })
 
@@ -164,15 +164,15 @@ class ClusterStatus(object):
                                      self.__dict__[k], other.__dict__[k])
                         return False
             elif self_val != other_val:
-                logger.debug("For %s: self %s, other %s", k,
-                             self.__dict__[k], other.__dict__[k])
+                logger.debug("For %s: self %s, other %s", k, self.__dict__[k],
+                             other.__dict__[k])
                 return False
 
         return True
 
     def gen_jobs_without_pods(self):
-        self.jobs_without_pods = get_jobs_without_pods(
-            self.jobs, self.pod_statuses)
+        self.jobs_without_pods = get_jobs_without_pods(self.jobs,
+                                                       self.pod_statuses)
 
     def gen_node_status(self):
         self.node_status = [
@@ -237,15 +237,16 @@ class ClusterStatus(object):
                 self.user_statuses[username]["gpu"] += job_res.gpu
                 self.user_statuses[username]["cpu"] += job_res.cpu
                 self.user_statuses[username]["memory"] += job_res.memory
-                logger.info("Added job %s resource %s to used for user %s",
-                            job, job_res, username)
+                logger.info("Added job %s resource %s to used for user %s", job,
+                            job_res, username)
             else:
                 self.user_statuses_preemptable[username]["gpu"] += job_res.gpu
                 self.user_statuses_preemptable[username]["cpu"] += job_res.cpu
                 self.user_statuses_preemptable[username]["memory"] += \
                     job_res.memory
-                logger.info("Added job %s resource %s to preemptable used for "
-                            "user %s", job, job_res, username)
+                logger.info(
+                    "Added job %s resource %s to preemptable used for "
+                    "user %s", job, job_res, username)
 
     @override
     def gen_resource_status(self):
@@ -277,28 +278,23 @@ class ClusterStatus(object):
                 self.gpu_preemptable_used += job_res.gpu
                 self.cpu_preemptable_used += job_res.cpu
                 self.memory_preemptable_used += job_res.memory
-                logger.info("Added job %s resource %s to preemptable used",
-                            job, job_res)
+                logger.info("Added job %s resource %s to preemptable used", job,
+                            job_res)
 
     def gen_user_status(self):
-        self.user_status = [
-            {
-                "userName": username,
-                "userGPU": user_status["gpu"],
-                "userCPU": user_status["cpu"],
-                "userMemory": user_status["memory"]
-            } for username, user_status in self.user_statuses.items()
-        ]
+        self.user_status = [{
+            "userName": username,
+            "userGPU": user_status["gpu"],
+            "userCPU": user_status["cpu"],
+            "userMemory": user_status["memory"]
+        } for username, user_status in self.user_statuses.items()]
 
-        self.user_status_preemptable = [
-            {
-                "userName": username,
-                "userGPU": user_status["gpu"],
-                "userCPU": user_status["cpu"],
-                "userMemory": user_status["memory"]
-            } for username, user_status in
-            self.user_statuses_preemptable.items()
-        ]
+        self.user_status_preemptable = [{
+            "userName": username,
+            "userGPU": user_status["gpu"],
+            "userCPU": user_status["cpu"],
+            "userMemory": user_status["memory"]
+        } for username, user_status in self.user_statuses_preemptable.items()]
 
     def gen_available_job_num(self):
         self.available_job_num = 0
@@ -338,12 +334,11 @@ class ClusterStatus(object):
             preemptable_used += node_preemptable_used
             capacity += node_capacity
 
-        logger.info("Cluster %s status: capacity %s, used %s, "
-                    "preemptable used %s, avail %s, "
-                    "unschedulable %s, reserved %s",
-                    r_name, capacity, used,
-                    preemptable_used, avail,
-                    unschedulable, reserved)
+        logger.info(
+            "Cluster %s status: capacity %s, used %s, "
+            "preemptable used %s, avail %s, "
+            "unschedulable %s, reserved %s", r_name, capacity, used,
+            preemptable_used, avail, unschedulable, reserved)
 
         self.__dict__[r_name + "_capacity"] = capacity
         self.__dict__[r_name + "_used"] = used
@@ -379,8 +374,7 @@ class ClusterStatusFactory(object):
     def make(self):
         try:
             cluster_status = ClusterStatus(self.node_statuses,
-                                           self.pod_statuses,
-                                           self.jobs)
+                                           self.pod_statuses, self.jobs)
         except:
             logger.exception("Failed to create cluster_status")
             cluster_status = None

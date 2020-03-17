@@ -49,6 +49,7 @@ class MountPoint(object):
         def decorator(subclass):
             cls.subclasses[mount_type] = subclass
             return subclass
+
         return decorator
 
     @classmethod
@@ -78,9 +79,7 @@ class MountPoint(object):
         return same_name or same_mount_path
 
     def to_dict(self):
-        ret = {
-            camel(k): v for k, v in self.__dict__.items()
-        }
+        ret = {camel(k): v for k, v in self.__dict__.items()}
         return ret
 
     def __repr__(self):
@@ -128,4 +127,3 @@ def make_mountpoint(params):
                          params,
                          exc_info=True)
     return mountpoint
-

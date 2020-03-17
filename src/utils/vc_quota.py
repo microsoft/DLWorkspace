@@ -1,30 +1,37 @@
 #!/usr/bin/env python3
 import json
 
+
 def vc_value_str(config, ratio_dict):
     if "worker_sku_cnt" not in config or "sku_mapping" not in config:
-        print("Warning: no default value would be added to VC table. Need to manually specify")
+        print(
+            "Warning: no default value would be added to VC table. Need to manually specify"
+        )
         return "", "", [], ""
 
-    worker_sku_cnt, sku_mapping = config["worker_sku_cnt"], config["sku_mapping"]
+    worker_sku_cnt, sku_mapping = config["worker_sku_cnt"], config[
+        "sku_mapping"]
     quota_dict = {}
     old_meta = {}
-    resource_quota = {"cpu":{}, "memory":{}, "gpu":{}, "gpu_memory":{}}
+    resource_quota = {"cpu": {}, "memory": {}, "gpu": {}, "gpu_memory": {}}
     for sku, cnt in worker_sku_cnt.items():
         gpu_type = sku_mapping.get(sku, {}).get("gpu-type", "None")
         num_gpu_per_node = sku_mapping.get(sku, {}).get("gpu", 0)
-        quota_dict[gpu_type] = quota_dict.get(gpu_type, 0) + cnt * num_gpu_per_node
+        quota_dict[gpu_type] = quota_dict.get(gpu_type,
+                                              0) + cnt * num_gpu_per_node
         old_meta[gpu_type] = {"num_gpu_per_node": num_gpu_per_node}
         sku_name_in_map = sku if sku in sku_mapping else ""
         meta_tmp = sku_mapping.get(sku_name_in_map, {})
         for r_type in resource_quota.keys():
-            resource_quota[r_type][sku_name_in_map] = resource_quota[r_type].get(sku_name_in_map, 0) + meta_tmp.get(r_type, 0) * cnt
+            resource_quota[r_type][
+                sku_name_in_map] = resource_quota[r_type].get(
+                    sku_name_in_map, 0) + meta_tmp.get(r_type, 0) * cnt
 
     for r_type in ["cpu", "memory"]:
         for sku, val in resource_quota[r_type].items():
             resource_quota[r_type][sku] *= config.get("schedulable_ratio", 0.9)
 
-    # default value of quota and metadata are based on the assumption that there's only one default VC, this is not reasonable, and 
+    # default value of quota and metadata are based on the assumption that there's only one default VC, this is not reasonable, and
     # these 2 fields would also finally get removed
     quota = json.dumps(quota_dict, separators=(",", ":"))
     metadata = json.dumps(old_meta, separators=(",", ":"))
@@ -56,7 +63,8 @@ def vc_value_str(config, ratio_dict):
             if r_type in ["cpu", "memory"]:
                 tmp_res_meta[sku_name_in_map]["schedulable_ratio"] = 0.9
             if r_type == "gpu":
-                tmp_res_meta[sku_name_in_map]["gpu_type"] = sku_mapping.get(sku_name_in_map, {}).get("gpu-type", "None")
+                tmp_res_meta[sku_name_in_map]["gpu_type"] = sku_mapping.get(
+                    sku_name_in_map, {}).get("gpu-type", "None")
         res_meta_dict[r_type] = tmp_res_meta
     res_meta = json.dumps(res_meta_dict, separators=(",", ":"))
     return quota, metadata, res_quota, res_meta

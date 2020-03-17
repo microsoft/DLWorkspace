@@ -263,24 +263,26 @@ class TestDictionarize(TestCase):
                 "username": "user1",
                 "user_gpu": make_resource("gpu", {"r1": "4"}),
             },
-            "node_status": [
-                {
-                    "gpu_used": make_resource("gpu", {"r1": "6"}),
-                }
-            ],
+            "node_status": [{
+                "gpu_used": make_resource("gpu", {"r1": "6"}),
+            }],
             "none_field": None,
         }
         expected = {
-            "gpu_capacity": {"r1": 8.0},
+            "gpu_capacity": {
+                "r1": 8.0
+            },
             "user_status": {
                 "username": "user1",
-                "user_gpu": {"r1": 4.0},
+                "user_gpu": {
+                    "r1": 4.0
+                },
             },
-            "node_status": [
-                {
-                    "gpu_used": {"r1": 6.0}
+            "node_status": [{
+                "gpu_used": {
+                    "r1": 6.0
                 }
-            ],
+            }],
             "none_field": None,
         }
 

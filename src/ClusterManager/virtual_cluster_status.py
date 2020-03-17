@@ -6,8 +6,8 @@ import logging
 import os
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), "../utils"))
+sys.path.append(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 from resource_stat import Cpu, Memory, Gpu
 from cluster_resource import ClusterResource
@@ -31,8 +31,8 @@ def get_vc_info(vc_list):
 
 
 class VirtualClusterStatus(ClusterStatus):
-    def __init__(self, vc_name, vc_info, cluster_status,
-                 node_statuses, vc_pod_statuses, vc_jobs):
+    def __init__(self, vc_name, vc_info, cluster_status, node_statuses,
+                 vc_pod_statuses, vc_jobs):
         self.vc_name = vc_name
         self.vc_info = vc_info
         self.cluster_status = cluster_status
@@ -43,13 +43,12 @@ class VirtualClusterStatus(ClusterStatus):
             _vc_jobs = self.vc_jobs.get(_vc_name, [])
             _vc_pod_statuses = vc_pod_statuses.get(_vc_name, {})
             self.vc_jobs_without_pods[_vc_name] = get_jobs_without_pods(
-                _vc_jobs, _vc_pod_statuses
-            )
+                _vc_jobs, _vc_pod_statuses)
 
         pod_statuses = self.vc_pod_statuses.get(self.vc_name, {})
         jobs = self.vc_jobs.get(self.vc_name, [])
-        super(VirtualClusterStatus, self).__init__(
-            node_statuses, pod_statuses, jobs)
+        super(VirtualClusterStatus, self).__init__(node_statuses, pod_statuses,
+                                                   jobs)
 
         self.exclusion.append("cluster_status")
         self.exclusion.append("vc_info")
@@ -100,21 +99,24 @@ class VirtualClusterStatus(ClusterStatus):
             pod_statuses = vc_pod_statuses.get(vc_name, {})
 
             for _, pod_status in pod_statuses.items():
-                pod_res = ClusterResource(params={
-                    "cpu": pod_status.get("cpu", Cpu()).to_dict(),
-                    "memory": pod_status.get("memory", Memory()).to_dict(),
-                    "gpu": pod_status.get("gpu", Gpu()).to_dict(),
-                })
+                pod_res = ClusterResource(
+                    params={
+                        "cpu": pod_status.get("cpu", Cpu()).to_dict(),
+                        "memory": pod_status.get("memory", Memory()).to_dict(),
+                        "gpu": pod_status.get("gpu", Gpu()).to_dict(),
+                    })
                 vc_used[vc_name] += pod_res
 
-                pod_preemptable_res = ClusterResource(params={
-                    "preemptable_cpu":
-                        pod_status.get("preemptable_cpu", Cpu()).to_dict(),
-                    "preemptable_memory":
-                        pod_status.get("preemptable_memory", Memory()).to_dict(),
-                    "preemptable_gpu":
-                        pod_status.get("preemptable_gpu", Gpu()).to_dict(),
-                })
+                pod_preemptable_res = ClusterResource(
+                    params={
+                        "preemptable_cpu":
+                            pod_status.get("preemptable_cpu", Cpu()).to_dict(),
+                        "preemptable_memory":
+                            pod_status.get("preemptable_memory", Memory()
+                                          ).to_dict(),
+                        "preemptable_gpu":
+                            pod_status.get("preemptable_gpu", Gpu()).to_dict(),
+                    })
                 vc_preemptable_used[vc_name] += pod_preemptable_res
 
             # Account all jobs without pods in vc
@@ -140,22 +142,19 @@ class VirtualClusterStatus(ClusterStatus):
                 "cpu": cluster.cpu_capacity,
                 "memory": cluster.memory_capacity,
                 "gpu": cluster.gpu_capacity,
-            }
-        )
+            })
         avail = ClusterResource(
             params={
                 "cpu": cluster.cpu_available,
                 "memory": cluster.memory_available,
                 "gpu": cluster.gpu_available,
-            }
-        )
+            })
         reserved = ClusterResource(
             params={
                 "cpu": cluster.cpu_reserved,
                 "memory": cluster.memory_reserved,
                 "gpu": cluster.gpu_reserved,
-            }
-        )
+            })
         return capacity, avail, reserved
 
 
@@ -170,14 +169,11 @@ class VirtualClusterStatusesFactory(object):
             vc_jobs = self.__get_vc_jobs()
 
             vc_statuses = {
-                vc_name: VirtualClusterStatus(
-                    vc_name,
-                    self.vc_info,
-                    self.cluster_status,
-                    self.cluster_status.node_statuses,
-                    vc_pod_statuses,
-                    vc_jobs
-                ) for vc_name in self.vc_info
+                vc_name:
+                VirtualClusterStatus(vc_name, self.vc_info, self.cluster_status,
+                                     self.cluster_status.node_statuses,
+                                     vc_pod_statuses, vc_jobs)
+                for vc_name in self.vc_info
             }
         except:
             logger.exception("Failed to make vc statuses")

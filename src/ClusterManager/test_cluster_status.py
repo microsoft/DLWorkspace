@@ -7,8 +7,8 @@ from unittest import TestCase
 from cluster_status import str2bool, ClusterStatus, ClusterStatusFactory
 from cluster_test_utils import BaseTestClusterSetup
 
-sys.path.append(os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), "../utils"))
+sys.path.append(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 
 class TestUtils(TestCase):
