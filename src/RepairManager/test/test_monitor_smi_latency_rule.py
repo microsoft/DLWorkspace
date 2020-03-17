@@ -112,7 +112,7 @@ class Testing(unittest.TestCase):
 
 
     @mock.patch('requests.get')
-    @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
+    @mock.patch('rules.monitor_smi_latency_rule.MonitorSMILatencyRule.load_latency_config')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     def test_clean_expired_items_in_rule_cache(self,
