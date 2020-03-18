@@ -51,7 +51,7 @@ def connect_to_machine(config, args):
                       ["admin_username"], config["machines"][node]["fqdns"])
 
 
-def run_kubectl(config, args, commands):
+def run_kubectl(config, args, commands, need_output=False):
     if not os.path.exists("./deploy/bin/kubectl"):
         print("please make sure ./deploy/bin/kubectl exists. One way is to use ./ctl.py download")
         exit(-1)
@@ -60,11 +60,14 @@ def run_kubectl(config, args, commands):
     master_node = random.choice(nodes)
     kube_command = "./deploy/bin/kubectl --server=https://{}:{} --certificate-authority={} --client-key={} --client-certificate={} {}".format(
         config["machines"][master_node]["fqdns"], config["k8sAPIport"], "./deploy/ssl/ca/ca.pem", "./deploy/ssl/kubelet/apiserver-key.pem", "./deploy/ssl/kubelet/apiserver.pem", one_command)
-    output = utils.exec_cmd_local(kube_command, verbose=False)
     if args.verbose:
         print(kube_command)
-    print(output)
-    return output
+    if need_output:
+        output = utils.exec_cmd_local(kube_command, verbose=False)
+        print(output)
+        return output
+    else:
+        os.system(kube_command)
 
 
 def run_script(node, ssh_cert, adm_usr, nargs, sudo=False, noSupressWarning=True):
@@ -142,9 +145,9 @@ def parallel_action_by_role(config, args, func):
 
 def verify_all_nodes_ready(config, args):
     """
-    return unready nodes
+    return unready nodes, used for contiguous integration(CI)
     """
-    nodes_info_raw = run_kubectl(config, args, ["get nodes"])
+    nodes_info_raw = run_kubectl(config, args, ["get nodes"], True)
     ready_machines = set([entry.split("Ready")[0].strip()
                           for entry in nodes_info_raw.split('\n')[1:]])
     expected_nodes = set(config["machines"].keys())
