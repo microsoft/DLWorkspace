@@ -43,6 +43,8 @@ spec:
 
 ---
 
+{% if cnf["dashboard"]["for-cluster"] %}
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -70,6 +72,8 @@ data:
       wiki: https://aka.ms/dltsuserwiki_v2
 
 ---
+
+{% endif %}
 
 kind: Service
 apiVersion: v1

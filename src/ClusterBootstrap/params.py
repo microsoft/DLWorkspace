@@ -309,6 +309,11 @@ default_config_parameters = {
         "container-network-iprange": "192.168.0.1/24",
     },
 
+    "dashboard": {
+        # If "for-cluster" is False, we have to generate dashboard configmap manually.
+        "for-cluster": True,
+    },
+
 
     "localdisk": {
         # The following pair of options control how local disk is formated and
