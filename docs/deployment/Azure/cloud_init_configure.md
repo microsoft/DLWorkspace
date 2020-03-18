@@ -151,13 +151,20 @@ watchdog:
 
 prometheus:
   cluster_name: <cluster name>
+  alerting:
+    kill-idle:
+      VC1: 4
+      VC2: 12
 
 job-manager:
   notifier:
     cluster: <cluster name>
     alert-manager-url: <url like http://localhost:9093/alert-manager>
+  launcher: controller
 
 datasource: MySQL
+mysql_node: <could be fqdn of an integrated database, justanexample.westus2.cloudapp.azure.com>
+mysql_username: <root if mysql_node option above is not configured>
 mysql_password: <password>
 WinbindServers: []
 
@@ -187,6 +194,14 @@ cloud_config_nsg_rules:
       - "r.f.0.0/16"
     port: "22"
 
+private_docker_registry: 
+  cloudinit: <docker registry for cloudinit, since that docker image contains some sensitive information>
+
+private_docker_credential:
+  <private docker registry>:
+    username: <private docker username>
+    password: <private docker password>
+
 registry_credential:
   <docker registry name 1>:
     username: <docker registry username 1>
@@ -195,6 +210,39 @@ registry_credential:
     username: <docker registry username 2>
     password: <docker registry password 2>
   ...
+
+infiniband_mounts:
+  - name: rdma-cm
+    hostPath: /dev/infiniband/rdma_cm
+    containerPath: /dev/infiniband/rdma_cm
+  - name: ib-uverbs0
+    hostPath: /dev/infiniband/uverbs0
+    containerPath: /dev/infiniband/uverbs0
+  - name: ib-issm0
+    hostPath: /dev/infiniband/issm0
+    containerPath: /dev/infiniband/issm0
+  - name: ib-umad0
+    hostPath: /dev/infiniband/umad0
+    containerPath: /dev/infiniband/umad0
+  - name: ib-uverbs0
+    hostPath: /dev/infiniband/uverbs0
+    containerPath: /dev/infiniband/umad0
+
+# Enable azure blobfuse
+enable_blobfuse: True
+
+# Local fast storage mountpoint
+local_fast_storage: /mnt/local_fast_storage
+
+# Enable custom docker registry secrets, this is for user of the cluster, not developers who deployed the cluster
+enable_custom_registry_secrets: True
+
+integration-test:
+  azure-blob:
+    account: <account>
+    key: <key>
+    container: <container>
+
 ```
 
 Each item in `cnf["azure_cluster"]["virtual_machines"]` means spec for a set of machines, the properties of which are explained as follows: 
