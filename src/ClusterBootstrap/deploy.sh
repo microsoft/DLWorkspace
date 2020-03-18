@@ -1,7 +1,8 @@
 #!/bin/bash
 rm -rf deploy/* cloudinit* az_complementary.yaml
-# render
+# prepare clusterID
 ./cloud_init_deploy.py clusterID
+# render a machine list which is to be deployed
 ./cloud_init_aztools.py prerender
 # render templates and prepare binaries
 ./cloud_init_deploy.py render
@@ -9,9 +10,9 @@ rm -rf deploy/* cloudinit* az_complementary.yaml
 ./cloud_init_deploy.py pack
 # push dockers
 ./cloud_init_deploy.py docker servicesprerequisite
-# deploy the cluster
+# execute a deployment action based on the rendered files and machine list got in prerender
 ./cloud_init_aztools.py -v deploy
-# deploy
+# connect the nodes inside the cluster
 ./cloud_init_aztools.py interconnect
-# get status
+# get status of the cluster
 ./cloud_init_aztools.py listcluster
