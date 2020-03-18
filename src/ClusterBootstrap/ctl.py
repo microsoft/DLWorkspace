@@ -26,7 +26,7 @@ def load_config_4_ctl(args, command):
     if command in ["svc", "render_template", "download"]:
         need_deploy_config = True
     if not args.config and need_deploy_config:
-        args.config = ['config.yaml', 'az_complementary.yaml']
+        args.config = ['config.yaml', 'status.yaml']
         config = load_deploy_config(args)
         # for configupdate, need extra step to load status.yaml
     else:
@@ -219,17 +219,12 @@ def remote_config_update(config, args):
         render_func = {"restful_api": render_restfulapi,
                        "dashboard": render_webui}
         render_func[args.nargs[1]](config)
-        # pop out the machine list in az_complementary.yaml, which describe action instead of status
-        config.pop("machines", [])
-        config = add_configs_in_order(["status.yaml"], config)
         infra_nodes, _ = load_node_list_by_role_from_config(config, ["infra"], False)
         src_dst_list = [file_map[args.nargs[1]][0]
                         ["src"], file_map[args.nargs[1]][0]["dst"]]
         execute_in_parallel(config, infra_nodes, src_dst_list,
                             args.sudo, copy2_wrapper, noSupressWarning=args.verbose)
     elif args.nargs[1] == "storage_manager":
-        config.pop("machines", [])
-        config = add_configs_in_order(["status.yaml"], config)
         nfs_nodes, _ = load_node_list_by_role_from_config(config, ["nfs"], False)
         if args.roles_or_machine == ['nfs'] or not args.roles_or_machine:
             nodes_2_update = nfs_nodes
@@ -313,7 +308,7 @@ if __name__ == '__main__':
             connect  connect to a machine in the deployed cluster
     '''))
     parser.add_argument('-cnf', '--config', action='append', default=[], help='Specify the config files you want to load, later ones \
-        would overwrite former ones, e.g., -cnf config.yaml -cnf az_complementary.yaml')
+        would overwrite former ones, e.g., -cnf config.yaml -cnf status.yaml')
     parser.add_argument('-i', '--in', action='append',
                         default=[], help='Files to take as input')
     parser.add_argument('-o', '--out', help='File to dump to as output')
