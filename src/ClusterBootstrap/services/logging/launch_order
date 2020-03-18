@@ -1,4 +1,4 @@
 elasticsearch.yaml
-fluentd-config.yaml
-fluentd.yaml
+fluent-bit-config.yaml
+fluent-bit.yaml
 kibana.yaml
