@@ -249,7 +249,7 @@ export const DirectoryPathTextField: React.FC<{
   );
 }
 
-const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
+const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
   const styles = useStyles();
   const [activeJobs, setActiveJobs] = useState(0);
   const [available, setAvailable] = useState(0);
@@ -260,7 +260,7 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
   const [activate,setActivate] = useState(false);
   const { email } = React.useContext(UserContext);
   const {selectedTeam} = React.useContext(TeamsContext);
-  const fetchDiretoryUrl = `api/clusters/${cluster}`;
+  const fetchDiretoryUrl = `api/clusters/${clusterId}`;
   const request = useFetch(fetchDiretoryUrl);
   const fetchDirectories = async () => {
     const data = await request.get('');
@@ -273,7 +273,7 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
   const requestClusterStatus = useFetch(fetchClusterStatusUrl);
   const fetchClusterStatus = async () => {
     setActivate(false);
-    const data = await requestClusterStatus.get(`/teams/${selectedTeam}/clusters/${cluster}`);
+    const data = await requestClusterStatus.get(`/teams/${selectedTeam}/clusters/${clusterId}`);
     return data;
   }
   const [nfsStorage, setNfsStorage] = useState([]);
@@ -427,14 +427,14 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
   return (
     <Card>
       <CardHeader
-        title={cluster}
+        title={clusterId}
         titleTypographyProps={{
           component: "h3",
           variant: "body2",
           noWrap: true
         }}
         subheader={` ${activeJobs} Active Jobs`}
-        action={<ActionIconButton cluster={cluster}/>}
+        action={<ActionIconButton cluster={clusterId}/>}
         classes={{ content: styles.cardHeaderContent }}
       />
       <CardContent className={styles.chart}>
@@ -470,13 +470,13 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
       </CardContent>
       <CardActions>
         <Button component={Link}
-          to={{pathname: "/submission/training-cluster", state: { cluster } }}
+          to={{pathname: "/submission/training-cluster", state: { cluster: clusterId } }}
           size="small" color="secondary"
         >
           Submit Training Job
         </Button>
         <Button component={Link}
-          to={{pathname: "/submission/data", state: { cluster } }}
+          to={{pathname: "/submission/data", state: { cluster: clusterId } }}
           size="small" color="secondary"
         >
           Submit Data Job
@@ -497,4 +497,4 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
   );
 };
 
-export default GPUCard;
+export default ClusterCard;
