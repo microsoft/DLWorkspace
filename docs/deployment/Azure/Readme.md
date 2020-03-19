@@ -55,9 +55,9 @@ Enter mysql, use `show databases` to list db, and run:
 
 Add following entries for users:
 
-INSERT INTO \`acl\` (\`id\`, \`identityName\`, \`identityId\`, \`resource\`, \`permissions\`, \`isDeny\`) VALUES (2, '<user account>', <uid>, 'Cluster', <3 for general users, 7 for cluster managers who is maintaining the cluster>, 0);
+    INSERT INTO \`acl\` (\`id\`, \`identityName\`, \`identityId\`, \`resource\`, \`permissions\`, \`isDeny\`) VALUES (2, '<user account>', <uid>, 'Cluster', <3 for general users, 7 for cluster managers who is maintaining the cluster>, 0);
 
-INSERT INTO \`identity\` (\`id\`, \`identityName\`, \`uid\`, \`gid\`, \`groups\`) VALUES (2, '<user account>', <uid>, <gid>, < group info, e.g. `"[\"CCSAdmins\", \"MicrosoftUsers\"]"`);
+    INSERT INTO \`identity\` (\`id\`, \`identityName\`, \`uid\`, \`gid\`, \`groups\`) VALUES (2, '<user account>', <uid>, <gid>, < group info, e.g. `"[\"CCSAdmins\", \"MicrosoftUsers\"]"`);
 
 Then after existing the mysql docker container, we need to refresh the RestfulAPI cache:
 `kubectl get pods` to get RestfulAPI pod, then run

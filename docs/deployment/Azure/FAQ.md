@@ -16,7 +16,7 @@ Please refer to [this](../knownissues/Readme.md) for more general deployment iss
 
 ## I cannot ssh to the node when my devbox is a physical server instead of a virtual one.
 
-* Source IP address in config.yaml should probably be public IP, which could be derived by ```curl ifconfig.me```, instead of private IP you use to ssh to the devbox deriving from ```hostname -I```. If you cannot even ssh to the node after creating it, try to first set a new rule in Azure portal, allowing any source and destination IP, and set destination portal ranges to 22. Then ssh to the node, and type ```who``` to get the actual IP that is used to login to the node. Delete the temporary rule and in Networking setting, add <broaden IP>/16 to valid source IP, where <broaden IP> is the ```who``` IP with last two numbers set to 0. (e.g., 167.220.2.105 to 167.220.0.0/16)
+* Source IP address in config.yaml should probably be public IP, which could be derived by ```curl ifconfig.me```, instead of private IP you use to ssh to the devbox deriving from ```hostname -I```. If you cannot even ssh to the node after creating it, try to first set a new rule in Azure portal, allowing any source and destination IP, and set destination portal ranges to 22. Then ssh to the node, and type ```who``` to get the actual IP that is used to login to the node. Delete the temporary rule and in Networking setting, add `<broaden IP>/16` to valid source IP, where `<broaden IP>` is the ```who``` IP with last two numbers set to 0. (e.g., 167.220.2.105 to 167.220.0.0/16)
 
 ## How do I know the node has been deployed?
 
