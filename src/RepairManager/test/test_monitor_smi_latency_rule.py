@@ -130,7 +130,7 @@ class Testing(unittest.TestCase):
         }
 
         large_latency_rule_instance = monitor_smi_latency_rule.MonitorSMILatencyRule(alert, rule_config)
-        large_latency_rule_instance.clean_expired_items_in_rule_cache
+        large_latency_rule_instance.clean_expired_items_in_rule_cache()
 
         self.assertEqual(1, len(alert.rule_cache))
         self.assertTrue("node2" in alert.rule_cache["large_latency_rule"])

@@ -59,14 +59,17 @@ class MonitorSMILatencyRule(Rule):
 
 
     def clean_expired_items_in_rule_cache(self):
+        expired_nodes = []
         if self.rule in self.alert.rule_cache:
             for node in self.alert.rule_cache[self.rule]:
                 time_found_string = self.alert.rule_cache[self.rule][node]["time_found"]
                 time_found_datetime = datetime.strptime(time_found_string, self.config['date_time_format'])
-                alert_delta = timedelta(days=self.latency_config.get("hours_until_alert_expiration", 4))
+                alert_delta = timedelta(hours=self.latency_config.get("hours_until_alert_expiration", 4))
                 now = datetime.utcnow()
                 if now - time_found_datetime > alert_delta:
-                    self.alert.remove_from_rule_cache()
+                    expired_nodes.append(node)
+        for node in expired_nodes:
+            self.alert.remove_from_rule_cache(self.rule, node)
 
 
     def check_status(self):
