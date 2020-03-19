@@ -20,6 +20,7 @@ data:
 
     @INCLUDE input-kubernetes.conf
     @INCLUDE filter-kubernetes.conf
+    @INCLUDE filter-time_nsec.conf
     @INCLUDE output-elasticsearch.conf
 
   input-kubernetes.conf: |
@@ -45,6 +46,21 @@ data:
         Merge_Log_Key       log_processed
         K8S-Logging.Parser  On
         K8S-Logging.Exclude Off
+
+  filter-time_nsec.conf: |
+    [FILTER]
+        NAME         lua
+        Match        kube.*
+        Script       time_nsec.lua
+        Call         time_nsec
+        Type_int_key time_nsec
+
+  time_nsec.lua: |
+    function time_nsec(tag, timestamp, record)
+      sec, nsec = math.modf(timestamp)
+      record['time_nsec'] = nsec * 1e9
+      return 1, timestamp, record
+    end
 
   output-elasticsearch.conf: |
     [OUTPUT]
