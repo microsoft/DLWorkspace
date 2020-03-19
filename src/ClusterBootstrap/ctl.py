@@ -28,7 +28,6 @@ def load_config_4_ctl(args, command):
     if not args.config and need_deploy_config:
         args.config = ['config.yaml', 'status.yaml']
         config = load_deploy_config(args)
-        # for configupdate, need extra step to load status.yaml
     else:
         if not args.config and command != "restorefromdir":
             args.config = ['status.yaml']

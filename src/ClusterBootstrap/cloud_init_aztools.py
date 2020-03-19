@@ -29,8 +29,10 @@ def load_config_based_on_command(command):
     config_file_list = args.config
     if not args.config:
         config_file_list = ["config.yaml"]
-        if command in ["deploy", "interconnect"]:
-            config_file_list += "az_complementary.yaml",
+        if command in ["deploy", "interconnect", "addmachines"]:
+            config_file_list.append("az_complementary.yaml")
+        if command == "delete_nodes":
+            config_file_list.append("status.yaml")
     config = add_configs_in_order(config_file_list, default_config)
     if command not in ["prerender"]:
         config = update_config_resgrp(config)
@@ -317,7 +319,36 @@ def add_machines(config, args):
     if os.path.exists(args.output):
         os.system('chmod +x ' + args.output)
     if delay_run:
-        outputs = add_machine_in_parallel(commands_list, args)
+        outputs = execute_cmd_local_in_parallel(commands_list, args)
+    if not args.dryrun:
+        get_deployed_cluster_info(config, args)
+        vm_interconnects(config, args)
+    if delay_run:
+        return outputs
+
+
+def delete_az_vms(config, args, machine_list):
+    os.system('rm -f ' + args.output)
+    delay_run = (args.batch_size > 1) and (not args.dryrun)
+    commands_list = []
+    for vmname in machine_list:
+        vm_spec = get_defalut_vm_info_json(config, vmname, False)
+        delete_cmds = []
+        delete_cmds.append('az vm delete -g {} -n {} --yes'.format(config["azure_cluster"]["resource_group"], vmname))
+        # Nic must be deleted first, then public IP
+        delete_cmds.append('az resource delete -g {} -n {}VMNic --resource-type Microsoft.Network/networkInterfaces'.format(config["azure_cluster"]["resource_group"], vmname))
+        delete_cmds.append('az resource delete -g {} -n {}PublicIP --resource-type Microsoft.Network/publicIPAddresses'.format(config["azure_cluster"]["resource_group"], vmname))
+        for disk in vm_spec["storageProfile"]["dataDisks"]:
+            delete_cmds.append('az resource delete -g {} -n {} --resource-type Microsoft.Compute/disks'.format(config["azure_cluster"]["resource_group"], disk["name"]))
+        delete_cmds.append('az resource delete -g {} -n {} --resource-type Microsoft.Compute/disks'.format(config["azure_cluster"]["resource_group"], vm_spec["storageProfile"]["osDisk"]["name"]))
+        for cmd in delete_cmds:
+            execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+            if delay_run:
+                commands_list.append(cmd)
+    if os.path.exists(args.output):
+        os.system('chmod +x ' + args.output)
+    if delay_run:
+        outputs = execute_cmd_local_in_parallel(commands_list, args)
         return outputs
 
 
@@ -326,7 +357,7 @@ def is_independent_nfs(role):
     return "nfs" in role and not (set(["infra", "etcd", "kubernetes_master"]) & set(role))
 
 
-def add_machine_in_parallel(cmds, args):
+def execute_cmd_local_in_parallel(cmds, args):
     tuples = [(utils.exec_cmd_local, cmd, args.verbose, 600 * args.batch_size)
               for cmd in cmds]
     res = utils.multiprocess_with_func_arg_tuples(args.batch_size, tuples)
@@ -476,6 +507,14 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
     return cmd
 
 
+def get_defalut_vm_info_json(config, vmname, verbose=True):
+    cmd = """ az vm show -d -g %s -n %s""" % (
+            config["azure_cluster"]["resource_group"], vmname)
+    output1 = utils.exec_cmd_local(cmd, verbose)
+    az_vm_spec = json.loads(output1)
+    return az_vm_spec
+
+
 def list_vm(config, verbose=True):
     cmd = """
         az vm list --resource-group %s
@@ -486,23 +525,20 @@ def list_vm(config, verbose=True):
     for onevm in allvm:
         vmname = onevm["name"]
         print("VM ... %s" % vmname)
-        cmd1 = """ az vm show -d -g %s -n %s""" % (
-            config["azure_cluster"]["resource_group"], vmname)
-        output1 = utils.exec_cmd_local(cmd1, verbose)
-        json1 = json.loads(output1)
-        vminfo[vmname] = json1
+        vminfo[vmname] = get_defalut_vm_info_json(config, vmname, verbose)
         if verbose:
-            print(json1)
+            print(vminfo[vmname])
     return vminfo
 
 
 def vm_interconnects(config, args):
-    vminfo = list_vm(config, False)
+    with open("status.yaml") as f:
+        vminfo = yaml.safe_load(f)
     ip_list, infra_ip_list = [], []
-    for name, onevm in vminfo.items():
-        ip_list.append(onevm["publicIps"] + "/32")
-        if 'infra' in onevm['tags']['role']:
-            infra_ip_list.append(onevm["publicIps"] + "/32")
+    for name, onevm in vminfo["machines"].items():
+        ip_list.append(onevm["public_ip"] + "/32")
+        if 'infra' in onevm['role']:
+            infra_ip_list.append(onevm["public_ip"] + "/32")
     allowed_incoming_ips = " ".join(ip_list)
     cmd = """
         az network nsg rule create \
@@ -544,6 +580,7 @@ def get_deployed_cluster_info(config, args):
     for name, spec in vminfo.items():
         brief_spec = {}
         brief_spec["admin_username"] = spec["osProfile"]["adminUsername"]
+        brief_spec["vm_size"] = spec["hardwareProfile"]["vmSize"]
         brief_spec["public_ip"] = spec["publicIps"]
         brief_spec["private_ip"] = spec["privateIps"]
         brief_spec["fqdns"] = spec["fqdns"]
@@ -642,6 +679,34 @@ def delete_nsg_rule_whitelist(dry_run=False):
         print(output)
 
 
+def delete_k8s_nodes(node_list):
+    for node in node_list:
+        os.system('./ctl.py kubectl delete node {}'.format(node))
+
+
+def delete_specified_or_cordoned_idling_nodes(config, args):
+    if args.node_list:
+        nodes2delete = args.node_list
+    else:
+        busy_cmd = "./ctl.py kubectl get pods -l type=job -o jsonpath='{.items[*].spec.nodeName}'"
+        output = utils.exec_cmd_local(busy_cmd)
+        busy_nodes = output.split()
+        cordoned_cmd = "./ctl.py kubectl get nodes --no-headers | grep SchedulingDisabled | awk '{print $1}'"
+        cordoned_output = utils.exec_cmd_local(cordoned_cmd)
+        # would be [] if no such node
+        cordoned_nodes = cordoned_output.split()
+        cordoned_idling = set(cordoned_nodes) - set(busy_nodes)
+        nodes2delete = cordoned_idling
+        if args.verbose:
+            print("Node list not specified, would delete cordoned idling worker nodes by default")
+    if args.verbose:
+        print("Deleting following nodes:\n", nodes2delete)
+    delete_az_vms(config, args, nodes2delete)
+    if not args.dryrun:
+        delete_k8s_nodes(nodes2delete)
+        get_deployed_cluster_info(config, args)
+
+
 def run_command(command, config, args, nargs):
     if command == "prerender":
         gen_machine_list_4_deploy_action(args.output, config)
@@ -656,14 +721,15 @@ def run_command(command, config, args, nargs):
         vm_interconnects(config, args)
     if command == "listcluster":
         get_deployed_cluster_info(config, args)
-    elif command == "whitelist":
+    if command == "whitelist":
         set_subscription(config)
         if nargs[0] == "add":
             ips = None if len(nargs) == 1 else nargs[1]
             add_nsg_rule_whitelist(ips, args.dryrun)
         elif nargs[0] == "delete":
             delete_nsg_rule_whitelist(args.dryrun)
-        
+    if command == "delete_nodes":
+        delete_specified_or_cordoned_idling_nodes(config, args)
 
 if __name__ == "__main__":
     dirpath = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
@@ -691,6 +757,7 @@ Command:
                         help="Additional command argument")
     parser.add_argument('-cnf', '--config', action='append', help='Specify the config files you want to load, later ones \
         would overwrite former ones, e.g., -cnf config.yaml -cnf az_complementary.yaml')
+    parser.add_argument('-n', '--node_list', action='append', help='Node list')
     parser.add_argument('-b', '--batch_size', type=int, default=8,
                         help='batch size that we add machines')
     parser.add_argument('-wt', '--wait_time', type=int, default=360,
