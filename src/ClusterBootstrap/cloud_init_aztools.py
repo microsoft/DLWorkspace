@@ -625,6 +625,58 @@ def add_nsg_rule_whitelist(ips, dry_run=False):
         print(output)
 
 
+def remove_nsg_rule_whitelist(ips, dry_run=False):
+    # Assume ips is a comma separated string if valid
+    if ips is not None and ips != "":
+        ips = ips.split(",")
+
+    resource_group = config["azure_cluster"]["resource_group"]
+    nsg_name = config["azure_cluster"]["nsg_name"]
+
+    cmd = """
+        az network nsg rule show \
+            --resource-group %s \
+            --nsg-name %s \
+            --name whitelist
+        """ % (resource_group,
+               nsg_name)
+
+    output = utils.exec_cmd_local(cmd)
+    data = json.loads(output)
+
+    source_address_prefixes = []
+    source_address_prefix = data.get("sourceAddressPrefix")
+    if source_address_prefix is not None:
+        source_address_prefixes.append(source_address_prefix)
+
+    source_address_prefixes = data.get("sourceAddressPrefixes")
+    if source_address_prefixes is not None:
+        source_address_prefixes.append(source_address_prefixes)
+
+    new_source_address_prefixes = []
+    for prefix in source_address_prefixes:
+        if prefix not in ips:
+            new_source_address_prefixes.append(prefix)
+
+    if len(new_source_address_prefixes) == 0:
+        print("Nothing will be left in whitelist, please use delete command!")
+        return
+
+    cmd = """
+        az network nsg rule update \
+            --resource-group %s \
+            --nsg-name %s \
+            --name whitelist \
+            --source-address-prefixes %s 
+        """ % (resource_group,
+               nsg_name,
+               new_source_address_prefixes)
+
+    if not dry_run:
+        output = utils.exec_cmd_local(cmd)
+        print(output)
+
+
 def delete_nsg_rule_whitelist(dry_run=False):
     resource_group = config["azure_cluster"]["resource_group"]
     nsg_name = config["azure_cluster"]["nsg_name"]
@@ -661,6 +713,9 @@ def run_command(command, config, args, nargs):
         if nargs[0] == "add":
             ips = None if len(nargs) == 1 else nargs[1]
             add_nsg_rule_whitelist(ips, args.dryrun)
+        elif nargs[0] == "remove":
+            ips = None if len(nargs) == 1 else nargs[1]
+            remove_nsg_rule_whitelist(ips, args.dryrun)
         elif nargs[0] == "delete":
             delete_nsg_rule_whitelist(args.dryrun)
         
