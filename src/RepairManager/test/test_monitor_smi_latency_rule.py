@@ -9,20 +9,6 @@ from rules import monitor_smi_latency_rule
 from rules.monitor_smi_latency_rule import MonitorSMILatencyRule
 from utils import k8s_util, rule_alert_handler, test_util
 
-def _mock_latency_config():
-    mock_latency_config = {
-            "prometheus": {
-                "ip": "localhost",
-                "port": 9091,
-                "smi_latency_too_large_query":
-                    "histogram_quantile(0.95, sum(rate(cmd_nvidia_smi_latency_seconds_bucket[5m])) " \
-                    "BY (le, instance)) > 40"
-            },
-            "dri_email": "dri@email.com",
-            "hours_until_alert_expiration": 4
-        }
-    return mock_latency_config
-
 def _mock_prometheus_latency_data():
     mock_prometheus_latency_data = {
         "status": "success",
@@ -58,7 +44,7 @@ class Testing(unittest.TestCase):
 
         mock_rule_config = test_util.mock_rule_config()
         mock_rule_alert_handler_load_config.return_value = mock_rule_config
-        mock_load_latency_config.return_value = _mock_latency_config()
+        mock_load_latency_config.return_value = test_util.mock_latency_config()
         mock_rule_alert_handler = rule_alert_handler.RuleAlertHandler()
         mock_request_get.return_value.json.return_value = _mock_prometheus_latency_data()
         mock_list_node.return_value = test_util.mock_v1_node_list([
@@ -91,7 +77,7 @@ class Testing(unittest.TestCase):
             mock_create_email_for_dris):
         mock_rule_config = test_util.mock_rule_config()
         mock_load_rule_config.return_value = mock_rule_config
-        mock_load_ecc_config.return_value = _mock_latency_config()
+        mock_load_ecc_config.return_value = test_util.mock_latency_config()
 
         alert = rule_alert_handler.RuleAlertHandler()
         latency_rule_instance = MonitorSMILatencyRule(alert, mock_rule_config)
@@ -124,7 +110,7 @@ class Testing(unittest.TestCase):
         rule_config = test_util.mock_rule_config()
         mock_load_rule_config.return_value = rule_config
 
-        mock_ecc_config.return_value = _mock_latency_config()
+        mock_ecc_config.return_value = test_util.mock_latency_config()
         mock_ecc_config.return_value["hours_until_alert_expiration"] = 4
 
         time_one_hours_ago = datetime.utcnow() - timedelta(hours=1)

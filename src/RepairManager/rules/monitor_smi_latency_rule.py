@@ -43,7 +43,7 @@ class MonitorSMILatencyRule(Rule):
 
 
     def load_latency_config(self):
-        with open('/etc/RepairManager/config/large-latency-config.yaml', 'r') as file:
+        with open('/etc/RepairManager/config/latency-config.yaml', 'r') as file:
             return yaml.safe_load(file)
 
 
@@ -72,8 +72,8 @@ class MonitorSMILatencyRule(Rule):
     def check_status(self):
         self.clean_expired_items_in_rule_cache()
 
-        url = f"http://{self.latency_config['prometheus']['ip']}:{self.latency_config['prometheus']['port']}"
-        query = self.latency_config['prometheus']['smi_latency_too_large_query']
+        url = f"http://{self.config['prometheus']['ip']}:{self.config['prometheus']['port']}"
+        query = self.config['prometheus']['large_latency_query']
         ecc_url = prometheus_util.format_url_query(url, query)
 
         try:

@@ -87,8 +87,8 @@ class ECCDetectErrorRule(Rule):
 
 
     def check_status(self):
-        url = f"http://{self.ecc_config['prometheus']['ip']}:{self.ecc_config['prometheus']['port']}"
-        query = self.ecc_config['prometheus']['ecc_error_query']
+        url = f"http://{self.config['prometheus']['ip']}:{self.config['prometheus']['port']}"
+        query = self.config['prometheus']['ecc_error_query']
         ecc_url = prometheus_util.format_url_query(url, query)
 
         try:

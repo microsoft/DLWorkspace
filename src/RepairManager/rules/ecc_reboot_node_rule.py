@@ -72,8 +72,8 @@ class ECCRebootNodeRule(Rule):
 
 
     def check_status(self):
-        url = f"http://{self.ecc_config['prometheus']['ip']}:{self.ecc_config['prometheus']['port']}"
-        query = self.ecc_config['prometheus']['node_boot_time_query']
+        url = f"http://{self.config['prometheus']['ip']}:{self.config['prometheus']['port']}"
+        query = self.config['prometheus']['node_boot_time_query']
         reboot_url = prometheus_util.format_url_query(url, query)
 
         try:
@@ -131,7 +131,7 @@ class ECCRebootNodeRule(Rule):
             job_owner_email = f"{job_owner}@{self.config['job_owner_email_domain']}"
             node_names = job_info[job_id]["node_names"]
             job_link = job_info[job_id]['job_link']
-            rest_url = self.ecc_config["rest_url"]
+            rest_url = self.config["rest_url"]
             max_attempts = self.ecc_config.get("attempts_for_pause_resume_jobs", 5)
             wait_time = self.ecc_config.get("time_sleep_after_pausing", 30)
             reboot_enabled = self.ecc_config["enable_reboot"]

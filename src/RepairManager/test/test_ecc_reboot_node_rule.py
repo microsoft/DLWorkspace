@@ -5,55 +5,7 @@ import unittest
 import mock
 from datetime import datetime, timedelta, timezone
 from rules import ecc_reboot_node_rule
-from utils import rule_alert_handler
-from kubernetes.client.models.v1_pod_list import V1PodList
-from kubernetes.client.models.v1_pod import V1Pod
-from kubernetes.client.models.v1_object_meta import V1ObjectMeta
-from kubernetes.client.models.v1_pod_spec import V1PodSpec
-
-def _mock_v1_pod(jobId, userName, vcName, nodeName):
-    pod = V1Pod()
-    pod.metadata = V1ObjectMeta()
-    pod.metadata.labels = {
-        "jobId": jobId,
-        "type": "job",
-        "userName": userName,
-        "vcName": vcName
-    }
-    pod.spec = V1PodSpec(containers=[])
-    pod.spec.node_name = nodeName
-    return pod
-
-
-def _mock_rule_config():
-    rule_config = {
-        "cluster_name": "mock-cluster",
-        "portal_url": "dltshub.example.com",
-        "job_owner_email_domain": "example.com",
-        "restore_from_rule_cache_dump": False,
-        "date_time_format": "%Y-%m-%d %H:%M:%S.%f"
-    }
-
-    return rule_config
-
-def _mock_ecc_config():
-    ecc_config = {
-        "enable_reboot": True,
-        "enable_alert_job_owners": True,
-        "prometheus": {
-            "ip": "localhost",
-            "port": 9091,
-            "node_boot_time_query": 'node_boot_time_seconds'
-        },
-        "dri_email": 'dri@example.com',
-        "rest_url": "http://localhost:5000",
-        "time_sleep_after_pausing": 0,
-        "attempts_for_pause_resume_job": 1,
-        "days_until_node_reboot": 5,
-    }
-
-    return ecc_config
-
+from utils import rule_alert_handler, test_util
 
 def _mock_prometheus_node_boot_time_response(node_boot_times):
     mock_response = {
@@ -115,10 +67,10 @@ class Testing(unittest.TestCase):
             mock_ecc_config,
             mock_request_get):
 
-        rule_config = _mock_rule_config()
+        rule_config = test_util.mock_rule_config()
         mock_load_rule_config.return_value = rule_config
 
-        mock_ecc_config.return_value = _mock_ecc_config()
+        mock_ecc_config.return_value = test_util.mock_ecc_config()
         mock_ecc_config.return_value["days_until_node_reboot"] = 5
 
         time_six_days_ago = datetime.utcnow() - timedelta(days=6)
@@ -158,10 +110,10 @@ class Testing(unittest.TestCase):
             mock_ecc_config,
             mock_request_get):
 
-        rule_config = _mock_rule_config()
+        rule_config = test_util.mock_rule_config()
         mock_load_rule_config.return_value = rule_config
 
-        mock_ecc_config.return_value = _mock_ecc_config()
+        mock_ecc_config.return_value = test_util.mock_ecc_config()
         mock_ecc_config.return_value["days_until_node_reboot"] = 5
 
         time_one_days_ago = datetime.utcnow() - timedelta(days=1)
@@ -202,10 +154,10 @@ class Testing(unittest.TestCase):
         mock_ecc_config,
         mock_request_get):
 
-        rule_config = _mock_rule_config()
+        rule_config = test_util.mock_rule_config()
         mock_load_rule_config.return_value = rule_config
 
-        mock_ecc_config.return_value = _mock_ecc_config()
+        mock_ecc_config.return_value = test_util.mock_ecc_config()
         mock_ecc_config.return_value["days_until_node_reboot"] = 5
 
         time_two_days_ago = datetime.utcnow() - timedelta(days=2)
@@ -247,12 +199,12 @@ class Testing(unittest.TestCase):
         mock_get_requests,
         mock_email_handler,
         mock_load_ecc_config,
-        mock_list_pods):
+        mock_pod_list):
 
-        rule_config = _mock_rule_config()
+        rule_config = test_util.mock_rule_config()
         mock_load_rule_config.return_value = rule_config
 
-        mock_load_ecc_config.return_value = _mock_ecc_config()
+        mock_load_ecc_config.return_value = test_util.mock_ecc_config()
         mock_load_ecc_config.return_value["alert_job_owners"] = True
 
         mock_get_requests.return_value.json.side_effect = [
@@ -278,19 +230,34 @@ class Testing(unittest.TestCase):
 
         rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
         rule_alert_handler_instance.rule_cache["ecc_rule"] = {
-            "node1": {"instance": "192.168.0.1:9090"},
-            "node2": {"instance": "192.168.0.2:9090"},
-            "node3": {"instance": "192.168.0.3:9090"}
+            "mock-worker-one": {"instance": "192.168.0.1:9090"},
+            "mock-worker-two": {"instance": "192.168.0.2:9090"},
+            "mock-worker-three": {"instance": "192.168.0.3:9090"}
         }
 
-        pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
-        pod_two = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node1")
-        pod_three = _mock_v1_pod("99999999-efgh", "user3", "vc3", "node3")
-        mock_pod_list = V1PodList(items=[pod_one, pod_two, pod_three])
-        mock_list_pods.return_value = mock_pod_list
+        mock_pod_list.return_value = test_util.mock_v1_pod_list([
+            {
+                "job_name": "87654321-wxyz",
+                "user_name": "user1",
+                "vc_name": "vc1",
+                "node_name": "mock-worker-one"
+            },
+            {
+                "job_name": "12345678-abcd",
+                "user_name": "user2",
+                "vc_name": "vc2",
+                "node_name": "mock-worker-one"
+            },
+            {
+                "job_name": "99999999-efgh",
+                "user_name": "user3",
+                "vc_name": "vc3",
+                "node_name": "mock-worker-three"
+            }
+        ])
 
         ecc_reboot_node_rule_instance = ecc_reboot_node_rule.ECCRebootNodeRule(rule_alert_handler_instance, rule_config)
-        ecc_reboot_node_rule_instance.nodes_ready_for_action = ["node1", "node3"]
+        ecc_reboot_node_rule_instance.nodes_ready_for_action = ["mock-worker-one", "mock-worker-three"]
 
         ecc_reboot_node_rule_instance.take_action()
 
@@ -310,25 +277,28 @@ class Testing(unittest.TestCase):
         mock_list_pods,
         mock_create_email_for_issue_with_pause_resume_job):
 
-        rule_config = _mock_rule_config()
+        rule_config = test_util.mock_rule_config()
         mock_load_rule_config.return_value = rule_config
 
-        mock_load_ecc_config.return_value = _mock_ecc_config()
+        mock_load_ecc_config.return_value = test_util.mock_ecc_config()
         mock_load_ecc_config.return_value["alert_job_owners"] = True
 
         mock_get_requests.return_value.json.return_value = {"result": "Sorry, something went wrong."}
 
         rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
         rule_alert_handler_instance.rule_cache["ecc_rule"] = {
-            "node1": {"instance": "192.168.0.1:9090"}
+            "mock-worker-one": {"instance": "192.168.0.1:9090"}
         }
-
-        pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
-        mock_pod_list = V1PodList(items=[pod_one])
-        mock_list_pods.return_value = mock_pod_list
+        mock_list_pods.return_value = test_util.mock_v1_pod_list([
+            {
+                "job_name": "87654321-wxyz",
+                "user_name": "user1",
+                "vc_name": "vc1",
+                "node_name": "mock-worker-one"
+            }])
 
         ecc_reboot_node_rule_instance = ecc_reboot_node_rule.ECCRebootNodeRule(rule_alert_handler_instance, rule_config)
-        ecc_reboot_node_rule_instance.nodes_ready_for_action = ["node1"]
+        ecc_reboot_node_rule_instance.nodes_ready_for_action = ["mock-worker-one"]
 
         ecc_reboot_node_rule_instance.take_action()
 

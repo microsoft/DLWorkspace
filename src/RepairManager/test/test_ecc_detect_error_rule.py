@@ -9,21 +9,6 @@ from rules import ecc_detect_error_rule
 from rules.ecc_detect_error_rule import ECCDetectErrorRule
 from utils import k8s_util, rule_alert_handler, test_util
 
-def _mock_ecc_config():
-    mock_ecc_config = {
-            "enable_cordon": True,
-            "enable_reboot": True,
-            "enable_alert_job_owners": True,
-            "prometheus": {
-                "ip": "localhost",
-                "port": 9091,
-                "ecc_error_query": 'nvidiasmi_ecc_error_count{type="volatile_double"}>0'
-            },
-            "dri_email": "dri@email.com",
-            "days_until_node_reboot": 5
-        }
-    return mock_ecc_config
-
 def _mock_prometheus_latency_data():
     mock_prometheus_latency_data = {
             "status":
@@ -77,7 +62,7 @@ class Testing(unittest.TestCase):
 
         mock_rule_config = test_util.mock_rule_config()
         mock_rule_alert_handler_load_config.return_value = mock_rule_config
-        mock_load_ecc_config.return_value = _mock_ecc_config()
+        mock_load_ecc_config.return_value = test_util.mock_ecc_config()
         mock_rule_alert_handler = rule_alert_handler.RuleAlertHandler()
         mock_request_get.return_value.json.return_value = _mock_prometheus_latency_data()
         mock_list_node.return_value = test_util.mock_v1_node_list([
@@ -114,7 +99,7 @@ class Testing(unittest.TestCase):
 
         mock_rule_config = test_util.mock_rule_config()
         mock_rule_alert_handler_load_config.return_value = mock_rule_config
-        mock_load_ecc_config.return_value = _mock_ecc_config()
+        mock_load_ecc_config.return_value = test_util.mock_ecc_config()
         mock_rule_alert_handler = rule_alert_handler.RuleAlertHandler()
         # nodes already detected in previous run
         mock_rule_alert_handler.rule_cache = {
@@ -156,7 +141,7 @@ class Testing(unittest.TestCase):
             mock_list_node,
             mock_rule_alert_handler,
             mock_get_node_address_info):
-        mock_load_ecc_config.return_value = _mock_ecc_config()
+        mock_load_ecc_config.return_value = test_util.mock_ecc_config()
 
         mock_request_get.return_value.json.return_value = test_util.mock_empty_prometheus_metric_data()
 
@@ -184,7 +169,7 @@ class Testing(unittest.TestCase):
             mock_create_email_for_job_owner):
         mock_rule_config = test_util.mock_rule_config()
         mock_load_rule_config.return_value = mock_rule_config
-        mock_load_ecc_config.return_value = _mock_ecc_config()
+        mock_load_ecc_config.return_value = test_util.mock_ecc_config()
 
         alert = rule_alert_handler.RuleAlertHandler()
         ecc_rule_instance = ECCDetectErrorRule(alert, mock_rule_config)

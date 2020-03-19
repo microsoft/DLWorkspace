@@ -16,9 +16,35 @@ def mock_rule_config():
         "portal_url": "dltshub.example.com",
         "job_owner_email_domain": "example.com",
         "restore_from_rule_cache_dump": False,
-        "date_time_format": "%Y-%m-%d %H:%M:%S.%f"
+        "date_time_format": "%Y-%m-%d %H:%M:%S.%f",
+        "prometheus": {
+            "ip": "localhost",
+            "port": 9091,
+            "ecc_error_query": 'nvidiasmi_ecc_error_count{type="volatile_double"}>0',
+            "node_boot_time_query": 'node_boot_time_seconds',
+            "large_latency_query": 
+                "histogram_quantile(0.95, sum(rate(cmd_nvidia_smi_latency_seconds_bucket[5m])) " \
+                "BY (le, instance)) > 40",
+        },
+        "rest_url": "http://localhost:9999"
     }
     return rule_config
+
+def mock_ecc_config():
+    ecc_config = {
+        "enable_cordon": True,
+        "enable_reboot": True,
+        "enable_alert_job_owners": True,
+        "days_until_node_reboot": 5,
+        "time_sleep_after_pausing": 0
+    }
+    return ecc_config
+
+def mock_latency_config():
+    latency_config = {
+            "hours_until_alert_expiration": 4
+        }
+    return latency_config
 
 def mock_empty_prometheus_metric_data():
     empty_prometheus_metric_data = {
