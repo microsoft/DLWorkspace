@@ -670,7 +670,7 @@ def remove_nsg_rule_whitelist(ips, dry_run=False):
             --source-address-prefixes %s 
         """ % (resource_group,
                nsg_name,
-               new_source_address_prefixes)
+               " ".join(new_source_address_prefixes))
 
     if not dry_run:
         output = utils.exec_cmd_local(cmd)
