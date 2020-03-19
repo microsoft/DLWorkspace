@@ -337,6 +337,16 @@ def exec_cmd_local(execmd, verbose=False, max_run=1200, supressWarning=False):
     return output
 
 
+def execute_or_dump_locally(cmd, verbose, dryrun, output_file):
+    cmd = ' '.join(cmd.split())+'\n'
+    if output_file:
+        with open(output_file, 'a') as wf:
+            wf.write(cmd)
+    if not dryrun:
+        output = exec_cmd_local(cmd, verbose)
+        return output
+
+
 def multiprocess_with_func_arg_tuples(process_num, list_of_func_arg_tpls):
     pool = Pool(process_num)
     print("parallel pool of size {}".format(process_num))
@@ -761,3 +771,4 @@ def multiprocess_exec(func, args_list, process_num):
     pool = Pool(process_num)
     pool.map(func, args_list)
     pool.close()
+
