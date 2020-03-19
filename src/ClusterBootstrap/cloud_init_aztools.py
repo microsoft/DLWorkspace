@@ -586,8 +586,8 @@ def get_deployed_cluster_info(config, args):
         brief_spec["fqdns"] = spec["fqdns"]
         brief_spec["role"] = spec["tags"]["role"].split('-')
         brief[name] = brief_spec
-    args.output = "status.yaml" if not args.output else args.output
-    with open(args.output, "w") as wf:
+    output_file = "status.yaml" if not args.output else args.output
+    with open(output_file, "w") as wf:
         yaml.safe_dump({"machines": brief}, wf)
 
 
