@@ -13,7 +13,7 @@ logger = logging.getLogger(__file__)
 
 def test_distributed_job_running(args, preemptable=False):
     expected = "wantThisInLog"
-    cmd = "echo %s ; sleep 1800" % expected
+    cmd = "echo %s ; sleep 120" % expected
 
     job_spec = utils.gen_default_job_description("distributed",
                                                  args.email,
@@ -63,8 +63,8 @@ def test_distributed_job_ssh(args):
         for endpoint_id in endpoints_ids:
             ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
                                                      job.jid, endpoint_id)
-            logger.debug("endpoint_id is %s, endpoints resp is %s",
-                         endpoint_id, ssh_endpoint)
+            logger.debug("endpoint_id is %s, endpoints resp is %s", endpoint_id,
+                         ssh_endpoint)
 
             ssh_host = "%s.%s" % (ssh_endpoint["nodeName"],
                                   ssh_endpoint["domain"])
@@ -160,8 +160,8 @@ sleep infinity"""
         for endpoint_id in endpoints_ids:
             ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
                                                      job.jid, endpoint_id)
-            logger.debug("endpoint_id is %s, endpoints resp is %s",
-                         endpoint_id, ssh_endpoint)
+            logger.debug("endpoint_id is %s, endpoints resp is %s", endpoint_id,
+                         ssh_endpoint)
 
             ssh_host = "%s.%s" % (ssh_endpoint["nodeName"],
                                   ssh_endpoint["domain"])
@@ -310,8 +310,7 @@ def test_blobfuse(args):
     job_spec = utils.gen_default_job_description("distributed", args.email,
                                                  args.uid, args.vc)
 
-    job_spec["plugins"] = utils.load_azure_blob_config(args.config,
-                                                       "/tmp/blob")
+    job_spec["plugins"] = utils.load_azure_blob_config(args.config, "/tmp/blob")
 
     with utils.run_job(args.rest, job_spec) as job:
         state = job.block_until_state_not_in(
@@ -346,8 +345,7 @@ def test_blobfuse(args):
                                            worker_pod_name,
                                            worker_container_name, worker_cmd)
         assert code == 0, "code is %d, output is %s" % (code, output)
-        assert msg + "\n" == output, "code is %d, output is %s" % (code,
-                                                                   output)
+        assert msg + "\n" == output, "code is %d, output is %s" % (code, output)
 
 
 # uncomment to run perf case
