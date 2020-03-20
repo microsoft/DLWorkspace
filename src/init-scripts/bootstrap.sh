@@ -13,9 +13,9 @@ if ! [ -x "$(command -v sudo)" ] ; then
     time apt-get update && time apt-get --no-install-recommends install -y sudo
 fi
 
-# Reorder GPU with NVLink (Allow failure)
+# Reorder GPU with NVLink (Allow failure) for jobs requesting more than 1 GPU
 set +e
-if [[ -x "$(command -v nvidia-smi)" ]]; then
+if [[ -x "$(command -v nvidia-smi)" ]] && [[ "${DLTS_NUM_GPU_PER_WORKER}" -gt 1 ]]; then
     GPU_TOPO=/dlts-runtime/gpu_topo
     TOPO_FILE=/tmp/topo
     CWD=$(dirname $0)

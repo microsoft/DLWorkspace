@@ -599,7 +599,7 @@ def test_ssh_cuda_visible_devices(args, job_spec, expected):
             "LogLevel=ERROR",
             "%s@%s" % (alias, ssh_host),
             "--",
-            "echo a; printenv CUDA_VISIBLE_DEVICES;",
+            "echo a; env | grep CUDA_VISIBLE_DEVICES;",
             "grep CUDA_VISIBLE_DEVICES ~/.ssh/environment; echo b",
         ]
         code, output = utils.kube_pod_exec(args.config, "default",
@@ -620,10 +620,20 @@ def test_ssh_cpu_job_cuda_visible_devices(args):
 
 
 @utils.case()
-def test_ssh_gpu_job_cuda_visible_devices(args):
+def test_ssh_one_gpu_job_cuda_visible_devices(args):
     job_spec = utils.gen_default_job_description("regular", args.email,
                                                  args.uid, args.vc,
                                                  resourcegpu=1)
 
-    expected = "a\n0\nCUDA_VISIBLE_DEVICES=0\nb"
+    expected = "a\nb"
+    test_ssh_cuda_visible_devices(args, job_spec, expected)
+
+
+@utils.case()
+def test_ssh_multi_gpu_job_cuda_visible_devices(args):
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc,
+                                                 resourcegpu=2)
+
+    expected = "a\nCUDA_VISIBLE_DEVICES=0,1\nCUDA_VISIBLE_DEVICES=0,1\nb"
     test_ssh_cuda_visible_devices(args, job_spec, expected)

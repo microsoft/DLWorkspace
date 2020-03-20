@@ -378,7 +378,7 @@ def test_ssh_cuda_visible_devices(args):
                                                  args.uid,
                                                  args.vc,
                                                  cmd="sleep infinity",
-                                                 resourcegpu=1)
+                                                 resourcegpu=4)
     with utils.run_job(args.rest, job_spec) as job:
         endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
                                           ["ssh"])
@@ -416,14 +416,14 @@ def test_ssh_cuda_visible_devices(args):
                 "-i",
                 "/dlwsdata/work/%s/.ssh/id_rsa" % alias,
                 "-p",
-                ssh_port,
+                str(ssh_port),
                 "-o",
                 "StrictHostKeyChecking=no",
                 "-o",
                 "LogLevel=ERROR",
                 "%s@%s" % (alias, ssh_host),
                 "--",
-                "echo a; printenv CUDA_VISIBLE_DEVICES;",
+                "echo a; env | grep CUDA_VISIBLE_DEVICES;",
                 "grep CUDA_VISIBLE_DEVICES ~/.ssh/environment; echo b",
             ]
 
@@ -437,7 +437,7 @@ def test_ssh_cuda_visible_devices(args):
             if role == "ps":
                 expected = "a\nb"
             else:
-                expected = "a\n0\nCUDA_VISIBLE_DEVICES=0\nb"
+                expected = "a\nCUDA_VISIBLE_DEVICES=0,1,2,3\nCUDA_VISIBLE_DEVICES=0,1,2,3\nb"
 
             assert expected in output, "could not find %s in output %s" % (
                 expected, output)
