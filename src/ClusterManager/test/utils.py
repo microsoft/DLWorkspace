@@ -92,7 +92,8 @@ def gen_default_job_description(
     vc,
     preemptable=False,
     image="indexserveregistry.azurecr.io/deepscale:1.0.post0",
-    cmd="sleep 120"):
+    cmd="sleep 120",
+    resourcegpu=0):
     args = {
         "userName": email,
         "userId": uid,
@@ -111,7 +112,7 @@ def gen_default_job_description(
         "jobPath": "",
         "enablejobpath": True,
         "env": [],
-        "resourcegpu": 0,
+        "resourcegpu": resourcegpu,
         "memorylimit": "500M",
         "cpulimit": 1,
     }
@@ -125,7 +126,7 @@ def gen_default_job_description(
         args["hostNetwork"] = True
         args["isPrivileged"] = True
         args["numps"] = 1
-        args["resourcegpu"] = 0
+        args["resourcegpu"] = resourcegpu
         args["numpsworker"] = 1
     elif job_type == "inference":
         args["jobtrainingtype"] = "InferenceJob"

@@ -562,3 +562,70 @@ def test_ssh_do_not_expose_private_key(args):
         expected = "a\nb"
         assert expected in output, "could not find %s in output %s" % (
             expected, output)
+
+
+def test_ssh_cuda_visible_devices(args, job_spec, expected):
+    with utils.run_job(args.rest, job_spec) as job:
+        endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
+                                          ["ssh"])
+        endpoints_ids = list(endpoints.keys())
+        assert len(endpoints_ids) == 1
+        endpoint_id = endpoints_ids[0]
+
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
+                                                 job.jid, endpoint_id)
+
+        ssh_host = "%s.%s" % (ssh_endpoint["nodeName"], ssh_endpoint["domain"])
+        ssh_port = ssh_endpoint["port"]
+
+        # exec into jobmanager to execute ssh to avoid firewall
+        job_manager_pod = utils.kube_get_pods(args.config, "default",
+                                              "app=jobmanager")[0]
+        job_manager_pod_name = job_manager_pod.metadata.name
+
+        alias = args.email.split("@")[0]
+
+        ssh_cmd = [
+            "ssh",
+            "-i",
+            "/dlwsdata/work/%s/.ssh/id_rsa" % alias,
+            "-p",
+            ssh_port,
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "LogLevel=ERROR",
+            "%s@%s" % (alias, ssh_host),
+            "--",
+            "echo a; printenv CUDA_VISIBLE_DEVICES;",
+            "grep CUDA_VISIBLE_DEVICES ~/.ssh/environment; echo b",
+        ]
+        code, output = utils.kube_pod_exec(args.config, "default",
+                                           job_manager_pod_name, "jobmanager",
+                                           ssh_cmd)
+        assert code == 0, "code is %s, output is %s" % (code, output)
+
+        assert expected in output, "could not find %s in output %s" % (
+            expected, output)
+
+
+@utils.case()
+def test_ssh_cpu_job_cuda_visible_devices(args):
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
+    expected = "a\nb"
+    test_ssh_cuda_visible_devices(args, job_spec, expected)
+
+
+@utils.case()
+def test_ssh_gpu_job_cuda_visible_devices(args):
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc,
+                                                 resourcegpu=1)
+
+    expected = "a\n0\nCUDA_VISIBLE_DEVICES=0\nb"
+    test_ssh_cuda_visible_devices(args, job_spec, expected)
