@@ -6,3 +6,4 @@ twisted==19.7.0
 cachetools==3.1.1
 redis==3.2.1
 elasticsearch>=6.0.0,<7.0.0
+azure==4.0.0

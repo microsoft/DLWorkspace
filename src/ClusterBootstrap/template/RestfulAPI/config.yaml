@@ -100,3 +100,13 @@ default_memoryrequest: {{cnf["default_memoryrequest"]}}
 {% if cnf["default_memorylimit"] %}
 default_memorylimit: {{cnf["default_memorylimit"]}}
 {% endif %}
+
+
+{% if cnf["logAnalytics"]["enabled"] %}
+logging: logAnalytics
+{% elif cnf["elasticsearch"]["enabled"] %}
+logging: elasticsearch
+{% endif %}
+
+activeDirectory: {{ cnf["activeDirectory"] | tojson }}
+logAnalytics: {{ cnf["logAnalytics"] | tojson }}
