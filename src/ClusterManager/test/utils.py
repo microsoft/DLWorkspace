@@ -10,6 +10,7 @@ import os
 import yaml
 import base64
 import functools
+import inspect
 
 import requests
 
@@ -93,6 +94,11 @@ def gen_default_job_description(
     preemptable=False,
     image="indexserveregistry.azurecr.io/deepscale:1.0.post0",
     cmd="sleep 120"):
+
+    caller_frame = inspect.stack()[1]
+    module_name = os.path.basename(caller_frame.filename).split(".")[0]
+    case_name = caller_frame.function
+
     args = {
         "userName": email,
         "userId": uid,
@@ -100,7 +106,7 @@ def gen_default_job_description(
         "gpuType": "P40",
         "vcName": vc,
         "containerUserId": 0,
-        "jobName": "integration test case",
+        "jobName": "%s.%s" % (module_name, case_name),
         "preemptionAllowed": preemptable,
         "image": image,
         "cmd": cmd,
@@ -131,7 +137,7 @@ def gen_default_job_description(
         args["jobtrainingtype"] = "InferenceJob"
         args["hostNetwork"] = False
         args["isPrivileged"] = False
-        args["resourcegpu"] = 1  # num of worker
+        args["resourcegpu"] = 1 # num of worker
     else:
         logger.error("unknown job_type %s, wrong test case", job_type)
         raise RuntimeError("unknown job_type %s" % (job_type))
@@ -289,7 +295,7 @@ def block_until_state_in(rest_url, jid, states, timeout=300):
 def get_job_log(rest_url, email, jid):
     cursor = None
     job_logs = []
-    while True:
+    for _ in range(500): # avoid dead loop
         args = {
             "userName": email,
             "jobId": jid,
@@ -302,15 +308,15 @@ def get_job_log(rest_url, email, jid):
         if resp.status_code == 404:
             break
         resp_json = resp.json()
-        # logger.info("%s log: %s", jid, repr(resp_json))
         log = resp_json["log"]
-        cursor = resp_json["cursor"]
+        new_cursor = resp_json["cursor"]
         if isinstance(log, dict):
             job_logs.extend(log.values())
         else:
             job_logs.append(log)
-        if cursor is None:
+        if new_cursor == cursor:
             break
+        cursor = new_cursor
     return '\n'.join(job_logs)
 
 
