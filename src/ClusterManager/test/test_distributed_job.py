@@ -372,13 +372,15 @@ def perf(args):
             logger.info("%s is in state %s", jid, state)
 
 
+@utils.case()
 def test_ssh_cuda_visible_devices(args):
 
     job_spec = utils.gen_default_job_description("distributed",
                                                  args.email,
                                                  args.uid,
                                                  args.vc,
-                                                 cmd="sleep infinity")
+                                                 cmd="sleep infinity",
+                                                 resourcegpu=1)
     with utils.run_job(args.rest, job_spec) as job:
         endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
                                           ["ssh"])
