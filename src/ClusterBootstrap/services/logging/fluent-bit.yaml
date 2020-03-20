@@ -29,10 +29,20 @@ spec:
         ports:
         - containerPort: 2020
         env:
+        {% if cnf["elasticsearch"]["enabled"] -%}
         - name: FLUENT_ELASTICSEARCH_HOST
           value: "$(ELASTICSEARCH_SERVICE_HOST)"
         - name: FLUENT_ELASTICSEARCH_PORT
           value: "$(ELASTICSEARCH_SERVICE_PORT)"
+        {%- endif %}
+        {% if cnf["logAnalytics"]["enabled"] -%}
+        - name: FLUENT_AZURE_CUSTOMER_ID
+          value: '{{cnf["logAnalytics"]["workspaceId"]}}'
+        - name: FLUENT_AZURE_SHARED_KEY
+          value: '{{cnf["logAnalytics"]["key"]}}'
+        - name: FLUENT_AZURE_LOG_TYPE
+          value: '{{cnf["logAnalytics"]["tableName"]}}'
+        {%- endif %}
         volumeMounts:
         - name: varlog
           mountPath: /var/log

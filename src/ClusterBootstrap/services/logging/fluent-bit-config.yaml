@@ -22,7 +22,12 @@ data:
     @INCLUDE filter-kubernetes.conf
     @INCLUDE filter-jobs.conf
     @INCLUDE filter-time_nsec.conf
+    {% if cnf["elasticsearch"]["enabled"] -%}
     @INCLUDE output-elasticsearch.conf
+    {%- endif %}
+    {% if cnf["logAnalytics"]["enabled"] -%}
+    @INCLUDE output-azure.conf
+    {%- endif %}
 
   input-kubernetes.conf: |
     [INPUT]
@@ -80,6 +85,14 @@ data:
         Logstash_Format On
         Replace_Dots    On
         Retry_Limit     False
+
+  output-azure.conf: |
+    [OUTPUT]
+        Name            azure
+        Match           *
+        Customer_ID     ${FLUENT_AZURE_CUSTOMER_ID}
+        Shared_Key      ${FLUENT_AZURE_SHARED_KEY}
+        Log_Type        ${FLUENT_AZURE_LOG_TYPE}
 
   parsers.conf: |
     [PARSER]
