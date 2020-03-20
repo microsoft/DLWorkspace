@@ -18,7 +18,18 @@ chmod 700 /home/${DLTS_USER_NAME}/.ssh || /bin/true
 adduser $DLTS_USER_NAME sudo
 echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
+# setup env variables
 ENV_FILE=/dlts-runtime/env/pod.env
+
+# Readjust GPU order for user if any
+which nvidia-smi
+if [[ $? -eq 0 ]]
+then
+    TOPO_FILE=/tmp/topo
+    CWD=$(dirname $0)
+    nvidia-smi topo -p2p n | grep OK | head -n 8 | awk '{$1=""; print $0}' | sed 's/ //' | tee ${TOPO_FILE}
+    CUDA_VISIBLE_DEVICES=$(bash ${CWD}/gpu_topo ${TOPO_FILE} | sed 's/ //g')
+fi
 
 set +x
 compgen -e | while read line; do
@@ -30,6 +41,9 @@ compgen -e | while read line; do
         fi; done
 echo "export PATH=$PATH:\${PATH}" >> "${ENV_FILE}"
 echo "export LD_LIBRARY_PATH=/usr/local/nvidia/lib64/:\${LD_LIBRARY_PATH}" >> "${ENV_FILE}"
+if [[ -v CUDA_VISIBLE_DEVICES ]]; then
+    echo "export CUDA_VISIBLE_DEVICES=\${CUDA_VISIBLE_DEVICES}" >> "${ENV_FILE}"
+fi
 set -x
 
 # source the envs
