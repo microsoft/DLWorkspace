@@ -357,17 +357,17 @@ def remove_nsg_rule_whitelist(ips):
     output = utils.exec_cmd_local(cmd)
     data = json.loads(output)
 
-    source_address_prefixes = []
+    cur_source_address_prefixes = []
     source_address_prefix = data.get("sourceAddressPrefix")
     if source_address_prefix is not None:
-        source_address_prefixes.append(source_address_prefix)
+        cur_source_address_prefixes.append(source_address_prefix)
 
     source_address_prefixes = data.get("sourceAddressPrefixes")
     if source_address_prefixes is not None:
-        source_address_prefixes.append(source_address_prefixes)
+        cur_source_address_prefixes += source_address_prefixes
 
     new_source_address_prefixes = []
-    for prefix in source_address_prefixes:
+    for prefix in cur_source_address_prefixes:
         if prefix not in ips:
             new_source_address_prefixes.append(prefix)
 
