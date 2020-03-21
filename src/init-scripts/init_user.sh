@@ -14,6 +14,10 @@ mkdir -p /home/${DLTS_USER_NAME}/.ssh
 chown ${DLTS_USER_NAME} /home/${DLTS_USER_NAME}/ /home/${DLTS_USER_NAME}/.profile /home/${DLTS_USER_NAME}/.ssh || /bin/true
 chmod 700 /home/${DLTS_USER_NAME}/.ssh || /bin/true
 
+if [ -d /job ] ; then
+    chown ${DLTS_USER_NAME} /job
+fi
+
 # setup sudoers
 adduser $DLTS_USER_NAME sudo
 echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
