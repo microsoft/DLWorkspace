@@ -1304,31 +1304,8 @@ class DataHandler(object):
 
     @record
     def SetJobError(self, jobId, errorMsg):
-        try:
-            sql = """update `%s` set jobStatus = 'error', `errorMsg` = '%s' where `jobId` = '%s' """ % (
-                self.jobtablename, errorMsg, jobId)
-            cursor = self.conn.cursor()
-            cursor.execute(sql)
-            self.conn.commit()
-            cursor.close()
-            return True
-        except Exception as e:
-            logger.error('Exception: %s', str(e))
-            return False
-
-    @record
-    def UpdateJobTextField(self, jobId, field, value):
-        try:
-            sql = "update `%s` set `%s` = '%s' where `jobId` = '%s' " % (
-                self.jobtablename, field, value, jobId)
-            cursor = self.conn.cursor()
-            cursor.execute(sql)
-            self.conn.commit()
-            cursor.close()
-            return True
-        except Exception as e:
-            logger.error('Exception: %s', str(e))
-            return False
+        return self.UpdateJobTextFields({"jobId": jobId},
+                                        {"errorMsg": errorMsg})
 
     @record
     def UpdateJobTextFields(self, conditionFields, dataFields):
@@ -1339,17 +1316,33 @@ class DataHandler(object):
                               dataFields, dict) or not dataFields:
             return ret
 
-        try:
-            sql = "update `%s` set" % (self.jobtablename) + ",".join([
-                " `%s` = '%s'" % (field, value)
-                for field, value in list(dataFields.items())
-            ]) + " where" + "and".join([
-                " `%s` = '%s'" % (field, value)
-                for field, value in list(conditionFields.items())
-            ])
+        sql_template = ["UPDATE", "`%s`" % (self.jobtablename), "SET"]
 
+        set_stmt = []
+        set_values = []
+        for field, value in dataFields.items():
+            set_stmt.append("`%s`=%s" % (field, "%s"))
+            set_values.append(value)
+
+        where_stmt = []
+        where_values = []
+        for field, value in conditionFields.items():
+            where_stmt.append("`%s`=%s" % (field, "%s"))
+            where_values.append(value)
+
+        sql_template.append(",".join(set_stmt))
+        sql_template.append("WHERE")
+        sql_template.append("AND".join(where_stmt))
+
+        sql = " ".join(sql_template)
+        values = []
+        values.extend(set_values)
+        values.extend(where_values)
+        logger.info("sql is %s, values is %s", sql, values)
+
+        try:
             cursor = self.conn.cursor()
-            cursor.execute(sql)
+            cursor.execute(sql, values)
             self.conn.commit()
             ret = True
         except Exception as e:

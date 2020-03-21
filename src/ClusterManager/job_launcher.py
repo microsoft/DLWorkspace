@@ -43,6 +43,14 @@ def walk_json_field_safe(obj, *fields):
         return None
 
 
+def b64encode(str_val):
+    return base64.b64encode(str_val.encode("utf-8")).decode("utf-8")
+
+
+def b64decode(str_val):
+    return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
+
+
 class JobRole(object):
     MARK_ROLE_READY_FILE = "/dlts-runtime/status/READY"
 
@@ -133,8 +141,7 @@ def get_job_status_detail(job):
         return job_status_detail
 
     if not isinstance(job_status_detail, list):
-        job_status_detail = base64.b64decode(
-            job_status_detail.encode("utf-8")).decode("utf-8")
+        job_status_detail = b64decode(job_status_detail)
         job_status_detail = json.loads(job_status_detail)
     return job_status_detail
 
@@ -509,11 +516,15 @@ class LauncherStub(Launcher):
 
     def get_job_status(self, job_id):
         framework_obj = self._get_framework(framework.transform_name(job_id))
-        result = self.transform_state(
-            walk_json_field_safe(framework_obj, "status", "state"),
-            walk_json_field_safe(framework_obj, "status", "attemptStatus",
-                                 "completionStatus"))
-        return result, []
+        state = walk_json_field_safe(framework_obj, "status", "state")
+        completion_status = walk_json_field_safe(framework_obj, "status",
+                                                 "attemptStatus",
+                                                 "completionStatus")
+        result = self.transform_state(state, completion_status)
+
+        diagnostics = walk_json_field_safe(completion_status, "diagnostics")
+
+        return result, [], diagnostics
 
     @record
     def _create_framework(self, body):
@@ -596,9 +607,7 @@ class LauncherStub(Launcher):
             job["cluster"] = config
             job_object, errors = JobSchema().load(job)
 
-            job_object.params = json.loads(
-                base64.b64decode(
-                    job["jobParams"].encode("utf-8")).decode("utf-8"))
+            job_object.params = json.loads(b64decode(job["jobParams"]))
 
             # inject gid, uid and user
             # TODO it should return only one entry
@@ -690,19 +699,13 @@ class LauncherStub(Launcher):
             # the command of the first container
             jobMeta["LaunchCMD"] = job_object.params["cmd"]
 
-            jobMetaStr = base64.b64encode(
-                json.dumps(jobMeta).encode("utf-8")).decode("utf-8")
+            jobMetaStr = b64encode(json.dumps(jobMeta))
 
             dataFields = {
-                "jobStatus":
-                    "scheduling",
-                "jobDescription":
-                    base64.b64encode(job_description.encode("utf-8")
-                                    ).decode("utf-8"),
-                "lastUpdated":
-                    datetime.datetime.now().isoformat(),
-                "jobMeta":
-                    jobMetaStr
+                "jobStatus": "scheduling",
+                "jobDescription": b64encode(job_description),
+                "lastUpdated": datetime.datetime.now().isoformat(),
+                "jobMeta": jobMetaStr
             }
             conditionFields = {"jobId": job_object.job_id}
             dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -716,13 +719,9 @@ class LauncherStub(Launcher):
                     detail, "error", "Server error in job submission")
 
                 dataFields = {
-                    "jobStatus":
-                        "error",
-                    "errorMsg":
-                        "Cannot submit job!" + str(e),
-                    "jobStatusDetail":
-                        base64.b64encode(json.dumps(detail).encode("utf-8")
-                                        ).decode("utf-8")
+                    "jobStatus": "error",
+                    "errorMsg": "Cannot submit job!" + str(e),
+                    "jobStatusDetail": b64encode(json.dumps(detail))
                 }
                 conditionFields = {"jobId": job["jobId"]}
                 dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -758,21 +757,17 @@ class LauncherStub(Launcher):
 
         result, detail = k8sUtils.GetJobStatus(job_id)
         detail = job_status_detail_with_finished_time(detail, desired_state)
-        dataHandler.UpdateJobTextField(
-            job_id, "jobStatusDetail",
-            base64.b64encode(
-                json.dumps(detail).encode("utf-8")).decode("utf-8"))
+        dataHandler.UpdateJobTextFields(
+            {"jobId": job_id},
+            {"jobStatusDetail": b64encode(json.dumps(detail))})
         logger.info("Killing job %s, with status %s, %s" %
                     (job_id, result, detail))
 
         errors = self.delete_job(job_id, force=True)
 
         dataFields = {
-            "jobStatusDetail":
-                base64.b64encode(json.dumps(detail).encode("utf-8")
-                                ).decode("utf-8"),
-            "lastUpdated":
-                datetime.datetime.now().isoformat()
+            "jobStatusDetail": b64encode(json.dumps(detail)),
+            "lastUpdated": datetime.datetime.now().isoformat()
         }
         conditionFields = {"jobId": job_id}
         if len(errors) == 0:
@@ -848,7 +843,7 @@ class PythonLauncher(Launcher):
         elif "Pending" in statuses:
             job_status = "Pending"
 
-        return job_status, details
+        return job_status, details, "" # refine the last value to provide diagnostics for python launcher
 
     def wait_tasks_done(self):
         self.queue.join()
@@ -966,9 +961,7 @@ class PythonLauncher(Launcher):
                 job_object,
                 Job), "job_object is not of Job, but " + str(type(job_object))
 
-            job_object.params = json.loads(
-                base64.b64decode(
-                    job["jobParams"].encode("utf-8")).decode("utf-8"))
+            job_object.params = json.loads(b64decode(job["jobParams"]))
 
             # inject gid, uid and user
             # TODO it should return only one entry
@@ -1055,19 +1048,13 @@ class PythonLauncher(Launcher):
             # the command of the first container
             jobMeta["LaunchCMD"] = job_object.params["cmd"]
 
-            jobMetaStr = base64.b64encode(
-                json.dumps(jobMeta).encode("utf-8")).decode("utf-8")
+            jobMetaStr = b64encode(json.dumps(jobMeta))
 
             dataFields = {
-                "jobStatus":
-                    "scheduling",
-                "jobDescription":
-                    base64.b64encode(job_description.encode("utf-8")
-                                    ).decode("utf-8"),
-                "lastUpdated":
-                    datetime.datetime.now().isoformat(),
-                "jobMeta":
-                    jobMetaStr
+                "jobStatus": "scheduling",
+                "jobDescription": b64encode(job_description),
+                "lastUpdated": datetime.datetime.now().isoformat(),
+                "jobMeta": jobMetaStr
             }
             conditionFields = {"jobId": job_object.job_id}
             dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -1081,13 +1068,9 @@ class PythonLauncher(Launcher):
                     detail, "error", "Server error in job submission")
 
                 dataFields = {
-                    "jobStatus":
-                        "error",
-                    "errorMsg":
-                        "Cannot submit job!" + str(e),
-                    "jobStatusDetail":
-                        base64.b64encode(json.dumps(detail).encode("utf-8")
-                                        ).decode("utf-8")
+                    "jobStatus": "error",
+                    "errorMsg": "Cannot submit job!" + str(e),
+                    "jobStatusDetail": b64encode(json.dumps(detail))
                 }
                 conditionFields = {"jobId": job["jobId"]}
                 dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -1122,21 +1105,17 @@ class PythonLauncher(Launcher):
         # TODO: Use JobDeployer?
         result, detail = k8sUtils.GetJobStatus(job_id)
         detail = job_status_detail_with_finished_time(detail, desired_state)
-        dataHandler.UpdateJobTextField(
-            job_id, "jobStatusDetail",
-            base64.b64encode(
-                json.dumps(detail).encode("utf-8")).decode("utf-8"))
+        dataHandler.UpdateJobTextFields(
+            {"jobId": job_id},
+            {"jobStatusDetail": b64encode(json.dumps(detail))})
         logger.info("Killing job %s, with status %s, %s" %
                     (job_id, result, detail))
 
         errors = self.delete_job(job_id, force=True)
 
         dataFields = {
-            "jobStatusDetail":
-                base64.b64encode(json.dumps(detail).encode("utf-8")
-                                ).decode("utf-8"),
-            "lastUpdated":
-                datetime.datetime.now().isoformat()
+            "jobStatusDetail": b64encode(json.dumps(detail)),
+            "lastUpdated": datetime.datetime.now().isoformat()
         }
         conditionFields = {"jobId": job_id}
         if len(errors) == 0:

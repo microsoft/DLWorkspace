@@ -85,7 +85,8 @@ def extract_job_log_with_elastic_search(jobId, logPath, userId):
 
         logging.info("cursor of job %s: %s" % (jobId, new_cursor))
         if new_cursor is not None:
-            dataHandler.UpdateJobTextField(jobId, "jobLogCursor", new_cursor)
+            dataHandler.UpdateJobTextFields({"jobId": jobId},
+                                            {"jobLogCursor": new_cursor})
 
     except Exception as e:
         logging.error(e)
@@ -172,9 +173,10 @@ def extract_job_log_legacy(jobId, logPath, userId):
                     logger.exception("write container log failed")
 
         if len(trimlogstr.strip()) > 0:
-            dataHandler.UpdateJobTextField(
-                jobId, "jobLog",
-                base64.b64encode(trimlogstr.encode("utf-8")).decode("utf-8"))
+            encoded_log = base64.b64encode(
+                trimlogstr.encode("utf-8")).decode("utf-8")
+            dataHandler.UpdateJobTextFields({"jobId": jobId},
+                                            {"jobLog": encoded_log})
             with open(logPath, 'w', encoding="utf-8") as f:
                 f.write(logStr)
             f.close()

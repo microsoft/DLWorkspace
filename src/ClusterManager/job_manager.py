@@ -46,7 +46,7 @@ job_state_change_histogram = Histogram(
         long it takes from scheduling to running.""",
     buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0,
              float("inf")),
-    labelnames=("current_state", ))
+    labelnames=("current_state",))
 
 
 class JobTimeRecord(object):
@@ -87,6 +87,14 @@ class JobTimeRecord(object):
             "submit_time": JobTimeRecord.to_timestamp(self.submit_time),
             "running_time": JobTimeRecord.to_timestamp(self.running_time),
         }
+
+
+def b64encode(str_val):
+    return base64.b64encode(str_val.encode("utf-8")).decode("utf-8")
+
+
+def b64decode(str_val):
+    return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
 
 def to_job_status_key(job_id):
@@ -211,8 +219,7 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
                                  "created",
                                  event_time=job["jobTime"])
 
-        jobParams = json.loads(
-            base64.b64decode(job["jobParams"].encode("utf-8")).decode("utf-8"))
+        jobParams = json.loads(b64decode(job["jobParams"]))
         job_total_gpus = GetJobTotalGpu(jobParams)
 
         if dataHandlerOri is None:
@@ -228,11 +235,8 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
             }]
 
             dataFields = {
-                "jobStatusDetail":
-                base64.b64encode(
-                    json.dumps(detail).encode("utf-8")).decode("utf-8"),
-                "jobStatus":
-                "queued"
+                "jobStatusDetail": b64encode(json.dumps(detail)),
+                "jobStatus": "queued"
             }
             conditionFields = {"jobId": job_id}
             dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -264,8 +268,7 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
             running_gpus = 0
             for running_job in user_running_jobs:
                 running_jobParams = json.loads(
-                    base64.b64decode(running_job["jobParams"].encode(
-                        "utf-8")).decode("utf-8"))
+                    b64decode(running_job["jobParams"]))
                 # ignore preemptible GPUs
                 if "preemptionAllowed" in running_jobParams and running_jobParams[
                         "preemptionAllowed"] is True:
@@ -285,14 +288,13 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
                             metadata["user_quota"]))
                 detail = [{
                     "message":
-                    "exceeds the user quota in VC: {} (used) + {} (requested) > {} (user quota). Will need admin approval."
-                    .format(running_gpus, job_total_gpus,
-                            metadata["user_quota"])
+                        "exceeds the user quota in VC: {} (used) + {} (requested) > {} (user quota). Will need admin approval."
+                        .format(running_gpus, job_total_gpus,
+                                metadata["user_quota"])
                 }]
-                dataHandler.UpdateJobTextField(
-                    job["jobId"], "jobStatusDetail",
-                    base64.b64encode(
-                        json.dumps(detail).encode("utf-8")).decode("utf-8"))
+                dataHandler.UpdateJobTextFields(
+                    {"jobId": job["jobId"]},
+                    {"jobStatusDetail": b64encode(json.dumps(detail))})
                 if dataHandlerOri is None:
                     dataHandler.Close()
                 return False
@@ -300,11 +302,8 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
         detail = [{"message": "waiting for available resource."}]
 
         dataFields = {
-            "jobStatusDetail":
-            base64.b64encode(
-                json.dumps(detail).encode("utf-8")).decode("utf-8"),
-            "jobStatus":
-            "queued"
+            "jobStatusDetail": b64encode(json.dumps(detail)),
+            "jobStatus": "queued"
         }
         conditionFields = {"jobId": job_id}
         dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -333,10 +332,9 @@ def UpdateJobStatus(redis_conn,
         dataHandler = DataHandler()
     else:
         dataHandler = dataHandlerOri
-    jobParams = json.loads(
-        base64.b64decode(job["jobParams"].encode("utf-8")).decode("utf-8"))
+    jobParams = json.loads(b64decode(job["jobParams"]))
 
-    result, details = launcher.get_job_status(job["jobId"])
+    result, details, diagnostics = launcher.get_job_status(job["jobId"])
     logger.info("++++++++ Job status: {} {}".format(job["jobId"], result))
 
     jobPath, workPath, dataPath = GetStoragePath(jobParams["jobPath"],
@@ -357,11 +355,8 @@ def UpdateJobStatus(redis_conn,
         detail = job_status_detail_with_finished_time(detail, "finished")
 
         dataFields = {
-            "jobStatusDetail":
-            base64.b64encode(
-                json.dumps(detail).encode("utf-8")).decode("utf-8"),
-            "jobStatus":
-            "finished"
+            "jobStatusDetail": b64encode(json.dumps(detail)),
+            "jobStatus": "finished"
         }
         conditionFields = {"jobId": job["jobId"]}
         dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -383,18 +378,16 @@ def UpdateJobStatus(redis_conn,
             }]
 
             dataFields = {
-                "jobStatusDetail":
-                base64.b64encode(
-                    json.dumps(detail).encode("utf-8")).decode("utf-8"),
-                "jobStatus":
-                "running"
+                "jobStatusDetail": b64encode(json.dumps(detail)),
+                "jobStatus": "running"
             }
             conditionFields = {"jobId": job["jobId"]}
             dataHandler.UpdateJobTextFields(conditionFields, dataFields)
             if notifier is not None:
                 notifier.notify(
-                    notify.new_job_state_change_message(
-                        job["userName"], job["jobId"], result.strip()))
+                    notify.new_job_state_change_message(job["userName"],
+                                                        job["jobId"],
+                                                        result.strip()))
 
     elif result == "Failed":
         now = datetime.datetime.now()
@@ -418,13 +411,9 @@ def UpdateJobStatus(redis_conn,
         detail = job_status_detail_with_finished_time(detail, "failed")
 
         dataFields = {
-            "jobStatusDetail":
-            base64.b64encode(
-                json.dumps(detail).encode("utf-8")).decode("utf-8"),
-            "jobStatus":
-            "failed",
-            "errorMsg":
-            "pod failed"
+            "jobStatusDetail": b64encode(json.dumps(detail)),
+            "jobStatus": "failed",
+            "errorMsg": diagnostics
         }
         conditionFields = {"jobId": job["jobId"]}
         dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -439,8 +428,7 @@ def UpdateJobStatus(redis_conn,
         # 1) May need to reduce the timeout.
         #     It takes minutes before pod turns into "Unknown", we may don't need to wait so long.
         # 2) If node resume before we resubmit the job, the job will end in status 'NotFound'.
-        elif (datetime.datetime.now() -
-              UnusualJobs[job["jobId"]]).seconds > 30:
+        elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 30:
             del UnusualJobs[job["jobId"]]
 
             # TODO refine later
@@ -459,15 +447,15 @@ def UpdateJobStatus(redis_conn,
             launcher.kill_job(job["jobId"], "queued")
             if notifier is not None:
                 notifier.notify(
-                    notify.new_job_state_change_message(
-                        job["userName"], job["jobId"], result.strip()))
+                    notify.new_job_state_change_message(job["userName"],
+                                                        job["jobId"],
+                                                        result.strip()))
 
     elif result == "Pending":
         detail = get_scheduling_job_details(details)
-        dataHandler.UpdateJobTextField(
-            job["jobId"], "jobStatusDetail",
-            base64.b64encode(
-                json.dumps(detail).encode("utf-8")).decode("utf-8"))
+        dataHandler.UpdateJobTextFields(
+            {"jobId": job["jobId"]},
+            {"jobStatusDetail": b64encode(json.dumps(detail))})
 
     if result != "Unknown" and result != "NotFound" and job[
             "jobId"] in UnusualJobs:
@@ -632,7 +620,7 @@ def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
 
         preemption_allowed = job_info.get("preemptionAllowed", False)
         if preemption_allowed:
-            continue  # schedule non preemptable first
+            continue # schedule non preemptable first
 
         if cluster_schedulable >= job_resource and \
                 vc_schedulable >= job_resource:
@@ -701,9 +689,9 @@ def schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
                           "VC schedulable %s. Cluster schedulable %s" % \
                           (job_resource, vc_schedulable, cluster_schedulable)
                 detail = [{"message": message}]
-                data_handler.UpdateJobTextField(
-                    job_id, "jobStatusDetail",
-                    base64encode(json.dumps(detail)))
+                data_handler.UpdateJobTextFields(
+                    {"jobId": job_id},
+                    {"jobStatusDetail": base64encode(json.dumps(detail))})
         except:
             logger.error("Process job failed: %s", job_info, exc_info=True)
 
@@ -768,7 +756,7 @@ def Run(redis_port, target_status):
 
             try:
                 launcher.wait_tasks_done(
-                )  # wait for tasks from previous batch done
+                ) # wait for tasks from previous batch done
 
                 data_handler = DataHandler()
 
