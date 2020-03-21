@@ -92,6 +92,9 @@ class JobParams(object):
         self.metadata = metadata
         self.config = config
 
+        # Allow partial node for worker for internal jobs.
+        self.internal = params.get("_internal", False)
+
         self.policy = None
 
         self.sku = None
@@ -247,6 +250,14 @@ class PSDistJobParams(JobParams):
     """
     def __init__(self, params, quota, metadata, config):
         super(PSDistJobParams, self).__init__(params, quota, metadata, config)
+
+    def gen_gpu(self):
+        if self.internal:
+            super(PSDistJobParams, self).gen_gpu()
+        else:
+            # Allocate all GPUs in a node for workers
+            self.gpu_limit = self.metadata.get("gpu", {}).get(self.sku, {}).\
+                get("per_node", 0)
 
     def get_default_cpu_request_and_limit(self):
         if self.cpu_job_on_cpu_node:

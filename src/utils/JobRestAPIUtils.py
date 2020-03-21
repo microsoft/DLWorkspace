@@ -174,6 +174,17 @@ def SubmitJob(jobParamsJsonStr):
     if "vcName" not in jobParams or len(jobParams["vcName"].strip()) == 0:
         ret["error"] = "ERROR: VC name cannot be empty"
         return ret
+    if jobParams.get("jobtrainingtype") == "PSDistJob":
+        num_workers = None
+        try:
+            num_workers = int(jobParams.get("numpsworker"))
+        except:
+            logger.exception("Parsing numpsworker in %s failed", jobParams)
+
+        if num_workers is None or num_workers == 0:
+            ret["error"] = "ERROR: Invalid numpsworker value"
+            return ret
+
     if "userId" not in jobParams or len(jobParams["userId"].strip()) == 0:
         jobParams["userId"] = GetUser(jobParams["userName"])["uid"]
 
