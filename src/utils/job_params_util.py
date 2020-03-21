@@ -252,6 +252,7 @@ class PSDistJobParams(JobParams):
         super(PSDistJobParams, self).__init__(params, quota, metadata, config)
 
     def gen_gpu(self):
+        # Allow dev to specify 0 GPU for efficient integration tests
         if self.internal:
             super(PSDistJobParams, self).gen_gpu()
         else:
