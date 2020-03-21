@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+
 import os
 import re
 import sys
@@ -8,7 +9,12 @@ import yaml
 import argparse
 import textwrap
 import random
+
+cwd = os.path.dirname(__file__)
+os.chdir(cwd)
+
 sys.path.append("../utils")
+
 from ConfigUtils import *
 from params import default_config_parameters
 from cloud_init_deploy import load_node_list_by_role_from_config
