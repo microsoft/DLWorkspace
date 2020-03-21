@@ -17,6 +17,10 @@ usermod -p $(echo ${DLTS_JOB_TOKEN} | openssl passwd -1 -stdin) ${DLWS_USER_NAME
 chown ${DLWS_USER_NAME} /home/${DLWS_USER_NAME}/ /home/${DLWS_USER_NAME}/.profile /home/${DLWS_USER_NAME}/.ssh || /bin/true
 chmod 700 /home/${DLWS_USER_NAME}/.ssh || /bin/true
 
+if [ -d /job ] ; then
+    chown ${DLWS_USER_NAME} /job
+fi
+
 # setup sudoers
 adduser $DLWS_USER_NAME sudo
 echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
