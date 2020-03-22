@@ -13,6 +13,8 @@ import yaml
 import utils
 from az_params import *
 from params import *
+from az_utils import create_nsg_rules_with_service_tags, \
+    delete_nsg_rules_with_service_tags
 
 verbose = False
 no_execution = False
@@ -47,8 +49,8 @@ def merge_config(config1, config2, verbose):
 
 
 def update_config(config, genSSH=True):
-    if "resource_group_name" not in config["azure_cluster"]:
-        config["azure_cluster"]["resource_group_name"] = config[
+    if "resource_group" not in config["azure_cluster"]:
+        config["azure_cluster"]["resource_group"] = config[
             "azure_cluster"]["cluster_name"] + "ResGrp"
 
     config["azure_cluster"]["vnet_name"] = config[
@@ -139,7 +141,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
                  %s \
                  %s \
 
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                vmname,
                config["azure_cluster"]["vm_image"],
                priv_IP,
@@ -164,7 +166,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
 def create_group():
     cmd = """
         az group create --name %s --location %s
-        """ % (config["azure_cluster"]["resource_group_name"], config["azure_cluster"]["azure_location"])
+        """ % (config["azure_cluster"]["resource_group"], config["azure_cluster"]["azure_location"])
     if verbose:
         print(cmd)
     if not no_execution:
@@ -179,7 +181,7 @@ def create_sql():
                  --name %s \
                  -u %s \
                  -p %s
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["azure_location"],
                config["azure_cluster"]["sql_server_name"],
                config["azure_cluster"]["sql_admin_name"],
@@ -196,7 +198,7 @@ def create_sql():
                  --name All \
                  --start-ip-address 0.0.0.0 \
                  --end-ip-address 255.255.255.255
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["sql_server_name"])
     if verbose:
         print(cmd)
@@ -214,7 +216,7 @@ def create_storage_account():
             --location %s
         """ % (config["azure_cluster"]["storage_account_name"],
                config["azure_cluster"]["vm_local_storage_sku"],
-               config["azure_cluster"]["resource_group_name"],
+               config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["azure_location"])
     if verbose:
         print(cmd)
@@ -230,7 +232,7 @@ def create_file_share():
             -g %s \
             --query 'connectionString' \
             -o tsv
-        """ % (config["azure_cluster"]["storage_account_name"], config["azure_cluster"]["resource_group_name"])
+        """ % (config["azure_cluster"]["storage_account_name"], config["azure_cluster"]["resource_group"])
     if not no_execution:
         output = utils.exec_cmd_local(cmd)
         print(output)
@@ -256,7 +258,7 @@ def create_vnet():
             --address-prefix %s \
             --subnet-name mySubnet \
             --subnet-prefix %s
-        """ % ( config["azure_cluster"]["resource_group_name"],
+        """ % ( config["azure_cluster"]["resource_group"],
                 config["azure_cluster"]["vnet_name"],
                 config["cloud_config_nsg_rules"]["vnet_range"],
                 config["cloud_config_nsg_rules"]["vnet_range"])
@@ -268,7 +270,7 @@ def create_vnet():
 
 
 def whitelist_source_address_prefixes():
-    resource_group = config["azure_cluster"]["resource_group_name"]
+    resource_group = config["azure_cluster"]["resource_group"]
     nsg_name = config["azure_cluster"]["nsg_name"]
 
     cmd = """
@@ -314,7 +316,7 @@ def add_nsg_rule_whitelist(ips):
 
     source_address_prefixes = " ".join(list(set(source_address_prefixes)))
 
-    resource_group = config["azure_cluster"]["resource_group_name"]
+    resource_group = config["azure_cluster"]["resource_group"]
     nsg_name = config["azure_cluster"]["nsg_name"]
     tcp_port_ranges = config["cloud_config_nsg_rules"]["tcp_port_ranges"]
 
@@ -339,7 +341,7 @@ def add_nsg_rule_whitelist(ips):
 
 
 def delete_nsg_rule_whitelist():
-    resource_group = config["azure_cluster"]["resource_group_name"]
+    resource_group = config["azure_cluster"]["resource_group"]
     nsg_name = config["azure_cluster"]["nsg_name"]
 
     cmd = """
@@ -375,13 +377,15 @@ def create_nsg():
         az network nsg create \
             --resource-group %s \
             --name %s
-        """ % ( config["azure_cluster"]["resource_group_name"],
+        """ % ( config["azure_cluster"]["resource_group"],
                 config["azure_cluster"]["nsg_name"])
     if verbose:
         print(cmd)
     if not no_execution:
         output = utils.exec_cmd_local(cmd)
         print(output)
+
+    create_nsg_rules_with_service_tags(config, args)
 
     if "tcp_port_ranges" in config["cloud_config_nsg_rules"]:
         cmd = """
@@ -394,7 +398,7 @@ def create_nsg():
                 --destination-port-ranges %s \
                 --source-address-prefixes %s \
                 --access allow
-            """ % ( config["azure_cluster"]["resource_group_name"],
+            """ % ( config["azure_cluster"]["resource_group"],
                     config["azure_cluster"]["nsg_name"],
                     config["cloud_config_nsg_rules"]["tcp_port_ranges"],
                     restricted_source_address_prefixes
@@ -414,7 +418,7 @@ def create_nsg():
                 --destination-port-ranges %s \
                 --source-address-prefixes %s \
                 --access allow
-            """ % ( config["azure_cluster"]["resource_group_name"],
+            """ % ( config["azure_cluster"]["resource_group"],
                     config["azure_cluster"]["nsg_name"],
                     config["cloud_config_nsg_rules"]["udp_port_ranges"],
                     restricted_source_address_prefixes
@@ -433,7 +437,7 @@ def create_nsg():
             --destination-port-ranges %s \
             --source-address-prefixes %s \
             --access allow
-        """ % ( config["azure_cluster"]["resource_group_name"],
+        """ % ( config["azure_cluster"]["resource_group"],
                 config["azure_cluster"]["nsg_name"],
                 config["cloud_config_nsg_rules"]["dev_network"]["tcp_port_ranges"],
                 source_addresses_prefixes
@@ -454,7 +458,7 @@ def create_nfs_nsg():
             az network nsg create \
                 --resource-group %s \
                 --name %s
-            """ % ( config["azure_cluster"]["resource_group_name"],
+            """ % ( config["azure_cluster"]["resource_group"],
                     config["azure_cluster"]["nfs_nsg_name"])
         if verbose:
             print(cmd)
@@ -473,7 +477,7 @@ def create_nfs_nsg():
             --destination-port-ranges %s \
             --source-address-prefixes %s \
             --access allow
-        """ % ( config["azure_cluster"]["resource_group_name"],
+        """ % ( config["azure_cluster"]["resource_group"],
                 config["azure_cluster"]["nfs_nsg_name"],
                 config["cloud_config_nsg_rules"]["nfs_ssh"]["port"],
                 " ".join(merged_ip),
@@ -493,7 +497,7 @@ def create_nfs_nsg():
             --source-address-prefixes %s \
             --destination-port-ranges \'*\' \
             --access allow
-        """ % ( config["azure_cluster"]["resource_group_name"],
+        """ % ( config["azure_cluster"]["resource_group"],
                 config["azure_cluster"]["nfs_nsg_name"],
                 " ".join(config["cloud_config_nsg_rules"]["nfs_share"]["source_ips"]),
                 )
@@ -505,7 +509,7 @@ def create_nfs_nsg():
 def delete_group():
     cmd = """
         az group delete -y --name %s
-        """ % (config["azure_cluster"]["resource_group_name"])
+        """ % (config["azure_cluster"]["resource_group"])
     if verbose:
         print(cmd)
     if not no_execution:
@@ -659,7 +663,7 @@ def scale_up_vm(groupName, delta):
 def list_vm(bShow=True):
     cmd = """
         az vm list --resource-group %s
-        """ % (config["azure_cluster"]["resource_group_name"] )
+        """ % (config["azure_cluster"]["resource_group"] )
     if verbose:
         print(cmd)
     output = utils.exec_cmd_local(cmd)
@@ -669,7 +673,7 @@ def list_vm(bShow=True):
         vmname = onevm["name"]
         print("VM ... %s" % vmname)
         cmd1 = """ az vm show -d -g %s -n %s""" % (
-            config["azure_cluster"]["resource_group_name"], vmname)
+            config["azure_cluster"]["resource_group"], vmname)
         output1 = utils.exec_cmd_local(cmd1)
         json1 = json.loads(output1)
         vminfo[vmname] = json1
@@ -694,7 +698,7 @@ def vm_interconnects():
             --destination-port-ranges %s \
             --source-address-prefixes %s \
             --access allow
-        """ % ( config["azure_cluster"]["resource_group_name"],
+        """ % ( config["azure_cluster"]["resource_group"],
                 config["azure_cluster"]["nsg_name"],
                 config["cloud_config_nsg_rules"]["inter_connect"]["tcp_port_ranges"],
                 portinfo
@@ -730,7 +734,7 @@ def nfs_allow_master():
                     --destination-port-ranges %s \
                     --source-address-prefixes %s \
                     --access allow
-                """ % (config["azure_cluster"]["resource_group_name"],
+                """ % (config["azure_cluster"]["resource_group"],
                        nsg_name,
                        config["cloud_config_nsg_rules"]["nfs_allow_master"]["tcp_port_ranges"],
                        source_address_prefixes)
@@ -745,7 +749,7 @@ def delete_vm(vmname):
         az vm delete --resource-group %s \
                  --name %s \
                  --yes
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                vmname)
 
     if verbose:
@@ -758,7 +762,7 @@ def delete_nic(nicname):
     cmd = """
         az network nic delete --resource-group %s \
                 --name %s \
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                nicname)
     if verbose:
         print(cmd)
@@ -770,7 +774,7 @@ def delete_public_ip(ip):
     cmd = """
         az network public-ip delete --resource-group %s \
                  --name %s \
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                ip)
 
     if verbose:
@@ -784,7 +788,7 @@ def delete_disk(diskID):
         az disk delete --resource-group %s \
                  --name %s \
                  --yes \
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                diskID)
 
     if verbose:
@@ -796,7 +800,7 @@ def delete_disk(diskID):
 def get_disk_from_vm(vmname):
     cmd = """
         az vm show -g %s -n %s --query "storageProfile.osDisk.managedDisk.id" -o tsv \
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                vmname)
 
     if verbose:
@@ -823,7 +827,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                 -g %s \
                 --query 'connectionString' \
                 -o tsv
-            """ % (config["azure_cluster"]["storage_account_name"], config["azure_cluster"]["resource_group_name"])
+            """ % (config["azure_cluster"]["storage_account_name"], config["azure_cluster"]["resource_group"])
         output = utils.exec_cmd_local(cmd)
         reoutput = re.search('AccountKey\=.*$', output)
         file_share_key = None
@@ -1037,7 +1041,7 @@ def get_vm_list_by_grp():
     cmd = """
         az vm list --output json -g %s --query '[].{name:name, vmSize:hardwareProfile.vmSize}'
 
-        """ % (config["azure_cluster"]["resource_group_name"])
+        """ % (config["azure_cluster"]["resource_group"])
 
     if verbose:
         print(cmd)
@@ -1051,7 +1055,7 @@ def get_vm_private_ip():
     cmd = """
         az vm list-ip-addresses -g %s --output json --query '[].{name:virtualMachine.name, privateIP:virtualMachine.network.privateIpAddresses}'
 
-        """ % (config["azure_cluster"]["resource_group_name"])
+        """ % (config["azure_cluster"]["resource_group"])
     if verbose:
         print(cmd)
     output = utils.exec_cmd_local(cmd)
@@ -1073,7 +1077,7 @@ def random_str(length):
 
 
 def delete_cluster():
-    print("!!! WARNING !!! Resource group {0} will be deleted".format(config["azure_cluster"]["resource_group_name"]))
+    print("!!! WARNING !!! Resource group {0} will be deleted".format(config["azure_cluster"]["resource_group"]))
     response = input(
         "!!! WARNING !!! You are performing a dangerous operation that will permanently delete the entire Azure DL Workspace cluster. Please type (DELETE) in ALL CAPITALS to confirm the operation ---> ")
     if response == "DELETE":
@@ -1151,6 +1155,13 @@ def run_command(args, command, nargs, parser):
             add_nsg_rule_whitelist(ips)
         elif nargs[0] == "delete":
             delete_nsg_rule_whitelist()
+
+    elif command == "service_tag_rules":
+        if nargs[0] == "create":
+            create_nsg_rules_with_service_tags(config, args)
+        elif nargs[0] == "delete":
+            delete_nsg_rules_with_service_tags(config, args)
+
 
 if __name__ == '__main__':
     # the program always run at the current directory.
@@ -1254,6 +1265,12 @@ Command:
                         help="Number of processes to create worker VMs. Default is 1.",
                         type=int,
                         default=1)
+    parser.add_argument("--output", "-o",
+                        default="",
+                        help='Specify the output file path')
+    parser.add_argument("--dryrun", "-d",
+                        help="Dry run -- no actual execution",
+                        action="store_true")
 
     parser.add_argument("command",
                         help="See above for the list of valid command")
