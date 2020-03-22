@@ -513,6 +513,26 @@ def vm_interconnects(config, args):
                config["cloud_config_nsg_rules"]["nfs_allow_master"]["tcp_port_ranges"],
                allowed_incoming_infra_ips
                )
+
+    restricted_source_address_prefixes = "'*'"
+    if "restricted_source_address_prefixes" in config["cloud_config_nsg_rules"]:
+        restricted_source_address_prefixes = config["cloud_config_nsg_rules"]["restricted_source_address_prefixes"]
+        if isinstance(restricted_source_address_prefixes, list):
+            restricted_source_address_prefixes = " ".join(
+                keep_widest_subnet(infra_ip_list + list(set(restricted_source_address_prefixes))))
+
+    cmd += """
+        ; az network nsg rule update \
+            --resource-group %s \
+            --nsg-name %s \
+            --name allowalltcp \
+            --source-address-prefixes %s \
+            --access allow
+        """ % (config["azure_cluster"]["resource_group"],
+               config["azure_cluster"]["nsg_name"],
+               restricted_source_address_prefixes
+               )
+
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
