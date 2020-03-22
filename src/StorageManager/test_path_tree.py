@@ -14,6 +14,7 @@ test_dir
   |- dir2
   |   |- file2_1
   |   |- file2_2
+  |   |- file2_3
   |- file1
 """
 
@@ -24,6 +25,8 @@ FILE2_1 = os.path.join(DIR2, "file2_1")
 FILE2_1_LEN = 8100
 FILE2_2 = os.path.join(DIR2, "file2_2")
 FILE2_2_LEN = 500
+FILE2_3 = os.path.join(DIR2, "file2_3")
+FILE2_3_LEN = 8100
 FILE1 = os.path.join(TEST_DIR, "file1")
 FILE1_LEN = 10240
 
@@ -34,19 +37,31 @@ def stat_side_effect(value):
     if value == TEST_DIR:
         node.st_size = EMPTY_DIR_SIZE
     elif value == DIR1:
+        node.st_ino = 2
         node.st_size = EMPTY_DIR_SIZE
     elif value == DIR2:
+        node.st_ino = 3
         node.st_size = EMPTY_DIR_SIZE
         node.st_mtime -= 3 * DAY
     elif value == FILE2_1:
+        node.st_ino = 4
+        node.st_nlink = 2
         node.st_size = FILE2_1_LEN
         node.st_atime -= 2 * DAY
         node.st_mtime -= 14 * DAY
     elif value == FILE2_2:
+        node.st_ino = 5
         node.st_size = FILE2_2_LEN
         node.st_atime -= 7 * DAY
         node.st_mtime -= 5 * DAY
+    elif value == FILE2_3:
+        node.st_ino = 4
+        node.st_nlink = 2
+        node.st_size = FILE2_3_LEN
+        node.st_atime -= 2 * DAY
+        node.st_mtime -= 14 * DAY
     elif value == FILE1:
+        node.st_ino = 6
         node.st_size = FILE1_LEN
         node.st_atime -= 3 * DAY
         node.st_mtime -= 3 * DAY

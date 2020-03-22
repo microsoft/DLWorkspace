@@ -30,6 +30,8 @@ class TestPathNode(TestCase):
         node = PathNode(NODE_PATH)
         self.assertEqual(NODE_PATH, node.path)
         self.assertTrue(node.isdir)
+        self.assertEqual(1, node.ino)
+        self.assertEqual(1, node.nlink)
         self.assertEqual(NODE_SIZE, node.size)
         self.assertEqual(NODE_SIZE, node.subtree_size)
         self.assertEqual(datetime(2019, 11, 19, 22, 39, 27), node.atime)
