@@ -4,22 +4,12 @@ import logging
 
 from resource_stat import make_resource
 from job_resource_policy import make_job_resource_policy
-from authorization import ResourceType, Permission, AuthorizationManager
-
-has_access = AuthorizationManager.HasAccess
-VC = ResourceType.VC
-ADMIN = Permission.Admin
 
 logger = logging.getLogger(__name__)
 
 
 def override(func):
     return func
-
-
-# TODO: Put this into common utils
-def is_admin(username, vc_name):
-    return has_access(username, VC, vc_name, ADMIN)
 
 
 def get_resourcegpu(params):
@@ -323,12 +313,12 @@ JOB_PARAMS_MAPPING = {
 }
 
 
-def make_job_params(params, quota, metadata, config):
+def make_job_params(params, quota, metadata, config, is_admin):
     job_params = None
     try:
         job_type = params.get("jobtrainingtype")
         job_params = JOB_PARAMS_MAPPING[job_type](params, quota, metadata,
-                                                  config)
+                                                  config, is_admin)
     except ValueError:
         logger.exception("Bad job type in params %s", params)
     except Exception:

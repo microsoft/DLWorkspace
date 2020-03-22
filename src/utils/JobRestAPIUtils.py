@@ -147,7 +147,8 @@ def populate_job_resource(params):
             logger.exception("Failed to parse resource quota and metadata")
             return
 
-        job_params = make_job_params(params, quota, metadata, config)
+        is_admin = has_access(params["userName"], VC, vc_name, ADMIN)
+        job_params = make_job_params(params, quota, metadata, config, is_admin)
         if job_params.is_valid():
             logger.info("job_params %s is valid. Populating.", job_params)
             params["sku"] = job_params.sku
