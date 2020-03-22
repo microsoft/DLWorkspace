@@ -92,7 +92,7 @@ def load_platform_type(config):
     platform_type = list(set(config.keys()) & set(
         config["supported_platform"]))
     assert len(
-        platform_type) == 1 and "platform type should be specified explicitly and unique!"
+        platform_type) == 1, "platform type should be specified explicitly and unique!"
     platform_type = platform_type[0]
     config["platform_type"] = platform_type
     return config
@@ -176,7 +176,7 @@ def get_nodes_from_config(machinerole, config, with_domain=True):
 def load_node_list_by_role_from_config(config, roles, with_domain=True):
     Nodes = []
     for role in roles:
-        assert role in config["allroles"] and "invalid role, check your list of valid roles in config"
+        assert role in config["allroles"], "invalid role, check your list of valid roles in config"
         role = "infra" if role == "infrastructure" else role
         temp_nodes = []
         temp_nodes = get_nodes_from_config(role, config, with_domain)
@@ -306,7 +306,7 @@ def load_cluster_ID():
 
 def load_config(args):
     clusterID = load_cluster_ID()
-    assert (not clusterID is None) and "All operation cancelled, \
+    assert (not clusterID is None), "All operation cancelled, \
     please make sure you have cluster ID ready. You may call \
     `cloud_init_deploy.py clusterID` to generate one."
     config = init_config(default_config_parameters)
@@ -429,7 +429,7 @@ def gen_mounting_yaml(config):
     for nfs in config["nfs_node"]:
         nfs_machine_name = nfs.split('.')[0]
         spec = config["machines"][nfs_machine_name]
-        assert "private_ip_address" in spec and "Need IP for NFS node!"
+        assert "private_ip_address" in spec, "Need IP for NFS node!"
         mount_triplets = []
         if "fileshares" not in spec or len(spec["fileshares"]) == 0:
             spec["fileshares"] = [[]]
@@ -439,7 +439,7 @@ def gen_mounting_yaml(config):
                     raise Exception(
                         "Duplicate mounting mount path detected:\n{}".format(v["remote_mount_path"]))
                 assert set(v.keys()) == set(
-                    ['nfs_local_path', 'remote_mount_path', 'remote_link_path']) and "invalid format of complete mounting items"
+                    ['nfs_local_path', 'remote_mount_path', 'remote_link_path']), "invalid format of complete mounting items"
                 mount_sources_set.add(v['nfs_local_path'])
                 mount_triplets += v,
             else:
@@ -563,10 +563,8 @@ def render_elasticsearch_node_specific(config, args):
     config.pop("mount_and_link", [])
     config = escaped_etcd_end_point_and_k8s_api_server(config)
     example_node_name = config["elasticsearch_node"][0].split(".")[0]
-    common_labels = get_kube_labels_of_machine_name(config, example_node_name)
-    default_f2cp = ["kubernetes_common", "kubelet_worker"]
-    config["kube_labels"] = common_labels
-    config["file_modules_2_copy"] = [mod for mod in default_f2cp]
+    config["kube_labels"] = get_kube_labels_of_machine_name(config, example_node_name)
+    config["file_modules_2_copy"] = ["kubernetes_common", "kubelet_worker"]
     utils.render_template("./template/cloud-config/cloud_init_worker.txt.template",
             "./deploy/cloud-config/cloud_init_elasticsearch.txt", config)
 
@@ -1010,8 +1008,8 @@ def run_command(args, command, parser):
     if command == "renderspecific":
         if len(args.nargs) == 0:
             args.nargs = ["infra", "worker", "nfs", "elasticsearch"]
-        for compo in args.nargs:
-            func = eval("render_{}_node_specific".format(compo))
+        for role in args.nargs:
+            func = eval("render_{}_node_specific".format(role))
             func(config, args)
     if command == "pack":
         pack_cloudinit_roles(config, args)
