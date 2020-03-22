@@ -17,6 +17,9 @@ import base64
 import tempfile
 import urllib.request
 
+cwd = os.path.dirname(__file__)
+os.chdir(cwd)
+
 sys.path.append("../utils")
 
 from ConfigUtils import *

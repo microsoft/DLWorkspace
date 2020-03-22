@@ -39,6 +39,8 @@ class PathNode(object):
         self.isdir = os.path.isdir(path)
 
         stat = os.stat(path)
+        self.ino = stat.st_ino
+        self.nlink = stat.st_nlink
         self.size = stat.st_size
         self.subtree_size = stat.st_size
         self.atime = datetime.fromtimestamp(stat.st_atime)

@@ -40,6 +40,8 @@ class PathTree(object):
 
         self.root = None
 
+        self.hardlink_ino = set()
+
         self.overweight_boundary_nodes = []
         self.expired_boundary_nodes = []
         self.expired_boundary_nodes_to_delete = []
@@ -51,6 +53,19 @@ class PathTree(object):
             self.logger.warning("Path %s is invalid. Skip walking.", self.path)
 
         self.root = self._walk(self.path)
+
+    def _not_hardlink(self, path_node):
+        # Directory can never be a hardlink
+        # Files with #links == 1 is not a hardlink
+        return path_node.isdir or path_node.nlink == 1
+
+    def _new_hardlink(self, path_node):
+        # Assumes path_node is a hardlink
+        if path_node.ino in self.hardlink_ino:
+            return False
+
+        self.hardlink_ino.add(path_node.ino)
+        return True
 
     def _walk(self, root):
         if root != self.path and os.path.islink(root):
@@ -107,7 +122,9 @@ class PathTree(object):
             except:
                 continue
             children.append(path_node)
-            root_node.subtree_size += path_node.subtree_size
+            # do not count hardlink twice if any
+            if self._not_hardlink(path_node) or self._new_hardlink(path_node):
+                root_node.subtree_size += path_node.subtree_size
             if path_node.subtree_atime > root_node.subtree_atime:
                 root_node.subtree_atime = path_node.subtree_atime
             if path_node.subtree_mtime > root_node.subtree_mtime:

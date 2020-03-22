@@ -13,7 +13,7 @@ logger = logging.getLogger(__file__)
 
 def test_distributed_job_running(args, preemptable=False):
     expected = "wantThisInLog"
-    cmd = "echo %s ; sleep 1800" % expected
+    cmd = "echo %s ; sleep 120" % expected
 
     job_spec = utils.gen_default_job_description("distributed",
                                                  args.email,
@@ -63,8 +63,8 @@ def test_distributed_job_ssh(args):
         for endpoint_id in endpoints_ids:
             ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
                                                      job.jid, endpoint_id)
-            logger.debug("endpoint_id is %s, endpoints resp is %s",
-                         endpoint_id, ssh_endpoint)
+            logger.debug("endpoint_id is %s, endpoints resp is %s", endpoint_id,
+                         ssh_endpoint)
 
             ssh_host = "%s.%s" % (ssh_endpoint["nodeName"],
                                   ssh_endpoint["domain"])
@@ -160,8 +160,8 @@ sleep infinity"""
         for endpoint_id in endpoints_ids:
             ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
                                                      job.jid, endpoint_id)
-            logger.debug("endpoint_id is %s, endpoints resp is %s",
-                         endpoint_id, ssh_endpoint)
+            logger.debug("endpoint_id is %s, endpoints resp is %s", endpoint_id,
+                         ssh_endpoint)
 
             ssh_host = "%s.%s" % (ssh_endpoint["nodeName"],
                                   ssh_endpoint["domain"])
@@ -310,8 +310,7 @@ def test_blobfuse(args):
     job_spec = utils.gen_default_job_description("distributed", args.email,
                                                  args.uid, args.vc)
 
-    job_spec["plugins"] = utils.load_azure_blob_config(args.config,
-                                                       "/tmp/blob")
+    job_spec["plugins"] = utils.load_azure_blob_config(args.config, "/tmp/blob")
 
     with utils.run_job(args.rest, job_spec) as job:
         state = job.block_until_state_not_in(
@@ -346,8 +345,7 @@ def test_blobfuse(args):
                                            worker_pod_name,
                                            worker_container_name, worker_cmd)
         assert code == 0, "code is %d, output is %s" % (code, output)
-        assert msg + "\n" == output, "code is %d, output is %s" % (code,
-                                                                   output)
+        assert msg + "\n" == output, "code is %d, output is %s" % (code, output)
 
 
 # uncomment to run perf case
@@ -370,3 +368,76 @@ def perf(args):
                 args.rest, jid,
                 {"unapproved", "queued", "scheduling", "running"})
             logger.info("%s is in state %s", jid, state)
+
+
+@utils.case()
+def test_ssh_cuda_visible_devices(args):
+
+    job_spec = utils.gen_default_job_description("distributed",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 cmd="sleep infinity",
+                                                 resourcegpu=4)
+    with utils.run_job(args.rest, job_spec) as job:
+        endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
+                                          ["ssh"])
+        endpoints_ids = list(endpoints.keys())
+
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        for endpoint_id in endpoints_ids:
+            ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
+                                                     job.jid, endpoint_id)
+            logger.debug("endpoints resp is %s", ssh_endpoint)
+
+            ssh_host = "%s.%s" % (ssh_endpoint["nodeName"],
+                                  ssh_endpoint["domain"])
+            ssh_port = ssh_endpoint["port"]
+            ssh_id = ssh_endpoint["id"]
+
+            role_idx = ssh_id.split("-")[-2]
+            match = re.match("([a-z]+)([0-9]+)", role_idx)
+            assert match is not None, "%s is not role index name" % role_idx
+
+            role, idx = match.groups()
+
+            # exec into jobmanager to execute ssh to avoid firewall
+            job_manager_pod = utils.kube_get_pods(args.config, "default",
+                                                  "app=jobmanager")[0]
+            job_manager_pod_name = job_manager_pod.metadata.name
+
+            alias = args.email.split("@")[0]
+
+            ssh_cmd = [
+                "ssh",
+                "-i",
+                "/dlwsdata/work/%s/.ssh/id_rsa" % alias,
+                "-p",
+                str(ssh_port),
+                "-o",
+                "StrictHostKeyChecking=no",
+                "-o",
+                "LogLevel=ERROR",
+                "%s@%s" % (alias, ssh_host),
+                "--",
+                "echo a; env | grep CUDA_VISIBLE_DEVICES;",
+                "grep CUDA_VISIBLE_DEVICES ~/.ssh/environment; echo b",
+            ]
+
+            code, output = utils.kube_pod_exec(args.config, "default",
+                                               job_manager_pod_name,
+                                               "jobmanager", ssh_cmd)
+
+            logger.debug("cmd %s code is %s, output is %s", " ".join(ssh_cmd),
+                         code, output)
+
+            if role == "ps":
+                expected = "a\nb"
+            else:
+                expected = "a\nCUDA_VISIBLE_DEVICES=0,1,2,3\nCUDA_VISIBLE_DEVICES=0,1,2,3\nb"
+
+            assert expected in output, "could not find %s in output %s" % (
+                expected, output)

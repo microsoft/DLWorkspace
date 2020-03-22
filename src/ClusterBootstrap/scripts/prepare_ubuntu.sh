@@ -145,6 +145,11 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
         NVIDIA_VERSION=`/usr/bin/nvidia-smi -x -q | grep driver_version | sed -e 's/\t//' | sed -e 's/\ //' | sed -e 's/<driver_version>//' | sed -e 's/<\/driver_version>//'`
         NV_DRIVER=/opt/nvidia-driver/$NVIDIA_VERSION
         sudo ln -s $NV_DRIVER /opt/nvidia-driver/current
+
+        # Enable NVIDIA Persistence Daemon
+        sudo sed -i 's/--no-persistence-mode/--persistence-mode/g' /lib/systemd/system/nvidia-persistenced.service
+        sudo systemctl daemon-reload
+        sudo systemctl restart nvidia-persistenced
 fi
 
 # https://github.com/kubernetes/kubeadm/issues/610

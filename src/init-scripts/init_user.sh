@@ -14,10 +14,15 @@ mkdir -p /home/${DLTS_USER_NAME}/.ssh
 chown ${DLTS_USER_NAME} /home/${DLTS_USER_NAME}/ /home/${DLTS_USER_NAME}/.profile /home/${DLTS_USER_NAME}/.ssh || /bin/true
 chmod 700 /home/${DLTS_USER_NAME}/.ssh || /bin/true
 
+if [ -d /job ] ; then
+    chown ${DLTS_USER_NAME} /job
+fi
+
 # setup sudoers
 adduser $DLTS_USER_NAME sudo
 echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
+# setup env variables
 ENV_FILE=/dlts-runtime/env/pod.env
 
 set +x
@@ -30,6 +35,9 @@ compgen -e | while read line; do
         fi; done
 echo "export PATH=$PATH:\${PATH}" >> "${ENV_FILE}"
 echo "export LD_LIBRARY_PATH=/usr/local/nvidia/lib64/:\${LD_LIBRARY_PATH}" >> "${ENV_FILE}"
+if [[ "$CUDA_VISIBLE_DEVICES" != "" ]]; then
+    echo "export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}" >> "${ENV_FILE}"
+fi
 set -x
 
 # source the envs
