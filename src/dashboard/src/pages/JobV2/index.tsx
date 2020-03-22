@@ -14,7 +14,7 @@ import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
 
 import UserContext from '../../contexts/User';
-import ClustersContext from '../../contexts/Clusters';
+import TeamsContext from '../../contexts/Teams';
 import Loading from '../../components/Loading';
 
 import useRouteParams from './useRouteParams';
@@ -27,23 +27,27 @@ const JobContent: FunctionComponent = () => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const { email } = useContext(UserContext);
-  const { clusters } = useContext(ClustersContext);
-
-  const teamCluster = useMemo(() => {
-    return clusters.filter((cluster) => cluster.id === clusterId)[0];
-  }, [clusters, clusterId]);
-  const accessible = useMemo(() => {
-    return teamCluster !== undefined;
-  }, [teamCluster]);
-  const admin = useMemo(() => {
-    return accessible && Boolean(teamCluster.admin);
-  }, [accessible, teamCluster]);
+  const { teams } = useContext(TeamsContext);
 
   const { data: job, loading: jobLoading, error: jobError, get: getJob } =
     useFetch(`/api/v2/clusters/${clusterId}/jobs/${jobId}`, undefined, [clusterId, jobId]);
 
   const { data: cluster, error: clusterError } =
     useFetch(`/api/clusters/${clusterId}`, undefined, [clusterId]);
+
+  const teamCluster = useMemo(() => {
+    if (job === undefined) return undefined;
+    const team = teams.filter((team: any) => team.id === job['vcName'])[0];
+    if (team === undefined) return undefined;
+    const teamCluster = team.clusters.filter((cluster: any) => cluster.id === clusterId)[0];
+    return teamCluster;
+  }, [job, teams]);
+  const accessible = useMemo(() => {
+    return teamCluster !== undefined;
+  }, [teamCluster]);
+  const admin = useMemo(() => {
+    return accessible && Boolean(teamCluster.admin);
+  }, [accessible, teamCluster]);
 
   const manageable = useMemo(() => {
     if (job === undefined) return false;
