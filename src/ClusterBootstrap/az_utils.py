@@ -45,8 +45,9 @@ def whitelist_source_address_prefixes(config):
         sources = data.get("sourceAddressPrefixes")
         if sources is not None:
             source_address_prefixes += sources
-    except Exception as e:
-        print("Exception: %s" % e)
+    except Exception:
+        print("Exception when parsing whitelist response. "
+              "Ignore existing whitelist")
 
     return source_address_prefixes
 
