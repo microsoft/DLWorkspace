@@ -4,12 +4,22 @@ import logging
 
 from resource_stat import make_resource
 from job_resource_policy import make_job_resource_policy
+from authorization import ResourceType, Permission, AuthorizationManager
+
+has_access = AuthorizationManager.HasAccess
+VC = ResourceType.VC
+ADMIN = Permission.Admin
 
 logger = logging.getLogger(__name__)
 
 
 def override(func):
     return func
+
+
+# TODO: Put this into common utils
+def is_admin(username, vc_name):
+    return has_access(username, VC, vc_name, ADMIN)
 
 
 def get_resourcegpu(params):
@@ -78,7 +88,7 @@ def get_resource_params_from_job_params(params):
 
 
 class JobParams(object):
-    def __init__(self, params, quota, metadata, config):
+    def __init__(self, params, quota, metadata, config, is_admin=False):
         """Constructor for JobParams.
 
         Args:
@@ -91,9 +101,7 @@ class JobParams(object):
         self.quota = quota
         self.metadata = metadata
         self.config = config
-
-        # Allow partial node for worker for internal jobs.
-        self.internal = params.get("_internal", False)
+        self.is_admin = is_admin
 
         self.policy = None
 
@@ -241,19 +249,21 @@ class JobParams(object):
 
 
 class RegularJobParams(JobParams):
-    def __init__(self, params, quota, metadata, config):
-        super(RegularJobParams, self).__init__(params, quota, metadata, config)
+    def __init__(self, params, quota, metadata, config, is_admin=False):
+        super(RegularJobParams, self).__init__(params, quota, metadata, config,
+                                               is_admin)
 
 
 class PSDistJobParams(JobParams):
     """Always allocate entire nodes for workers if no resource request.
     """
-    def __init__(self, params, quota, metadata, config):
-        super(PSDistJobParams, self).__init__(params, quota, metadata, config)
+    def __init__(self, params, quota, metadata, config, is_admin=False):
+        super(PSDistJobParams, self).__init__(params, quota, metadata, config,
+                                              is_admin)
 
     def gen_gpu(self):
-        # Allow dev to specify 0 GPU for efficient integration tests
-        if self.internal:
+        # Allow admins to specify 0 GPU for efficient integration tests
+        if self.is_admin and self.params.get("_internal", False):
             super(PSDistJobParams, self).gen_gpu()
         else:
             # Allocate all GPUs in a node for workers
@@ -293,9 +303,9 @@ class InferenceJobParams(JobParams):
     """Always allocate 1 GPU for each worker if any.
     NOTE: The behavior of a CPU inference job is undefined.
     """
-    def __init__(self, params, quota, metadata, config):
+    def __init__(self, params, quota, metadata, config, is_admin=False):
         super(InferenceJobParams, self).__init__(params, quota, metadata,
-                                                 config)
+                                                 config, is_admin)
 
     def gen_policy(self):
         self.policy = make_job_resource_policy(
