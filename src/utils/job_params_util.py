@@ -78,7 +78,7 @@ def get_resource_params_from_job_params(params):
 
 
 class JobParams(object):
-    def __init__(self, params, quota, metadata, config):
+    def __init__(self, params, quota, metadata, config, is_admin=False):
         """Constructor for JobParams.
 
         Args:
@@ -91,6 +91,7 @@ class JobParams(object):
         self.quota = quota
         self.metadata = metadata
         self.config = config
+        self.is_admin = is_admin
 
         self.policy = None
 
@@ -238,15 +239,26 @@ class JobParams(object):
 
 
 class RegularJobParams(JobParams):
-    def __init__(self, params, quota, metadata, config):
-        super(RegularJobParams, self).__init__(params, quota, metadata, config)
+    def __init__(self, params, quota, metadata, config, is_admin=False):
+        super(RegularJobParams, self).__init__(params, quota, metadata, config,
+                                               is_admin)
 
 
 class PSDistJobParams(JobParams):
     """Always allocate entire nodes for workers if no resource request.
     """
-    def __init__(self, params, quota, metadata, config):
-        super(PSDistJobParams, self).__init__(params, quota, metadata, config)
+    def __init__(self, params, quota, metadata, config, is_admin=False):
+        super(PSDistJobParams, self).__init__(params, quota, metadata, config,
+                                              is_admin)
+
+    def gen_gpu(self):
+        # Allow admins to specify 0 GPU for efficient integration tests
+        if self.is_admin and self.params.get("_allow_partial_node", False):
+            super(PSDistJobParams, self).gen_gpu()
+        else:
+            # Allocate all GPUs in a node for workers
+            self.gpu_limit = self.metadata.get("gpu", {}).get(self.sku, {}).\
+                get("per_node", 0)
 
     def get_default_cpu_request_and_limit(self):
         if self.cpu_job_on_cpu_node:
@@ -281,9 +293,9 @@ class InferenceJobParams(JobParams):
     """Always allocate 1 GPU for each worker if any.
     NOTE: The behavior of a CPU inference job is undefined.
     """
-    def __init__(self, params, quota, metadata, config):
+    def __init__(self, params, quota, metadata, config, is_admin=False):
         super(InferenceJobParams, self).__init__(params, quota, metadata,
-                                                 config)
+                                                 config, is_admin)
 
     def gen_policy(self):
         self.policy = make_job_resource_policy(
@@ -301,12 +313,12 @@ JOB_PARAMS_MAPPING = {
 }
 
 
-def make_job_params(params, quota, metadata, config):
+def make_job_params(params, quota, metadata, config, is_admin=False):
     job_params = None
     try:
         job_type = params.get("jobtrainingtype")
         job_params = JOB_PARAMS_MAPPING[job_type](params, quota, metadata,
-                                                  config)
+                                                  config, is_admin)
     except ValueError:
         logger.exception("Bad job type in params %s", params)
     except Exception:

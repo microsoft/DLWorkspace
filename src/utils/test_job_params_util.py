@@ -313,6 +313,51 @@ class TestPSDistJobParams(TestRegularJobParams):
         self.assertEqual("4096Mi", job_params.memory_request)
         self.assertEqual("4608Mi", job_params.memory_limit)
 
+    def test_cpu_job_on_gpu_node(self):
+        # This is disallowed
+        pass
+
+    def test_gpu_job(self):
+        # gpu_limit precedes resourcegpu
+        self.params["resourcegpu"] = 0
+        self.params["gpu_limit"] = 3
+        self.params["_allow_partial_node"] = True
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
+        self.assertIsNotNone(job_params)
+        self.assertTrue(job_params.is_valid())
+        self.assertEqual("Standard_ND24rs", job_params.sku)
+        self.assertEqual(4, job_params.gpu_limit)
+        self.assertEqual("1000m", job_params.cpu_request)
+        self.assertEqual("24000m", job_params.cpu_limit)
+        self.assertEqual("0Mi", job_params.memory_request)
+        self.assertEqual("458752Mi", job_params.memory_limit)
+
+        # Admin is allowed to submit partial nodes
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config, is_admin=True)
+        self.assertIsNotNone(job_params)
+        self.assertTrue(job_params.is_valid())
+        self.assertEqual("Standard_ND24rs", job_params.sku)
+        self.assertEqual(3, job_params.gpu_limit)
+        self.assertEqual("1000m", job_params.cpu_request)
+        self.assertEqual("24000m", job_params.cpu_limit)
+        self.assertEqual("0Mi", job_params.memory_request)
+        self.assertEqual("458752Mi", job_params.memory_limit)
+
+        # Gpu proportional
+        self.config["job_resource_policy"] = "gpu_proportional"
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
+        self.assertIsNotNone(job_params)
+        self.assertTrue(job_params.is_valid())
+        self.assertEqual("Standard_ND24rs", job_params.sku)
+        self.assertEqual(4, job_params.gpu_limit)
+        self.assertEqual("21000m", job_params.cpu_request)
+        self.assertEqual("24000m", job_params.cpu_limit)
+        self.assertEqual("412876Mi", job_params.memory_request)
+        self.assertEqual("458752Mi", job_params.memory_limit)
+
 
 class TestInferenceJobParams(TestRegularJobParams):
     def setUp(self):
