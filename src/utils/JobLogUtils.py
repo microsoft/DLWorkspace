@@ -54,6 +54,8 @@ if config.get("logging") == 'logAnalytics':
 
             if len(rows) > 0:
                 cursor = rows[-1][0]
+            else:
+                cursor = None
 
             return (pod_logs, cursor)
         except Exception:
@@ -106,6 +108,8 @@ elif config.get("logging") == 'elasticsearch':
 
             if len(documents) > 0:
                 cursor = '.'.join(str(i) for i in documents[-1]["sort"])
+            else:
+                cursor = None
 
             return (pod_logs, cursor)
         except Exception:
