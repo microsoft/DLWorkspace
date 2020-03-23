@@ -2,13 +2,13 @@
 rules:
   ecc_detect_error_rule:
     module_name: rules.ecc_detect_error_rule
-    class_name: ECCDetectErrorRule
+    class_name: EccDetectErrorRule
   ecc_reboot_node_rule:
     module_name: rules.ecc_reboot_node_rule
-    class_name: ECCRebootNodeRule
-  monitor_smi_latency_rule:
-    module_name: rules.monitor_smi_latency_rule
-    class_name: MonitorSMILatencyRule
+    class_name: EccRebootNodeRule
+  nvidia_smi_latency_rule :
+    module_name: rules.nvidia_smi_latency_rule 
+    class_name: NvidiaSmiLatencyRule
 
 rule_wait_time: 30 # time to sleep between rule execution (seconds)
 

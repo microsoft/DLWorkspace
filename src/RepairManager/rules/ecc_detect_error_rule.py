@@ -59,7 +59,7 @@ def _create_email_for_job_owner(job_id, job_owner_email, node_names, job_link,
     return message
 
 
-class ECCDetectErrorRule(Rule):
+class EccDetectErrorRule(Rule):
 
     def __init__(self, alert, config):
         self.rule = 'ecc_rule'

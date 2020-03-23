@@ -31,7 +31,7 @@ def _mock_prometheus_node_boot_time_response(node_boot_times):
 
     return mock_response
 
-class Testing(unittest.TestCase):
+class TestEccRebootNodeRule(unittest.TestCase):
 
     def test_extract_node_boot_time_info(self):
         mock_datetime_one = datetime.utcnow()
@@ -58,7 +58,7 @@ class Testing(unittest.TestCase):
 
 
     @mock.patch('requests.get')
-    @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
+    @mock.patch('rules.ecc_reboot_node_rule.EccRebootNodeRule.load_ecc_config')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     def test_check_status_time_to_take_action(self,
@@ -91,7 +91,7 @@ class Testing(unittest.TestCase):
         mock_request_get.return_value.json.return_value = _mock_prometheus_node_boot_time_response(node_boot_times)
 
 
-        ecc_reboot_node_rule_instance = ecc_reboot_node_rule.ECCRebootNodeRule(rule_alert_handler_instance, rule_config)
+        ecc_reboot_node_rule_instance = ecc_reboot_node_rule.EccRebootNodeRule(rule_alert_handler_instance, rule_config)
         response = ecc_reboot_node_rule_instance.check_status()
 
 
@@ -101,7 +101,7 @@ class Testing(unittest.TestCase):
 
 
     @mock.patch('requests.get')
-    @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
+    @mock.patch('rules.ecc_reboot_node_rule.EccRebootNodeRule.load_ecc_config')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     def test_check_status_node_rebooted_after_detection(self,
@@ -135,7 +135,7 @@ class Testing(unittest.TestCase):
         mock_request_get.return_value.json.return_value = _mock_prometheus_node_boot_time_response(node_boot_times)
 
 
-        ecc_reboot_node_rule_instance = ecc_reboot_node_rule.ECCRebootNodeRule(rule_alert_handler_instance, rule_config)
+        ecc_reboot_node_rule_instance = ecc_reboot_node_rule.EccRebootNodeRule(rule_alert_handler_instance, rule_config)
         response = ecc_reboot_node_rule_instance.check_status()
 
 
@@ -145,7 +145,7 @@ class Testing(unittest.TestCase):
 
 
     @mock.patch('requests.get')
-    @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
+    @mock.patch('rules.ecc_reboot_node_rule.EccRebootNodeRule.load_ecc_config')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     def test_check_status_no_action_needed(self,
@@ -179,7 +179,7 @@ class Testing(unittest.TestCase):
         mock_request_get.return_value.json.return_value = _mock_prometheus_node_boot_time_response(node_boot_times)
 
 
-        ecc_reboot_node_rule_instance = ecc_reboot_node_rule.ECCRebootNodeRule(rule_alert_handler_instance, rule_config)
+        ecc_reboot_node_rule_instance = ecc_reboot_node_rule.EccRebootNodeRule(rule_alert_handler_instance, rule_config)
         response = ecc_reboot_node_rule_instance.check_status()
 
 
@@ -188,7 +188,7 @@ class Testing(unittest.TestCase):
 
 
     @mock.patch('utils.k8s_util.list_namespaced_pod')
-    @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
+    @mock.patch('rules.ecc_reboot_node_rule.EccRebootNodeRule.load_ecc_config')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('requests.get')
     @mock.patch('rules.ecc_reboot_node_rule._create_email_for_pause_resume_job')
@@ -256,7 +256,7 @@ class Testing(unittest.TestCase):
             }
         ])
 
-        ecc_reboot_node_rule_instance = ecc_reboot_node_rule.ECCRebootNodeRule(rule_alert_handler_instance, rule_config)
+        ecc_reboot_node_rule_instance = ecc_reboot_node_rule.EccRebootNodeRule(rule_alert_handler_instance, rule_config)
         ecc_reboot_node_rule_instance.nodes_ready_for_action = ["mock-worker-one", "mock-worker-three"]
 
         ecc_reboot_node_rule_instance.take_action()
@@ -265,7 +265,7 @@ class Testing(unittest.TestCase):
 
     @mock.patch('rules.ecc_reboot_node_rule._create_email_for_issue_with_pause_resume_job')
     @mock.patch('utils.k8s_util.list_namespaced_pod')
-    @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
+    @mock.patch('rules.ecc_reboot_node_rule.EccRebootNodeRule.load_ecc_config')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('requests.get')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
@@ -297,7 +297,7 @@ class Testing(unittest.TestCase):
                 "node_name": "mock-worker-one"
             }])
 
-        ecc_reboot_node_rule_instance = ecc_reboot_node_rule.ECCRebootNodeRule(rule_alert_handler_instance, rule_config)
+        ecc_reboot_node_rule_instance = ecc_reboot_node_rule.EccRebootNodeRule(rule_alert_handler_instance, rule_config)
         ecc_reboot_node_rule_instance.nodes_ready_for_action = ["mock-worker-one"]
 
         ecc_reboot_node_rule_instance.take_action()

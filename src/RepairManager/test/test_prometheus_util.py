@@ -49,7 +49,7 @@ def _mock_prometheus_metric_data():
         }
     return mock_prometheus_metric_data
 
-class Testing(unittest.TestCase):
+class TestPrometheusUtil(unittest.TestCase):
     
     def test_extract_ips_from_response(self):
         mock_response = Mock()

@@ -57,7 +57,7 @@ def _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs
     return message
 
 
-class ECCRebootNodeRule(Rule):
+class EccRebootNodeRule(Rule):
 
     def __init__(self, alert, config):
         self.rule = 'ecc_rule'

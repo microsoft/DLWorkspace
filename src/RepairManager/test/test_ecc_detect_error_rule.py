@@ -6,10 +6,10 @@ import mock
 import datetime
 from mock import call
 from rules import ecc_detect_error_rule
-from rules.ecc_detect_error_rule import ECCDetectErrorRule
+from rules.ecc_detect_error_rule import EccDetectErrorRule
 from utils import k8s_util, rule_alert_handler, test_util
 
-def _mock_prometheus_latency_data():
+def _mock_prometheus_ecc_data():
     mock_prometheus_latency_data = {
             "status":
                 "success",
@@ -46,13 +46,13 @@ def _mock_prometheus_latency_data():
         }
     return mock_prometheus_latency_data
 
-class Testing(unittest.TestCase):
+class TestEccDetectErrorRule(unittest.TestCase):
 
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     @mock.patch('utils.k8s_util.list_node')
     @mock.patch('requests.get')
-    @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
+    @mock.patch('rules.ecc_detect_error_rule.EccDetectErrorRule.load_ecc_config')
     def test_check_status_ecc_error_detected(self, 
             mock_load_ecc_config,
             mock_request_get,
@@ -64,7 +64,7 @@ class Testing(unittest.TestCase):
         mock_rule_alert_handler_load_config.return_value = mock_rule_config
         mock_load_ecc_config.return_value = test_util.mock_ecc_config()
         mock_rule_alert_handler = rule_alert_handler.RuleAlertHandler()
-        mock_request_get.return_value.json.return_value = _mock_prometheus_latency_data()
+        mock_request_get.return_value.json.return_value = _mock_prometheus_ecc_data()
         mock_list_node.return_value = test_util.mock_v1_node_list([
             {
                 "instance": "192.168.0.1",
@@ -76,7 +76,7 @@ class Testing(unittest.TestCase):
             }
         ])
 
-        ecc_rule_instance = ECCDetectErrorRule(mock_rule_alert_handler, mock_rule_config)
+        ecc_rule_instance = EccDetectErrorRule(mock_rule_alert_handler, mock_rule_config)
         check_status_response = ecc_rule_instance.check_status()
 
         self.assertTrue(check_status_response)
@@ -89,7 +89,7 @@ class Testing(unittest.TestCase):
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     @mock.patch('utils.k8s_util.list_node')
     @mock.patch('requests.get')
-    @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
+    @mock.patch('rules.ecc_detect_error_rule.EccDetectErrorRule.load_ecc_config')
     def test_check_status_ecc_error_node_already_detected(self, 
             mock_load_ecc_config,
             mock_request_get,
@@ -110,7 +110,7 @@ class Testing(unittest.TestCase):
                 }
             }
         }
-        mock_request_get.return_value.json.return_value = _mock_prometheus_latency_data()
+        mock_request_get.return_value.json.return_value = _mock_prometheus_ecc_data()
         mock_list_node.return_value = test_util.mock_v1_node_list([
             {
                 "instance": "192.168.0.1",
@@ -122,7 +122,7 @@ class Testing(unittest.TestCase):
             }
         ])
 
-        ecc_rule_instance = ECCDetectErrorRule(mock_rule_alert_handler, mock_rule_config)
+        ecc_rule_instance = EccDetectErrorRule(mock_rule_alert_handler, mock_rule_config)
         check_status_response = ecc_rule_instance.check_status()
 
         self.assertTrue(check_status_response)
@@ -134,7 +134,7 @@ class Testing(unittest.TestCase):
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler')
     @mock.patch('utils.k8s_util.list_node')
     @mock.patch('requests.get')
-    @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
+    @mock.patch('rules.ecc_detect_error_rule.EccDetectErrorRule.load_ecc_config')
     def test_check_status_ecc_error_not_found(self, 
             mock_load_ecc_config,
             mock_request_get,
@@ -145,7 +145,7 @@ class Testing(unittest.TestCase):
 
         mock_request_get.return_value.json.return_value = test_util.mock_empty_prometheus_metric_data()
 
-        ecc_rule_instance = ECCDetectErrorRule(mock_rule_alert_handler, test_util.mock_rule_config())
+        ecc_rule_instance = EccDetectErrorRule(mock_rule_alert_handler, test_util.mock_rule_config())
         check_status_response = ecc_rule_instance.check_status()
 
         self.assertFalse(check_status_response)
@@ -157,7 +157,7 @@ class Testing(unittest.TestCase):
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.cordon_node')
     @mock.patch('utils.k8s_util.list_namespaced_pod')
     @mock.patch('utils.email_util.EmailHandler')
-    @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
+    @mock.patch('rules.ecc_detect_error_rule.EccDetectErrorRule.load_ecc_config')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     def test_take_action(self,
             mock_load_rule_config,
@@ -172,7 +172,7 @@ class Testing(unittest.TestCase):
         mock_load_ecc_config.return_value = test_util.mock_ecc_config()
 
         alert = rule_alert_handler.RuleAlertHandler()
-        ecc_rule_instance = ECCDetectErrorRule(alert, mock_rule_config)
+        ecc_rule_instance = EccDetectErrorRule(alert, mock_rule_config)
         ecc_rule_instance.new_bad_nodes = {
             "mock-worker-one": "192.168.0.1",
             "mock-worker-two": "192.168.0.2"

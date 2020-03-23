@@ -30,7 +30,7 @@ def _mock_v1_pod(jobId, userName, vcName, nodeName):
     pod.spec.node_name = nodeName
     return pod
 
-class Testing(unittest.TestCase):
+class TestK8sUtil(unittest.TestCase):
 
     @mock.patch('utils.k8s_util.list_namespaced_pod')
     def test_get_job_info_from_nodes(self, mock_list_namespaced_pod):

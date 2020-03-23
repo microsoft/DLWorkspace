@@ -17,7 +17,7 @@ def _mock_rule_config():
     }
     return mock_rule_config
 
-class Testing(unittest.TestCase):
+class TestRuleAlertHandler(unittest.TestCase):
 
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     @mock.patch('utils.email_util.EmailHandler')
