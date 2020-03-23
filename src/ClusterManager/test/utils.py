@@ -93,7 +93,8 @@ def gen_default_job_description(
     vc,
     preemptable=False,
     image="indexserveregistry.azurecr.io/deepscale:1.0.post0",
-    cmd="sleep 120"):
+    cmd="sleep 120",
+    resourcegpu=0):
 
     caller_frame = inspect.stack()[1]
     module_name = os.path.basename(caller_frame.filename).split(".")[0]
@@ -117,7 +118,7 @@ def gen_default_job_description(
         "jobPath": "",
         "enablejobpath": True,
         "env": [],
-        "resourcegpu": 0,
+        "resourcegpu": resourcegpu,
         "memorylimit": "500M",
         "cpulimit": 1,
         "_internal": True,
@@ -132,7 +133,7 @@ def gen_default_job_description(
         args["hostNetwork"] = True
         args["isPrivileged"] = True
         args["numps"] = 1
-        args["resourcegpu"] = 0
+        args["resourcegpu"] = resourcegpu
         args["numpsworker"] = 1
     elif job_type == "inference":
         args["jobtrainingtype"] = "InferenceJob"
@@ -310,14 +311,13 @@ def get_job_log(rest_url, email, jid):
             break
         resp_json = resp.json()
         log = resp_json["log"]
-        new_cursor = resp_json["cursor"]
+        cursor = resp_json["cursor"]
         if isinstance(log, dict):
             job_logs.extend(log.values())
         else:
             job_logs.append(log)
-        if new_cursor == cursor:
+        if cursor is None:
             break
-        cursor = new_cursor
     return '\n'.join(job_logs)
 
 

@@ -16,6 +16,11 @@ RUN sh build_openssl.sh
 COPY build_ssh.sh /ssh_build/
 RUN sh build_ssh.sh
 
+# compile gpu_topo
+WORKDIR /gpu_topo_build
+COPY gpu_topo.cpp /gpu_topo_build
+RUN g++ -o gpu_topo gpu_topo.cpp
+
 FROM python:3.8.0-alpine3.10
 
 WORKDIR /dlts-init
@@ -24,6 +29,7 @@ COPY requirements.txt /dlts-init
 RUN pip3 install -r /dlts-init/requirements.txt
 
 COPY --from=builder /ssh_build/root /dlts-init/ssh_build
+COPY --from=builder /gpu_topo_build/gpu_topo /dlts-init/gpu_topo
 
 COPY install.sh init.sh /dlts-init/
 COPY ssh_config /dlts-init/ssh_config

@@ -1,0 +1,25 @@
+#!/bin/sh
+
+REPO_DIR=/mnt/dev/dlts
+SUB_DIR=src/ClusterBootstrap
+
+if [ $# != 1 ] ; then
+    echo Usage $0 cluster_name. Get correct binary to call to.
+    exit 1
+fi
+
+PREFIX=$REPO_DIR/$1/$SUB_DIR
+
+CLUSTER_FILE=$PREFIX/cluster.yaml
+COMPL_FILE=$PREFIX/az_complementary.yaml
+
+DEPLOY_FILE=$PREFIX/deploy.py
+CTL_FILE=$PREFIX/ctl.py
+
+if [ -f $CLUSTER_FILE ] ; then
+    echo $DEPLOY_FILE
+elif [ -f $COMPL_FILE ] ; then
+    echo $CTL_FILE
+else
+    echo $DEPLOY_FILE
+fi

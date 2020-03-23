@@ -1,17 +1,24 @@
 #!/usr/bin/python3
 import os
 import sys
-import uuid
 import yaml
 import json
 import textwrap
 import argparse
+
 from az_params import *
 from params import *
-import utils
-from multiprocessing import Pool
-import subprocess
-from utils import random_str, keep_widest_subnet
+from utils import random_str, keep_widest_subnet, \
+    multiprocess_with_func_arg_tuples, exec_cmd_local, \
+    execute_or_dump_locally
+from az_utils import \
+    set_subscription, \
+    add_nsg_rule_whitelist, \
+    remove_nsg_rule_whitelist, \
+    delete_nsg_rule_whitelist, \
+    create_nsg_rules_with_service_tags, \
+    delete_nsg_rules_with_service_tags
+
 sys.path.append("../utils")
 from ConfigUtils import add_configs_in_order
 
@@ -57,31 +64,6 @@ def load_sshkey(config):
     with open('./deploy/sshkey/id_rsa.pub') as f:
         config["azure_cluster"]["sshkey"] = f.read()
     return config
-
-
-def execute_or_dump_locally(cmd, verbose, dryrun, output_file):
-    cmd = ' '.join(cmd.split())+'\n'
-    if output_file:
-        with open(output_file, 'a') as wf:
-            wf.write(cmd)
-    if not dryrun:
-        output = utils.exec_cmd_local(cmd, verbose)
-        return output
-
-
-def set_subscription(config):
-    if "subscription" not in config["azure_cluster"]:
-        print("No subscription to set")
-        return
-
-    subscription = config["azure_cluster"]["subscription"]
-
-    chkcmd = "az account list | grep -A5 -B5 '\"isDefault\": true'"
-    output = utils.exec_cmd_local(chkcmd)
-    if not subscription in output:
-        setcmd = "az account set --subscription \"{}\"".format(subscription)
-        setout = utils.exec_cmd_local(setcmd)
-    assert subscription in utils.exec_cmd_local(chkcmd, True)
 
 
 def create_group(config, args):
@@ -142,13 +124,15 @@ def create_nsg(config, args):
         if isinstance(restricted_source_address_prefixes, list):
             restricted_source_address_prefixes = " ".join(
                 list(set(restricted_source_address_prefixes)))
-    
+
     cmd = """az network nsg create \
             --resource-group %s \
             --name %s
         """ % (config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["nsg_name"])
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+
+    create_nsg_rules_with_service_tags(config, args)
 
     if "tcp_port_ranges" in config["cloud_config_nsg_rules"]:
         cmd = """az network nsg rule create \
@@ -327,9 +311,9 @@ def is_independent_nfs(role):
 
 
 def add_machine_in_parallel(cmds, args):
-    tuples = [(utils.exec_cmd_local, cmd, args.verbose, 600 * args.batch_size)
+    tuples = [(exec_cmd_local, cmd, args.verbose, 600 * args.batch_size)
               for cmd in cmds]
-    res = utils.multiprocess_with_func_arg_tuples(args.batch_size, tuples)
+    res = multiprocess_with_func_arg_tuples(args.batch_size, tuples)
     return res
 
 
@@ -480,7 +464,7 @@ def list_vm(config, verbose=True):
     cmd = """
         az vm list --resource-group %s
         """ % (config["azure_cluster"]["resource_group"])
-    output = utils.exec_cmd_local(cmd, verbose)
+    output = exec_cmd_local(cmd, verbose)
     allvm = json.loads(output)
     vminfo = {}
     for onevm in allvm:
@@ -488,7 +472,7 @@ def list_vm(config, verbose=True):
         print("VM ... %s" % vmname)
         cmd1 = """ az vm show -d -g %s -n %s""" % (
             config["azure_cluster"]["resource_group"], vmname)
-        output1 = utils.exec_cmd_local(cmd1, verbose)
+        output1 = exec_cmd_local(cmd1, verbose)
         json1 = json.loads(output1)
         vminfo[vmname] = json1
         if verbose:
@@ -535,6 +519,26 @@ def vm_interconnects(config, args):
                config["cloud_config_nsg_rules"]["nfs_allow_master"]["tcp_port_ranges"],
                allowed_incoming_infra_ips
                )
+
+    restricted_source_address_prefixes = "'*'"
+    if "restricted_source_address_prefixes" in config["cloud_config_nsg_rules"]:
+        restricted_source_address_prefixes = config["cloud_config_nsg_rules"]["restricted_source_address_prefixes"]
+        if isinstance(restricted_source_address_prefixes, list):
+            restricted_source_address_prefixes = " ".join(
+                keep_widest_subnet(infra_ip_list + list(set(restricted_source_address_prefixes))))
+
+    cmd += """
+        ; az network nsg rule update \
+            --resource-group %s \
+            --nsg-name %s \
+            --name allowalltcp \
+            --source-address-prefixes %s \
+            --access allow
+        """ % (config["azure_cluster"]["resource_group"],
+               config["azure_cluster"]["nsg_name"],
+               restricted_source_address_prefixes
+               )
+
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
@@ -552,94 +556,6 @@ def get_deployed_cluster_info(config, args):
     args.output = "status.yaml" if not args.output else args.output
     with open(args.output, "w") as wf:
         yaml.safe_dump({"machines": brief}, wf)
-
-
-def whitelist_source_address_prefixes():
-    resource_group = config["azure_cluster"]["resource_group"]
-    nsg_name = config["azure_cluster"]["nsg_name"]
-
-    cmd = """
-        az network nsg rule list \
-            --resource-group %s \
-            --nsg-name %s
-        """ % (resource_group,
-               nsg_name)
-
-    output = utils.exec_cmd_local(cmd)
-
-    try:
-        rules = json.loads(output)
-        for rule in rules:
-            if rule.get("name") == "whitelist":
-                return rule.get("sourceAddressPrefixes", [])
-    except Exception as e:
-        print("Exception: %s" % e)
-
-    return []
-
-
-def add_nsg_rule_whitelist(ips, dry_run=False):
-    # Replicating dev_network access for whitelisting users
-    source_address_prefixes = whitelist_source_address_prefixes()
-    if len(source_address_prefixes) == 0:
-        dev_network = config["cloud_config_nsg_rules"]["dev_network"]
-        source_address_prefixes = dev_network.get("source_addresses_prefixes")
-
-        if source_address_prefixes is None:
-            print("Please setup source_addresses_prefixes in config.yaml")
-            exit()
-
-        if isinstance(source_address_prefixes, str):
-            source_address_prefixes = source_address_prefixes.split(" ")
-
-    # Assume ips is a comma separated string if valid
-    if ips is not None and ips != "":
-        source_address_prefixes += ips.split(",")
-
-    # Safe guard against overlapping IP range
-    source_address_prefixes = utils.keep_widest_subnet(source_address_prefixes)
-
-    source_address_prefixes = " ".join(list(set(source_address_prefixes)))
-
-    resource_group = config["azure_cluster"]["resource_group"]
-    nsg_name = config["azure_cluster"]["nsg_name"]
-    tcp_port_ranges = config["cloud_config_nsg_rules"]["tcp_port_ranges"]
-
-    cmd = """
-        az network nsg rule create \
-            --resource-group %s \
-            --nsg-name %s \
-            --name whitelist \
-            --protocol tcp \
-            --priority 1005 \
-            --destination-port-ranges %s \
-            --source-address-prefixes %s \
-            --access allow
-        """ % (resource_group,
-               nsg_name,
-               tcp_port_ranges,
-               source_address_prefixes)
-
-    if not dry_run:
-        output = utils.exec_cmd_local(cmd)
-        print(output)
-
-
-def delete_nsg_rule_whitelist(dry_run=False):
-    resource_group = config["azure_cluster"]["resource_group"]
-    nsg_name = config["azure_cluster"]["nsg_name"]
-
-    cmd = """
-        az network nsg rule delete \
-            --resource-group %s \
-            --nsg-name %s \
-            --name whitelist
-        """ % (resource_group,
-               nsg_name)
-
-    if not dry_run:
-        output = utils.exec_cmd_local(cmd)
-        print(output)
 
 
 def run_command(command, config, args, nargs):
@@ -660,9 +576,18 @@ def run_command(command, config, args, nargs):
         set_subscription(config)
         if nargs[0] == "add":
             ips = None if len(nargs) == 1 else nargs[1]
-            add_nsg_rule_whitelist(ips, args.dryrun)
+            add_nsg_rule_whitelist(config, args, ips)
+        elif nargs[0] == "remove":
+            ips = None if len(nargs) == 1 else nargs[1]
+            remove_nsg_rule_whitelist(config, args, ips)
         elif nargs[0] == "delete":
-            delete_nsg_rule_whitelist(args.dryrun)
+            delete_nsg_rule_whitelist(config, args)
+    elif command == "service_tag_rules":
+        set_subscription(config)
+        if nargs[0] == "create":
+            create_nsg_rules_with_service_tags(config, args)
+        elif nargs[0] == "delete":
+            delete_nsg_rules_with_service_tags(config, args)
         
 
 if __name__ == "__main__":

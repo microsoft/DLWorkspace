@@ -661,7 +661,6 @@ default_config_parameters = {
             "phpmyadmin":{"fullname":"dlws/phpmyadmin:4.7.6"},
             "elasticsearch":{"fullname":"dlws/elasticsearch:6.8.5"},
             "elasticsearch-exporter":{"fullname":"dlws/elasticsearch-exporter:1.1.0"},
-            "fluentd-kubernetes-daemonset":{"fullname":"dlws/fluentd-kubernetes-daemonset:v1.7.4-debian-elasticsearch6-1.1"},
             "kibana":{"fullname":"dlws/kibana:6.8.5"},
             "fluentd-elasticsearch":{"fullname":"dlws/fluentd-elasticsearch:v2.0.2"},
             "binstore":{"fullname":"dlws/binstore:v1.0"},
