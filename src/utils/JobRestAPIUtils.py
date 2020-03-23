@@ -644,9 +644,8 @@ def GetJobStatus(jobId):
     return result
 
 
-_job_log_use_legacy = config.get('logging') not in [
-    'logAnalytics', 'elasticsearch'
-] or config.get('__extract_job_log_legacy', False)
+_get_job_log_enabled = config.get('logging') in ['logAnalytics', 'elasticsearch']
+_get_job_legacy = config.get('__extract_job_log_legacy', False)
 
 
 def GetJobLog(userName, jobId, cursor=None, size=100):
@@ -656,14 +655,14 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(
                 userName, ResourceType.VC, jobs[0]["vcName"],
                 Permission.Collaborator):
-            if not _job_log_use_legacy:
+            if _get_job_log_enabled:
                 (pod_logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
 
                 return {
                     "log": pod_logs,
                     "cursor": cursor,
                 }
-            else:
+            elif _get_job_legacy:
                 try:
                     log = dataHandler.GetJobTextField(jobId, "jobLog")
                     try:
@@ -678,6 +677,11 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
                         }
                 except:
                     pass
+            else:
+                return {
+                    "log": "See your job folder on NFS / Samba",
+                    "cursor": None,
+                }
     return {
         "log": {},
         "cursor": None,
