@@ -121,7 +121,7 @@ def gen_default_job_description(
         "resourcegpu": resourcegpu,
         "memorylimit": "500M",
         "cpulimit": 1,
-        "_internal": True,
+        "_allow_partial_node": True,
     }
 
     if job_type in {"regular", "data"}:
