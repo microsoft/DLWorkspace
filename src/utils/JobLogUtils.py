@@ -117,5 +117,4 @@ elif config.get("logging") == 'elasticsearch':
             return ({}, None)
 else:
     def GetJobLog(jobId, *args, **kwargs):
-        # TODO: Refer file://samba/foobar.log
         return ({}, None)
