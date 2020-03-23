@@ -45,7 +45,6 @@ spec:
         - name: fluent-bit-config
           mountPath: /fluent-bit/etc/
       hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
       terminationGracePeriodSeconds: 10
       volumes:
       - name: varlog
