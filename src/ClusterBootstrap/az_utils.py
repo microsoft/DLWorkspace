@@ -39,7 +39,7 @@ def whitelist_source_address_prefixes(config):
         data = json.loads(output)
 
         source = data.get("sourceAddressPrefix")
-        if source is not None:
+        if source is not None and source != "":
             source_address_prefixes.append(source)
 
         sources = data.get("sourceAddressPrefixes")
