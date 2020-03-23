@@ -310,14 +310,13 @@ def get_job_log(rest_url, email, jid):
             break
         resp_json = resp.json()
         log = resp_json["log"]
-        new_cursor = resp_json["cursor"]
+        cursor = resp_json["cursor"]
         if isinstance(log, dict):
             job_logs.extend(log.values())
         else:
             job_logs.append(log)
-        if new_cursor == cursor:
+        if cursor is None:
             break
-        cursor = new_cursor
     return '\n'.join(job_logs)
 
 
