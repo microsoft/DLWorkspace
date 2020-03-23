@@ -13,7 +13,11 @@ import yaml
 import utils
 from az_params import *
 from params import *
-from az_utils import create_nsg_rules_with_service_tags, \
+from az_utils import \
+    add_nsg_rule_whitelist, \
+    remove_nsg_rule_whitelist, \
+    delete_nsg_rule_whitelist, \
+    create_nsg_rules_with_service_tags, \
     delete_nsg_rules_with_service_tags
 
 verbose = False
@@ -264,94 +268,6 @@ def create_vnet():
                 config["cloud_config_nsg_rules"]["vnet_range"])
     if verbose:
         print(cmd)
-    if not no_execution:
-        output = utils.exec_cmd_local(cmd)
-        print(output)
-
-
-def whitelist_source_address_prefixes():
-    resource_group = config["azure_cluster"]["resource_group"]
-    nsg_name = config["azure_cluster"]["nsg_name"]
-
-    cmd = """
-        az network nsg rule list \
-            --resource-group %s \
-            --nsg-name %s
-        """ % (resource_group,
-               nsg_name)
-
-    output = utils.exec_cmd_local(cmd)
-
-    try:
-        rules = json.loads(output)
-        for rule in rules:
-            if rule.get("name") == "whitelist":
-                return rule.get("sourceAddressPrefixes", [])
-    except Exception as e:
-        print("Exception: %s" % e)
-
-    return []
-
-
-def add_nsg_rule_whitelist(ips):
-    # Replicating dev_network access for whitelisting users
-    source_address_prefixes = whitelist_source_address_prefixes()
-    if len(source_address_prefixes) == 0:
-        dev_network = config["cloud_config_nsg_rules"]["dev_network"]
-        source_address_prefixes = dev_network.get("source_addresses_prefixes")
-
-        if source_address_prefixes is None:
-            print("Please setup source_addresses_prefixes in config.yaml")
-            exit()
-
-        if isinstance(source_address_prefixes, str):
-            source_address_prefixes = source_address_prefixes.split(" ")
-
-    # Assume ips is a comma separated string if valid
-    if ips is not None and ips != "":
-        source_address_prefixes += ips.split(",")
-
-    # Safe guard against overlapping IP range
-    source_address_prefixes = utils.keep_widest_subnet(source_address_prefixes)
-
-    source_address_prefixes = " ".join(list(set(source_address_prefixes)))
-
-    resource_group = config["azure_cluster"]["resource_group"]
-    nsg_name = config["azure_cluster"]["nsg_name"]
-    tcp_port_ranges = config["cloud_config_nsg_rules"]["tcp_port_ranges"]
-
-    cmd = """
-        az network nsg rule create \
-            --resource-group %s \
-            --nsg-name %s \
-            --name whitelist \
-            --protocol tcp \
-            --priority 1005 \
-            --destination-port-ranges %s \
-            --source-address-prefixes %s \
-            --access allow
-        """ % (resource_group,
-               nsg_name,
-               tcp_port_ranges,
-               source_address_prefixes)
-
-    if not no_execution:
-        output = utils.exec_cmd_local(cmd)
-        print(output)
-
-
-def delete_nsg_rule_whitelist():
-    resource_group = config["azure_cluster"]["resource_group"]
-    nsg_name = config["azure_cluster"]["nsg_name"]
-
-    cmd = """
-        az network nsg rule delete \
-            --resource-group %s \
-            --nsg-name %s \
-            --name whitelist
-        """ % (resource_group,
-               nsg_name)
-
     if not no_execution:
         output = utils.exec_cmd_local(cmd)
         print(output)
@@ -1174,9 +1090,12 @@ def run_command(args, command, nargs, parser):
     elif command == "whitelist":
         if nargs[0] == "add":
             ips = None if len(nargs) == 1 else nargs[1]
-            add_nsg_rule_whitelist(ips)
+            add_nsg_rule_whitelist(config, args, ips)
+        elif nargs[0] == "remove":
+            ips = None if len(nargs) == 1 else nargs[1]
+            remove_nsg_rule_whitelist(config, args, ips)
         elif nargs[0] == "delete":
-            delete_nsg_rule_whitelist()
+            delete_nsg_rule_whitelist(config, args)
 
     elif command == "service_tag_rules":
         if nargs[0] == "create":

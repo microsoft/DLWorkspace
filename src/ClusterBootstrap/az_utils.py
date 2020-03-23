@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 
-from utils import exec_cmd_local, execute_or_dump_locally
+import json
+
+from utils import exec_cmd_local, execute_or_dump_locally, keep_widest_subnet
 
 
 def set_subscription(config):
@@ -16,6 +18,130 @@ def set_subscription(config):
         setcmd = "az account set --subscription \"{}\"".format(subscription)
         setout = exec_cmd_local(setcmd)
     assert subscription in exec_cmd_local(chkcmd, True)
+
+
+def whitelist_source_address_prefixes(config):
+    resource_group = config["azure_cluster"]["resource_group"]
+    nsg_name = config["azure_cluster"]["nsg_name"]
+
+    cmd = """
+        az network nsg rule show \
+            --resource-group %s \
+            --nsg-name %s \
+            --name whitelist
+        """ % (resource_group,
+               nsg_name)
+
+    output = exec_cmd_local(cmd)
+
+    source_address_prefixes = []
+    try:
+        data = json.loads(output)
+
+        source = data.get("sourceAddressPrefix")
+        if source is not None and source != "":
+            source_address_prefixes.append(source)
+
+        sources = data.get("sourceAddressPrefixes")
+        if sources is not None:
+            source_address_prefixes += sources
+    except Exception:
+        print("Exception when parsing whitelist response. "
+              "Ignore existing whitelist")
+
+    return source_address_prefixes
+
+
+def add_nsg_rule_whitelist(config, args, ips):
+    # Replicating dev_network access for whitelisting users
+    source_address_prefixes = whitelist_source_address_prefixes(config)
+    if len(source_address_prefixes) == 0:
+        dev_network = config["cloud_config_nsg_rules"]["dev_network"]
+        source_address_prefixes = dev_network.get("source_addresses_prefixes")
+
+        if source_address_prefixes is None:
+            print("Please setup source_addresses_prefixes in config.yaml")
+            exit()
+
+        if isinstance(source_address_prefixes, str):
+            source_address_prefixes = source_address_prefixes.split(" ")
+
+    # Assume ips is a comma separated string if valid
+    if ips is not None and ips != "":
+        source_address_prefixes += ips.split(",")
+
+    # Safe guard against overlapping IP range
+    source_address_prefixes = keep_widest_subnet(source_address_prefixes)
+
+    source_address_prefixes = " ".join(list(set(source_address_prefixes)))
+
+    resource_group = config["azure_cluster"]["resource_group"]
+    nsg_name = config["azure_cluster"]["nsg_name"]
+    tcp_port_ranges = config["cloud_config_nsg_rules"]["tcp_port_ranges"]
+
+    cmd = """
+        az network nsg rule create \
+            --resource-group %s \
+            --nsg-name %s \
+            --name whitelist \
+            --protocol tcp \
+            --priority 1005 \
+            --destination-port-ranges %s \
+            --source-address-prefixes %s \
+            --access allow
+        """ % (resource_group,
+               nsg_name,
+               tcp_port_ranges,
+               source_address_prefixes)
+
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+
+
+def remove_nsg_rule_whitelist(config, args, ips):
+    source_address_prefixes = whitelist_source_address_prefixes(config)
+
+    # Assume ips is a comma separated string if valid
+    if ips is not None and ips != "":
+        ips = ips.split(",")
+
+    resource_group = config["azure_cluster"]["resource_group"]
+    nsg_name = config["azure_cluster"]["nsg_name"]
+
+    new_source_address_prefixes = []
+    for prefix in source_address_prefixes:
+        if prefix not in ips:
+            new_source_address_prefixes.append(prefix)
+
+    if len(new_source_address_prefixes) == 0:
+        print("Nothing will be left in whitelist, please use delete command!")
+        return
+
+    cmd = """
+        az network nsg rule update \
+            --resource-group %s \
+            --nsg-name %s \
+            --name whitelist \
+            --source-address-prefixes %s 
+        """ % (resource_group,
+               nsg_name,
+               " ".join(new_source_address_prefixes))
+
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+
+
+def delete_nsg_rule_whitelist(config, args):
+    resource_group = config["azure_cluster"]["resource_group"]
+    nsg_name = config["azure_cluster"]["nsg_name"]
+
+    cmd = """
+        az network nsg rule delete \
+            --resource-group %s \
+            --nsg-name %s \
+            --name whitelist
+        """ % (resource_group,
+               nsg_name)
+
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
 def create_nsg_rule_with_service_tag(resource_group, nsg_name, priority,
