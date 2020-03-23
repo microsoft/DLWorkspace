@@ -60,7 +60,7 @@ def update_config_resgrp(config):
 
 def load_sshkey(config):
     assert os.path.exists(
-        './deploy/sshkey/id_rsa.pub') and "Generate SSHKey first!"
+        './deploy/sshkey/id_rsa.pub'), "Generate SSHKey first!"
     with open('./deploy/sshkey/id_rsa.pub') as f:
         config["azure_cluster"]["sshkey"] = f.read()
     return config
@@ -109,7 +109,7 @@ def create_vnet(config, args):
 
 
 def create_nsg(config, args):
-    assert "source_addresses_prefixes" in config["cloud_config_nsg_rules"]["dev_network"] and "Please \
+    assert "source_addresses_prefixes" in config["cloud_config_nsg_rules"]["dev_network"], "Please \
     setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed"
     source_addresses_prefixes = config["cloud_config_nsg_rules"][
         "dev_network"]["source_addresses_prefixes"]
@@ -186,7 +186,7 @@ def create_nsg(config, args):
 
 
 def create_nfs_nsg(config, args):
-    assert "source_addresses_prefixes" in config["cloud_config_nsg_rules"]["dev_network"] and "Please \
+    assert "source_addresses_prefixes" in config["cloud_config_nsg_rules"]["dev_network"], "Please \
     setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed"
     source_addresses_prefixes = config["cloud_config_nsg_rules"][
         "dev_network"]["source_addresses_prefixes"]
@@ -245,12 +245,12 @@ def deploy_cluster(config, args):
 
 
 def validate_machine_spec(config, spec):
-    assert "role" in spec and ((set(spec["role"]) - set(config["allroles"])) == set()) and \
+    assert "role" in spec and ((set(spec["role"]) - set(config["allroles"])) == set()), \
         "must specify valid role for vm!"
     if "name" in spec:
-        assert spec["number_of_instance"] <= 1 and "cannot overwirte name for multiple machines one time!"
+        assert spec["number_of_instance"] <= 1, "cannot overwirte name for multiple machines one time!"
     if "nfs" in spec["role"]:
-        assert spec["number_of_instance"] <= 1 and "NFS machine spec must be configured one by one!"
+        assert spec["number_of_instance"] <= 1, "NFS machine spec must be configured one by one!"
 
 
 def gen_machine_list_4_deploy_action(complementary_file_name, config):
@@ -318,6 +318,9 @@ def add_machine_in_parallel(cmds, args):
 
 
 def add_machine(vmname, spec, verbose, dryrun, output_file):
+    multual_exclusive_roles = set(["infra", "worker", "elasticsearch", "mysqlserver"])
+    mul_ex_role_in_spec = list(set(spec["role"]) & multual_exclusive_roles)
+    assert len(mul_ex_role_in_spec) <= 1, "We don't allow role overlapping between these roles:{}.".format(",".join(list(multual_exclusive_roles)))
     if "pwd" in spec:
         auth = "--authentication-type password --admin-password '{}' ".format(
             spec["pwd"])
@@ -331,7 +334,7 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
         priv_ip = "--private-ip-address {} ".format(spec["private_ip_address"])
     else:
         assert (not 'nfs' in spec["role"]
-                ) and "Must specify IP address for NFS node!"
+                ), "Must specify IP address for NFS node!"
 
     nsg = "nfs_nsg_name" if is_independent_nfs(spec["role"]) else "nsg_name"
 
@@ -346,13 +349,13 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
     cloud_init = ""
     # by default, if this is a unique machine, then itself would have a cloud-init file
     cldinit_appendix = "cloud_init_{}.txt".format(vmname)
-    if "infra" in spec["role"]:
-        cldinit_appendix = "cloud_init_infra.txt"
     # we support heterogeneous cluster that has several different types of worker nodes
     # if later there are differences other than vm_size, we can consider adding a field
     # called "spec_name" for a spec. as for now, workers are different only in vm_size
-    elif "worker" in spec["role"]:
+    if "worker" in spec["role"]:
         cldinit_appendix = "cloud_init_worker_{}.txt".format(spec["vm_size"])
+    elif len(mul_ex_role_in_spec) == 1:
+        cldinit_appendix = "cloud_init_{}.txt".format(mul_ex_role_in_spec[0])
     cloud_init_file = spec.get(
         "cloud_init_file", 'deploy/cloud-config/{}'.format(cldinit_appendix))
     if os.path.exists(cloud_init_file):
@@ -364,24 +367,18 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
     if "managed_disks" in spec:
         for st in spec["managed_disks"]:
             if "is_os" in st and st["is_os"]:
-                assert st["disk_num"] == 1 and "Could have only 1 OS disk!"
+                assert st["disk_num"] == 1, "Could have only 1 OS disk!"
                 storage_sku += "os={}".format(st.get("sku",
                                                      config["azure_cluster"]["os_storage_sku"]))
                 os_disk_size_gb = "--os-disk-size-gb " + \
                     str(st.get("size_gb",
                                config["azure_cluster"]["os_storage_sz"]))
-            elif "infra" in spec["role"]:
+            elif len(mul_ex_role_in_spec) == 1:
                 storage_sku += " " + " ".join(["{}={}".format(dsk_id, st.get("sku", config["azure_cluster"][
                     "vm_local_storage_sku"])) for dsk_id in range(disk_id, disk_id + st["disk_num"])])
                 data_disk_sizes_gb += " " + \
                     " ".join([str(st.get("size_gb", config["azure_cluster"]
-                                         ["infra_local_storage_sz"]))] * st["disk_num"])
-            elif "worker" in spec["role"]:
-                storage_sku += " " + " ".join(["{}={}".format(dsk_id, st.get("sku", config["azure_cluster"][
-                    "vm_local_storage_sku"])) for dsk_id in range(disk_id, disk_id + st["disk_num"])])
-                data_disk_sizes_gb += " " + \
-                    " ".join([str(st.get("size_gb", config["azure_cluster"]
-                                         ["worker_local_storage_sz"]))] * st["disk_num"])
+                                         ["{}_local_storage_sz".format(mul_ex_role_in_spec[0])]))] * st["disk_num"])
             elif "nfs" in spec["role"]:
                 storage_sku += " " + " ".join(["{}={}".format(dsk_id, st.get("sku", config["azure_cluster"][
                     "nfs_data_disk_sku"])) for dsk_id in range(disk_id, disk_id + st["disk_num"])])
@@ -390,13 +387,9 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
                                          ["nfs_data_disk_sz"]))] * st["disk_num"])
         disk_id += st["disk_num"]
     else:
-        if "infra" in spec["role"]:
+        if len(mul_ex_role_in_spec) == 1:
             data_disk_sizes_gb += " " + \
-                str(config["azure_cluster"]["infra_local_storage_sz"])
-            storage_sku = config["azure_cluster"]["vm_local_storage_sku"]
-        elif "worker" in spec["role"]:
-            data_disk_sizes_gb += " " + \
-                str(config["azure_cluster"]["worker_local_storage_sz"])
+                str(config["azure_cluster"]["{}_local_storage_sz".format(mul_ex_role_in_spec[0])])
             storage_sku = config["azure_cluster"]["vm_local_storage_sku"]
         if "nfs" in spec["role"]:
             nfs_dd_sz, nfs_dd_num = config["azure_cluster"]["nfs_data_disk_sz"], config["azure_cluster"]["nfs_data_disk_num"]
@@ -408,9 +401,7 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
         vm_size = spec["vm_size"]
     else:
         if "infra" in spec["role"]:
-            vm_size = config["azure_cluster"]["infra_vm_size"]
-        elif "worker" in spec["role"]:
-            vm_size = config["azure_cluster"]["worker_vm_size"]
+            vm_size = config["azure_cluster"]["{}_vm_size".format(mul_ex_role_in_spec[0])]
         elif "nfs" in spec["role"]:
             vm_size = config["azure_cluster"]["nfs_vm_size"]
 
