@@ -42,7 +42,7 @@ def mock_ecc_config():
 
 def mock_latency_config():
     latency_config = {
-            "hours_until_alert_expiration": 4
+            "alert_expiry": 4
         }
     return latency_config
 

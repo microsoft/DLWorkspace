@@ -64,7 +64,7 @@ class NvidiaSmiLatencyRule(Rule):
             for node in self.alert.rule_cache[self.rule]:
                 time_found_string = self.alert.rule_cache[self.rule][node]["time_found"]
                 time_found_datetime = datetime.strptime(time_found_string, self.config['date_time_format'])
-                alert_delta = timedelta(hours=self.latency_config.get("hours_until_alert_expiration", 4))
+                alert_delta = timedelta(hours=self.latency_config.get("alert_expiry", 4))
                 now = datetime.utcnow()
                 if now - time_found_datetime > alert_delta:
                     expired_nodes.append(node)
