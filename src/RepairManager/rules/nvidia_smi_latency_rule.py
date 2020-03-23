@@ -77,10 +77,10 @@ class NvidiaSmiLatencyRule(Rule):
 
         url = f"http://{self.config['prometheus']['ip']}:{self.config['prometheus']['port']}"
         query = self.config['prometheus']['large_latency_query']
-        ecc_url = prometheus_util.format_url_query(url, query)
+        latency_url = prometheus_util.format_url_query(url, query)
 
         try:
-            response = requests.get(ecc_url, timeout=10)
+            response = requests.get(latency_url, timeout=10)
             if response:
                 logging.info(f'NvidiaSmiLatencyTooLarge Response: {response}')
                 node_ips = prometheus_util.extract_ips_from_response(response)
@@ -94,9 +94,9 @@ class NvidiaSmiLatencyRule(Rule):
                 else:
                     logging.debug('No uncorrectable ECC metrics found.')
             else:
-                logging.warning(f'Response from {ecc_url} was None.')
+                logging.warning(f'Response from {latency_url} was None.')
         except:
-            logging.exception(f'Error retrieving data from {ecc_url}')
+            logging.exception(f'Error retrieving data from {latency_url}')
 
         return False
 

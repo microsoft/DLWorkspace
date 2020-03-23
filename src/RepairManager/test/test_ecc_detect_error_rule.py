@@ -10,7 +10,7 @@ from rules.ecc_detect_error_rule import EccDetectErrorRule
 from utils import k8s_util, rule_alert_handler, test_util
 
 def _mock_prometheus_ecc_data():
-    mock_prometheus_latency_data = {
+    mock_prometheus_ecc_data = {
             "status":
                 "success",
                 "data": {
@@ -44,7 +44,7 @@ def _mock_prometheus_ecc_data():
                     }]
                 }
         }
-    return mock_prometheus_latency_data
+    return mock_prometheus_ecc_data
 
 class TestEccDetectErrorRule(unittest.TestCase):
 
