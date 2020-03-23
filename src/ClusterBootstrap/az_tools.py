@@ -601,8 +601,11 @@ def list_vm(bShow=True):
 def vm_interconnects():
     vminfo = list_vm(False)
     ports = []
+    infra_ip_list = []
     for name, onevm in vminfo.items():
         ports.append(onevm["publicIps"] + "/32")
+        if 'infra' in name:
+            infra_ip_list.append(onevm["publicIps"] + "/32")
     portinfo = " ".join(ports)
     cmd = """
         az network nsg rule create \
