@@ -253,7 +253,7 @@ class PSDistJobParams(JobParams):
 
     def gen_gpu(self):
         # Allow admins to specify 0 GPU for efficient integration tests
-        if self.is_admin and self.params.get("_internal", False):
+        if self.is_admin and self.params.get("_allow_partial_node", False):
             super(PSDistJobParams, self).gen_gpu()
         else:
             # Allocate all GPUs in a node for workers
@@ -313,7 +313,7 @@ JOB_PARAMS_MAPPING = {
 }
 
 
-def make_job_params(params, quota, metadata, config, is_admin):
+def make_job_params(params, quota, metadata, config, is_admin=False):
     job_params = None
     try:
         job_type = params.get("jobtrainingtype")
