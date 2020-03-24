@@ -1,0 +1,2 @@
+# In hours
+alert_expiry: {{cnf['repair-manager']['latency_rule']['alert_expiry']}}
