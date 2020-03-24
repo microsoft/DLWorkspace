@@ -231,7 +231,6 @@ def remote_config_update(config, args):
         execute_in_parallel(config, infra_nodes, src_dst_list,
                             args.sudo, copy2_wrapper, noSupressWarning=args.verbose)
     elif args.nargs[1] == "storage_manager":
-        config.pop("machines", [])
         config = add_configs_in_order(["status.yaml"], config)
         nfs_nodes, _ = load_node_list_by_role_from_config(config, ["nfs"], False)
         if args.roles_or_machine == ['nfs'] or not args.roles_or_machine:
@@ -239,6 +238,7 @@ def remote_config_update(config, args):
         else:
             nodes_2_update = list(set(nfs_nodes) & set(args.roles_or_machine))
         for node in nodes_2_update:
+            config["storage_manager"] = config["machines"][node]["storage_manager"]
             render_storagemanager(config, node)
             src_dst_list = ["./deploy/StorageManager/{}_storage_manager.yaml".format(
                 node), "/etc/StorageManager/config.yaml"]
