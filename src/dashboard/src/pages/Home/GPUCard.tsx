@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useMemo, useState} from "react";
 import { Link } from "react-router-dom";
 import useFetch from "use-http";
 import Table from '@material-ui/core/Table';
@@ -400,6 +400,30 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
     },
   })(LinearProgress);
 
+  console.log(nfsStorage)
+
+  const processedNfsStorage = useMemo(() => {
+    return _(nfsStorage).map((nfs: any) => {
+      const {
+        mountpointName,
+        total,
+        used
+      } = nfs;
+      let processedMountpointName = '/data';
+      let order = 1;
+      if (mountpointName.indexOf('/mntdlws') === -1) {
+        processedMountpointName = mountpointName.slice(mountpointName.lastIndexOf('/'));
+        order = 0;
+      }
+      return {
+        mountpointName: processedMountpointName,
+        total,
+        used,
+        order
+      };
+    }).uniqBy('mountpointName').sortBy(['order', 'mountpointName']).value();
+  }, [nfsStorage]);
+
   return (
     <Card>
       <CardHeader
@@ -424,18 +448,11 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
             <Table>
               <TableBody>
                 {
-                  nfsStorage.map((nfs: any, index: number) => {
-                    const nfsMountNames = nfs['mountpointName'].split("/");
-                    let mounName = "";
-                    if (nfs['mountpointName'].indexOf("dlws") !== -1) {
-                      mounName = "/data";
-                    } else {
-                      nfsMountNames.splice(0, nfsMountNames.length - 1);
-                      mounName = "/" + nfsMountNames.join('/');
-                    }
+                  processedNfsStorage.map((nfs: any) => {
+                    const mounName = nfs['mountpointName'];
                     const value = nfs['total'] === 0 ? 0 : (nfs['used'] / nfs['total']) * 100;
                     return (
-                      <TableRow key={index}>
+                      <TableRow key={mounName}>
                         <TableCell>
                           {
                             value < 80 ? <BorderLinearProgress value={value} variant={"determinate"}/> : value >= 80 && value < 90 ? <GenernalLinerProgress value={value} variant={"determinate"}/> : <FullBorderLinearProgress value={value} variant={"determinate"}/>
