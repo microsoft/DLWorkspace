@@ -92,7 +92,7 @@ class NvidiaSmiLatencyRule(Rule):
                             self.impacted_nodes[node_name] = ip
                     return len(self.impacted_nodes) > 0
                 else:
-                    logging.debug('No uncorrectable ECC metrics found.')
+                    logging.debug('No latency metrics found.')
             else:
                 logging.warning(f'Response from {latency_url} was None.')
         except:
