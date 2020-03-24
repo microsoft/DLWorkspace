@@ -51,6 +51,7 @@ def update_config_resgrp(config):
     if "resource_group" not in config["azure_cluster"]:
         config["azure_cluster"]["resource_group"] = config["cluster_name"] + "ResGrp"
     config["azure_cluster"]["vnet_name"] = config["cluster_name"] + "-VNet"
+    config["azure_cluster"]["subnet_name"] = config["cluster_name"] + "-subnet"
     config["azure_cluster"]["storage_account_name"] = config["cluster_name"] + "storage"
     config["azure_cluster"]["nsg_name"] = config["cluster_name"] + "-nsg"
     config["azure_cluster"]["nfs_nsg_name"] = config["cluster_name"] + [
@@ -96,14 +97,15 @@ def create_availability_set(config, args):
 
 def create_vnet(config, args):
     cmd = """az network vnet create \
-            --resource-group %s \
-            --name %s \
-            --address-prefix %s \
-            --subnet-name mySubnet \
-            --subnet-prefix %s
-        """ % (config["azure_cluster"]["resource_group"],
+            --resource-group {} \
+            --name {} \
+            --address-prefix {} \
+            --subnet-name {} \
+            --subnet-prefix {}
+        """.format(config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["vnet_name"],
                config["cloud_config_nsg_rules"]["vnet_range"],
+               config["azure_cluster"]["subnet_name"],
                config["cloud_config_nsg_rules"]["vnet_range"])
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
@@ -415,7 +417,7 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
              --location {} \
              --size {} \
              --vnet-name {} \
-             --subnet mySubnet \
+             --subnet {} \
              --nsg {} \
              --admin-username {} \
              {} \
@@ -433,6 +435,7 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
                config["azure_cluster"]["azure_location"],
                vm_size,
                config["azure_cluster"]["vnet_name"],
+               config["azure_cluster"]["subnet_name"],
                config["azure_cluster"][nsg],
                config["cloud_config_nsg_rules"]["default_admin_username"],
                cloud_init,
