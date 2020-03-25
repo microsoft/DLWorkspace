@@ -570,7 +570,8 @@ def gen_task_role(job, role):
                                   role.succeeded_task_count),
         "task": {
             "retryPolicy": {
-                "fancyRetryPolicy": False
+                "fancyRetryPolicy": False,
+                "maxRetryCount": 0,
             },
             "pod": {
                 "metadata": {
@@ -601,7 +602,8 @@ def gen_framework_spec(job):
         "spec": {
             "executionType": "Start",
             "retryPolicy": {
-                "fancyRetryPolicy": False
+                "fancyRetryPolicy": True,
+                "maxRetryCount": 3,
             },
             "taskRoles": gen_task_roles(job)
         }

@@ -11,6 +11,7 @@ import logging
 import yaml
 import logging.config
 import argparse
+import collections
 
 from kubernetes import client, config as k8s_config
 from kubernetes.client.rest import ApiException
@@ -44,7 +45,7 @@ def is_ssh_server_ready(pod_name):
 def pod_exec(pod_name, exec_command, timeout=60):
     """work as the command (with timeout): kubectl exec 'pod_name' 'exec_command'"""
     try:
-        logger.info("Exec on pod %s: %s", pod_name, exec_command)
+        logger.debug("Exec on pod %s: %s", pod_name, exec_command)
         client = stream(
             k8s_core_api.connect_get_namespaced_pod_exec,
             name=pod_name,
@@ -69,8 +70,8 @@ def pod_exec(pod_name, exec_command, timeout=60):
                          exec_command, err)
             status_code = int(err["details"]["causes"][0]["message"])
         output = client.read_all()
-        logger.info("Exec on pod %s, status: %s, cmd: %s, output: %s",
-                    pod_name, status_code, exec_command, output)
+        logger.info("Exec on pod %s, status: %s, cmd: %s, output: %s", pod_name,
+                    status_code, exec_command, output)
         return [status_code, output]
     except ApiException as err:
         logger.exception("Exec on pod %s error. cmd: %s, err: %s.", pod_name,
@@ -90,7 +91,7 @@ def query_ssh_port(pod_name):
 
 def start_ssh_server(pod_name):
     '''Setup the ssh server in container, and return the listening port.'''
-    bash_script = "service ssh start"  # assume ssh server already setup
+    bash_script = "service ssh start" # assume ssh server already setup
 
     # TODO setup reasonable timeout
     # output = k8sUtils.kubectl_exec("exec %s %s" % (jobId, " -- " + bash_script), 1)
@@ -154,9 +155,9 @@ def generate_node_port_service(job_id, pod_name, endpoint_id, name,
         },
         "spec": {
             "type":
-            "NodePort",
+                "NodePort",
             "selector":
-            generate_service_selector(pod_name),
+                generate_service_selector(pod_name),
             "ports": [{
                 "name": name,
                 "protocol": "TCP",
@@ -179,8 +180,8 @@ def create_node_port(endpoint):
     try:
         resp = k8s_core_api.create_namespaced_service("default",
                                                       endpoint_description)
-        logger.info("submitted endpoint %s to k8s, returned with status %s",
-                    endpoint["jobId"], resp)
+        logger.debug("submitted endpoint %s to k8s, returned with status %s",
+                     endpoint["jobId"], resp)
     except ApiException as e:
         logger.exception("could not create k8s service")
         raise Exception("Failed to create NodePort for ssh. JobId: %s " %
@@ -224,8 +225,8 @@ def setup_tensorboard(user_name, pod_name):
     output = k8sUtils.kubectl_exec("exec %s %s" %
                                    (pod_name, " -- " + bash_script))
     if output == "":
-        raise Exception(
-            "Failed to start tensorboard in container. JobId: %s " % pod_name)
+        raise Exception("Failed to start tensorboard in container. JobId: %s " %
+                        pod_name)
     else:
         logger.info("install tensorboard output is %s", output)
     return tensorboard_port
@@ -240,7 +241,7 @@ def infer_real_pod_name(origin_pod_name):
 
     # must be controller jobs
     name_part = origin_pod_name.split("-")
-    if len(name_part) == 5:  # regular job
+    if len(name_part) == 5: # regular job
         return "".join(name_part) + "-master-0"
     else:
         match = re.match("([a-z]+)([0-9]+)", name_part[-1])
@@ -276,12 +277,14 @@ def start_endpoint(endpoint):
 
 
 def start_endpoints():
+    runnings = {} # return endpoints with status running to check it's status
+
     try:
         data_handler = DataHandler()
         try:
-            pending_endpoints = data_handler.GetPendingEndpoints()
+            pendings, runnings = data_handler.GetPendingEndpoints()
 
-            for endpoint_id, endpoint in list(pending_endpoints.items()):
+            for endpoint_id, endpoint in pendings.items():
                 try:
                     job = data_handler.GetJob(jobId=endpoint["jobId"])[0]
                     logger.info("checking endpoint %s, status is %s",
@@ -290,8 +293,7 @@ def start_endpoints():
                         continue
 
                     point = get_k8s_endpoint(endpoint["id"])
-                    logger.info("endpoint of %s has %s", endpoint["jobId"],
-                                point)
+                    logger.info("get endpoint %s", endpoint["jobId"])
                     if point is not None:
                         endpoint["status"] = "running"
                         # only retain spec here, some other fields have datetime,
@@ -307,19 +309,76 @@ def start_endpoints():
                     else:
                         start_endpoint(endpoint)
 
-                    endpoint["lastUpdated"] = datetime.datetime.now(
-                    ).isoformat()
+                    endpoint["lastUpdated"] = datetime.datetime.now().isoformat(
+                    )
                     data_handler.UpdateEndpoint(endpoint)
                 except Exception as e:
-                    logger.warning(
-                        "Process endpoint failed {}".format(endpoint),
-                        exc_info=True)
+                    logger.exception("Process endpoint failed %s", endpoint)
         except Exception as e:
             logger.exception("start endpoint failed")
         finally:
             data_handler.Close()
     except Exception as e:
         logger.exception("close data handler failed")
+    return runnings
+
+
+def fix_endpoints(runnings):
+    if len(runnings) == 0:
+        logger.info("no running endpoints to fix")
+        return
+
+    resp = k8s_core_api.list_namespaced_pod(
+        namespace="default",
+        pretty="pretty_example",
+        label_selector="type=job",
+    )
+    pods = {pod.metadata.name: pod for pod in resp.items}
+    logger.info("get running pods %s", pods.keys())
+
+    data_handler = DataHandler()
+
+    for endpoint_id, point in runnings.items():
+        if is_need_fix(endpoint_id, point, pods):
+            delete_k8s_endpoint(point["id"])
+            point["status"] = "pending"
+            logger.info("reset endpoint %s to pending", endpoint_id)
+            data_handler.UpdateEndpoint(point)
+
+
+def is_need_fix(endpoint_id, endpoint, pods):
+    try:
+        pod_name = endpoint["podName"]
+        node_name = endpoint["nodeName"]
+        pod_port = endpoint["podPort"]
+        endpoint_type = endpoint["name"]
+
+        real_pod = pods.get(pod_name)
+
+        if real_pod == None:
+            return True
+
+        if node_name != real_pod.spec.node_name:
+            return True
+
+        # check if service started
+        if endpoint_type in {"ipython", "tensorboard"}:
+            binary = {"ipython": "jupyter", "tensorboard": "tensorboard"}
+
+            status_code, output = pod_exec(pod_name,
+                                           ["pgrep", binary[endpoint_type]])
+            return status_code != 0
+        elif endpoint_type == "ssh":
+            if is_ssh_server_ready(pod_name):
+                ssh_port = query_ssh_port(pod_name)
+                return ssh_port != pod_port
+            else:
+                return True
+        else:
+            logger.warning("unknown endpoint_type %s for %s", endpoint_type,
+                           endpoint_id)
+    except Exception:
+        logger.exception("processing running endpoint %s failed", endpoint_id)
 
 
 def cleanup_endpoints():
@@ -327,7 +386,7 @@ def cleanup_endpoints():
         data_handler = DataHandler()
         try:
             dead_endpoints = data_handler.GetDeadEndpoints()
-            for endpoint_id, dead_endpoint in list(dead_endpoints.items()):
+            for endpoint_id, dead_endpoint in dead_endpoints.items():
                 try:
                     logger.info("Begin to cleanup endpoint %s", endpoint_id)
                     point = get_k8s_endpoint(dead_endpoint["id"])
@@ -338,6 +397,7 @@ def cleanup_endpoints():
                         delete_resp = delete_k8s_endpoint(point.metadata.name)
                         logger.info("delete_resp for endpoint is %s",
                                     delete_resp)
+                        status = "stopped"
                     # we are not changing status from "pending", "pending" endpoints are planed to setup later
                     if dead_endpoint["status"] != "pending":
                         dead_endpoint["status"] = status
@@ -345,9 +405,7 @@ def cleanup_endpoints():
                     ).isoformat()
                     data_handler.UpdateEndpoint(dead_endpoint)
                 except Exception as e:
-                    logger.warning(
-                        "Clanup endpoint failed {}".format(dead_endpoint),
-                        exc_info=True)
+                    logger.exception("clanup endpoint failed %s", dead_endpoint)
         except Exception as e:
             logger.exception("cleanup endpoint failed")
         finally:
@@ -375,12 +433,15 @@ def Run():
         update_file_modification_time("endpoint_manager")
 
         with manager_iteration_histogram.labels("endpoint_manager").time():
-            # start endpoints
-            start_endpoints()
-            time.sleep(1)
+            try:
+                runnings = start_endpoints()
 
-            # clean up endpoints for jobs which is NOT running
-            cleanup_endpoints()
+                fix_endpoints(runnings)
+
+                # clean up endpoints for jobs which is NOT running
+                cleanup_endpoints()
+            except Exception:
+                logger.exception("processing this round of endpoints failed")
         time.sleep(1)
 
 

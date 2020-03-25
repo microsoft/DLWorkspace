@@ -57,7 +57,6 @@ class DataHandler(object):
         self.vctablename = "vc"
         self.storagetablename = "storage"
         self.clusterstatustablename = "clusterstatus"
-        self.commandtablename = "commands"
         self.templatetablename = "templates"
         server = config["mysql"]["hostname"]
         username = config["mysql"]["username"]
@@ -151,24 +150,6 @@ class DataHandler(object):
                     PRIMARY KEY (`id`)
                 )
                 """ % (self.clusterstatustablename)
-
-            cursor = self.conn.cursor()
-            cursor.execute(sql)
-            self.conn.commit()
-            cursor.close()
-
-            sql = """
-                CREATE TABLE IF NOT EXISTS `%s`
-                (
-                    `id`        INT     NOT NULL AUTO_INCREMENT,
-                    `jobId` varchar(50)   NOT NULL,
-                    `status`         varchar(255) NOT NULL DEFAULT 'pending',
-                    `time` DATETIME     DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                    `command` TEXT NOT NULL,
-                    `output` TEXT NULL,
-                    PRIMARY KEY (`id`)
-                )
-                """ % (self.commandtablename)
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -1103,68 +1084,6 @@ class DataHandler(object):
                 cursor.close()
         return ret
 
-    @record
-    def AddCommand(self, jobId, command):
-        try:
-            sql = "INSERT INTO `" + self.commandtablename + "` (jobId, command) VALUES (%s,%s)"
-            cursor = self.conn.cursor()
-            cursor.execute(sql, (jobId, command))
-            self.conn.commit()
-            cursor.close()
-            return True
-        except Exception as e:
-            logger.error('Exception: %s', str(e))
-            return False
-
-    @record
-    def GetPendingCommands(self):
-        cursor = self.conn.cursor()
-        query = "SELECT `id`, `jobId`, `command` FROM `%s` WHERE `status` = 'pending' order by `time`" % (
-            self.commandtablename)
-        cursor.execute(query)
-        ret = []
-        for (id, jobId, command) in cursor:
-            record = {}
-            record["id"] = id
-            record["jobId"] = jobId
-            record["command"] = command
-            ret.append(record)
-        self.conn.commit()
-        cursor.close()
-        return ret
-
-    @record
-    def FinishCommand(self, commandId):
-        try:
-            sql = """update `%s` set status = 'run' where `id` = '%s' """ % (
-                self.commandtablename, commandId)
-            cursor = self.conn.cursor()
-            cursor.execute(sql)
-            self.conn.commit()
-            cursor.close()
-            return True
-        except Exception as e:
-            logger.error('Exception: %s', str(e))
-            return False
-
-    @record
-    def GetCommands(self, jobId):
-        cursor = self.conn.cursor()
-        query = "SELECT `time`, `command`, `status`, `output` FROM `%s` WHERE `jobId` = '%s' order by `time`" % (
-            self.commandtablename, jobId)
-        cursor.execute(query)
-        ret = []
-        for (time, command, status, output) in cursor:
-            record = {}
-            record["time"] = time
-            record["command"] = command
-            record["status"] = status
-            record["output"] = output
-            ret.append(record)
-        self.conn.commit()
-        cursor.close()
-        return ret
-
     def load_json(self, raw_str):
         if raw_str is None:
             return {}
@@ -1178,7 +1097,8 @@ class DataHandler(object):
     @record
     def GetPendingEndpoints(self):
         cursor = None
-        ret = {}
+        pendings = {}
+        runnings = {}
         try:
             cursor = self.conn.cursor()
             query = "SELECT `endpoints` from `%s` where `jobStatus` = '%s' and `endpoints` is not null" % (
@@ -1191,17 +1111,22 @@ class DataHandler(object):
             endpoints = [self.load_json(job[0]) for job in jobs]
             # {endpoint1: {}, endpoint2: {}, ... }
             # endpoint["status"] == "pending"
-            ret = {
+            pendings = {
                 k: v for d in endpoints
                 for k, v in list(d.items())
                 if v["status"] == "pending"
+            }
+            runnings = {
+                k: v for d in endpoints
+                for k, v in list(d.items())
+                if v["status"] == "running"
             }
         except Exception as e:
             logger.exception("Query pending endpoints failed!")
         finally:
             if cursor is not None:
                 cursor.close()
-        return ret
+        return pendings, runnings
 
     @record
     def GetJobEndpoints(self, job_id):
@@ -1715,24 +1640,4 @@ class DataHandler(object):
 
 
 if __name__ == '__main__':
-    TEST_INSERT_JOB = False
-    TEST_QUERY_JOB_LIST = False
-    CREATE_TABLE = False
-    CREATE_DB = True
-    dataHandler = DataHandler()
-    print(dataHandler.GetJobList("hongzl@microsoft.com", num=1))
-    if TEST_INSERT_JOB:
-        jobParams = {}
-        jobParams["id"] = "dist-tf-00001"
-        jobParams["job-name"] = "dist-tf"
-        jobParams["user-id"] = "hongzl"
-        jobParams["job-meta-path"] = "/dlws/jobfiles/***"
-        jobParams["job-meta"] = "ADSCASDcAE!EDASCASDFD"
-
-        dataHandler.AddJob(jobParams)
-
-    if CREATE_TABLE:
-        dataHandler.CreateTable()
-
-    if CREATE_DB:
-        dataHandler.CreateDatabase()
+    pass
