@@ -232,7 +232,7 @@ class ClusterStatus(object):
             job_res = ClusterResource(params=job_res_params)
             username = job["userName"].split("@")[0].strip()
 
-            preemption_allowed = job.get("preemptionAllowed", False)
+            preemption_allowed = job_params.get("preemptionAllowed", False)
             if not preemption_allowed:
                 self.user_statuses[username]["gpu"] += job_res.gpu
                 self.user_statuses[username]["cpu"] += job_res.cpu
@@ -264,7 +264,7 @@ class ClusterStatus(object):
             job_res_params = get_resource_params_from_job_params(job_params)
             job_res = ClusterResource(params=job_res_params)
 
-            preemption_allowed = job.get("preemptionAllowed", False)
+            preemption_allowed = job_params.get("preemptionAllowed", False)
             if not preemption_allowed:
                 self.gpu_available -= job_res.gpu
                 self.cpu_available -= job_res.cpu
