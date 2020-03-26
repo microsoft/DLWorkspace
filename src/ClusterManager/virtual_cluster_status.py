@@ -126,7 +126,8 @@ class VirtualClusterStatus(ClusterStatus):
                 job_res_params = get_resource_params_from_job_params(job_params)
                 job_res = ClusterResource(params=job_res_params)
 
-                if not job["preemptionAllowed"]:
+                preemption_allowed = job_params.get("preemptionAllowed", False)
+                if not preemption_allowed:
                     vc_used[vc_name] += job_res
                 else:
                     vc_preemptable_used[vc_name] += job_res
