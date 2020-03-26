@@ -164,7 +164,7 @@ def extract_job_log_legacy(jobId, logPath, userId):
                     containerLogPath = os.path.join(
                         jobLogDir,
                         "log-container-" + log["containerID"] + ".txt")
-                    with open(containerLogPath, 'w') as f:
+                    with open(containerLogPath, 'w', encoding="utf-8") as f:
                         f.write(log["containerLog"])
                     f.close()
                     os.system("chown -R %s %s" % (userId, containerLogPath))
@@ -175,7 +175,7 @@ def extract_job_log_legacy(jobId, logPath, userId):
             dataHandler.UpdateJobTextField(
                 jobId, "jobLog",
                 base64.b64encode(trimlogstr.encode("utf-8")).decode("utf-8"))
-            with open(logPath, 'w') as f:
+            with open(logPath, 'w', encoding="utf-8") as f:
                 f.write(logStr)
             f.close()
             os.system("chown -R %s %s" % (userId, logPath))
