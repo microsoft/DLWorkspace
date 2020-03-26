@@ -69,7 +69,6 @@ data:
         Match           *
         Host            ${FLUENT_ELASTICSEARCH_HOST}
         Port            ${FLUENT_ELASTICSEARCH_PORT}
-        Buffer_Size     False
         Type            fluentd
         Logstash_Format On
         Replace_Dots    On
