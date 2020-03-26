@@ -131,6 +131,7 @@ class DataHandler(object):
                     PRIMARY KEY (`id`),
                     UNIQUE(`jobId`),
                     INDEX (`userName`),
+                    INDEX (`vcName`),
                     INDEX (`jobTime`),
                     INDEX (`jobId`),
                     INDEX (`jobStatus`)
@@ -148,7 +149,8 @@ class DataHandler(object):
                     `id`        INT   NOT NULL AUTO_INCREMENT,
                     `status`         LONGTEXT NOT NULL,
                     `time` DATETIME     DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                    PRIMARY KEY (`id`)
+                    PRIMARY KEY (`id`),
+                    INDEX(`time`)
                 )
                 """ % (self.clusterstatustablename)
 
@@ -233,7 +235,8 @@ class DataHandler(object):
                     `public_key`    TEXT NOT NULL,
                     `private_key`   TEXT NOT NULL,
                     `time`          DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                    PRIMARY KEY (`id`)
+                    PRIMARY KEY (`id`),
+                    UNIQUE(`identityName`),
                 )
                 """ % (self.identitytablename)
 
@@ -1233,7 +1236,7 @@ class DataHandler(object):
         try:
             cursor = self.conn.cursor()
             # TODO we need job["lastUpdated"] for filtering
-            query = "SELECT `endpoints` FROM jobs WHERE `jobStatus` <> 'running' and `jobStatus` <> 'pending' and `jobStatus` <> 'queued' and `jobStatus` <> 'scheduling' order by `jobTime` DESC"
+            query = "SELECT `endpoints` FROM jobs WHERE `jobStatus` <> 'running' and `jobStatus` <> 'pending' and `jobStatus` <> 'queued' and `jobStatus` <> 'scheduling'"
             cursor.execute(query)
             dead_endpoints = {}
             for [endpoints] in cursor:
