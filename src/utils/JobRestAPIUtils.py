@@ -1239,8 +1239,8 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             else:
                 logger.info("Endpoint %s exists. Skip.", endpoint_id)
 
-        dataHandler.UpdateJobTextField(jobId, "endpoints",
-                                       json.dumps(endpoints))
+        dataHandler.UpdateJobTextFields({"jobId": jobId},
+                                        {"endpoints": json.dumps(endpoints)})
         return endpoints, 200
     except Exception as e:
         logger.error("Get endpoint exception, ex: %s", str(e))
@@ -1262,12 +1262,6 @@ def get_job(job_id):
         if data_handler is not None:
             data_handler.Close()
     return None
-
-
-def update_job(job_id, field, value):
-    dataHandler = DataHandler()
-    dataHandler.UpdateJobTextField(job_id, field, value)
-    dataHandler.Close()
 
 
 def get_job_priorities():
