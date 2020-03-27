@@ -89,7 +89,7 @@ data:
   output-azure.conf: |
     [OUTPUT]
         Name            azure
-        Match           *
+        Match           jobs.*
         Customer_ID     ${FLUENT_AZURE_CUSTOMER_ID}
         Shared_Key      ${FLUENT_AZURE_SHARED_KEY}
         Log_Type        ${FLUENT_AZURE_LOG_TYPE}
