@@ -807,7 +807,7 @@ class PythonLauncher(Launcher):
         job_roles = self.get_job_roles(job_id)
 
         if len(job_roles) < 1:
-            return "NotFound", []
+            return "NotFound", [], ""
 
         # role status in ["NotFound", "Pending", "Running", "Succeeded", "Failed", "Unknown"]
         # TODO ??? when ps/master role "Succeeded", return Succeeded
@@ -816,7 +816,7 @@ class PythonLauncher(Launcher):
                 continue
             if job_role.status() == "Succeeded":
                 logger.info("Job: {}, Succeeded!".format(job_id))
-                return "Succeeded", []
+                return "Succeeded", [], ""
 
         statuses = [job_role.status() for job_role in job_roles]
         logger.info("Job: {}, status: {}".format(job_id, statuses))

@@ -1332,7 +1332,7 @@ class DataHandler(object):
 
         sql_template.append(",".join(set_stmt))
         sql_template.append("WHERE")
-        sql_template.append("AND".join(where_stmt))
+        sql_template.append(" AND ".join(where_stmt))
 
         sql = " ".join(sql_template)
         values = []
