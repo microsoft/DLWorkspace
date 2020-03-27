@@ -1,17 +1,24 @@
 #!/usr/bin/python3
 import os
 import sys
-import uuid
 import yaml
 import json
 import textwrap
 import argparse
+
 from az_params import *
 from params import *
-import utils
-from multiprocessing import Pool
-import subprocess
-from utils import random_str, keep_widest_subnet
+from utils import random_str, keep_widest_subnet, \
+    multiprocess_with_func_arg_tuples, exec_cmd_local, \
+    execute_or_dump_locally
+from az_utils import \
+    set_subscription, \
+    add_nsg_rule_whitelist, \
+    remove_nsg_rule_whitelist, \
+    delete_nsg_rule_whitelist, \
+    create_nsg_rules_with_service_tags, \
+    delete_nsg_rules_with_service_tags
+
 sys.path.append("../utils")
 from ConfigUtils import add_configs_in_order
 
@@ -46,6 +53,7 @@ def update_config_resgrp(config):
     if "resource_group" not in config["azure_cluster"]:
         config["azure_cluster"]["resource_group"] = config["cluster_name"] + "ResGrp"
     config["azure_cluster"]["vnet_name"] = config["cluster_name"] + "-VNet"
+    config["azure_cluster"]["subnet_name"] = config["cluster_name"] + "-subnet"
     config["azure_cluster"]["storage_account_name"] = config["cluster_name"] + "storage"
     config["azure_cluster"]["nsg_name"] = config["cluster_name"] + "-nsg"
     config["azure_cluster"]["nfs_nsg_name"] = config["cluster_name"] + [
@@ -55,35 +63,10 @@ def update_config_resgrp(config):
 
 def load_sshkey(config):
     assert os.path.exists(
-        './deploy/sshkey/id_rsa.pub') and "Generate SSHKey first!"
+        './deploy/sshkey/id_rsa.pub'), "Generate SSHKey first!"
     with open('./deploy/sshkey/id_rsa.pub') as f:
         config["azure_cluster"]["sshkey"] = f.read()
     return config
-
-
-def execute_or_dump_locally(cmd, verbose, dryrun, output_file):
-    cmd = ' '.join(cmd.split())+'\n'
-    if output_file:
-        with open(output_file, 'a') as wf:
-            wf.write(cmd)
-    if not dryrun:
-        output = utils.exec_cmd_local(cmd, verbose)
-        return output
-
-
-def set_subscription(config):
-    if "subscription" not in config["azure_cluster"]:
-        print("No subscription to set")
-        return
-
-    subscription = config["azure_cluster"]["subscription"]
-
-    chkcmd = "az account list | grep -A5 -B5 '\"isDefault\": true'"
-    output = utils.exec_cmd_local(chkcmd)
-    if not subscription in output:
-        setcmd = "az account set --subscription \"{}\"".format(subscription)
-        setout = utils.exec_cmd_local(setcmd)
-    assert subscription in utils.exec_cmd_local(chkcmd, True)
 
 
 def create_group(config, args):
@@ -116,20 +99,21 @@ def create_availability_set(config, args):
 
 def create_vnet(config, args):
     cmd = """az network vnet create \
-            --resource-group %s \
-            --name %s \
-            --address-prefix %s \
-            --subnet-name mySubnet \
-            --subnet-prefix %s
-        """ % (config["azure_cluster"]["resource_group"],
+            --resource-group {} \
+            --name {} \
+            --address-prefix {} \
+            --subnet-name {} \
+            --subnet-prefix {}
+        """.format(config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["vnet_name"],
                config["cloud_config_nsg_rules"]["vnet_range"],
+               config["azure_cluster"]["subnet_name"],
                config["cloud_config_nsg_rules"]["vnet_range"])
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
 def create_nsg(config, args):
-    assert "source_addresses_prefixes" in config["cloud_config_nsg_rules"]["dev_network"] and "Please \
+    assert "source_addresses_prefixes" in config["cloud_config_nsg_rules"]["dev_network"], "Please \
     setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed"
     source_addresses_prefixes = config["cloud_config_nsg_rules"][
         "dev_network"]["source_addresses_prefixes"]
@@ -144,13 +128,15 @@ def create_nsg(config, args):
         if isinstance(restricted_source_address_prefixes, list):
             restricted_source_address_prefixes = " ".join(
                 list(set(restricted_source_address_prefixes)))
-    
+
     cmd = """az network nsg create \
             --resource-group %s \
             --name %s
         """ % (config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["nsg_name"])
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+
+    create_nsg_rules_with_service_tags(config, args)
 
     if "tcp_port_ranges" in config["cloud_config_nsg_rules"]:
         cmd = """az network nsg rule create \
@@ -204,7 +190,7 @@ def create_nsg(config, args):
 
 
 def create_nfs_nsg(config, args):
-    assert "source_addresses_prefixes" in config["cloud_config_nsg_rules"]["dev_network"] and "Please \
+    assert "source_addresses_prefixes" in config["cloud_config_nsg_rules"]["dev_network"], "Please \
     setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed"
     source_addresses_prefixes = config["cloud_config_nsg_rules"][
         "dev_network"]["source_addresses_prefixes"]
@@ -263,12 +249,12 @@ def deploy_cluster(config, args):
 
 
 def validate_machine_spec(config, spec):
-    assert "role" in spec and ((set(spec["role"]) - set(config["allroles"])) == set()) and \
+    assert "role" in spec and ((set(spec["role"]) - set(config["allroles"])) == set()), \
         "must specify valid role for vm!"
     if "name" in spec:
-        assert spec["number_of_instance"] <= 1 and "cannot overwirte name for multiple machines one time!"
+        assert spec["number_of_instance"] <= 1, "cannot overwirte name for multiple machines one time!"
     if "nfs" in spec["role"]:
-        assert spec["number_of_instance"] <= 1 and "NFS machine spec must be configured one by one!"
+        assert spec["number_of_instance"] <= 1, "NFS machine spec must be configured one by one!"
 
 
 def gen_machine_list_4_deploy_action(complementary_file_name, config):
@@ -358,13 +344,16 @@ def is_independent_nfs(role):
 
 
 def execute_cmd_local_in_parallel(cmds, args):
-    tuples = [(utils.exec_cmd_local, cmd, args.verbose, 600 * args.batch_size)
+    tuples = [(exec_cmd_local, cmd, args.verbose, 600 * args.batch_size)
               for cmd in cmds]
-    res = utils.multiprocess_with_func_arg_tuples(args.batch_size, tuples)
+    res = multiprocess_with_func_arg_tuples(args.batch_size, tuples)
     return res
 
 
 def add_machine(vmname, spec, verbose, dryrun, output_file):
+    multual_exclusive_roles = set(["infra", "worker", "elasticsearch", "mysqlserver"])
+    mul_ex_role_in_spec = list(set(spec["role"]) & multual_exclusive_roles)
+    assert len(mul_ex_role_in_spec) <= 1, "We don't allow role overlapping between these roles:{}.".format(",".join(list(multual_exclusive_roles)))
     if "pwd" in spec:
         auth = "--authentication-type password --admin-password '{}' ".format(
             spec["pwd"])
@@ -378,7 +367,7 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
         priv_ip = "--private-ip-address {} ".format(spec["private_ip_address"])
     else:
         assert (not 'nfs' in spec["role"]
-                ) and "Must specify IP address for NFS node!"
+                ), "Must specify IP address for NFS node!"
 
     nsg = "nfs_nsg_name" if is_independent_nfs(spec["role"]) else "nsg_name"
 
@@ -393,13 +382,13 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
     cloud_init = ""
     # by default, if this is a unique machine, then itself would have a cloud-init file
     cldinit_appendix = "cloud_init_{}.txt".format(vmname)
-    if "infra" in spec["role"]:
-        cldinit_appendix = "cloud_init_infra.txt"
     # we support heterogeneous cluster that has several different types of worker nodes
     # if later there are differences other than vm_size, we can consider adding a field
     # called "spec_name" for a spec. as for now, workers are different only in vm_size
-    elif "worker" in spec["role"]:
+    if "worker" in spec["role"]:
         cldinit_appendix = "cloud_init_worker_{}.txt".format(spec["vm_size"])
+    elif len(mul_ex_role_in_spec) == 1:
+        cldinit_appendix = "cloud_init_{}.txt".format(mul_ex_role_in_spec[0])
     cloud_init_file = spec.get(
         "cloud_init_file", 'deploy/cloud-config/{}'.format(cldinit_appendix))
     if os.path.exists(cloud_init_file):
@@ -411,24 +400,18 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
     if "managed_disks" in spec:
         for st in spec["managed_disks"]:
             if "is_os" in st and st["is_os"]:
-                assert st["disk_num"] == 1 and "Could have only 1 OS disk!"
+                assert st["disk_num"] == 1, "Could have only 1 OS disk!"
                 storage_sku += "os={}".format(st.get("sku",
                                                      config["azure_cluster"]["os_storage_sku"]))
                 os_disk_size_gb = "--os-disk-size-gb " + \
                     str(st.get("size_gb",
                                config["azure_cluster"]["os_storage_sz"]))
-            elif "infra" in spec["role"]:
+            elif len(mul_ex_role_in_spec) == 1:
                 storage_sku += " " + " ".join(["{}={}".format(dsk_id, st.get("sku", config["azure_cluster"][
                     "vm_local_storage_sku"])) for dsk_id in range(disk_id, disk_id + st["disk_num"])])
                 data_disk_sizes_gb += " " + \
                     " ".join([str(st.get("size_gb", config["azure_cluster"]
-                                         ["infra_local_storage_sz"]))] * st["disk_num"])
-            elif "worker" in spec["role"]:
-                storage_sku += " " + " ".join(["{}={}".format(dsk_id, st.get("sku", config["azure_cluster"][
-                    "vm_local_storage_sku"])) for dsk_id in range(disk_id, disk_id + st["disk_num"])])
-                data_disk_sizes_gb += " " + \
-                    " ".join([str(st.get("size_gb", config["azure_cluster"]
-                                         ["worker_local_storage_sz"]))] * st["disk_num"])
+                                         ["{}_local_storage_sz".format(mul_ex_role_in_spec[0])]))] * st["disk_num"])
             elif "nfs" in spec["role"]:
                 storage_sku += " " + " ".join(["{}={}".format(dsk_id, st.get("sku", config["azure_cluster"][
                     "nfs_data_disk_sku"])) for dsk_id in range(disk_id, disk_id + st["disk_num"])])
@@ -437,13 +420,9 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
                                          ["nfs_data_disk_sz"]))] * st["disk_num"])
         disk_id += st["disk_num"]
     else:
-        if "infra" in spec["role"]:
+        if len(mul_ex_role_in_spec) == 1:
             data_disk_sizes_gb += " " + \
-                str(config["azure_cluster"]["infra_local_storage_sz"])
-            storage_sku = config["azure_cluster"]["vm_local_storage_sku"]
-        elif "worker" in spec["role"]:
-            data_disk_sizes_gb += " " + \
-                str(config["azure_cluster"]["worker_local_storage_sz"])
+                str(config["azure_cluster"]["{}_local_storage_sz".format(mul_ex_role_in_spec[0])])
             storage_sku = config["azure_cluster"]["vm_local_storage_sku"]
         if "nfs" in spec["role"]:
             nfs_dd_sz, nfs_dd_num = config["azure_cluster"]["nfs_data_disk_sz"], config["azure_cluster"]["nfs_data_disk_num"]
@@ -455,9 +434,7 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
         vm_size = spec["vm_size"]
     else:
         if "infra" in spec["role"]:
-            vm_size = config["azure_cluster"]["infra_vm_size"]
-        elif "worker" in spec["role"]:
-            vm_size = config["azure_cluster"]["worker_vm_size"]
+            vm_size = config["azure_cluster"]["{}_vm_size".format(mul_ex_role_in_spec[0])]
         elif "nfs" in spec["role"]:
             vm_size = config["azure_cluster"]["nfs_vm_size"]
 
@@ -471,7 +448,7 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
              --location {} \
              --size {} \
              --vnet-name {} \
-             --subnet mySubnet \
+             --subnet {} \
              --nsg {} \
              --admin-username {} \
              {} \
@@ -489,6 +466,7 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
                config["azure_cluster"]["azure_location"],
                vm_size,
                config["azure_cluster"]["vnet_name"],
+               config["azure_cluster"]["subnet_name"],
                config["azure_cluster"][nsg],
                config["cloud_config_nsg_rules"]["default_admin_username"],
                cloud_init,
@@ -519,7 +497,7 @@ def list_vm(config, verbose=True):
     cmd = """
         az vm list --resource-group %s
         """ % (config["azure_cluster"]["resource_group"])
-    output = utils.exec_cmd_local(cmd, verbose)
+    output = exec_cmd_local(cmd, verbose)
     allvm = json.loads(output)
     vminfo = {}
     for onevm in allvm:
@@ -571,6 +549,26 @@ def vm_interconnects(config, args):
                config["cloud_config_nsg_rules"]["nfs_allow_master"]["tcp_port_ranges"],
                allowed_incoming_infra_ips
                )
+
+    restricted_source_address_prefixes = "'*'"
+    if "restricted_source_address_prefixes" in config["cloud_config_nsg_rules"]:
+        restricted_source_address_prefixes = config["cloud_config_nsg_rules"]["restricted_source_address_prefixes"]
+        if isinstance(restricted_source_address_prefixes, list):
+            restricted_source_address_prefixes = " ".join(
+                keep_widest_subnet(infra_ip_list + list(set(restricted_source_address_prefixes))))
+
+    cmd += """
+        ; az network nsg rule update \
+            --resource-group %s \
+            --nsg-name %s \
+            --name allowalltcp \
+            --source-address-prefixes %s \
+            --access allow
+        """ % (config["azure_cluster"]["resource_group"],
+               config["azure_cluster"]["nsg_name"],
+               restricted_source_address_prefixes
+               )
+
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
@@ -725,11 +723,21 @@ def run_command(command, config, args, nargs):
         set_subscription(config)
         if nargs[0] == "add":
             ips = None if len(nargs) == 1 else nargs[1]
-            add_nsg_rule_whitelist(ips, args.dryrun)
+            add_nsg_rule_whitelist(config, args, ips)
+        elif nargs[0] == "remove":
+            ips = None if len(nargs) == 1 else nargs[1]
+            remove_nsg_rule_whitelist(config, args, ips)
+        elif nargs[0] == "delete":
+            delete_nsg_rule_whitelist(config, args)
+    elif command == "service_tag_rules":
+        set_subscription(config)
+        if nargs[0] == "create":
+            create_nsg_rules_with_service_tags(config, args)
         elif nargs[0] == "delete":
             delete_nsg_rule_whitelist(args.dryrun)
     if command == "delete_nodes":
         delete_specified_or_cordoned_idling_nodes(config, args)
+
 
 if __name__ == "__main__":
     dirpath = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))

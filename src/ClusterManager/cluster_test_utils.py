@@ -340,18 +340,28 @@ class BaseTestClusterSetup(object):
             "vcName": "vc2",
             "jobParams": {},
         }
-        # job5 has not yet been scheduled on k8s
+        # job5 and job6 have not yet been scheduled on k8s
         job5 = {
             "jobId": "j5",
-            "preemptionAllowed": False,
             "vcName": "vc2",
             "userName": "user3",
             "jobParams": {
                 "jobtrainingtype": "RegularJob",
                 "sku": "m_type2",
+                "preemptionAllowed": False,
             }
         }
-        return [job1, job2, job3, job4, job5]
+        job6 = {
+            "jobId": "j6",
+            "vcName": "vc2",
+            "userName": "user3",
+            "jobParams": {
+                "jobtrainingtype": "RegularJob",
+                "sku": "m_type2",
+                "preemptionAllowed": True,
+            }
+        }
+        return [job1, job2, job3, job4, job5, job6]
 
     def get_vc_list(self):
         vc_list = [{
@@ -574,7 +584,7 @@ class BaseTestClusterSetup(object):
 
         cs.cpu_capacity = Cpu({"m_type1": 10, "m_type2": 20, "m_type3": 12})
         cs.cpu_used = Cpu({"m_type1": 6, "m_type2": 17, "m_type3": 6})
-        cs.cpu_preemptable_used = Cpu()
+        cs.cpu_preemptable_used = Cpu({"m_type2": 1})
         cs.cpu_available = Cpu({"m_type1": 4, "m_type2": 3})
         cs.cpu_unschedulable = Cpu({"m_type3": 12})
         cs.cpu_reserved = Cpu({"m_type3": 6})
@@ -645,12 +655,20 @@ class BaseTestClusterSetup(object):
             "userGPU": Gpu(),
             "userCPU": Cpu(),
             "userMemory": Memory(),
-        } for i in range(1, 4)]
+        } for i in range(1, 3)]
+        user_status_preemptable.append({
+            "userName": "user3",
+            "userGPU": Gpu(),
+            "userCPU": Cpu({
+                "m_type2": 1
+            }),
+            "userMemory": Memory(),
+        })
         cs.user_status_preemptable = user_status_preemptable
 
         # Cluster active jobs
         cs.jobs = self.jobs
-        cs.available_job_num = 5
+        cs.available_job_num = 6
 
         return cs
 
@@ -759,7 +777,7 @@ class BaseTestClusterSetup(object):
             "m_type3": 12
         })
         vc2_status.cpu_used = Cpu({"m_type1": 2, "m_type2": 1, "m_type3": 6})
-        vc2_status.cpu_preemptable_used = Cpu()
+        vc2_status.cpu_preemptable_used = Cpu({"m_type2": 1})
         vc2_status.cpu_available = Cpu({
             "m_type1": 0,
             "m_type2": 3,
@@ -833,15 +851,23 @@ class BaseTestClusterSetup(object):
         ]
         vc2_status.user_status = user_status
 
-        user_status_preemptable = [{
-            "userName": "user%s" % i,
-            "userGPU": Gpu(),
-            "userCPU": Cpu(),
-            "userMemory": Memory(),
-        } for i in [1, 3]]
+        user_status_preemptable = [
+            {
+                "userName": "user1",
+                "userGPU": Gpu(),
+                "userCPU": Cpu(),
+                "userMemory": Memory(),
+            },
+            {
+                "userName": "user3",
+                "userGPU": Gpu(),
+                "userCPU": Cpu({"m_type2": 1}),
+                "userMemory": Memory(),
+            }
+        ]
         vc2_status.user_status_preemptable = user_status_preemptable
 
         # Set vc2 active job count
-        vc2_status.available_job_num = 3
+        vc2_status.available_job_num = 4
 
         return vc_statuses

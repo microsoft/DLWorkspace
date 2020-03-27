@@ -10,7 +10,7 @@ from actions.migrate_job_action import MigrateJobAction
 from actions.send_alert_action import SendAlertAction
 from datetime import datetime, timedelta, timezone
 from rules_abc import Rule
-from utils import prometheus_url, k8s_util
+from utils import prometheus_util, k8s_util
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -57,7 +57,7 @@ def _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs
     return message
 
 
-class ECCRebootNodeRule(Rule):
+class EccRebootNodeRule(Rule):
 
     def __init__(self, alert, config):
         self.rule = 'ecc_rule'
@@ -72,9 +72,9 @@ class ECCRebootNodeRule(Rule):
 
 
     def check_status(self):
-        url = f"http://{self.ecc_config['prometheus']['ip']}:{self.ecc_config['prometheus']['port']}"
-        query = self.ecc_config['prometheus']['node_boot_time_query']
-        reboot_url = prometheus_url.format_prometheus_url_query(url, query)
+        url = f"http://{self.config['prometheus']['ip']}:{self.config['prometheus']['port']}"
+        query = self.config['prometheus']['node_boot_time_query']
+        reboot_url = prometheus_util.format_url_query(url, query)
 
         try:
             response = requests.get(reboot_url, timeout=10)
@@ -121,7 +121,7 @@ class ECCRebootNodeRule(Rule):
     def take_action(self):
         alert_action = SendAlertAction(self.alert)
         unsuccessful_pause_resume_jobs = {}
-        job_info = k8s_util._get_job_info_from_nodes(
+        job_info = k8s_util.get_job_info_from_nodes(
             nodes=self.nodes_ready_for_action,
             portal_url=self.config['portal_url'],
             cluster_name=self.config['cluster_name'])
@@ -131,7 +131,7 @@ class ECCRebootNodeRule(Rule):
             job_owner_email = f"{job_owner}@{self.config['job_owner_email_domain']}"
             node_names = job_info[job_id]["node_names"]
             job_link = job_info[job_id]['job_link']
-            rest_url = self.ecc_config["rest_url"]
+            rest_url = self.config["rest_url"]
             max_attempts = self.ecc_config.get("attempts_for_pause_resume_jobs", 5)
             wait_time = self.ecc_config.get("time_sleep_after_pausing", 30)
             reboot_enabled = self.ecc_config["enable_reboot"]

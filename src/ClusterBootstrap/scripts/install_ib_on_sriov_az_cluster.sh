@@ -13,6 +13,12 @@ sudo apt-get --no-install-recommends install -y build-essential python-setuptool
 sudo apt-get --no-install-recommends install -y perftest infiniband-diags
 sudo python3 -m pip install --upgrade pip setuptools wheel
 
+# Install OFED MLNX (This will override some IB packages above)
+wget -q -O - http://www.mellanox.com/downloads/ofed/MLNX_OFED-5.0-1.0.0.0/MLNX_OFED_LINUX-5.0-1.0.0.0-ubuntu18.04-x86_64.tgz | tar xzf -
+cd MLNX_OFED_LINUX-5.0-1.0.0.0-ubuntu18.04-x86_64
+sudo ./mlnxofedinstall --force
+sudo /etc/init.d/openibd restart
+
 sudo apt-get remove -y walinuxagent
 sudo apt-get -qq update
 sudo apt-get --no-install-recommends install -y walinuxagent

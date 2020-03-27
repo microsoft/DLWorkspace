@@ -11,7 +11,7 @@ logger = logging.getLogger(__file__)
 
 def test_regular_job_running(args, preemptable=False):
     expected = "wantThisInLog"
-    cmd = "echo %s ; sleep 1800" % expected
+    cmd = "echo %s ; sleep 120" % expected
 
     job_spec = utils.gen_default_job_description("regular",
                                                  args.email,
@@ -231,8 +231,8 @@ def test_regular_job_ssh(args):
             {"unapproved", "queued", "scheduling"})
         assert state == "running"
 
-        ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
-                                                 job.jid, endpoint_id)
+        ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email, job.jid,
+                                                 endpoint_id)
         logger.debug("endpoints resp is %s", ssh_endpoint)
 
         ssh_host = "%s.%s" % (ssh_endpoint["nodeName"], ssh_endpoint["domain"])
@@ -323,8 +323,8 @@ def test_regular_job_env(args):
             {"unapproved", "queued", "scheduling"})
         assert state == "running"
 
-        ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
-                                                 job.jid, endpoint_id)
+        ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email, job.jid,
+                                                 endpoint_id)
         logger.debug("endpoints resp is %s", ssh_endpoint)
 
         ssh_host = "%s.%s" % (ssh_endpoint["nodeName"], ssh_endpoint["domain"])
@@ -379,8 +379,7 @@ def test_blobfuse(args):
                                                  args.vc,
                                                  cmd=cmd)
 
-    job_spec["plugins"] = utils.load_azure_blob_config(args.config,
-                                                       "/tmp/blob")
+    job_spec["plugins"] = utils.load_azure_blob_config(args.config, "/tmp/blob")
 
     with utils.run_job(args.rest, job_spec) as job:
         state = job.block_until_state_not_in(
@@ -393,14 +392,13 @@ def test_blobfuse(args):
                 break
             time.sleep(0.5)
 
-        assert log.find("dummy") != -1, "could not find dummy in log %s" % (
-            log)
+        assert log.find("dummy") != -1, "could not find dummy in log %s" % (log)
 
 
 @utils.case(unstable=True)
 def test_sudo_installed(args):
     cmd = "sudo ls"
-    image = "pytorch/pytorch:latest"  # no sudo installed in this image
+    image = "pytorch/pytorch:latest" # no sudo installed in this image
 
     job_spec = utils.gen_default_job_description(
         "regular",
@@ -437,8 +435,8 @@ def test_regular_job_custom_ssh_key(args):
             {"unapproved", "queued", "scheduling"})
         assert state == "running"
 
-        ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
-                                                 job.jid, endpoint_id)
+        ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email, job.jid,
+                                                 endpoint_id)
         logger.debug("endpoints resp is %s", ssh_endpoint)
 
         ssh_host = "%s.%s" % (ssh_endpoint["nodeName"], ssh_endpoint["domain"])
@@ -473,8 +471,8 @@ def test_regular_job_custom_ssh_key(args):
         assert code == 0, "code is %s, output is %s" % (code, output)
 
         cmd = [
-            "ssh", "-i", dest, "-p", ssh_port, "-o",
-            "StrictHostKeyChecking=no", "-o", "LogLevel=ERROR",
+            "ssh", "-i", dest, "-p", ssh_port, "-o", "StrictHostKeyChecking=no",
+            "-o", "LogLevel=ERROR",
             "%s@%s" % (alias, ssh_host), "--", "echo", "dummy"
         ]
         code, output = utils.kube_pod_exec(args.config, "default",
@@ -527,8 +525,8 @@ def test_ssh_do_not_expose_private_key(args):
             {"unapproved", "queued", "scheduling"})
         assert state == "running"
 
-        ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
-                                                 job.jid, endpoint_id)
+        ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email, job.jid,
+                                                 endpoint_id)
 
         ssh_host = "%s.%s" % (ssh_endpoint["nodeName"], ssh_endpoint["domain"])
         ssh_port = ssh_endpoint["port"]
@@ -560,5 +558,146 @@ def test_ssh_do_not_expose_private_key(args):
         assert code == 0, "code is %s, output is %s" % (code, output)
 
         expected = "a\nb"
-        assert expected in output, "could not find %s in output %s" % (
-            expected, output)
+        assert expected in output, "could not find %s in output %s" % (expected,
+                                                                       output)
+
+
+def test_ssh_cuda_visible_devices(args, job_spec, expected):
+    with utils.run_job(args.rest, job_spec) as job:
+        endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
+                                          ["ssh"])
+        endpoints_ids = list(endpoints.keys())
+        assert len(endpoints_ids) == 1
+        endpoint_id = endpoints_ids[0]
+
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email, job.jid,
+                                                 endpoint_id)
+
+        ssh_host = "%s.%s" % (ssh_endpoint["nodeName"], ssh_endpoint["domain"])
+        ssh_port = ssh_endpoint["port"]
+
+        # exec into jobmanager to execute ssh to avoid firewall
+        job_manager_pod = utils.kube_get_pods(args.config, "default",
+                                              "app=jobmanager")[0]
+        job_manager_pod_name = job_manager_pod.metadata.name
+
+        alias = args.email.split("@")[0]
+
+        ssh_cmd = [
+            "ssh",
+            "-i",
+            "/dlwsdata/work/%s/.ssh/id_rsa" % alias,
+            "-p",
+            ssh_port,
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "LogLevel=ERROR",
+            "%s@%s" % (alias, ssh_host),
+            "--",
+            "echo a; env | grep CUDA_VISIBLE_DEVICES;",
+            "grep CUDA_VISIBLE_DEVICES ~/.ssh/environment; echo b",
+        ]
+        code, output = utils.kube_pod_exec(args.config, "default",
+                                           job_manager_pod_name, "jobmanager",
+                                           ssh_cmd)
+        assert code == 0, "code is %s, output is %s" % (code, output)
+
+        assert expected in output, "could not find %s in output %s" % (expected,
+                                                                       output)
+
+
+@utils.case()
+def test_ssh_cpu_job_cuda_visible_devices(args):
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
+    expected = "a\nb"
+    test_ssh_cuda_visible_devices(args, job_spec, expected)
+
+
+@utils.case()
+def test_ssh_one_gpu_job_cuda_visible_devices(args):
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 resourcegpu=1)
+
+    expected = "a\nb"
+    test_ssh_cuda_visible_devices(args, job_spec, expected)
+
+
+@utils.case()
+def test_ssh_multi_gpu_job_cuda_visible_devices(args):
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 resourcegpu=2)
+
+    expected = "a\nCUDA_VISIBLE_DEVICES=0,1\nCUDA_VISIBLE_DEVICES=0,1\nb"
+    test_ssh_cuda_visible_devices(args, job_spec, expected)
+
+
+@utils.case()
+def test_fault_tolerance(args):
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job:
+        endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
+                                          ["ssh"])
+        endpoints_ids = list(endpoints.keys())
+        assert len(endpoints_ids) == 1
+        endpoint_id = endpoints_ids[0]
+
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email, job.jid,
+                                                 endpoint_id)
+        ssh_host = "%s.%s" % (ssh_endpoint["nodeName"], ssh_endpoint["domain"])
+        ssh_port = ssh_endpoint["port"]
+
+        logger.info("current ssh endpoint is %s:%s", ssh_host, ssh_port)
+
+        pod = utils.kube_get_pods(args.config, "default",
+                                  "jobId=%s" % (job.jid))[0]
+        utils.kube_delete_pod(args.config, "default", pod.metadata.name)
+
+        ssh_endpoint = utils.wait_endpoint_state(args.rest,
+                                                 args.email,
+                                                 job.jid,
+                                                 endpoint_id,
+                                                 state="pending")
+
+        ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email, job.jid,
+                                                 endpoint_id)
+
+        ssh_host = "%s.%s" % (ssh_endpoint["nodeName"], ssh_endpoint["domain"])
+        ssh_port = ssh_endpoint["port"]
+        logger.info("current ssh endpoint is %s:%s", ssh_host, ssh_port)
+
+        # exec into jobmanager to execute ssh to avoid firewall
+        job_manager_pod = utils.kube_get_pods(args.config, "default",
+                                              "app=jobmanager")[0]
+        job_manager_pod_name = job_manager_pod.metadata.name
+
+        alias = args.email.split("@")[0]
+
+        cmd = [
+            "ssh", "-i",
+            "/dlwsdata/work/%s/.ssh/id_rsa" % alias, "-p", ssh_port, "-o",
+            "StrictHostKeyChecking=no", "-o", "LogLevel=ERROR",
+            "%s@%s" % (alias, ssh_host), "--", "echo", "dummy"
+        ]
+        code, output = utils.kube_pod_exec(args.config, "default",
+                                           job_manager_pod_name, "jobmanager",
+                                           cmd)
+        assert code == 0, "code is %s, output is %s" % (code, output)
+        assert output == "dummy\n", "output is %s" % (output)

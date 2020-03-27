@@ -10,6 +10,7 @@ import os
 import yaml
 import base64
 import functools
+import inspect
 
 import requests
 
@@ -92,7 +93,13 @@ def gen_default_job_description(
     vc,
     preemptable=False,
     image="indexserveregistry.azurecr.io/deepscale:1.0.post0",
-    cmd="sleep 120"):
+    cmd="sleep 120",
+    resourcegpu=0):
+
+    caller_frame = inspect.stack()[1]
+    module_name = os.path.basename(caller_frame.filename).split(".")[0]
+    case_name = caller_frame.function
+
     args = {
         "userName": email,
         "userId": uid,
@@ -100,7 +107,7 @@ def gen_default_job_description(
         "gpuType": "P40",
         "vcName": vc,
         "containerUserId": 0,
-        "jobName": "integration test case",
+        "jobName": "%s.%s" % (module_name, case_name),
         "preemptionAllowed": preemptable,
         "image": image,
         "cmd": cmd,
@@ -111,9 +118,10 @@ def gen_default_job_description(
         "jobPath": "",
         "enablejobpath": True,
         "env": [],
-        "resourcegpu": 0,
+        "resourcegpu": resourcegpu,
         "memorylimit": "500M",
         "cpulimit": 1,
+        "_allow_partial_node": True,
     }
 
     if job_type in {"regular", "data"}:
@@ -125,13 +133,13 @@ def gen_default_job_description(
         args["hostNetwork"] = True
         args["isPrivileged"] = True
         args["numps"] = 1
-        args["resourcegpu"] = 0
+        args["resourcegpu"] = resourcegpu
         args["numpsworker"] = 1
     elif job_type == "inference":
         args["jobtrainingtype"] = "InferenceJob"
         args["hostNetwork"] = False
         args["isPrivileged"] = False
-        args["resourcegpu"] = 1  # num of worker
+        args["resourcegpu"] = 1 # num of worker
     else:
         logger.error("unknown job_type %s, wrong test case", job_type)
         raise RuntimeError("unknown job_type %s" % (job_type))
@@ -289,7 +297,7 @@ def block_until_state_in(rest_url, jid, states, timeout=300):
 def get_job_log(rest_url, email, jid):
     cursor = None
     job_logs = []
-    while True:
+    for _ in range(500): # avoid dead loop
         args = {
             "userName": email,
             "jobId": jid,
@@ -302,7 +310,6 @@ def get_job_log(rest_url, email, jid):
         if resp.status_code == 404:
             break
         resp_json = resp.json()
-        # logger.info("%s log: %s", jid, repr(resp_json))
         log = resp_json["log"]
         cursor = resp_json["cursor"]
         if isinstance(log, dict):
@@ -334,25 +341,31 @@ def create_endpoint(rest_url, email, jid, point_names):
     return resp.json()
 
 
-def wait_endpoint_ready(rest_url, email, jid, endpoint_id, timeout=30):
+def wait_endpoint_state(rest_url,
+                        email,
+                        jid,
+                        endpoint_id,
+                        state="running",
+                        timeout=30):
     start = datetime.datetime.now()
     delta = datetime.timedelta(seconds=timeout)
 
     while True:
         points = get_endpoints(rest_url, email, jid)
         for p in points:
-            if p["id"] != endpoint_id or p["status"] != "running":
+            if p["id"] != endpoint_id or p["status"] != state:
                 continue
-            logger.info("spent %s in waiting endpoint %s become running",
-                        datetime.datetime.now() - start, endpoint_id)
+            logger.info("spent %s in waiting endpoint %s become %s",
+                        datetime.datetime.now() - start, endpoint_id, state)
             return p
-        logger.debug("waiting endpoint %s become running", endpoint_id)
+        logger.debug("waiting endpoint %s become %s, is %s", endpoint_id, state,
+                     p["status"])
         if datetime.datetime.now() - start < delta:
             time.sleep(1)
         else:
             raise RuntimeError(
-                "endpoint %s did not become running for more than %d seconds" %
-                (endpoint_id, timeout))
+                "endpoint %s did not become %s for more than %d seconds" %
+                (endpoint_id, state, timeout))
 
 
 def find_infra_node_name(machines):
@@ -405,6 +418,24 @@ def kube_get_pods(config_path, namespace, label_selector):
     logger.debug("%s got pods from namespace %s: api_response", label_selector,
                  namespace, api_response)
     return api_response.items
+
+
+def kube_delete_pod(config_path, namespace, pod_name):
+    k8s_config = build_k8s_config(config_path)
+    api_client = ApiClient(configuration=k8s_config)
+
+    k8s_core_api = k8s_client.CoreV1Api(api_client)
+
+    api_response = k8s_core_api.delete_namespaced_pod(
+        pod_name,
+        namespace,
+        pretty="pretty_example",
+        grace_period_seconds=0,
+    )
+
+    logger.debug("delete %s from namespace %s: api_response %s", pod_name,
+                 namespace, api_response)
+    return api_response.code
 
 
 def kube_pod_exec(config_path,

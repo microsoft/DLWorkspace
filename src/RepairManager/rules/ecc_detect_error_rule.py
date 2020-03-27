@@ -5,7 +5,7 @@ from rules_abc import Rule
 from actions.cordon_action import CordonAction
 from actions.send_alert_action import SendAlertAction
 from kubernetes import client, config
-from utils import k8s_util, email_util, prometheus_url
+from utils import k8s_util, email_util, prometheus_util
 from datetime import datetime, timezone
 import requests
 import json
@@ -15,32 +15,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 activity_log = logging.getLogger('activity')
-
-def _get_node_address_info(node_info):
-    # map InternalIP to Hostname
-    address_map = {}
-    if node_info:
-        for node in node_info.items:
-            internal_ip = None
-            hostname = None
-            for address in node.status.addresses:
-                if address.type == 'InternalIP':
-                    internal_ip = address.address
-                if address.type == 'Hostname':
-                    hostname = address.address
-                address_map[internal_ip] = hostname
-    logging.debug(f'node address map: {address_map}')
-    return address_map
-
-
-def _extract_ips_from_ecc_data(ecc_data):
-    metrics = ecc_data['data']['result']
-    if metrics:
-        ecc_node_ips = []
-        for m in metrics:
-            offending_node_ip = m['metric']['instance'].split(':')[0]
-            ecc_node_ips.append(offending_node_ip)
-        return ecc_node_ips
 
 
 def _create_email_for_dris(nodes, action_status, jobs, cluster_name):
@@ -85,7 +59,7 @@ def _create_email_for_job_owner(job_id, job_owner_email, node_names, job_link,
     return message
 
 
-class ECCDetectErrorRule(Rule):
+class EccDetectErrorRule(Rule):
 
     def __init__(self, alert, config):
         self.rule = 'ecc_rule'
@@ -113,23 +87,22 @@ class ECCDetectErrorRule(Rule):
 
 
     def check_status(self):
-        url = f"http://{self.ecc_config['prometheus']['ip']}:{self.ecc_config['prometheus']['port']}"
-        query = self.ecc_config['prometheus']['ecc_error_query']
-        ecc_url = prometheus_url.format_prometheus_url_query(url, query)
+        url = f"http://{self.config['prometheus']['ip']}:{self.config['prometheus']['port']}"
+        query = self.config['prometheus']['ecc_error_query']
+        ecc_url = prometheus_util.format_url_query(url, query)
 
         try:
             response = requests.get(ecc_url, timeout=10)
             if response:
-                ecc_data = response.json()
-                logging.info(f'Uncorrectable ECC metrics found: {ecc_data}')
-                ecc_node_ips = _extract_ips_from_ecc_data(ecc_data)
-                if ecc_node_ips:
-                    self.node_info = k8s_util.list_node()
-                    address_map = _get_node_address_info(self.node_info)
-                    for ip in ecc_node_ips:
+                logging.debug(f'NvidiaSmiECCError Response: {response}')
+                node_ips = prometheus_util.extract_ips_from_response(response)
+                if node_ips:
+                    address_map = k8s_util.get_node_address_info()
+                    for ip in node_ips:
                         node_name = address_map[ip]
                         if not self.alert.check_rule_cache(self.rule, node_name):
                             self.new_bad_nodes[node_name] = ip
+                    logging.info(f'Uncorrectable ECC metrics: {self.new_bad_nodes}')
                     return len(self.new_bad_nodes) > 0
                 else:
                     logging.debug('No uncorrectable ECC metrics found.')
@@ -151,7 +124,7 @@ class ECCDetectErrorRule(Rule):
                 node_name=node_name,
                 dry_run=cordon_dry_run)
 
-        impacted_jobs = k8s_util._get_job_info_from_nodes(
+        impacted_jobs = k8s_util.get_job_info_from_nodes(
             nodes=self.new_bad_nodes,
             portal_url=self.config['portal_url'],
             cluster_name=self.config['cluster_name'])

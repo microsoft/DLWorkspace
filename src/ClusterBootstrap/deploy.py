@@ -17,6 +17,9 @@ import base64
 import tempfile
 import urllib.request
 
+cwd = os.path.dirname(__file__)
+os.chdir(cwd)
+
 sys.path.append("../utils")
 
 from ConfigUtils import *
@@ -2222,6 +2225,8 @@ def deploy_repairmanager_config():
         "/etc/RepairManager/config/rule-config.yaml", config["admin_username"], infra_node[0])
     utils.sudo_scp(config["ssh_cert"], "./deploy/RepairManager/ecc-config.yaml",
         "/etc/RepairManager/config/ecc-config.yaml", config["admin_username"], infra_node[0])
+    utils.sudo_scp(config["ssh_cert"], "./deploy/RepairManager/latency-config.yaml",
+        "/etc/RepairManager/config/latency-config.yaml", config["admin_username"], infra_node[0])
 
 
 def label_webUI(nodename):

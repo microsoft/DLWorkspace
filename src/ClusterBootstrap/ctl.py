@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+
 import os
 import re
 import sys
@@ -8,7 +9,12 @@ import yaml
 import argparse
 import textwrap
 import random
+
+cwd = os.path.dirname(__file__)
+os.chdir(cwd)
+
 sys.path.append("../utils")
+
 from ConfigUtils import *
 from params import default_config_parameters
 from cloud_init_deploy import load_node_list_by_role_from_config
@@ -230,6 +236,7 @@ def remote_config_update(config, args):
         else:
             nodes_2_update = list(set(nfs_nodes) & set(args.roles_or_machine))
         for node in nodes_2_update:
+            config["storage_manager"] = config["machines"][node]["storage_manager"]
             render_storagemanager(config, node)
             src_dst_list = ["./deploy/StorageManager/{}_storage_manager.yaml".format(
                 node), "/etc/StorageManager/config.yaml"]

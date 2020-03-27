@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useMemo, useState} from "react";
 import { Link } from "react-router-dom";
 import useFetch from "use-http";
 import Table from '@material-ui/core/Table';
@@ -45,8 +45,6 @@ import {checkObjIsEmpty, sumValues} from "../../utlities/ObjUtlities";
 import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar";
 
 import _ from "lodash";
-import {type} from "os";
-import useCheckIsDesktop from "../../utlities/layoutUtlities";
 const useStyles = makeStyles((theme: Theme) => createStyles({
   avatar: {
     backgroundColor: theme.palette.secondary.main,
@@ -122,15 +120,12 @@ const Chart: React.FC<{
   if (reserved === 0) {
     data = data.filter((item)=>item.name !== 'Reserved')
   }
-  const styles = useStyles();
   const renderActiveShape = (props: any) => {
     const RADIAN = Math.PI / 180;
     const { cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle,
       fill, payload, percent, value } = props;
     const sin = Math.sin(-RADIAN * midAngle);
     const cos = Math.cos(-RADIAN * midAngle);
-    const sx = cx + (outerRadius + 10) * cos;
-    const sy = cy + (outerRadius + 10) * sin;
     const mx = cx + (outerRadius + 20) * cos;
     const my = cy + (outerRadius + 20) * sin;
     const ex = mx + (cos >= 0 ? 1 : -1) * 8;
@@ -284,30 +279,30 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
   const [nfsStorage, setNfsStorage] = useState([]);
   useEffect(()=>{
     fetchDirectories().then((res) => {
-      let fetchStorage = [];
-      let availBytesSubPath = '/api/datasources/proxy/1/api/v1/query?query=node_filesystem_avail_bytes%7Bfstype%3D%27nfs4%27%7D';
-      let sizeBytesSubPath = '/api/datasources/proxy/1/api/v1/query?query=node_filesystem_size_bytes%7Bfstype%3D%27nfs4%27%7D';
+      const fetchStorage = [];
+      const availBytesSubPath = '/api/datasources/proxy/1/api/v1/query?query=node_filesystem_avail_bytes%7Bfstype%3D%27nfs4%27%7D';
+      const sizeBytesSubPath = '/api/datasources/proxy/1/api/v1/query?query=node_filesystem_size_bytes%7Bfstype%3D%27nfs4%27%7D';
       fetchStorage.push(fetch(`${res['grafana']}${availBytesSubPath}`));
       fetchStorage.push(fetch(`${res['grafana']}${sizeBytesSubPath}`));
       let storageRes: any = [];
-      let tmpStorage: any = [];
+      const tmpStorage: any = [];
       Promise.all(fetchStorage).then((responses) => {
         responses.forEach(async (response: any) => {
           const res = await response.json();
           if (res['data']) {
-            for (let item of res['data']["result"]) {
-              let tmp = {} as any;
-              if (item['metric']['__name__'] == "node_filesystem_size_bytes") {
-                let mountpointName = item['metric']['mountpoint']
-                let val = Math.floor(item['value'][1] / (Math.pow(10, 9)))
+            for (const item of res['data']["result"]) {
+              const tmp = {} as any;
+              if (item['metric']['__name__'] === "node_filesystem_size_bytes") {
+                const mountpointName = item['metric']['mountpoint']
+                const val = Math.floor(item['value'][1] / (Math.pow(10, 9)))
                 tmp['mountpointName'] = mountpointName;
                 tmp['total'] = val;
               }
-              let tmpAvail = {} as any;
+              const tmpAvail = {} as any;
               //node_filesystem_avail_bytes
-              if (item['metric']['__name__'] == "node_filesystem_avail_bytes") {
-                let mountpointName = item['metric']['mountpoint']
-                let val = Math.floor(item['value'][1] / (Math.pow(10, 9)))
+              if (item['metric']['__name__'] === "node_filesystem_avail_bytes") {
+                const mountpointName = item['metric']['mountpoint']
+                const val = Math.floor(item['value'][1] / (Math.pow(10, 9)))
                 tmpAvail['mountpointName'] = mountpointName;
                 tmpAvail['Avail'] = val;
               }
@@ -320,8 +315,8 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
           let finalStorageRes: any = [];
           if (storageRes && storageRes.length > 0) {
             finalStorageRes = _.chain(storageRes).groupBy('mountpointName').map((value, key) => {
-              let tmpTotal: any = value.filter((item: any) => item.hasOwnProperty('total'));
-              let tmpAvail: any = value.filter((item: any) => item.hasOwnProperty('Avail'));
+              const tmpTotal: any = value.filter((item: any) => item.hasOwnProperty('total'));
+              const tmpAvail: any = value.filter((item: any) => item.hasOwnProperty('Avail'));
               let total = 0;
               let used = 0;
               if (typeof tmpTotal[0] !== "undefined" && typeof  tmpAvail[0] !== "undefined") {
@@ -339,7 +334,6 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
               finalStorageRes.unshift(item);
             }
           });
-          console.log(finalStorageRes)
           finalStorageRes = finalStorageRes.filter((item: any) => {
             return !(item["mountpointName"].indexOf("dlts") === -1 && item["mountpointName"].indexOf("dlws/nfs") === -1);
           })
@@ -362,7 +356,7 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
       setActiveJobs((Number)(sumValues(res['AvaliableJobNum'])));
       setActivate(true);
     })
-  },[selectedTeam]);
+  },[selectedTeam]); // eslint-disable-line react-hooks/exhaustive-deps
   const tableTheme = createMuiTheme({
     overrides: {
       MuiTableCell: {
@@ -405,7 +399,30 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
       backgroundColor: red[400],
     },
   })(LinearProgress);
-  const theme = useTheme();
+
+  console.log(nfsStorage)
+
+  const processedNfsStorage = useMemo(() => {
+    return _(nfsStorage).map((nfs: any) => {
+      const {
+        mountpointName,
+        total,
+        used
+      } = nfs;
+      let processedMountpointName = '/data';
+      let order = 1;
+      if (mountpointName.indexOf('/mntdlws') === -1) {
+        processedMountpointName = mountpointName.slice(mountpointName.lastIndexOf('/'));
+        order = 0;
+      }
+      return {
+        mountpointName: processedMountpointName,
+        total,
+        used,
+        order
+      };
+    }).uniqBy('mountpointName').sortBy(['order', 'mountpointName']).value();
+  }, [nfsStorage]);
 
   return (
     <Card>
@@ -431,18 +448,11 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
             <Table>
               <TableBody>
                 {
-                  nfsStorage.map((nfs: any, index: number) => {
-                    let nfsMountNames = nfs['mountpointName'].split("/");
-                    let mounName = "";
-                    if (nfs['mountpointName'].indexOf("dlws") !== -1) {
-                      mounName = "/data";
-                    } else {
-                      nfsMountNames.splice(0, nfsMountNames.length - 1);
-                      mounName = "/" + nfsMountNames.join('/');
-                    }
-                    let value = nfs['total'] == 0 ? 0 : (nfs['used'] / nfs['total']) * 100;
+                  processedNfsStorage.map((nfs: any) => {
+                    const mounName = nfs['mountpointName'];
+                    const value = nfs['total'] === 0 ? 0 : (nfs['used'] / nfs['total']) * 100;
                     return (
-                      <TableRow key={index}>
+                      <TableRow key={mounName}>
                         <TableCell>
                           {
                             value < 80 ? <BorderLinearProgress value={value} variant={"determinate"}/> : value >= 80 && value < 90 ? <GenernalLinerProgress value={value} variant={"determinate"}/> : <FullBorderLinearProgress value={value} variant={"determinate"}/>
