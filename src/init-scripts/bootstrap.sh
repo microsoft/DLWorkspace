@@ -3,6 +3,9 @@ set -ex
 
 CWD=$(dirname $0)
 
+hostname
+whoami
+
 . /dlts-runtime/env/init.env
 sh -x /dlts-runtime/install.sh
 

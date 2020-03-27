@@ -61,7 +61,7 @@ def test_distributed_job_ssh(args):
         assert state == "running"
 
         for endpoint_id in endpoints_ids:
-            ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
+            ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email,
                                                      job.jid, endpoint_id)
             logger.debug("endpoint_id is %s, endpoints resp is %s", endpoint_id,
                          ssh_endpoint)
@@ -158,7 +158,7 @@ sleep infinity"""
         assert state == "running"
 
         for endpoint_id in endpoints_ids:
-            ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
+            ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email,
                                                      job.jid, endpoint_id)
             logger.debug("endpoint_id is %s, endpoints resp is %s", endpoint_id,
                          ssh_endpoint)
@@ -244,7 +244,7 @@ def test_distributed_job_env(args):
         envs["DLTS_JOB_ID"] = job.jid
 
         for endpoint_id in endpoints_ids:
-            ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
+            ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email,
                                                      job.jid, endpoint_id)
             logger.debug("endpoints resp is %s", ssh_endpoint)
 
@@ -389,7 +389,7 @@ def test_ssh_cuda_visible_devices(args):
         assert state == "running"
 
         for endpoint_id in endpoints_ids:
-            ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
+            ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email,
                                                      job.jid, endpoint_id)
             logger.debug("endpoints resp is %s", ssh_endpoint)
 
@@ -451,7 +451,7 @@ def test_job_directory(args):
 
     with utils.run_job(args.rest, job_spec) as job:
         state = job.block_until_state_not_in(
-                            {"unapproved", "queued", "scheduling"})
+            {"unapproved", "queued", "scheduling"})
         assert state == "running"
 
         ps_label = "jobId=%s,jobRole=ps" % job.jid
@@ -474,8 +474,7 @@ def test_job_directory(args):
         worker_pod_name = pods[0].metadata.name
         worker_container_name = pods[0].spec.containers[0].name
         worker_cmd = [
-            "bash", "-c",
-            "cat /job/${DLWS_JOB_ID} ; rm /job/${DLWS_JOB_ID}"
+            "bash", "-c", "cat /job/${DLWS_JOB_ID} ; rm /job/${DLWS_JOB_ID}"
         ]
 
         code, output = utils.kube_pod_exec(args.config, "default",
@@ -483,3 +482,64 @@ def test_job_directory(args):
                                            worker_container_name, worker_cmd)
         assert code == 0, "code is %d, output is %s" % (code, output)
         assert msg + "\n" == output, "code is %d, output is %s" % (code, output)
+
+
+@utils.case()
+def test_fault_tolerance(args):
+    job_spec = utils.gen_default_job_description("distributed", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job:
+        endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
+                                          ["ssh"])
+        endpoints_ids = list(endpoints.keys())
+        assert len(endpoints_ids) == 2
+        endpoint_id = endpoints_ids[0]
+
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email, job.jid,
+                                                 endpoint_id)
+        ssh_host = "%s.%s" % (ssh_endpoint["nodeName"], ssh_endpoint["domain"])
+        ssh_port = ssh_endpoint["port"]
+
+        logger.info("current ssh endpoint is %s:%s", ssh_host, ssh_port)
+
+        pods = utils.kube_get_pods(args.config, "default",
+                                   "jobId=%s" % (job.jid))
+        for pod in pods:
+            utils.kube_delete_pod(args.config, "default", pod.metadata.name)
+
+        ssh_endpoint = utils.wait_endpoint_state(args.rest,
+                                                 args.email,
+                                                 job.jid,
+                                                 endpoint_id,
+                                                 state="pending")
+
+        ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email, job.jid,
+                                                 endpoint_id)
+
+        ssh_host = "%s.%s" % (ssh_endpoint["nodeName"], ssh_endpoint["domain"])
+        ssh_port = ssh_endpoint["port"]
+        logger.info("current ssh endpoint is %s:%s", ssh_host, ssh_port)
+
+        # exec into jobmanager to execute ssh to avoid firewall
+        job_manager_pod = utils.kube_get_pods(args.config, "default",
+                                              "app=jobmanager")[0]
+        job_manager_pod_name = job_manager_pod.metadata.name
+
+        alias = args.email.split("@")[0]
+
+        cmd = [
+            "ssh", "-i",
+            "/dlwsdata/work/%s/.ssh/id_rsa" % alias, "-p", ssh_port, "-o",
+            "StrictHostKeyChecking=no", "-o", "LogLevel=ERROR",
+            "%s@%s" % (alias, ssh_host), "--", "echo", "dummy"
+        ]
+        code, output = utils.kube_pod_exec(args.config, "default",
+                                           job_manager_pod_name, "jobmanager",
+                                           cmd)
+        assert code == 0, "code is %s, output is %s" % (code, output)
+        assert output == "dummy\n", "output is %s" % (output)
