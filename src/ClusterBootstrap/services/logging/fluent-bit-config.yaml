@@ -20,6 +20,7 @@ data:
 
     @INCLUDE input-kubernetes.conf
     @INCLUDE filter-kubernetes.conf
+    @INCLUDE filter-jobs.conf
     @INCLUDE filter-time_nsec.conf
     @INCLUDE output-elasticsearch.conf
 
@@ -48,10 +49,16 @@ data:
         K8S-Logging.Exclude Off
         tls.vhost           kubernetes.default.svc
 
+  filter-jobs.conf: |
+    [FILTER]
+        Name  rewrite_tag
+        Match kube.*
+        Rule  $kubernetes['labels']['type'] ^job$ jobs.$kubernetes['labels']['vcName'].$kubernetes['labels']['jobId'] false
+
   filter-time_nsec.conf: |
     [FILTER]
         NAME         lua
-        Match        kube.*
+        Match        jobs.*
         Script       time_nsec.lua
         Call         time_nsec
         Type_int_key time_nsec
@@ -66,7 +73,7 @@ data:
   output-elasticsearch.conf: |
     [OUTPUT]
         Name            es
-        Match           *
+        Match           jobs.*
         Host            ${FLUENT_ELASTICSEARCH_HOST}
         Port            ${FLUENT_ELASTICSEARCH_PORT}
         Type            fluentd
