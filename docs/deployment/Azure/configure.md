@@ -88,6 +88,8 @@ repair-manager:
   restore_from_rule_cache_dump: True
   rule_cache_dump: /etc/RepairManager/rule-cache.json
   job_owner_email_domain: <an email domain name like microsoft.com>
+  latency_rule:
+    alert_expiry: 4 # In hours
 
 smtp:
   smtp_url: <smtp, like xxx.com:587>
