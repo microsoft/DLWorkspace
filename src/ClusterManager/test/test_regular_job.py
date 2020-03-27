@@ -644,7 +644,7 @@ def test_ssh_multi_gpu_job_cuda_visible_devices(args):
 
 
 @utils.case()
-def test_falut_tolerance(args):
+def test_fault_tolerance(args):
     job_spec = utils.gen_default_job_description("regular", args.email,
                                                  args.uid, args.vc)
 

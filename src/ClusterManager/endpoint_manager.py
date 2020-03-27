@@ -11,7 +11,6 @@ import logging
 import yaml
 import logging.config
 import argparse
-import collections
 
 from kubernetes import client, config as k8s_config
 from kubernetes.client.rest import ApiException
@@ -336,14 +335,13 @@ def fix_endpoints(runnings):
     pods = {pod.metadata.name: pod for pod in resp.items}
     logger.info("get running pods %s", pods.keys())
 
-    data_handler = DataHandler()
-
-    for endpoint_id, point in runnings.items():
-        if is_need_fix(endpoint_id, point, pods):
-            delete_k8s_endpoint(point["id"])
-            point["status"] = "pending"
-            logger.info("reset endpoint %s to pending", endpoint_id)
-            data_handler.UpdateEndpoint(point)
+    with DataHandler() as data_handler:
+        for endpoint_id, point in runnings.items():
+            if is_need_fix(endpoint_id, point, pods):
+                delete_k8s_endpoint(point["id"])
+                point["status"] = "pending"
+                logger.info("reset endpoint %s to pending", endpoint_id)
+                data_handler.UpdateEndpoint(point)
 
 
 def is_need_fix(endpoint_id, endpoint, pods):
@@ -407,7 +405,7 @@ def cleanup_endpoints():
                 except Exception as e:
                     logger.exception("clanup endpoint failed %s", dead_endpoint)
         except Exception as e:
-            logger.exception("cleanup endpoint failed")
+            logger.exception("clean up endpoint failed")
         finally:
             data_handler.Close()
     except Exception as e:

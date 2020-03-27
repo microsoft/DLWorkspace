@@ -485,7 +485,7 @@ def test_job_directory(args):
 
 
 @utils.case()
-def test_falut_tolerance(args):
+def test_fault_tolerance(args):
     job_spec = utils.gen_default_job_description("distributed", args.email,
                                                  args.uid, args.vc)
 
