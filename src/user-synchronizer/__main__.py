@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 from os import environ
+import sys
 from sys import stdout
 
 from yaml import safe_load
@@ -93,8 +94,7 @@ def process_user(oauth, user):
         except Exception:
             logger.exception('Exception in processing group', member_of_group)
 
-    update_identity(restfulapi_url, user['userPrincipalName'], uid, gid,
-                    groups)
+    update_identity(restfulapi_url, user['userPrincipalName'], uid, gid, groups)
 
 
 @cache_processed_member
@@ -147,11 +147,12 @@ def process_group(oauth, group):
             else:
                 logger.warning('Skip {}'.format(member['displayName']))
     except Exception:
-        logger.exception(
-            'Exception in process group members {}'.format(member))
+        logger.exception('Exception in process group members {}'.format(member))
 
 
 def main():
+    has_exception = False
+
     oauth = build_oauth(tenant_id, client_id, client_secret)
 
     for acl in iter_acls(restfulapi_url):
@@ -179,6 +180,11 @@ def main():
 
         except Exception:
             logger.exception('Exception in processing ACL {}'.format(acl))
+            has_exception = True
+    if has_exception:
+        return 1
+    else:
+        return 0
 
 
 def config_logging():
@@ -193,4 +199,4 @@ def config_logging():
 
 if __name__ == "__main__":
     config_logging()
-    main()
+    sys.exit(main())

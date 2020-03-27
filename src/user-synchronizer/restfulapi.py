@@ -2,29 +2,27 @@
 # Licensed under the MIT License.
 
 from json import dumps
-from os import environ
+import os
 import logging
+import uuid
 
 from requests import get
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
 
 logger = logging.getLogger(__name__)
 
 
 def generate_ssh_key_pair():
-    key = rsa.generate_private_key(public_exponent=65537,
-                                   key_size=2048,
-                                   backend=default_backend())
+    name = str(uuid.uuid4())
 
-    private_key = key.private_bytes(
-        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
-        serialization.NoEncryption()).decode("utf-8")
-    public_key = key.public_key().public_bytes(
-        serialization.Encoding.OpenSSH,
-        serialization.PublicFormat.OpenSSH).decode("utf-8")
-    return private_key, public_key
+    os.system("ssh-keygen -t rsa -b 4096 -f %s -P ''" % name)
+
+    with open(name) as f:
+        private = f.read()
+
+    with open(name + ".pub") as f:
+        public = f.read()
+
+    return private, public
 
 
 def iter_acls(restfulapi_url):
