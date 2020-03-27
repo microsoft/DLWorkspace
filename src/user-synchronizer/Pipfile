@@ -8,7 +8,6 @@ oauthlib = "*"
 requests = "*"
 requests-oauthlib = "*"
 pyyaml = "*"
-cryptography = "*"
 
 [dev-packages]
 flake8 = "*"
