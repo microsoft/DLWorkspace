@@ -95,7 +95,7 @@ class Cluster extends Service {
     const response = await this.fetch('/GetJobStatus?' + params)
     this.context.assert(response.ok, 502)
     const data = await response.json()
-    this.context.assert(data['errorMsg'] == null, 404, data['errorMsg'])
+    this.context.assert(data != null, 404)
     this.context.log.debug({ data }, 'Got job status')
     return data['jobStatus']
   }
