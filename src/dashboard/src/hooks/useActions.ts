@@ -213,7 +213,7 @@ ${givenName} ${familyName}
 
   const support = useCallback(Object.assign((job: any): Action<any> => {
     return {
-      icon: 'help',
+      icon: 'contact_support',
       tooltip: 'Support',
       onClick: onSupport
     };
