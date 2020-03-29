@@ -88,7 +88,7 @@ class Cluster extends Service {
 
   /**
    * @param {object} job
-   * @return {Promise<string>}
+   * @return {Promise<{ status: string, message?: string }>}
    */
   async getJobStatus (jobId) {
     const params = new URLSearchParams({ jobId })
@@ -97,7 +97,11 @@ class Cluster extends Service {
     const data = await response.json()
     this.context.assert(data != null, 404)
     this.context.log.debug({ data }, 'Got job status')
-    return data['jobStatus']
+    const status = { status: data['jobStatus'] }
+    if (data['errorMsg']) {
+      status.message = data['errorMsg']
+    }
+    return status
   }
 
   /**
