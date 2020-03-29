@@ -1,6 +1,11 @@
-import React, { FunctionComponent, useMemo } from 'react';
-import { capitalize } from 'lodash';
-import { Chip, Tooltip } from '@material-ui/core';
+import React, { ReactElement, FunctionComponent, useMemo } from 'react';
+import { capitalize, noop } from 'lodash';
+import {
+  // colors,
+  // createMuiTheme,
+  Chip,
+  Tooltip
+} from '@material-ui/core';
 import {
   HourglassEmpty,
   HourglassFull,
@@ -10,8 +15,12 @@ import {
   PauseCircleOutline,
   RemoveCircle,
   RemoveCircleOutline,
-  Help
+  Help,
+  More
 } from '@material-ui/icons';
+// import {
+//   ThemeProvider,
+// } from '@material-ui/styles';
 
 interface Props {
   job: any;
@@ -32,6 +41,21 @@ const JobStatus: FunctionComponent<Props> = ({ job }) => {
     : status === 'killed' ? <RemoveCircleOutline/>
     : <Help/>
   , [status]);
+  // const theme = useMemo(() => createMuiTheme({
+  //   palette: {
+  //     primary: status === 'unapproved' ? colors.blueGrey
+  //       : status === 'queued' ? colors.blueGrey
+  //       : status === 'scheduling' ? colors.blueGrey
+  //       : status === 'running' ? undefined
+  //       : status === 'finished' ? colors.green
+  //       : status === 'failed' ? colors.red
+  //       : status === 'pausing' ? colors.yellow
+  //       : status === 'paused' ? colors.yellow
+  //       : status === 'killing' ? colors.red
+  //       : status === 'killed' ? colors.red
+  //       : colors.blueGrey
+  //   }
+  // }), [status]);
   const label = useMemo(() => capitalize(status), [status]);
 
   const detail = useMemo<Array<any>>(() => job['jobStatusDetail'], [job]);
@@ -48,15 +72,22 @@ const JobStatus: FunctionComponent<Props> = ({ job }) => {
     return <pre>{JSON.stringify(firstDetail, null, 2)}</pre>;
   }, [detail]);
 
+  let deleteIcon: ReactElement | undefined = undefined;
   if (title) {
-    return (
+    deleteIcon = (
       <Tooltip title={title} placement="right" interactive>
-        <Chip icon={icon} label={label}/>
+        <More/>
       </Tooltip>
     );
-  } else {
-    return <Chip icon={icon} label={label}/>;
   }
+  return (
+    <Chip
+      icon={icon}
+      label={label}
+      deleteIcon={deleteIcon}
+      onDelete={deleteIcon && noop}
+    />
+  );
 }
 
 export default JobStatus;
