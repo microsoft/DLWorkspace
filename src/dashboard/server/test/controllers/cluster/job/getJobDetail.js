@@ -65,32 +65,33 @@ describe('GET /clusters/:clusterId/jobs/:jobId/status', function () {
     response.data.should.have.property('status', 'OK')
   })
 
-  it('[N-01] should return 502 Bad Gateway Error when the job does not exist', async function () {
-    nock('http://universe')
-      .get('/GetJobStatus?' + getJobStatusParams)
-      .reply(500)
-
-    const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/status', {
-      params: userParams
-    })
-
-    response.status.should.equal(502)
-  })
-
-  it('[N-02] should return 404 Not Found when there is an error message', async function () {
+  it('[P-02] should attach message when status have error messages', async function () {
     nock('http://universe')
       .get('/GetJobStatus?' + getJobStatusParams)
       .reply(200, {
-        jobStatus: 'an error happened',
-        errorMsg: 'Job Status Not Found'
+        jobStatus: 'failed',
+        errorMsg: 'boom'
       })
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/status', {
       params: userParams
     })
 
+    response.status.should.equal(200)
+    response.data.should.have.property('status', 'failed')
+    response.data.should.have.property('message', 'boom')
+  })
+
+  it('[N-01] should return 404 Not Found Error when the job does not exist', async function () {
+    nock('http://universe')
+      .get('/GetJobStatus?' + getJobStatusParams)
+      .reply(200, null)
+
+    const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/status', {
+      params: userParams
+    })
+
     response.status.should.equal(404)
-    response.data.should.equal('Job Status Not Found')
   })
 })
 
