@@ -1,4 +1,4 @@
-import React, { ReactElement, FunctionComponent, useMemo } from 'react';
+import React, { ReactElement, FunctionComponent, useMemo, useEffect } from 'react';
 import { capitalize, noop } from 'lodash';
 import {
   // colors,
@@ -22,11 +22,14 @@ import {
 //   ThemeProvider,
 // } from '@material-ui/styles';
 
+import useFetch from 'use-http-2';
+
 interface Props {
+  cluster: string;
   job: any;
 }
 
-const JobStatus: FunctionComponent<Props> = ({ job }) => {
+const JobStatus: FunctionComponent<Props> = ({ cluster, job }) => {
   const status = useMemo<string>(() => job['jobStatus'], [job]);
   const icon = useMemo(() =>
     status === 'unapproved' ? <HourglassEmpty/>
@@ -58,8 +61,13 @@ const JobStatus: FunctionComponent<Props> = ({ job }) => {
   // }), [status]);
   const label = useMemo(() => capitalize(status), [status]);
 
+  const { data: statusData, get, abort } = useFetch(
+    `/api/clusters/${cluster}/jobs/${job['jobId']}/status`,
+    undefined);
+
   const detail = useMemo<Array<any>>(() => job['jobStatusDetail'], [job]);
   const title = useMemo(() => {
+    if (statusData && statusData.message) return statusData.message;
     if (!Array.isArray(detail)) return null;
     if (detail.length === 0) return null;
     const firstDetail = detail[0];
@@ -70,7 +78,14 @@ const JobStatus: FunctionComponent<Props> = ({ job }) => {
       <pre>{JSON.stringify(firstDetailMessage, null, 2)}</pre>
     );
     return <pre>{JSON.stringify(firstDetail, null, 2)}</pre>;
-  }, [detail]);
+  }, [statusData, detail]);
+
+  useEffect(() => {
+    if (status === 'failed') {
+      get()
+    }
+    return abort;
+  }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   let deleteIcon: ReactElement | undefined = undefined;
   if (title) {
