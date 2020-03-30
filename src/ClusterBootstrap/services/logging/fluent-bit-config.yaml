@@ -53,7 +53,7 @@ data:
     [FILTER]
         Name  rewrite_tag
         Match kube.*
-        Rule  $kubernetes['labels']['type'] ^job$ jobs.$kubernetes['labels']['vcName'].$kubernetes['labels']['jobId'] false
+        Rule  $kubernetes['labels']['type'] ^job$ jobs.$kubernetes['labels']['jobId'] false
 
   filter-time_nsec.conf: |
     [FILTER]
