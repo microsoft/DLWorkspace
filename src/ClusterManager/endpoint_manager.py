@@ -360,8 +360,8 @@ def is_need_fix(endpoint_id, endpoint, pods):
 
         real_pod = pods.get(pod_name)
 
-        if real_pod == None:
-            return True
+        if real_pod is None: # pod maybe old than 1 hour, skip check to accelerate
+            return False
 
         if node_name != real_pod.spec.node_name:
             return True
