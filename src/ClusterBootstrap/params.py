@@ -16,6 +16,7 @@ default_config_parameters = {
     "cloud_elasticsearch_port": "9200",
 
     "elasticsearch": {
+        "enabled": False,
         "port": {
             "http": 9200,
             "transport": 9300,
@@ -24,8 +25,11 @@ default_config_parameters = {
         },
     },
 
-    "fluentd": {
-        "port": 24231,
+    "azureBlobLog": {
+        "enabled": False,
+        "port": {
+            "adapter": 6200
+        }
     },
 
     "influxdb_port": "8086",

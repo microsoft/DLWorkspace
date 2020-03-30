@@ -22,8 +22,12 @@ data:
     @INCLUDE filter-kubernetes.conf
     @INCLUDE filter-jobs.conf
     @INCLUDE filter-time_nsec.conf
+    {% if cnf["elasticsearch"]["enabled"] -%}
     @INCLUDE output-elasticsearch.conf
+    {%- endif %}
+    {% if cnf["azureBlobLog"]["enabled"] -%}
     @INCLUDE output-azure-blob.conf
+    {%- endif %}
 
   input-kubernetes.conf: |
     [INPUT]
@@ -87,7 +91,7 @@ data:
         Name             http
         Match            jobs.*
         Host             127.0.0.1
-        Port             5000
+        Port             ${FLUENT_AZURE_BLOB_ADAPTER_PORT}
         Format           json_lines
         header_tag       X-Tag
         json_date_key    timestamp
