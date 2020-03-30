@@ -85,7 +85,7 @@ data:
   output-azure-blob.conf: |
     [OUTPUT]
         Name             http
-        Match            *
+        Match            jobs.*
         Host             127.0.0.1
         Port             5000
         Format           json_lines
