@@ -22,9 +22,6 @@ import k8sUtils
 
 logger = logging.getLogger(__name__)
 
-elasticsearch_deployed = isinstance(config.get('elasticsearch'),
-                                    list) and len(config['elasticsearch']) > 0
-
 
 def create_log(logdir='/var/log/dlworkspace'):
     if not os.path.exists(logdir):
@@ -37,16 +34,20 @@ def create_log(logdir='/var/log/dlworkspace'):
         logging.config.dictConfig(logging_config)
 
 
+_use_legacy = config.get('logging') not in [
+    'azureBlob', 'elaticsearch'
+] or config.get('__extract_job_log_legacy', False)
+
+
 def extract_job_log(job_id, log_path, user_id):
-    if elasticsearch_deployed and not config.get('__extract_job_log_legacy',
-                                                 False):
-        extract_job_log_with_elastic_search(job_id, log_path, user_id)
+    if not _use_legacy:
+        _extract_job_log(job_id, log_path, user_id)
     else:
-        extract_job_log_legacy(job_id, log_path, user_id)
+        _extract_job_log_legacy(job_id, log_path, user_id)
 
 
 @record
-def extract_job_log_with_elastic_search(jobId, logPath, userId):
+def _extract_job_log(jobId, logPath, userId):
     dataHandler = None
     try:
         dataHandler = DataHandler()
@@ -96,7 +97,7 @@ def extract_job_log_with_elastic_search(jobId, logPath, userId):
 
 
 @record
-def extract_job_log_legacy(jobId, logPath, userId):
+def _extract_job_log_legacy(jobId, logPath, userId):
     dataHandler = None
     try:
         dataHandler = DataHandler()

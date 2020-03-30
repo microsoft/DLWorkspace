@@ -77,10 +77,6 @@ def base64decode(str_val):
     return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
 
-elasticsearch_deployed = isinstance(config.get('elasticsearch'),
-                                    list) and len(config['elasticsearch']) > 0
-
-
 def adjust_job_priority(priority, permission):
     priority_range = (DEFAULT_JOB_PRIORITY, DEFAULT_JOB_PRIORITY)
     if permission == Permission.User:
@@ -661,6 +657,10 @@ def GetJobStatus(jobId):
     return result
 
 
+_get_job_log_enabled = config.get('logging') in ['azureBlob', 'elasticsearch']
+_get_job_legacy = config.get('__extract_job_log_legacy', False)
+
+
 def GetJobLog(userName, jobId, cursor=None, size=100):
     dataHandler = DataHandler()
     jobs = dataHandler.GetJob(jobId=jobId)
@@ -668,21 +668,14 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(
                 userName, ResourceType.VC, jobs[0]["vcName"],
                 Permission.Collaborator):
-            if elasticsearch_deployed:
-                (lines, cursor) = UtilsGetJobLog(jobId, cursor, size)
-
-                pod_logs = {}
-                for (pod_name, pod_lines) in itertools.groupby(
-                        lines,
-                        lambda line: line["_source"]["kubernetes"]["pod_name"]):
-                    pod_logs[pod_name] = ''.join(
-                        line["_source"]["log"] for line in pod_lines)
+            if _get_job_log_enabled:
+                (pod_logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
 
                 return {
                     "log": pod_logs,
                     "cursor": cursor,
                 }
-            else:
+            elif _get_job_legacy:
                 try:
                     log = dataHandler.GetJobTextField(jobId, "jobLog")
                     try:
@@ -697,6 +690,12 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
                         }
                 except:
                     pass
+            else:
+                return {
+                    "log": "See your job folder on NFS / Samba",
+                    "cursor": None,
+                }
+
     return {
         "log": {},
         "cursor": None,
