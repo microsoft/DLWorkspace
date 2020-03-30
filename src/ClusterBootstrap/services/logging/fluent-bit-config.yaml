@@ -23,6 +23,7 @@ data:
     @INCLUDE filter-jobs.conf
     @INCLUDE filter-time_nsec.conf
     @INCLUDE output-elasticsearch.conf
+    @INCLUDE output-azure-blob.conf
 
   input-kubernetes.conf: |
     [INPUT]
@@ -80,6 +81,17 @@ data:
         Logstash_Format On
         Replace_Dots    On
         Retry_Limit     False
+
+  output-azure-blob.conf: |
+    [OUTPUT]
+        Name             http
+        Match            *
+        Host             127.0.0.1
+        Port             5000
+        Format           json_lines
+        header_tag       X-Tag
+        json_date_key    timestamp
+        json_date_format iso8601
 
   parsers.conf: |
     [PARSER]
