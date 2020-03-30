@@ -217,7 +217,7 @@ class DataHandler(object):
                     `private_key`   TEXT NOT NULL,
                     `time`          DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     PRIMARY KEY (`id`),
-                    UNIQUE(`identityName`),
+                    UNIQUE(`identityName`)
                 )
                 """ % (self.identitytablename)
 
@@ -1263,7 +1263,7 @@ class DataHandler(object):
         values = []
         values.extend(set_values)
         values.extend(where_values)
-        logger.info("sql is %s, values is %s", sql, values)
+        logger.debug("sql is %s, values is %s", sql, values)
 
         try:
             cursor = self.conn.cursor()
