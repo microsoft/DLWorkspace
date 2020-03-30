@@ -1,0 +1,22 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[packages]
+azure = "*"
+python-dotenv = "*"
+simplejson = "*"
+werkzeug = "*"
+
+[dev-packages]
+click = "*"
+flake8 = "*"
+watchdog = "*"
+
+[requires]
+python_version = "3.5"
+
+[scripts]
+start = "python -m werkzeug.serving --debug --reload wsgi:application"
+lint = "flake8 ."
