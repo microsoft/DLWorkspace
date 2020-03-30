@@ -53,7 +53,7 @@ if config.get("logging") == 'azureBlob':
                 lines = (line for line in lines if line is not None)
                 lines = list(lines)
             except AzureHttpError as error:
-                if error.status_code == 419:
+                if error.status_code == 404 or error.status_code == 416:
                     return ({}, None)
                 else:
                     raise
