@@ -10,4 +10,11 @@ RUN pipenv install --system --deploy
 
 COPY . .
 
-CMD uwsgi --wsgi-file wsgi.py
+ENV UWSGI_WSGI_FILE wsgi.py
+ENV UWSGI_MASTER 1
+ENV UWSGI_ENABLE_THREADS 1
+ENV UWSGI_THUNDER_LOCK 1
+ENV UWSGI_UID nobody
+ENV UWSGI_GID nogroup
+
+CMD uwsgi

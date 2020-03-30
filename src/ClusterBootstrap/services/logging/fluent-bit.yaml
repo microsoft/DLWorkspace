@@ -54,8 +54,8 @@ spec:
           value: DefaultEndpointsProtocol=https;AccountName=dltsdevlogs;AccountKey=/Yx5H4M3rTvIhhWtsTztR+119s4972rsAVG8u4UHiJsFc8XGWXHrlFxbwMwUu0E5/vU23c3/C+SrgeMcUEYN4w==;EndpointSuffix=core.windows.net
         - name: AZURE_STORAGE_CONTAINER_NAME
           value: azure-eastus-p40-dev1
-        - name: UWSGI_HTTP_SOCKET
-          value: :5000
+        - name: UWSGI_HTTP
+          value: 127.0.0.1:5000
       hostNetwork: true
       terminationGracePeriodSeconds: 10
       volumes:
