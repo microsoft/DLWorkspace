@@ -171,8 +171,6 @@ def change_kube_service(config, args, operation, service_list):
         render_services(config, service_list)
     elif not os.path.exists("./deploy/services"):
         utils.render_template_directory("./services/", "./deploy/services/", config)
-    config.pop("machines", [])
-    config = add_configs_in_order(["status.yaml"], config)
     service2path = update_service_path()
     for service_name in service_list:
         fname = service2path[service_name]
