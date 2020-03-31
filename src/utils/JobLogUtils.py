@@ -24,15 +24,15 @@ def TryParseJSON(string):
         return None
 
 
-if config.get("logging") == 'azureBlob':
+if config.get("logging") == 'azure_blob':
     logger.info('Azure Blob log backend is enabled.')
 
     from azure.storage.blob import AppendBlobService
     from azure.common import AzureHttpError
 
     append_blob_service = AppendBlobService(
-        connection_string=config['azureBlobLog']['connectionString'])
-    container_name = config['azureBlobLog']['containerName']
+        connection_string=config['azure_blob_log']['connection_string'])
+    container_name = config['azure_blob_log']['container_name']
 
     def GetJobLog(jobId, cursor=None, size=None):
         try:

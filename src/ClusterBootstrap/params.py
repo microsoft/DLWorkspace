@@ -25,7 +25,7 @@ default_config_parameters = {
         },
     },
 
-    "azureBlobLog": {
+    "azure_blob_log": {
         "enabled": False,
         "port": {
             "adapter": 6200

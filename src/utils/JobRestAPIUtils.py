@@ -657,7 +657,7 @@ def GetJobStatus(jobId):
     return result
 
 
-_get_job_log_enabled = config.get('logging') in ['azureBlob', 'elasticsearch']
+_get_job_log_enabled = config.get('logging') in ['azure_blob', 'elasticsearch']
 _get_job_legacy = config.get('__extract_job_log_legacy', False)
 
 

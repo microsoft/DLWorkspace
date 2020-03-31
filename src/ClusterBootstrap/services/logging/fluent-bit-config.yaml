@@ -25,7 +25,7 @@ data:
     {% if cnf["elasticsearch"]["enabled"] -%}
     @INCLUDE output-elasticsearch.conf
     {%- endif %}
-    {% if cnf["azureBlobLog"]["enabled"] -%}
+    {% if cnf["azure_blob_log"]["enabled"] -%}
     @INCLUDE output-azure-blob.conf
     {%- endif %}
 

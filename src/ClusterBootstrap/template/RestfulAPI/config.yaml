@@ -101,12 +101,12 @@ default_memoryrequest: {{cnf["default_memoryrequest"]}}
 default_memorylimit: {{cnf["default_memorylimit"]}}
 {% endif %}
 
-{% if cnf["azureBlobLog"]["enabled"] %}
-logging: azureBlob
+{% if cnf["azure_blob_log"]["enabled"] %}
+logging: azure_blob
 {% elif cnf["elasticsearch"]["enabled"] %}
 logging: elasticsearch
 {% endif %}
 
-azureBlobLog:
-  connectionString: {{cnf["azureBlobLog"]["connectionString"]}}
-  containerName: {{cnf["azureBlobLog"]["containerName"]}}
+azure_blob_log:
+  connection_string: {{cnf["azure_blob_log"]["connection_string"]}}
+  container_name: {{cnf["azure_blob_log"]["container_name"]}}

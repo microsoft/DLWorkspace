@@ -35,7 +35,7 @@ def create_log(logdir='/var/log/dlworkspace'):
 
 
 _use_legacy = config.get('logging') not in [
-    'azureBlob', 'elaticsearch'
+    'azure_blob', 'elaticsearch'
 ] or config.get('__extract_job_log_legacy', False)
 
 
