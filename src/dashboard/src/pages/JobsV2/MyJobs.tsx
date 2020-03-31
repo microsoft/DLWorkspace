@@ -17,7 +17,6 @@ import useActions from '../../hooks/useActions';
 import ClusterContext from './ClusterContext';
 import JobsTable from './JobsTable';
 import {
-  name,
   status,
   type,
   gpu,
@@ -25,6 +24,8 @@ import {
   priority,
   submitted,
   finished,
+
+  useNameId,
 } from './JobsTable/columns';
 import { groupByActive } from './utils';
 
@@ -36,15 +37,16 @@ const ActiveJobsTable: FunctionComponent<JobsTablePropsWithoutColumnsActions> = 
     support, pause, resume, kill,
     batchPause, batchResume, batchKill
   } = useActions(cluster.id);
+  const nameId = useNameId();
   const columns = useMemo(() => [
-    name(),
+    nameId,
     status(),
     type(),
     gpu(),
     preemptible(),
     priority(),
     submitted(),
-  ], []);
+  ], [nameId]);
   const actions = useMemo(() => [
     support, pause, resume, kill,
     batchPause, batchResume, batchKill
@@ -64,15 +66,16 @@ const ActiveJobsTable: FunctionComponent<JobsTablePropsWithoutColumnsActions> = 
 const InactiveJobsTable: FunctionComponent<JobsTablePropsWithoutColumnsActions> = (props) => {
   const { cluster } = useContext(ClusterContext);
   const { support } = useActions(cluster.id);
+  const nameId = useNameId();
   const columns = useMemo(() => [
-    name(),
+    nameId,
     status(),
     type(),
     gpu(),
     preemptible(),
     priority(),
     finished(),
-  ], []);
+  ], [nameId]);
   const actions = useMemo(() => [support], [support]);
   return (
     <JobsTable
