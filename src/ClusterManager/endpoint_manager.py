@@ -11,6 +11,7 @@ import logging
 import yaml
 import logging.config
 import argparse
+import pytz
 
 from kubernetes import client, config as k8s_config
 from kubernetes.client.rest import ApiException
@@ -332,7 +333,13 @@ def fix_endpoints(runnings):
         pretty="pretty_example",
         label_selector="type=job",
     )
-    pods = {pod.metadata.name: pod for pod in resp.items}
+    start = pytz.UTC.localize(datetime.datetime.now() -
+                              datetime.timedelta(hours=1))
+    pods = {
+        pod.metadata.name: pod
+        for pod in resp.items
+        if pod.metadata.creation_timestamp > start
+    }
     logger.info("get running pods %s", pods.keys())
 
     with DataHandler() as data_handler:
@@ -353,8 +360,8 @@ def is_need_fix(endpoint_id, endpoint, pods):
 
         real_pod = pods.get(pod_name)
 
-        if real_pod == None:
-            return True
+        if real_pod is None: # pod maybe old than 1 hour, skip check to accelerate
+            return False
 
         if node_name != real_pod.spec.node_name:
             return True
