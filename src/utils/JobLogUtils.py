@@ -25,6 +25,8 @@ def TryParseJSON(string):
 
 
 if config.get("logging") == 'azureBlob':
+    logger.info('Azure Blob log backend is enabled.')
+
     from azure.storage.blob import AppendBlobService
     from azure.common import AzureHttpError
 
@@ -33,7 +35,6 @@ if config.get("logging") == 'azureBlob':
     container_name = config['azureBlobLog']['containerName']
 
     def GetJobLog(jobId, cursor=None, size=None):
-        logger.info('Requesting Azure Blob to get log of the job {}'.format(jobId))
         try:
             blob_name = 'jobs.' + jobId
             start_range = None
@@ -70,10 +71,11 @@ if config.get("logging") == 'azureBlob':
             logger.exception("Request azure blob failed")
             return ({}, None)
 elif config.get("logging") == 'elasticsearch':
+    logger.info('Elasticsearch log backend is enabled.')
+
     from elasticsearch import Elasticsearch
 
     def GetJobLog(jobId, cursor=None, size=None):
-        logger.info('Requesting Elasticsearch to get log of the job {}'.format(jobId))
         try:
             elasticsearch = Elasticsearch(config['elasticsearch'])
 
@@ -125,6 +127,6 @@ elif config.get("logging") == 'elasticsearch':
             logger.exception("Request elasticsearch failed")
             return ({}, None)
 else:
+    logger.info('No log backend is configured')
     def GetJobLog(jobId, *args, **kwargs):
-        logger.info('No log backend for the job {}'.format(jobId))
         return ({}, None)
