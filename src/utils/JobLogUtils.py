@@ -33,6 +33,7 @@ if config.get("logging") == 'azureBlob':
     container_name = config['azureBlobLog']['containerName']
 
     def GetJobLog(jobId, cursor=None, size=None):
+        logger.info('Requesting Azure Blob to get log of the job {}'.format(jobId))
         try:
             blob_name = 'jobs.' + jobId
             start_range = None
@@ -72,6 +73,7 @@ elif config.get("logging") == 'elasticsearch':
     from elasticsearch import Elasticsearch
 
     def GetJobLog(jobId, cursor=None, size=None):
+        logger.info('Requesting Elasticsearch to get log of the job {}'.format(jobId))
         try:
             elasticsearch = Elasticsearch(config['elasticsearch'])
 
@@ -124,4 +126,5 @@ elif config.get("logging") == 'elasticsearch':
             return ({}, None)
 else:
     def GetJobLog(jobId, *args, **kwargs):
+        logger.info('No log backend for the job {}'.format(jobId))
         return ({}, None)
