@@ -1,5 +1,5 @@
 from azure.storage.blob import AppendBlobService
-from azure.common import AzureMissingResourceHttpError
+from azure.common import AzureMissingResourceHttpError, AzureHttpError
 from dotenv import load_dotenv
 from logging import getLogger
 from os import environ
@@ -22,32 +22,35 @@ def application(request):
     try:
         blob_name = request.headers['X-Tag']
     except KeyError:
-        message = 'X-Tag header is required.'
-        logger.error(message)
-        return Response(message, status=400)
+        logger.exception()
+        return Response(status=400)
 
-    while True:
+    def append_blob():
+        resource_properties = append_blob_service.append_blob_from_stream(
+            container_name=container_name,
+            blob_name=blob_name,
+            stream=request.stream,
+            count=request.content_length)
+        logger.info('Successfully append to blob {} in container {}'.format(
+            blob_name, container_name), extra=resource_properties)
+
+    def create_blob():
+        resource_properties = append_blob_service.create_blob(
+            container_name=container_name,
+            blob_name=blob_name)
+        logger.info('Successfully create blob {} in container {}'.format(
+            blob_name, container_name), extra=resource_properties)
+
+    try:
         try:
-            resource_properties = append_blob_service.append_blob_from_stream(
-                container_name=container_name,
-                blob_name=blob_name,
-                stream=request.stream,
-                count=request.content_length)
-            logger.info('Successfully append to blob {}/{}: {}'.format(
-                container_name,
-                blob_name,
-                resource_properties
-            ))
+            append_blob()
         except AzureMissingResourceHttpError:
-            resource_properties = append_blob_service.create_blob(
-                container_name=container_name,
-                blob_name=blob_name)
-            logger.info('Successfully create blob {}/{}: {}'.format(
-                container_name,
-                blob_name,
-                resource_properties
-            ))
-        else:
-            break
-
-    return Response(status=201)
+            create_blob()
+            append_blob()
+        return Response(status=201)
+    except AzureHttpError:
+        logger.exception()
+        return Response(status=502)
+    except Exception:
+        logger.exception()
+        return Response(status=500)
