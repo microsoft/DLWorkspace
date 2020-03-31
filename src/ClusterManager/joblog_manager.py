@@ -77,7 +77,7 @@ def extract_job_log_with_elastic_search(jobId, logPath, userId):
             try:
                 containerLogPath = os.path.join(
                     jobLogDir, "log-conatainer-" + container_id + ".txt")
-                with open(containerLogPath, 'a') as f:
+                with open(containerLogPath, 'a', encoding="utf-8") as f:
                     f.write(log_text)
                 os.system("chown -R %s %s" % (userId, containerLogPath))
             except Exception:
