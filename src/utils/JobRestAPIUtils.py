@@ -612,8 +612,21 @@ def GetJobDetail(userName, jobId):
                 userName, ResourceType.VC, jobs[0]["vcName"],
                 Permission.Collaborator):
             job = jobs[0]
+            job["log"] = ""
             if "jobDescription" in job:
                 job.pop("jobDescription", None)
+            if not elasticsearch_deployed or config.get('__extract_job_log_legacy', False):
+                try:
+                    log = dataHandler.GetJobTextField(jobId, "jobLog")
+                    try:
+                        if isBase64(log):
+                            log = base64decode(log)
+                    except Exception:
+                        pass
+                    if log is not None:
+                        job["log"] = log
+                except Exception:
+                    job["log"] = "fail-to-get-logs"
     dataHandler.Close()
     return job
 
