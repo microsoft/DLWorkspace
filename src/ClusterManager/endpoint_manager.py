@@ -293,7 +293,7 @@ def start_endpoints():
                         continue
 
                     point = get_k8s_endpoint(endpoint["id"])
-                    logger.info("get endpoint %s", endpoint["jobId"])
+                    logger.debug("get endpoint %s", endpoint["jobId"])
                     if point is not None:
                         endpoint["status"] = "running"
                         # only retain spec here, some other fields have datetime,
@@ -325,7 +325,7 @@ def start_endpoints():
 
 def fix_endpoints(runnings):
     if len(runnings) == 0:
-        logger.info("no running endpoints to fix")
+        logger.debug("no running endpoints to fix")
         return
 
     resp = k8s_core_api.list_namespaced_pod(
@@ -396,7 +396,7 @@ def cleanup_endpoints():
                     logger.info("Begin to cleanup endpoint %s", endpoint_id)
                     point = get_k8s_endpoint(dead_endpoint["id"])
                     if point is None:
-                        logger.info("Endpoint already gone %s", endpoint_id)
+                        logger.debug("Endpoint already gone %s", endpoint_id)
                         status = "stopped"
                     else:
                         delete_resp = delete_k8s_endpoint(point.metadata.name)
