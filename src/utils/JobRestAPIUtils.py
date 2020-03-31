@@ -1142,9 +1142,9 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
                 endpoint_id = "e-" + pod_name + "-ssh"
 
                 if endpoint_id in job_endpoints:
-                    logger.info("Endpoint %s exists. Skip.", endpoint_id)
+                    logger.debug("Endpoint %s exists. Skip.", endpoint_id)
                     continue
-                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+                logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
 
                 endpoint = {
                     "id": endpoint_id,
@@ -1170,7 +1170,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             endpoint_id = "e-" + jobId + "-ipython"
 
             if endpoint_id not in job_endpoints:
-                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+                logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
                     "id": endpoint_id,
                     "jobId": jobId,
@@ -1182,7 +1182,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
                 }
                 endpoints[endpoint_id] = endpoint
             else:
-                logger.info("Endpoint %s exists. Skip.", endpoint_id)
+                logger.debug("Endpoint %s exists. Skip.", endpoint_id)
 
         # Only open tensorboard on the master
         if 'tensorboard' in requested_endpoints:
@@ -1197,7 +1197,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             endpoint_id = "e-" + jobId + "-tensorboard"
 
             if endpoint_id not in job_endpoints:
-                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+                logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
                     "id": endpoint_id,
                     "jobId": jobId,
@@ -1209,7 +1209,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
                 }
                 endpoints[endpoint_id] = endpoint
             else:
-                logger.info("Endpoint %s exists. Skip.", endpoint_id)
+                logger.debug("Endpoint %s exists. Skip.", endpoint_id)
 
         # interactive port
         for interactive_port in interactive_ports:
@@ -1224,7 +1224,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             endpoint_id = "e-" + jobId + "-port-" + \
                 str(interactive_port["podPort"])
             if endpoint_id not in job_endpoints:
-                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+                logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
                     "id": endpoint_id,
                     "jobId": jobId,
@@ -1237,7 +1237,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
                 }
                 endpoints[endpoint_id] = endpoint
             else:
-                logger.info("Endpoint %s exists. Skip.", endpoint_id)
+                logger.debug("Endpoint %s exists. Skip.", endpoint_id)
 
         dataHandler.UpdateJobTextFields({"jobId": jobId},
                                         {"endpoints": json.dumps(endpoints)})
