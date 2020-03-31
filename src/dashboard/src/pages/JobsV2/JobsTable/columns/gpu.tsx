@@ -4,10 +4,10 @@ import { get } from 'lodash';
 
 import { Job } from '../../utils';
 
-export default {
+export default (): Column<Job> => ({
   title: 'GPU',
   type: 'numeric',
-  render(job: Job) {
+  render(job) {
     const type = get(job, 'jobParams.jobtrainingtype', 'RegularJob');
     let gpu = get(job, 'jobParams.resourcegpu', 0);
     if (type === 'PSDistJob') {
@@ -15,4 +15,4 @@ export default {
     }
     return <>{gpu}</>;
   }
-} as Column<Job>;
+});

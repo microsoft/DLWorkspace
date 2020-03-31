@@ -1,4 +1,5 @@
 import React, {
+  ComponentPropsWithoutRef,
   FunctionComponent,
   useCallback,
   useContext,
@@ -27,14 +28,65 @@ import {
 } from './JobsTable/columns';
 import { groupByActive } from './utils';
 
-const MyJobs: FunctionComponent = () => {
-  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+type JobsTablePropsWithoutColumnsActions = Omit<ComponentPropsWithoutRef<typeof JobsTable>, 'columns' | 'actions'>
+
+const ActiveJobsTable: FunctionComponent<JobsTablePropsWithoutColumnsActions> = (props) => {
   const { cluster } = useContext(ClusterContext);
-  const { selectedTeam } = useContext(TeamsContext);
   const {
     support, pause, resume, kill,
     batchPause, batchResume, batchKill
   } = useActions(cluster.id);
+  const columns = useMemo(() => [
+    name(),
+    status(),
+    type(),
+    gpu(),
+    preemptible(),
+    priority(),
+    submitted(),
+  ], []);
+  const actions = useMemo(() => [
+    support, pause, resume, kill,
+    batchPause, batchResume, batchKill
+  ], [
+    support, pause, resume, kill,
+    batchPause, batchResume, batchKill
+  ]);
+  return (
+    <JobsTable
+      columns={columns}
+      actions={actions}
+      {...props}
+    />
+  );
+};
+
+const InactiveJobsTable: FunctionComponent<JobsTablePropsWithoutColumnsActions> = (props) => {
+  const { cluster } = useContext(ClusterContext);
+  const { support } = useActions(cluster.id);
+  const columns = useMemo(() => [
+    name(),
+    status(),
+    type(),
+    gpu(),
+    preemptible(),
+    priority(),
+    finished(),
+  ], []);
+  const actions = useMemo(() => [support], [support]);
+  return (
+    <JobsTable
+      columns={columns}
+      actions={actions}
+      {...props}
+    />
+  );
+};
+
+const MyJobs: FunctionComponent = () => {
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+  const { cluster } = useContext(ClusterContext);
+  const { selectedTeam } = useContext(TeamsContext);
 
   const [limit, setLimit] = useState(30);
 
@@ -56,9 +108,6 @@ const MyJobs: FunctionComponent = () => {
 
   const title = useMemo(() => {
     if (data === undefined) return cluster.id;
-    if (activeJobs === undefined) {
-      return `(0) ${cluster.id}`;
-    }
     return `(${activeJobs.length}) ${cluster.id}`;
   }, [data, activeJobs, cluster]);
 
@@ -86,48 +135,18 @@ const MyJobs: FunctionComponent = () => {
   return (
     <>
       { title && <Helmet title={title}/> }
-      <JobsTable
+      <ActiveJobsTable
         title="Active Jobs"
         jobs={activeJobs}
         isLoading={data === undefined}
         defaultPageSize={5}
         selection
-        columns={[
-          name,
-          status,
-          type,
-          gpu,
-          preemptible,
-          priority,
-          submitted,
-        ]}
-        actions={[
-          support,
-          pause,
-          resume,
-          kill,
-          batchPause,
-          batchResume,
-          batchKill
-        ]}
       />
-      <JobsTable
+      <InactiveJobsTable
         title="Inactive Jobs"
         jobs={inactiveJobs}
         isLoading={data === undefined}
         defaultPageSize={10}
-        columns={[
-          name,
-          status,
-          type,
-          gpu,
-          preemptible,
-          priority,
-          finished,
-        ]}
-        actions={[
-          support,
-        ]}
         onLastPage={handleLastPage}
       />
     </>

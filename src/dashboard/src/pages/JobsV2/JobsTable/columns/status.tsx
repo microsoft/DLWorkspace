@@ -11,10 +11,10 @@ const JobStatusColumn: FunctionComponent<{ job: Job }> = ({ job }) => {
   return <JobStatus cluster={cluster.id} job={job}/>;
 }
 
-export default {
+export default (): Column<Job> => ({
   title: 'Status',
   field: 'jobStatus',
-  render(job: Job) {
+  render(job) {
     return <JobStatusColumn job={job}/>
   },
-} as Column<Job>;
+});

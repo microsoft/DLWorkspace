@@ -5,11 +5,11 @@ import PriorityField from '../PriorityField';
 
 import { Job } from '../../utils';
 
-export default {
+export default (): Column<Job> => ({
   title: 'Priority',
   type: 'numeric',
-  render(job: Job) {
+  render(job) {
     return <PriorityField job={job}/>;
   },
   disableClick: true
-} as Column<Job>;
+});

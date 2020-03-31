@@ -5,14 +5,14 @@ import { Column } from 'material-table';
 
 import { Job } from '../../utils';
 
-export default {
+export default (): Column<Job> => ({
   title: 'Name',
   field: 'jobName',
-  render(job: Job) {
+  render(job) {
     return (
       <UILink variant="subtitle2" component={RouterLink} to={job['jobId']}>
         {job['jobName']}
       </UILink>
     );
   }
-} as Column<Job>;
+});
