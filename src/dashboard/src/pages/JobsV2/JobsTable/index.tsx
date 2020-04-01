@@ -5,12 +5,17 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { ArrowUpward } from '@material-ui/icons';
 import MaterialTable, { Options, MaterialTableProps } from 'material-table';
 import { zipWith } from 'lodash';
 
 import { Job } from '../utils';
 
 import DetailPanel from './DetailPanel';
+
+const SortArrow = React.forwardRef<SVGSVGElement>((props, ref) => (
+  <ArrowUpward {...props} fontSize="small" ref={ref}/>
+));
 
 interface JobsTableProps extends Omit<
   MaterialTableProps<Job>,
@@ -86,6 +91,7 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({
       }}
       onChangeRowsPerPage={handleChangeRowsPerPage}
       onChangePage={handleChangePage}
+      icons={{ SortArrow }}
       {...props}
     />
   );
