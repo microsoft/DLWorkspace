@@ -34,6 +34,8 @@ def set_user_directory():
     dataHandler = DataHandler()
     users = dataHandler.GetUsers()
     for username, userid, public_key, private_key in users:
+        update_file_modification_time("user_manager")
+
         if "@" in username:
             username = username.split("@")[0]
         if "/" in username:
@@ -47,8 +49,7 @@ def set_user_directory():
             logger.info("Creating home directory %s for user %s" %
                         (userpath, username))
             os.system("mkdir -p " + userpath)
-            os.system("chown -R " + str(userid) + ":" + "500000513 " +
-                      userpath)
+            os.system("chown -R " + str(userid) + ":" + "500000513 " + userpath)
 
         ssh_path = os.path.join(userpath, ".ssh")
         if not os.path.exists(ssh_path):
@@ -64,8 +65,7 @@ def set_user_directory():
                 wf.write(private_key)
             with open(pubkeypath, "w") as wf:
                 wf.write(public_key)
-            os.system("chown -R " + str(userid) + ":" + "500000513 " +
-                      userpath)
+            os.system("chown -R " + str(userid) + ":" + "500000513 " + userpath)
             # Permission of .ssh has to be 700, otherwise, users cannot access
             # .ssh via Samba file share.
             os.system("chmod 700 " + os.path.dirname(sshkeypath))

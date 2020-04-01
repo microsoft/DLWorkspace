@@ -285,6 +285,8 @@ def start_endpoints():
             pendings, runnings = data_handler.GetPendingEndpoints()
 
             for endpoint_id, endpoint in pendings.items():
+                update_file_modification_time("endpoint_manager")
+
                 try:
                     job = data_handler.GetJob(jobId=endpoint["jobId"])[0]
                     logger.info("checking endpoint %s, status is %s",
@@ -344,6 +346,8 @@ def fix_endpoints(runnings):
 
     with DataHandler() as data_handler:
         for endpoint_id, point in runnings.items():
+            update_file_modification_time("endpoint_manager")
+
             if is_need_fix(endpoint_id, point, pods):
                 delete_k8s_endpoint(point["id"])
                 point["status"] = "pending"
