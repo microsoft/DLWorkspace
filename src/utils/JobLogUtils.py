@@ -2,6 +2,7 @@ import logging
 
 from itertools import groupby
 from json import loads
+from json.decoder import JSONDecodeError
 
 from config import config
 
@@ -16,14 +17,6 @@ def TryParseCursor(cursor):
         return None
 
 
-def TryParseJSON(string):
-    try:
-        return loads(string)
-    except Exception:
-        logger.exception('Failed to parse json {}'.format(string))
-        return None
-
-
 if config.get("logging") == 'azure_blob':
     logger.info('Azure Blob log backend is enabled.')
 
@@ -34,25 +27,49 @@ if config.get("logging") == 'azure_blob':
         connection_string=config['azure_blob_log']['connection_string'])
     container_name = config['azure_blob_log']['container_name']
 
+    CHUNK_SIZE = 1024 * 1024  # Assume each line in log is no more then 1MB
+
     def GetJobLog(jobId, cursor=None, size=None):
         try:
             blob_name = 'jobs.' + jobId
-            start_range = None
+
+            start_range = 0
             if cursor is not None:
                 try:
                     start_range = int(cursor)
                 except Exception:
                     logger.exception('Failed to parse cursor')
+            end_range = start_range + CHUNK_SIZE
+            lines = []
+            next_start_range = start_range
 
             try:
-                blob = append_blob_service.get_blob_to_text(
+                chunk = append_blob_service.get_blob_to_text(
                     container_name=container_name,
                     blob_name=blob_name,
-                    start_range=start_range)
-                lines = blob.content.splitlines()
-                lines = (TryParseJSON(line) for line in lines)
-                lines = (line for line in lines if line is not None)
-                lines = list(lines)
+                    start_range=start_range,
+                    end_range=end_range)
+
+                chunk_lines = chunk.content.split('\n')
+                len_chunk_lines = len(chunk_lines)
+                for i, chunk_line in enumerate(chunk_lines, 1):
+                    try:
+                        line = loads(chunk_line)
+                        lines.append(line)
+                    except JSONDecodeError:
+                        if i == len_chunk_lines:
+                            # Normal case, invalid JSON at the end of the log:
+                            #     Directly exit the loop and skip the increase of next_start_range
+                            break
+
+                        # Bad case, invalid JSON in the middle of the log:
+                        #     Log it down and parse next lines
+                        logger.exception(
+                            'Failed to parse log line {} of job {}: {}'.format(
+                                i, jobId, chunk_line))
+
+                    next_start_range += len(chunk_line) + 1 # The separator '\n' is stripped in string spliting
+
             except AzureHttpError as error:
                 if error.status_code in (
                         404,  # Not Found (No such job)
@@ -68,7 +85,7 @@ if config.get("logging") == 'azure_blob':
                 pod_logs[pod_name] = ''.join(
                     pod_line['log'] for pod_line in pod_lines)
 
-            cursor = (start_range or 0) + blob.properties.content_length
+            cursor = str(next_start_range)
 
             return (pod_logs, cursor)
         except Exception:
