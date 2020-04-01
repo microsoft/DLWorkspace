@@ -318,7 +318,7 @@ def gen_containers(job, role):
     if job.init_image is None:
         cmd = [
             "sh", "-c",
-            "printenv DLWS_LAUNCH_CMD > /job_command.sh ; mkdir -p /dlts-runtime/status ; touch /dlts-runtime/status/READY ; sh /job_command.sh"
+            "printenv DLWS_LAUNCH_CMD > /job_command.sh ; mkdir -p /dlts-runtime/status ; touch /dlts-runtime/status/READY ; bash -x /job_command.sh"
         ]
     else:
         cmd = ["bash", "/dlws-scripts/bootstrap.sh"]
