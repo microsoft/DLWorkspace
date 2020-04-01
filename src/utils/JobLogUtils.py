@@ -55,7 +55,10 @@ if config.get("logging") == 'azure_blob':
                 lines = (line for line in lines if line is not None)
                 lines = list(lines)
             except AzureHttpError as error:
-                if error.status_code == 404 or error.status_code == 416:
+                if error.status_code in (
+                    404,  # Not Found (No such job)
+                    416,  # Range Not Satisfiable (No more logs)
+                ):
                     return ({}, None)
                 else:
                     raise
@@ -68,7 +71,7 @@ if config.get("logging") == 'azure_blob':
 
             return (pod_logs, cursor)
         except Exception:
-            logger.exception("Request azure blob failed")
+            logger.exception("Failed to request logs of job {} from azure blob".format(jobId))
             return ({}, None)
 elif config.get("logging") == 'elasticsearch':
     logger.info('Elasticsearch log backend is enabled.')
@@ -124,7 +127,7 @@ elif config.get("logging") == 'elasticsearch':
 
             return (pod_logs, cursor)
         except Exception:
-            logger.exception("Request elasticsearch failed")
+            logger.exception("Failed to request logs of job {} from elasticsearch".format(jobId))
             return ({}, None)
 else:
     logger.info('No log backend is configured')
