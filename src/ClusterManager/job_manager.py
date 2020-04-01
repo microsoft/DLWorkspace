@@ -508,14 +508,15 @@ def get_cluster_schedulable(cluster_status):
             "memory": cluster_status["memory_capacity"],
             "gpu": cluster_status["gpu_capacity"],
         })
-    cluster_unschedulable = ClusterResource(
+    # On 1 node, reserved = unschedulable - used
+    cluster_reserved = ClusterResource(
         params={
-            "cpu": cluster_status["cpu_unschedulable"],
-            "memory": cluster_status["memory_unschedulable"],
-            "gpu": cluster_status["gpu_unschedulable"],
+            "cpu": cluster_status["cpu_reserved"],
+            "memory": cluster_status["memory_reserved"],
+            "gpu": cluster_status["gpu_reserved"],
         })
 
-    cluster_schedulable = cluster_capacity - cluster_unschedulable
+    cluster_schedulable = cluster_capacity - cluster_reserved
     cluster_schedulable = discount_cluster_resource(cluster_schedulable)
     logger.info("cluster schedulable: %s", cluster_schedulable)
     return cluster_schedulable
