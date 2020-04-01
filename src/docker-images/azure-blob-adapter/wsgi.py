@@ -30,10 +30,10 @@ def application(request):
         return Response(status=400)
 
     def append_blob():
-        resource_properties = append_blob_service.append_blob_from_stream(
+        resource_properties = append_blob_service.append_blob_from_bytes(
             container_name=container_name,
             blob_name=blob_name,
-            stream=request.stream,
+            blob=request.get_data(),
             count=request.content_length)
         logger.info('Successfully append {} bytes to blob {} in container {}: {}'.format(
             request.content_length, blob_name, container_name, resource_properties.etag))
