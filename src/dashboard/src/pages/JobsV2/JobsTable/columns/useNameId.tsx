@@ -48,13 +48,17 @@ const useNameId = (): Column<Job> => {
       {job[showId ? 'jobId' : 'jobName']}
     </UILink>
   ), [showId]);
+  const customFilterAndSearch = useCallback((filter: string, job: Job) => {
+    return job['jobId'].indexOf(filter) > -1 || job['jobName'].indexOf(filter) > -1;
+  }, []);
 
   return {
     title,
     headerStyle: { whiteSpace: 'nowrap' },
     field,
     render,
-    sorting: false
+    sorting: false,
+    customFilterAndSearch
   };
 }
 
