@@ -668,14 +668,7 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(
                 userName, ResourceType.VC, jobs[0]["vcName"],
                 Permission.Collaborator):
-            if _get_job_log_enabled:
-                (pod_logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
-
-                return {
-                    "log": pod_logs,
-                    "cursor": cursor,
-                }
-            elif _get_job_legacy:
+            if _get_job_legacy:
                 try:
                     log = dataHandler.GetJobTextField(jobId, "jobLog")
                     try:
@@ -690,6 +683,13 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
                         }
                 except:
                     pass
+            elif _get_job_log_enabled:
+                (pod_logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
+
+                return {
+                    "log": pod_logs,
+                    "cursor": cursor,
+                }
             else:
                 return {
                     "log": "See your job folder on NFS / Samba",
