@@ -10,6 +10,7 @@ import React, {
 import Helmet from 'react-helmet';
 import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
+import { reduce } from 'lodash';
 
 import TeamsContext from '../../contexts/Teams';
 import useActions from '../../hooks/useActions';
@@ -29,7 +30,7 @@ import {
 
   useNameId,
 } from './JobsTable/columns';
-import { groupByActive } from './utils';
+import { groupByActiveStatus } from './utils';
 
 type JobsTablePropsWithoutColumnsActions = Omit<ComponentPropsWithoutRef<typeof JobsTable>, 'columns' | 'actions'>
 
@@ -109,9 +110,9 @@ const AllJobs: FunctionComponent = () => {
     [cluster.id, selectedTeam, limit]
   );
 
-  const { true: activeJobs=[], false: inactiveJobs=[] } = useMemo(() => {
+  const { Inactive: inactiveJobs=[], ...activeStatusesJobs } = useMemo(() => {
     if (data === undefined) return {};
-    return groupByActive(data);
+    return groupByActiveStatus(data);
   }, [data]);
 
   const handleLastPage = useCallback((pageSize: number) => {
@@ -121,11 +122,9 @@ const AllJobs: FunctionComponent = () => {
 
   const title = useMemo(() => {
     if (data === undefined) return cluster.id;
-    if (activeJobs === undefined) {
-      return `(0) ${cluster.id}`;
-    }
-    return `(${activeJobs.length}) ${cluster.id}`;
-  }, [data, activeJobs, cluster]);
+    const length = reduce(activeStatusesJobs, (length, jobs) => length + jobs.length, 0)
+    return `(${length}) ${cluster.id}`;
+  }, [data, activeStatusesJobs, cluster]);
 
   useEffect(() => {
     if (loading === false) {
@@ -151,13 +150,17 @@ const AllJobs: FunctionComponent = () => {
   return (
     <>
       { title && <Helmet title={title}/> }
-      <ActiveJobsTable
-        title="Active Jobs"
-        jobs={activeJobs}
-        isLoading={data === undefined}
-        defaultPageSize={5}
-        selection
-      />
+      { [ 'Unapproved', 'Pending', 'Running', 'Paused' ].map(
+        status => activeStatusesJobs[status] && (
+          <ActiveJobsTable
+            key={status}
+            title={`${status} Jobs`}
+            jobs={activeStatusesJobs[status]}
+            defaultPageSize={5}
+            selection
+          />
+        )
+      ) }
       <InactiveJobsTable
         title="Inactive Jobs"
         jobs={inactiveJobs}
