@@ -48,7 +48,8 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({
   const options = useRef<Options>({
     padding: 'dense',
     actionsColumnIndex: -1,
-    sorting: false,
+    sorting: true,
+    draggable: false,
     pageSize: defaultPageSize,
     selection
   }).current;
