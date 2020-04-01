@@ -13,6 +13,7 @@ import useFetch from 'use-http-2';
 
 import TeamsContext from '../../contexts/Teams';
 import useActions from '../../hooks/useActions';
+import useBatchActions from '../../hooks/useBatchActions';
 
 import ClusterContext from './ClusterContext';
 import JobsTable from './JobsTable';
@@ -34,10 +35,8 @@ type JobsTablePropsWithoutColumnsActions = Omit<ComponentPropsWithoutRef<typeof 
 
 const ActiveJobsTable: FunctionComponent<JobsTablePropsWithoutColumnsActions> = (props) => {
   const { cluster } = useContext(ClusterContext);
-  const {
-    support, approve, pause, resume, kill,
-    batchApprove, batchPause, batchResume, batchKill
-  } = useActions(cluster.id);
+  const { support, approve, pause, resume, kill } = useActions(cluster.id);
+  const { batchApprove, batchPause, batchResume, batchKill } = useBatchActions(cluster.id);
   const nameId = useNameId();
   const columns = useMemo(() => [
     nameId,
