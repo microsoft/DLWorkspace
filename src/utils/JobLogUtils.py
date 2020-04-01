@@ -48,30 +48,33 @@ if config.get("logging") == 'azure_blob':
                 blob = append_blob_service.get_blob_to_text(
                     container_name=container_name,
                     blob_name=blob_name,
-                    start_range=start_range
-                )
+                    start_range=start_range)
                 lines = blob.content.splitlines()
                 lines = (TryParseJSON(line) for line in lines)
                 lines = (line for line in lines if line is not None)
                 lines = list(lines)
             except AzureHttpError as error:
                 if error.status_code in (
-                    404,  # Not Found (No such job)
-                    416,  # Range Not Satisfiable (No more logs)
+                        404,  # Not Found (No such job)
+                        416,  # Range Not Satisfiable (No more logs)
                 ):
                     return ({}, None)
                 else:
                     raise
 
             pod_logs = dict()
-            for pod_name, pod_lines in groupby(lines, lambda line: line['kubernetes']['pod_name']):
-                pod_logs[pod_name] = ''.join(pod_line['log'] for pod_line in pod_lines)
+            for pod_name, pod_lines in groupby(
+                    lines, lambda line: line['kubernetes']['pod_name']):
+                pod_logs[pod_name] = ''.join(
+                    pod_line['log'] for pod_line in pod_lines)
 
             cursor = (start_range or 0) + blob.properties.content_length
 
             return (pod_logs, cursor)
         except Exception:
-            logger.exception("Failed to request logs of job {} from azure blob".format(jobId))
+            logger.exception(
+                "Failed to request logs of job {} from azure blob".format(
+                    jobId))
             return ({}, None)
 elif config.get("logging") == 'elasticsearch':
     logger.info('Elasticsearch log backend is enabled.')
@@ -117,8 +120,8 @@ elif config.get("logging") == 'elasticsearch':
             for pod_name, pod_documents in groupby(
                     documents, lambda document: document["_source"][
                         "kubernetes"]["pod_name"]):
-                pod_logs[pod_name] = ''.join(
-                    pod_document["_source"]["log"] for pod_document in pod_documents)
+                pod_logs[pod_name] = ''.join(pod_document["_source"]["log"]
+                                             for pod_document in pod_documents)
 
             if len(documents) > 0:
                 cursor = '.'.join(str(i) for i in documents[-1]["sort"])
@@ -127,9 +130,12 @@ elif config.get("logging") == 'elasticsearch':
 
             return (pod_logs, cursor)
         except Exception:
-            logger.exception("Failed to request logs of job {} from elasticsearch".format(jobId))
+            logger.exception(
+                "Failed to request logs of job {} from elasticsearch".format(
+                    jobId))
             return ({}, None)
 else:
     logger.info('No log backend is configured')
+
     def GetJobLog(jobId, *args, **kwargs):
         return ({}, None)
