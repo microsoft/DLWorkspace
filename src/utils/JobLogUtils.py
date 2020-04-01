@@ -1,6 +1,7 @@
 import logging
 
-from elasticsearch import Elasticsearch
+from itertools import groupby
+from json import loads
 
 from config import config
 
@@ -15,45 +16,126 @@ def TryParseCursor(cursor):
         return None
 
 
-def GetJobLog(jobId, cursor=None, size=None):
+def TryParseJSON(string):
     try:
-        elasticsearch = Elasticsearch(config['elasticsearch'])
+        return loads(string)
+    except Exception:
+        logger.exception('Failed to parse json {}'.format(string))
+        return None
 
-        request_json = {
-            "query": {
-                "match_phrase": {
-                    "kubernetes.labels.jobId": jobId
-                }
-            },
-            "sort": [
-                "@timestamp",
-                {
-                    "time_nsec": {
-                        "unmapped_type": "long",
-                        "missing": 0
+
+if config.get("logging") == 'azure_blob':
+    logger.info('Azure Blob log backend is enabled.')
+
+    from azure.storage.blob import AppendBlobService
+    from azure.common import AzureHttpError
+
+    append_blob_service = AppendBlobService(
+        connection_string=config['azure_blob_log']['connection_string'])
+    container_name = config['azure_blob_log']['container_name']
+
+    def GetJobLog(jobId, cursor=None, size=None):
+        try:
+            blob_name = 'jobs.' + jobId
+            start_range = None
+            if cursor is not None:
+                try:
+                    start_range = int(cursor)
+                except Exception:
+                    logger.exception('Failed to parse cursor')
+
+            try:
+                blob = append_blob_service.get_blob_to_text(
+                    container_name=container_name,
+                    blob_name=blob_name,
+                    start_range=start_range)
+                lines = blob.content.splitlines()
+                lines = (TryParseJSON(line) for line in lines)
+                lines = (line for line in lines if line is not None)
+                lines = list(lines)
+            except AzureHttpError as error:
+                if error.status_code in (
+                        404,  # Not Found (No such job)
+                        416,  # Range Not Satisfiable (No more logs)
+                ):
+                    return ({}, None)
+                else:
+                    raise
+
+            pod_logs = dict()
+            for pod_name, pod_lines in groupby(
+                    lines, lambda line: line['kubernetes']['pod_name']):
+                pod_logs[pod_name] = ''.join(
+                    pod_line['log'] for pod_line in pod_lines)
+
+            cursor = (start_range or 0) + blob.properties.content_length
+
+            return (pod_logs, cursor)
+        except Exception:
+            logger.exception(
+                "Failed to request logs of job {} from azure blob".format(
+                    jobId))
+            return ({}, None)
+elif config.get("logging") == 'elasticsearch':
+    logger.info('Elasticsearch log backend is enabled.')
+
+    from elasticsearch import Elasticsearch
+
+    def GetJobLog(jobId, cursor=None, size=None):
+        try:
+            elasticsearch = Elasticsearch(config['elasticsearch'])
+
+            request_json = {
+                "query": {
+                    "match_phrase": {
+                        "kubernetes.labels.jobId": jobId
                     }
                 },
-            ],
-            "_source": [
-                "docker.container_id", "kubernetes.pod_name", "stream", "log"
-            ]
-        }
-        if cursor is not None:
-            search_after = TryParseCursor(cursor)
-            if search_after is not None:
-                request_json['search_after'] = search_after
-        if size is not None:
-            request_json['size'] = size
+                "sort": [
+                    "@timestamp",
+                    {
+                        "time_nsec": {
+                            "unmapped_type": "long",
+                            "missing": 0
+                        }
+                    },
+                ],
+                "_source": [
+                    "docker.container_id", "kubernetes.pod_name", "stream",
+                    "log"
+                ]
+            }
+            if cursor is not None:
+                search_after = TryParseCursor(cursor)
+                if search_after is not None:
+                    request_json['search_after'] = search_after
+            if size is not None:
+                request_json['size'] = size
 
-        response_json = elasticsearch.search(index="logstash-*",
-                                             body=request_json)
-        documents = response_json["hits"]["hits"]
+            response_json = elasticsearch.search(index="logstash-*",
+                                                 body=request_json)
+            documents = response_json["hits"]["hits"]
 
-        next_cursor = None
-        if len(documents) > 0:
-            next_cursor = '.'.join(str(i) for i in documents[-1]["sort"])
+            pod_logs = dict()
+            for pod_name, pod_documents in groupby(
+                    documents, lambda document: document["_source"][
+                        "kubernetes"]["pod_name"]):
+                pod_logs[pod_name] = ''.join(pod_document["_source"]["log"]
+                                             for pod_document in pod_documents)
 
-        return (documents, next_cursor)
-    except Exception:
-        logger.exception("Request elasticsearch failed")
+            if len(documents) > 0:
+                cursor = '.'.join(str(i) for i in documents[-1]["sort"])
+            else:
+                cursor = None
+
+            return (pod_logs, cursor)
+        except Exception:
+            logger.exception(
+                "Failed to request logs of job {} from elasticsearch".format(
+                    jobId))
+            return ({}, None)
+else:
+    logger.info('No log backend is configured')
+
+    def GetJobLog(jobId, *args, **kwargs):
         return ({}, None)

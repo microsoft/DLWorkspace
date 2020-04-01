@@ -22,7 +22,12 @@ data:
     @INCLUDE filter-kubernetes.conf
     @INCLUDE filter-jobs.conf
     @INCLUDE filter-time_nsec.conf
+    {% if cnf["elasticsearch"]["enabled"] -%}
     @INCLUDE output-elasticsearch.conf
+    {%- endif %}
+    {% if cnf["azure_blob_log"]["enabled"] -%}
+    @INCLUDE output-azure-blob.conf
+    {%- endif %}
 
   input-kubernetes.conf: |
     [INPUT]
@@ -80,6 +85,17 @@ data:
         Logstash_Format On
         Replace_Dots    On
         Retry_Limit     False
+
+  output-azure-blob.conf: |
+    [OUTPUT]
+        Name             http
+        Match            jobs.*
+        Host             127.0.0.1
+        Port             ${FLUENT_AZURE_BLOB_ADAPTER_PORT}
+        Format           json_lines
+        header_tag       X-Tag
+        json_date_key    timestamp
+        json_date_format iso8601
 
   parsers.conf: |
     [PARSER]
