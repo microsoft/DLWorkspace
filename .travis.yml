@@ -45,7 +45,7 @@ matrix:
       - python -V
       - cd src/ClusterManager
     install:
-      - pip install requests kubernetes redis elasticsearch
+      - pip install requests kubernetes redis elasticsearch prometheus_client
     script:
       - python -m unittest test_cluster_status.py
       - python -m unittest test_virtual_cluster_status.py
