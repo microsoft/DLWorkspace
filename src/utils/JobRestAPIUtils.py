@@ -611,7 +611,7 @@ def GetJobDetail(userName, jobId):
             job["log"] = ""
             if "jobDescription" in job:
                 job.pop("jobDescription", None)
-            if not elasticsearch_deployed or config.get('__extract_job_log_legacy', False):
+            if not _get_job_log_enabled or _get_job_legacy:
                 try:
                     log = dataHandler.GetJobTextField(jobId, "jobLog")
                     try:
