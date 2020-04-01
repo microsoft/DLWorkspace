@@ -31,7 +31,7 @@ const DetailPanel: FunctionComponent<Props> = ({ job }) => {
         primary="Job Name"
         secondary={job['jobName']}
       />
-      { isNaN(submitted.valueOf()) || (
+      { isFinite(submitted.valueOf()) && (
         <ListItem>
           <ListItemText
             primary="Job Submitted Time"
@@ -39,7 +39,7 @@ const DetailPanel: FunctionComponent<Props> = ({ job }) => {
           />
         </ListItem>
       ) }
-      { isNaN(started.valueOf()) || (
+      { isFinite(started.valueOf()) && (
         <ListItem>
           <ListItemText
             primary="Job Started Time"
@@ -47,7 +47,7 @@ const DetailPanel: FunctionComponent<Props> = ({ job }) => {
           />
         </ListItem>
       ) }
-      { isNaN(finished.valueOf()) || (
+      { isFinite(finished.valueOf()) && (
         <ListItem>
           <ListItemText
             primary="Job Finished Time"
