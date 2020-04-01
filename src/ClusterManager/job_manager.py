@@ -236,7 +236,8 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
 
             dataFields = {
                 "jobStatusDetail": b64encode(json.dumps(detail)),
-                "jobStatus": "queued"
+                "jobStatus": "queued",
+                "lastUpdated": datetime.datetime.now().isoformat(),
             }
             conditionFields = {"jobId": job_id}
             dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -302,7 +303,8 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
 
         dataFields = {
             "jobStatusDetail": b64encode(json.dumps(detail)),
-            "jobStatus": "queued"
+            "jobStatus": "queued",
+            "lastUpdated": datetime.datetime.now().isoformat(),
         }
         conditionFields = {"jobId": job_id}
         dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -581,10 +583,10 @@ def get_jobs_info(jobs):
             priority = 999999 - reverse_priority
 
             # Job time
-            job_time = str(job["jobTime"])
+            queue_time = int(datetime.datetime.timestamp(job["lastUpdated"]))
 
             sort_key = "{}_{}_{:06d}_{}".format(preemptible, job_status_key,
-                                                priority, job_time)
+                                                priority, queue_time)
 
             single_job_info = {
                 "job": job,
