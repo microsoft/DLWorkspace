@@ -69,7 +69,7 @@ def _extract_job_log(jobId, logPath, userId):
                     f.write(log_text)
                 os.system("chown -R %s %s" % (userId, podLogPath))
             except Exception:
-                logger.exception("write pod log failed")
+                logger.exception("write pod log of {} failed".format(jobId))
 
         logging.info("cursor of job %s: %s" % (jobId, new_cursor))
         if new_cursor is not None:
