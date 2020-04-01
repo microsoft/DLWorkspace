@@ -49,7 +49,13 @@ const useNameId = (): Column<Job> => {
     </UILink>
   ), [showId]);
 
-  return { title, field, render };
+  return {
+    title,
+    headerStyle: { whiteSpace: 'nowrap' },
+    field,
+    render,
+    sorting: false
+  };
 }
 
 export default useNameId;

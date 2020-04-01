@@ -27,6 +27,10 @@ const DetailPanel: FunctionComponent<Props> = ({ job }) => {
         primary="Job Id"
         secondary={job['jobId']}
       />
+      <CopyableTextListItem
+        primary="Job Name"
+        secondary={job['jobName']}
+      />
       { isNaN(submitted.valueOf()) || (
         <ListItem>
           <ListItemText
