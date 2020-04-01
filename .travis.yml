@@ -45,11 +45,12 @@ matrix:
       - python -V
       - cd src/ClusterManager
     install:
-      - pip install requests kubernetes
+      - pip install requests kubernetes redis elasticsearch
     script:
       - python -m unittest test_cluster_status.py
       - python -m unittest test_virtual_cluster_status.py
       - python -m unittest test_mountpoint.py
+      - python -m unittest test_job_manager.py
   - language: python
     python: 3.6
     before_install:
