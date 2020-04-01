@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
+import { RefObject, useCallback } from 'react';
 import { useSnackbar } from 'notistack';
-import { Action } from 'material-table';
+import MaterialTable, { Action } from 'material-table';
 
 import useConfirm from './useConfirm';
 
@@ -24,9 +24,17 @@ const KILLABLE_STATUSES = [
   'paused'
 ];
 
-const useBatchActions = (clusterId: string) => {
+const useBatchActions = (clusterId: string, tableRef?: RefObject<MaterialTable<any>>) => {
   const confirm = useConfirm();
   const { enqueueSnackbar } = useSnackbar();
+
+  const deselectAllJobs = (jobs: any[]) => {
+    jobs.forEach(job => {
+      if (job && job.tableData && job.tableData.checked === true) {
+        job.tableData.checked = false;
+      }
+    });
+  };
 
   const batchUpdateStatus = useCallback((jobIds: string[], statusValue: string) => {
     const url = `/api/clusters/${clusterId}/jobs/status`;
@@ -44,7 +52,7 @@ const useBatchActions = (clusterId: string) => {
   }, [clusterId]);
 
   const onBatchApprove = useCallback((event: any, jobs: any[]) => {
-    const title = `${jobs.length} jobs`;
+    const title = `${jobs.length} job(s)`;
     return confirm(`Approve ${title}?`).then((answer) => {
       if (answer === false) return;
 
@@ -54,6 +62,7 @@ const useBatchActions = (clusterId: string) => {
       return batchUpdateStatus(jobIds, 'approved').then((response) => {
         if (response.ok) {
           enqueueSnackbar(`${title}'s approve request is accepted.`, { variant: 'success' });
+          deselectAllJobs(jobs);
         } else {
           enqueueSnackbar(`${title} are failed to approve.`, { variant: 'error' });
         }
@@ -62,7 +71,7 @@ const useBatchActions = (clusterId: string) => {
   }, [confirm, enqueueSnackbar, batchUpdateStatus]);
 
   const onBatchPause = useCallback((event: any, jobs: any[]) => {
-    const title = `${jobs.length} jobs`;
+    const title = `${jobs.length} job(s)`;
     return confirm(`Pause ${title}?`).then((answer) => {
       if (answer === false) return;
 
@@ -72,6 +81,7 @@ const useBatchActions = (clusterId: string) => {
       return batchUpdateStatus(jobIds, 'pausing').then((response) => {
         if (response.ok) {
           enqueueSnackbar(`${title}'s pause request is accepted.`, { variant: 'success' });
+          deselectAllJobs(jobs);
         } else {
           enqueueSnackbar(`${title} are failed to pause.`, { variant: 'error' });
         }
@@ -80,7 +90,7 @@ const useBatchActions = (clusterId: string) => {
   }, [confirm, enqueueSnackbar, batchUpdateStatus]);
 
   const onBatchResume = useCallback((event: any, jobs: any[]) => {
-    const title = `${jobs.length} jobs`;
+    const title = `${jobs.length} job(s)`;
     return confirm(`Resume ${title}?`).then((answer) => {
       if (answer === false) return;
 
@@ -90,6 +100,7 @@ const useBatchActions = (clusterId: string) => {
       return batchUpdateStatus(jobIds, 'queued').then((response) => {
         if (response.ok) {
           enqueueSnackbar(`${title}'s resume request is accepted.`, { variant: 'success' });
+          deselectAllJobs(jobs);
         } else {
           enqueueSnackbar(`${title} are failed to resume.`, { variant: 'error' });
         }
@@ -98,7 +109,7 @@ const useBatchActions = (clusterId: string) => {
   }, [confirm, enqueueSnackbar, batchUpdateStatus]);
 
   const onBatchKill = useCallback((event: any, jobs: any[]) => {
-    const title = `${jobs.length} jobs`;
+    const title = `${jobs.length} job(s)`;
     return confirm(`Kill ${title}?`).then((answer) => {
       if (answer === false) return;
 
@@ -108,6 +119,7 @@ const useBatchActions = (clusterId: string) => {
       return batchUpdateStatus(jobIds, 'killing').then((response) => {
         if (response.ok) {
           enqueueSnackbar(`${title}'s kill request is accepted.`, { variant: 'success' });
+          deselectAllJobs(jobs);
         } else {
           enqueueSnackbar(`${title} are failed to kill.`, { variant: 'error' });
         }
