@@ -34,13 +34,12 @@ def create_log(logdir='/var/log/dlworkspace'):
         logging.config.dictConfig(logging_config)
 
 
-_use_legacy = config.get('logging') not in [
-    'azure_blob', 'elaticsearch'
-] or config.get('__extract_job_log_legacy', False)
+_get_job_log_enabled = config.get('logging') in ['azure_blob', 'elasticsearch']
+_extract_job_log_legacy = not _get_job_log_enabled or config.get('__extract_job_log_legacy', False)
 
 
 def extract_job_log(job_id, log_path, user_id):
-    if not _use_legacy:
+    if not _extract_job_log_legacy:
         _extract_job_log(job_id, log_path, user_id)
     else:
         _extract_job_log_legacy(job_id, log_path, user_id)
