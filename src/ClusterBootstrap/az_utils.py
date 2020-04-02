@@ -257,7 +257,7 @@ def gen_logging_storage_account_name(config):
     # There are naming restrictions for account_name:
     # Storage account name must be between 3 and 24 characters in length
     # and use numbers and lower-case letters only.
-    name = config["azure_cluster"]["cluster_name"].lower()
+    name = get_cluster_name(config).lower()
     name = "".join([c for c in name if c.isalnum()])
     return gen_name_with_max_len(name, 24)
 
@@ -266,7 +266,7 @@ def gen_logging_container_name(config):
     # There are nameing restrictions for container_name:
     # Container name must be between 3 and 63 characters in length
     # and use numbers and lower-case letters only. Hyphen is allowed.
-    name = config["azure_cluster"]["cluster_name"].lower()
+    name = get_cluster_name(config).lower()
     name = "".join([c for c in name if c.isalnum() or c == "-"])
     return gen_name_with_max_len(name, 63)
 
