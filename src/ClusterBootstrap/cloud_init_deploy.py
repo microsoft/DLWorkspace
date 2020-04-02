@@ -532,7 +532,7 @@ def render_infra_node_specific(config, args):
     config["kube_labels"] = get_kube_labels_of_machine_name(config, hostname)
     # TODO zx: we may need to def get_file_modules_2_copy_by_node_role() to make it more extendable.
     config["file_modules_2_copy"] = ["kubernetes_common", "kubernetes_infra", "etcd",
-                                     "ip_resolve", "restful_api", "dashboard", "nfs_client", "repair_manager"]
+                                     "ip_resolve", "restfulapi", "dashboard", "nfs_client", "repairmanager"]
     utils.render_template("./template/cloud-config/cloud_init_infra.txt.template",
                           "./deploy/cloud-config/cloud_init_infra.txt", config)
 
@@ -776,7 +776,7 @@ def render_restfulapi(config):
     return config
 
 
-def render_webui(config):
+def render_dashboard(config):
     sshUser = config["admin_username"]
     webUIIP = config["kubernetes_master_node"][0]
     dockername = "%s/dlws-webui" % (config["dockerregistry"])
@@ -892,7 +892,7 @@ def render_for_infra_generic(config, args):
     render_ETCD(config)
     config = render_restfulapi(config)
     render_kubelet(config, args)
-    render_webui(config)
+    render_dashboard(config)
     render_mount(config, args)
     render_repairmanager(config)
     gen_pass_secret_script(config)

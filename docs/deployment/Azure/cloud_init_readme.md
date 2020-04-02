@@ -141,11 +141,11 @@ when you use `svc start`, the services would be rendered first, then kubectl wou
 ```
 ./ctl.py svc render <service1, service2, ...> (e.g., ./ctl.py svc render monitor)
 ```
-useful when you don't want to restart a service, just wander how you edition to config.yaml would come to effect
+useful when you don't want to actually restart a service, just wander how you edition to config.yaml would come to effect
 
 ## update remote config file used by a service
 ```
-./ctl.py svc configupdate [dashboard | restful_api | storage_manager]
+./ctl.py svc configupdate [dashboard | restfulapi | storagemanager]
 ```
 this subcommand would retire after we use configmap to configure parameters for the 3 listed services
 

@@ -21,20 +21,17 @@ from cloud_init_deploy import load_node_list_by_role_from_config
 from cloud_init_deploy import update_service_path
 from cloud_init_deploy import get_kubectl_binary
 from cloud_init_deploy import load_config as load_deploy_config
-from cloud_init_deploy import render_restfulapi, render_webui, render_storagemanager
-
+from cloud_init_deploy import render_restfulapi, render_dashboard, render_storagemanager, render_repairmanager
+from cloud_init_deploy import check_buildable_images, push_docker_images
 
 FILE_MAP_PATH = 'deploy/cloud-config/file_map.yaml'
 
 
 def load_config_4_ctl(args, command):
-    need_deploy_config = False
-    if command in ["svc", "render_template", "download"]:
-        need_deploy_config = True
-    if not args.config and need_deploy_config:
-        args.config = ['config.yaml', 'az_complementary.yaml']
+    # if we need to load all config
+    if command in ["svc", "render_template", "download", "docker"]:
+        args.config = ['config.yaml', 'status.yaml'] if not args.config else args.config
         config = load_deploy_config(args)
-        # for configupdate, need extra step to load status.yaml
     else:
         if not args.config and command != "restorefromdir":
             args.config = ['status.yaml']
@@ -47,7 +44,7 @@ def load_config_4_ctl(args, command):
 def connect_to_machine(config, args):
     if args.nargs[0] in config['allroles']:
         target_role = args.nargs[0]
-        index = int(args.nargs[1])
+        index = int(args.nargs[1]) if len(args.nargs) > 1 else 0
         nodes, _ = load_node_list_by_role_from_config(config, [target_role])
         node = nodes[index]
     else:
@@ -57,7 +54,7 @@ def connect_to_machine(config, args):
                       ["admin_username"], config["machines"][node]["fqdns"])
 
 
-def run_kubectl(config, args, commands):
+def run_kubectl(config, args, commands, need_output=False):
     if not os.path.exists("./deploy/bin/kubectl"):
         print("please make sure ./deploy/bin/kubectl exists. One way is to use ./ctl.py download")
         exit(-1)
@@ -66,11 +63,14 @@ def run_kubectl(config, args, commands):
     master_node = random.choice(nodes)
     kube_command = "./deploy/bin/kubectl --server=https://{}:{} --certificate-authority={} --client-key={} --client-certificate={} {}".format(
         config["machines"][master_node]["fqdns"], config["k8sAPIport"], "./deploy/ssl/ca/ca.pem", "./deploy/ssl/kubelet/apiserver-key.pem", "./deploy/ssl/kubelet/apiserver.pem", one_command)
-    output = utils.exec_cmd_local(kube_command, verbose=False)
     if args.verbose:
         print(kube_command)
-    print(output)
-    return output
+    if need_output:
+        output = utils.exec_cmd_local(kube_command, verbose=False)
+        print(output)
+        return output
+    else:
+        os.system(kube_command)
 
 
 def run_script(node, ssh_cert, adm_usr, nargs, sudo=False, noSupressWarning=True):
@@ -148,9 +148,9 @@ def parallel_action_by_role(config, args, func):
 
 def verify_all_nodes_ready(config, args):
     """
-    return unready nodes
+    return unready nodes, used for contiguous integration(CI)
     """
-    nodes_info_raw = run_kubectl(config, args, ["get nodes"])
+    nodes_info_raw = run_kubectl(config, args, ["get nodes"], True)
     ready_machines = set([entry.split("Ready")[0].strip()
                           for entry in nodes_info_raw.split('\n')[1:]])
     expected_nodes = set(config["machines"].keys())
@@ -167,10 +167,9 @@ def change_kube_service(config, args, operation, service_list):
     kubectl_action = "create" if operation == "start" else "delete"
     if operation == "start": 
         render_services(config, service_list)
+        remote_config_update(config, args)
     elif not os.path.exists("./deploy/services"):
         utils.render_template_directory("./services/", "./deploy/services/", config)
-    config.pop("machines", [])
-    config = add_configs_in_order(["status.yaml"], config)
     service2path = update_service_path()
     for service_name in service_list:
         fname = service2path[service_name]
@@ -205,46 +204,39 @@ def render_services(config, service_list):
             "./services/{}".format(svc), "./deploy/services/{}".format(svc), config)
 
 
-def remote_config_update(config, args):
+def remote_config_update(config, args, check_module=False):
     '''
     client end(infra/NFS node) config file update
-    ./ctl.py -s svc configupdate restful_api
+    ./ctl.py -s svc configupdate restfulapi
     ./ctl.py [-r storage_machine1 [-r storage_machine2]] -s svc configupdate storage_manager
+    by default sudo
     '''
-    assert args.nargs[1] in ["restful_api", "storage_manager",
-                             "dashboard"] and "only support updating config file of restfulapi and storagemanager"
+    if check_module:
+        assert set(args.nargs[1:]) - set(["restfulapi", "storagemanager", "repairmanager", "dashboard"]) == set(), "not supported"
     # need to get node list for this subcommand of svc, so load status.yaml
     if not os.path.exists(FILE_MAP_PATH):
         utils.render_template("template/cloud-config/file_map.yaml", FILE_MAP_PATH, config)
     with open(FILE_MAP_PATH) as f:
         file_map = yaml.load(f)
-    if args.nargs[1] in ["restful_api", "dashboard"]:
-        render_func = {"restful_api": render_restfulapi,
-                       "dashboard": render_webui}
-        render_func[args.nargs[1]](config)
-        # pop out the machine list in az_complementary.yaml, which describe action instead of status
-        config.pop("machines", [])
-        config = add_configs_in_order(["status.yaml"], config)
-        infra_nodes, _ = load_node_list_by_role_from_config(config, ["infra"], False)
-        src_dst_list = [file_map[args.nargs[1]][0]
-                        ["src"], file_map[args.nargs[1]][0]["dst"]]
-        execute_in_parallel(config, infra_nodes, src_dst_list,
-                            args.sudo, copy2_wrapper, noSupressWarning=args.verbose)
-    elif args.nargs[1] == "storage_manager":
-        config = add_configs_in_order(["status.yaml"], config)
-        nfs_nodes, _ = load_node_list_by_role_from_config(config, ["nfs"], False)
-        if args.roles_or_machine == ['nfs'] or not args.roles_or_machine:
-            nodes_2_update = nfs_nodes
-        else:
-            nodes_2_update = list(set(nfs_nodes) & set(args.roles_or_machine))
-        for node in nodes_2_update:
-            config["storage_manager"] = config["machines"][node]["storage_manager"]
-            render_storagemanager(config, node)
-            src_dst_list = ["./deploy/StorageManager/{}_storage_manager.yaml".format(
-                node), "/etc/StorageManager/config.yaml"]
-            args_list = (config["machines"][node]["fqdns"], config["ssh_cert"],
-                         config["admin_username"], src_dst_list, args.sudo, args.verbose)
-            copy2_wrapper(args_list)
+    for module in args.nargs[1:]:
+        if module in ["restfulapi", "dashboard", "repairmanager"]:
+            render_func = eval("render_{}".format(module))
+            render_func(config)
+            infra_nodes, _ = load_node_list_by_role_from_config(config, ["infra"], False)
+            for file_pair in file_map[module]:
+                src_dst_list = [file_pair["src"], file_pair["dst"]]
+                execute_in_parallel(config, infra_nodes, src_dst_list,
+                                    True, copy2_wrapper, noSupressWarning=args.verbose)
+        elif module == "storagemanager":
+            nfs_nodes, _ = load_node_list_by_role_from_config(config, ["nfs"], False)
+            for node in nfs_nodes:
+                config["storage_manager"] = config["machines"][node]["storage_manager"]
+                render_storagemanager(config, node)
+                src_dst_list = ["./deploy/StorageManager/{}_storage_manager.yaml".format(
+                    node), "/etc/StorageManager/config.yaml"]
+                args_list = (config["machines"][node]["fqdns"], config["ssh_cert"],
+                             config["admin_username"], src_dst_list, True, args.verbose)
+                copy2_wrapper(args_list)
 
 
 def render_template_or_dir(config, args):
@@ -291,12 +283,17 @@ def run_command(args, command):
         elif args.nargs[0] == "render":
             render_services(config, args.nargs[1:])
         elif args.nargs[0] == "configupdate":
-            remote_config_update(config, args)
+            remote_config_update(config, args, True)
     if command == "render_template":
         render_template_or_dir(config, args)
     if command == "download":
         if not os.path.exists('deploy/bin/kubectl') or args.force:
             get_kubectl_binary(config)
+    if command == "docker":
+        nargs = args.nargs
+        if nargs[0] == "push":
+            check_buildable_images(args.nargs[1], config)
+            push_docker_images(args, config)
 
 
 if __name__ == '__main__':
@@ -316,7 +313,7 @@ if __name__ == '__main__':
             connect  connect to a machine in the deployed cluster
     '''))
     parser.add_argument('-cnf', '--config', action='append', default=[], help='Specify the config files you want to load, later ones \
-        would overwrite former ones, e.g., -cnf config.yaml -cnf az_complementary.yaml')
+        would overwrite former ones, e.g., -cnf config.yaml -cnf status.yaml')
     parser.add_argument('-i', '--in', action='append',
                         default=[], help='Files to take as input')
     parser.add_argument('-o', '--out', help='File to dump to as output')
@@ -328,6 +325,9 @@ if __name__ == '__main__':
                         help='Execute scripts in sudo')
     parser.add_argument("-f", "--force", action="store_true",
                         help='Force execution')
+    parser.add_argument("--nocache",
+                        help="Build docker without cache",
+                        action="store_true")
     parser.add_argument("command",
                         help="See above for the list of valid command")
     parser.add_argument('nargs', nargs=argparse.REMAINDER,
@@ -335,5 +335,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
     command = args.command
     nargs = args.nargs
-
     run_command(args, command)
