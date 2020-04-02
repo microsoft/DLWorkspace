@@ -599,7 +599,7 @@ def isBase64(s):
     return False
 
 _get_job_log_enabled = config.get('logging') in ['azure_blob', 'elasticsearch']
-_extract_job_log_legacy = config.get('__extract_job_log_legacy', False) or not _get_job_log_enabled
+_extract_job_log_legacy = config.get('__extract_job_log_legacy', not _get_job_log_enabled)
 _get_job_log_legacy = config.get('__get_job_log_legacy', False)
 
 
