@@ -83,6 +83,9 @@ elasticsearch:
 {% if cnf["__extract_job_log_legacy"] %}
 __extract_job_log_legacy: True
 {% endif %}
+{% if cnf["__get_job_log_legacy"] %}
+__get_job_log_legacy: True
+{% endif %}
 job_mountpoints: {{cnf["job_mountpoints"]}}
 
 {% if cnf["job_resource_policy"] %}
