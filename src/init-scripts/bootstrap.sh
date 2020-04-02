@@ -44,7 +44,7 @@ then
 else
     printenv DLTS_LAUNCH_CMD > /dlts-runtime/status/job_command.sh
     chmod +x /dlts-runtime/status/job_command.sh
-    runuser -l ${DLTS_USER_NAME} -c /dlts-runtime/status/job_command.sh
+    runuser -s /bin/bash -l ${DLTS_USER_NAME} -c /dlts-runtime/status/job_command.sh
     # Save exit code
     EXIT_CODE=$?
     echo  `date` ": ${EXIT_CODE}"
