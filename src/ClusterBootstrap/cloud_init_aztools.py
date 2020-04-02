@@ -587,6 +587,7 @@ def run_command(command, config, args, nargs):
         elif nargs[0] == "delete":
             delete_nsg_rules_with_service_tags(config, args)
     elif command == "logging_storage":
+        set_subscription(config)
         if nargs[0] == "create":
             create_logging_storage_account(config, args)
             create_logging_container(config, args)
