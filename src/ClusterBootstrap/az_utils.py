@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import json
+import yaml
 
 from utils import exec_cmd_local, execute_or_dump_locally, keep_widest_subnet
 
@@ -237,21 +238,60 @@ def delete_nsg_rules_with_service_tags(config, args):
                   (service_tag, e))
 
 
-def gen_logging_storage_account_name(config):
-    # There is a nameing restriction for account_name:
-    # validation error: Parameter 'account_name' must have length less than 24.
-    # .... is not a valid storage account name. Storage account name must be 
-    # between 3 and 24 characters in length and use numbers and lower-case 
-    # letters only.
-    cluster_name = config["azure_cluster"]["cluster_name"]
-    suffix = "log"
-    max_len = 24 - len(suffix)
+def gen_alnum_name_with_max_len(name, max_len):
+    name = "".join([c for c in name.lower() if c.isalnum()])
+    if len(name) > max_len:
+        name = name[:max_len]
+    return name
 
-    cluster_name = "".join([c for c in cluster_name.lower() if c.isalnum()])
-    if len(cluster_name) > max_len:
-        cluster_name = cluster_name[:max_len]
-    
-    return cluster_name + suffix
+
+def gen_logging_storage_account_name(config):
+    # There are naming restrictions for account_name:
+    # Storage account name must be between 3 and 24 characters in length
+    # and use numbers and lower-case letters only.
+    cluster_name = config["azure_cluster"]["cluster_name"]
+    return gen_alnum_name_with_max_len(cluster_name, 24)
+
+
+def gen_logging_container_name(config):
+    # There are nameing restrictions for container_name:
+    # Container name must be between 3 and 63 characters in length
+    # and use numbers and lower-case letters only.
+    cluster_name = config["azure_cluster"]["cluster_name"]
+    return gen_alnum_name_with_max_len(cluster_name, 63)
+
+
+def get_connection_string(config, args):
+    storage_account_name = gen_logging_storage_account_name(config)
+    resource_group = config["azure_cluster"]["resource_group"]
+    cmd = """
+        az storage account show-connection-string \
+            --name %s \
+            --resource-group %s \
+            --query 'connectionString' \
+            --output tsv
+        """ % (storage_account_name,
+               resource_group)
+
+    return execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+
+
+def create_logging_container(config, args):
+    container_name = gen_logging_container_name(config)
+    resource_group = config["azure_cluster"]["resource_group"]
+    connection_string = get_connection_string(config, args)
+    cmd = """
+        az storage container create \
+            --name %s \
+            --resource-group %s \
+            --connection-string %s
+        """ % (container_name,
+               resource_group,
+               connection_string)
+
+    print("Creating logging container %s in resource group %s with connection "
+          "string %s" % (container_name, resource_group, connection_string))
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
 def create_logging_storage_account(config, args):
@@ -292,4 +332,22 @@ def delete_logging_storage_account(config, args):
 
 
 def get_connection_string_for_logging_storage_account(config, args):
-    pass
+    connection_string = get_connection_string(config, args)
+    container_name = gen_logging_container_name(config)
+
+    logging_config = {
+        "azure_blob_log": {
+            "enabled": True,
+            "connection_string": connection_string,
+            "container_name": container_name,
+        }
+    }
+
+    # Print connection string
+    print(yaml.dump(logging_config))
+
+    # Dump connection string to a file
+    with open("logging_config.yaml", "w") as f:
+        yaml.dump(logging_config, f)
+
+
