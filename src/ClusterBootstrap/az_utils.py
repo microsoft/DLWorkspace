@@ -148,35 +148,35 @@ def create_nsg_rule_with_service_tag(resource_group, nsg_name, priority,
                                      port_ranges, service_tag, args,
                                      protocol="tcp"):
     cmd = """
-    az network nsg rule create \
-        --resource-group %s \
-        --nsg-name %s \
-        --name %s \
-        --protocol %s \
-        --priority %s \
-        --destination-port-ranges %s \
-        --source-address-prefixes %s \
-        --access allow
-    """ % (resource_group,
-           nsg_name,
-           "allow_%s" % service_tag,
-           protocol,
-           priority,
-           port_ranges,
-           service_tag)
+        az network nsg rule create \
+            --resource-group %s \
+            --nsg-name %s \
+            --name %s \
+            --protocol %s \
+            --priority %s \
+            --destination-port-ranges %s \
+            --source-address-prefixes %s \
+            --access allow
+        """ % (resource_group,
+               nsg_name,
+               "allow_%s" % service_tag,
+               protocol,
+               priority,
+               port_ranges,
+               service_tag)
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
 def delete_nsg_rule_with_service_tag(resource_group, nsg_name, service_tag,
                                      args):
     cmd = """
-    az network nsg rule delete \
-        --resource-group %s \
-        --nsg-name %s \
-        --name %s
-    """ % (resource_group,
-           nsg_name,
-           "allow_%s" % service_tag)
+        az network nsg rule delete \
+            --resource-group %s \
+            --nsg-name %s \
+            --name %s
+        """ % (resource_group,
+               nsg_name,
+               "allow_%s" % service_tag)
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
@@ -236,3 +236,34 @@ def delete_nsg_rules_with_service_tags(config, args):
             print("Failed to delete nsg rule for service tag %s. Ex: %s" %
                   (service_tag, e))
 
+
+def create_storage_account_for_logging(config, args):
+    storage_account_name = config["azure_cluster"]["cluster_name"] + "-logging"
+    resource_group = config["azure_cluster"]["resource_group"]
+    location = config["azure_cluster"]["azure_location"]
+    cmd = """
+        az storage account create \
+            --name %s \
+            --resource-group %s \
+            --access-tier Hot \
+            --kind StorageV2 \
+            --sku Standard_RAGRS \
+            --location %s
+        """ % (storage_account_name,
+               resource_group,
+               location)
+
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+
+
+def delete_storage_account_for_logging(config, args):
+    storage_account_name = config["azure_cluster"]["cluster_name"] + "-logging"
+    resource_group = config["azure_cluster"]["resource_group"]
+    cmd = """
+        az storage account delete \
+            --name %s \
+            --resource-group %s
+        """ % (storage_account_name,
+               resource_group)
+
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
