@@ -63,8 +63,8 @@ def _extract_job_log(jobId, logPath, userId):
 
         for (pod_name, log_text) in pod_logs.items():
             try:
-                podLogPath = os.path.join(
-                    jobLogDir, "log-pod-" + pod_name + ".txt")
+                podLogPath = os.path.join(jobLogDir,
+                                          "log-pod-" + pod_name + ".txt")
                 with open(podLogPath, 'a', encoding="utf-8") as f:
                     f.write(log_text)
                 os.system("chown -R %s %s" % (userId, podLogPath))
@@ -183,6 +183,7 @@ def update_job_logs():
             pendingJobs = dataHandler.GetPendingJobs()
             dataHandler.Close()
             for job in pendingJobs:
+                update_file_modification_time("joblog_manager")
                 try:
                     if job["jobStatus"] == "running":
                         logger.info("updating job logs for job %s" %
