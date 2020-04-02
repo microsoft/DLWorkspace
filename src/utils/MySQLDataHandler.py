@@ -625,7 +625,7 @@ class DataHandler(object):
         ret = []
         cursor = self.conn.cursor()
         try:
-            query = "SELECT `jobId`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where 1" % (
+            query = "SELECT `jobId`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta`, `lastUpdated` FROM `%s` where 1" % (
                 self.jobtablename)
             if userName != "all":
                 query += " and `userName` = '%s'" % userName
@@ -654,7 +654,7 @@ class DataHandler(object):
             data = cursor.fetchall()
             for (jobId, jobName, userName, vcName, jobStatus, jobStatusDetail,
                  jobType, jobDescriptionPath, jobDescription, jobTime,
-                 endpoints, jobParams, errorMsg, jobMeta) in data:
+                 endpoints, jobParams, errorMsg, jobMeta, lastUpdated) in data:
                 record = {}
                 record["jobId"] = jobId
                 record["jobName"] = jobName
@@ -670,6 +670,7 @@ class DataHandler(object):
                 record["jobParams"] = jobParams
                 record["errorMsg"] = errorMsg
                 record["jobMeta"] = jobMeta
+                record["lastUpdated"] = lastUpdated
                 ret.append(record)
         except Exception as e:
             logger.error('Exception: %s', str(e))
