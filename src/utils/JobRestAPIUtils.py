@@ -598,6 +598,10 @@ def isBase64(s):
         pass
     return False
 
+_get_job_log_enabled = config.get('logging') in ['azure_blob', 'elasticsearch']
+_extract_job_log_legacy = config.get('__extract_job_log_legacy', not _get_job_log_enabled)
+_get_job_log_legacy = config.get('__get_job_log_legacy', _extract_job_log_legacy)
+
 
 def GetJobDetail(userName, jobId):
     job = None
@@ -611,7 +615,7 @@ def GetJobDetail(userName, jobId):
             job["log"] = ""
             if "jobDescription" in job:
                 job.pop("jobDescription", None)
-            if not _get_job_log_enabled or _get_job_legacy:
+            if _extract_job_log_legacy:
                 try:
                     log = dataHandler.GetJobTextField(jobId, "jobLog")
                     try:
@@ -656,11 +660,6 @@ def GetJobStatus(jobId):
     dataHandler.Close()
     return result
 
-
-_get_job_log_enabled = config.get('logging') in ['azure_blob', 'elasticsearch']
-_get_job_legacy = config.get('__extract_job_log_legacy', False)
-
-
 def GetJobLog(userName, jobId, cursor=None, size=100):
     dataHandler = DataHandler()
     jobs = dataHandler.GetJob(jobId=jobId)
@@ -668,7 +667,7 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(
                 userName, ResourceType.VC, jobs[0]["vcName"],
                 Permission.Collaborator):
-            if _get_job_legacy:
+            if _get_job_log_legacy:
                 try:
                     log = dataHandler.GetJobTextField(jobId, "jobLog")
                     try:
