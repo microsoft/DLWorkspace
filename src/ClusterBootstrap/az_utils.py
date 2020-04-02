@@ -238,6 +238,15 @@ def delete_nsg_rules_with_service_tags(config, args):
                   (service_tag, e))
 
 
+def get_cluster_name(config):
+    # Old pipeline has cluster_name in azure_cluster
+    cluster_name = config.get("cluster_name")
+    if cluster_name is not None:
+        return cluster_name
+
+    return config["azure_cluster"]["cluster_name"]
+
+
 def gen_name_with_max_len(name, max_len):
     if len(name) > max_len:
         name = name[:max_len]
