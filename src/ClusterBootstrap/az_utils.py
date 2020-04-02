@@ -237,8 +237,25 @@ def delete_nsg_rules_with_service_tags(config, args):
                   (service_tag, e))
 
 
-def create_storage_account_for_logging(config, args):
-    storage_account_name = config["azure_cluster"]["cluster_name"] + "-logging"
+def gen_logging_storage_account_name(config):
+    # There is a nameing restriction for account_name:
+    # validation error: Parameter 'account_name' must have length less than 24.
+    # .... is not a valid storage account name. Storage account name must be 
+    # between 3 and 24 characters in length and use numbers and lower-case 
+    # letters only.
+    cluster_name = config["azure_cluster"]["cluster_name"]
+    suffix = "log"
+    max_len = 24 - len(suffix)
+
+    cluster_name = "".join([c for c in cluster_name.lower() if c.isalnum()])
+    if len(cluster_name) > max_len:
+        cluster_name = cluster_name[:max_len]
+    
+    return cluster_name + suffix
+
+
+def create_logging_storage_account(config, args):
+    storage_account_name = gen_logging_storage_account_name(config)
     resource_group = config["azure_cluster"]["resource_group"]
     location = config["azure_cluster"]["azure_location"]
     cmd = """
@@ -253,17 +270,26 @@ def create_storage_account_for_logging(config, args):
                resource_group,
                location)
 
+    print("Creating storage account %s in resource group %s" % 
+          (storage_account_name, resource_group))
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
-def delete_storage_account_for_logging(config, args):
-    storage_account_name = config["azure_cluster"]["cluster_name"] + "-logging"
+def delete_logging_storage_account(config, args):
+    storage_account_name = gen_logging_storage_account_name(config)
     resource_group = config["azure_cluster"]["resource_group"]
     cmd = """
         az storage account delete \
             --name %s \
-            --resource-group %s
+            --resource-group %s \
+            --yes
         """ % (storage_account_name,
                resource_group)
 
+    print("Deleting storage account %s in resource group %s" % 
+          (storage_account_name, resource_group))
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+
+
+def get_connection_string_for_logging_storage_account(config, args):
+    pass

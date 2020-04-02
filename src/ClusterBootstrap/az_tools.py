@@ -19,8 +19,9 @@ from az_utils import \
     delete_nsg_rule_whitelist, \
     create_nsg_rules_with_service_tags, \
     delete_nsg_rules_with_service_tags, \
-    create_storage_account_for_logging, \
-    delete_storage_account_for_logging
+    create_logging_storage_account, \
+    delete_logging_storage_account, \
+    get_connection_string_for_logging_storage_account
 
 verbose = False
 no_execution = False
@@ -1110,9 +1111,14 @@ def run_command(args, command, nargs, parser):
 
     elif command == "logging_storage":
         if nargs[0] == "create":
-            create_storage_account_for_logging(config, args)
+            create_logging_storage_account(config, args)
         elif nargs[0] == "delete":
-            delete_storage_account_for_logging(config, args)
+            response = input(
+                "Delete logging storage? (Please type YES to confirm)")
+            if response == "YES":
+                delete_logging_storage_account(config, args)
+        elif nargs[0] == "connection":
+            get_connection_string_for_logging_storage_account(config, args)
 
 
 if __name__ == '__main__':
