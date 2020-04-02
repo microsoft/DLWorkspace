@@ -1,4 +1,5 @@
 import React, {
+  ComponentPropsWithoutRef,
   FunctionComponent,
   useCallback,
   useContext,
@@ -9,15 +10,16 @@ import React, {
 import Helmet from 'react-helmet';
 import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
+import { reduce } from 'lodash';
 
 import TeamsContext from '../../contexts/Teams';
 import useActions from '../../hooks/useActions';
+import useBatchActions from '../../hooks/useBatchActions';
 
 import ClusterContext from './ClusterContext';
 import JobsTable from './JobsTable';
 import {
   user,
-  name,
   status,
   type,
   gpu,
@@ -25,17 +27,80 @@ import {
   priority,
   submitted,
   finished,
-} from './JobsTable/columns';
-import { groupByActive } from './utils';
 
-const MyJobs: FunctionComponent = () => {
+  useNameId,
+} from './JobsTable/columns';
+import { groupByActiveStatus } from './utils';
+
+type JobsTablePropsWithoutColumnsActions = Omit<ComponentPropsWithoutRef<typeof JobsTable>, 'columns' | 'actions'>
+
+const ActiveJobsTable: FunctionComponent<JobsTablePropsWithoutColumnsActions> = (props) => {
+  const { cluster } = useContext(ClusterContext);
+  const { support, approve, pause, resume, kill } = useActions(cluster.id);
+  const { batchApprove, batchPause, batchResume, batchKill } = useBatchActions(cluster.id);
+  const nameId = useNameId();
+  const columns = useMemo(() => [
+    nameId,
+    user(),
+    status(),
+    type(),
+    gpu(),
+    preemptible(),
+    priority(),
+    submitted(),
+  ], [nameId]);
+
+  const actions = useMemo(() => {
+    if (cluster.admin) {
+      return [
+        support, approve, pause, resume, kill,
+        batchApprove, batchPause, batchResume, batchKill
+      ];
+    } else {
+      return [support];
+    }
+  }, [
+    cluster.admin,
+    support, approve, pause, resume, kill,
+    batchApprove, batchPause, batchResume, batchKill
+  ]);
+  return (
+    <JobsTable
+      columns={columns}
+      actions={actions}
+      {...props}
+    />
+  );
+};
+
+const InactiveJobsTable: FunctionComponent<JobsTablePropsWithoutColumnsActions> = (props) => {
+  const { cluster } = useContext(ClusterContext);
+  const { support } = useActions(cluster.id);
+  const nameId = useNameId();
+  const columns = useMemo(() => [
+    nameId,
+    user(),
+    status(),
+    type(),
+    gpu(),
+    preemptible(),
+    priority(),
+    finished(),
+  ], [nameId]);
+  const actions = useMemo(() => [support], [support]);
+  return (
+    <JobsTable
+      columns={columns}
+      actions={actions}
+      {...props}
+    />
+  );
+};
+
+const AllJobs: FunctionComponent = () => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { cluster } = useContext(ClusterContext);
   const { selectedTeam } = useContext(TeamsContext);
-  const {
-    support, approve, pause, resume, kill,
-    batchApprove, batchPause, batchResume, batchKill
-  } = useActions(cluster.id);
 
   const [limit, setLimit] = useState(30);
 
@@ -45,9 +110,9 @@ const MyJobs: FunctionComponent = () => {
     [cluster.id, selectedTeam, limit]
   );
 
-  const { true: activeJobs=[], false: inactiveJobs=[] } = useMemo(() => {
+  const { Inactive: inactiveJobs=[], ...activeStatusesJobs } = useMemo(() => {
     if (data === undefined) return {};
-    return groupByActive(data);
+    return groupByActiveStatus(data);
   }, [data]);
 
   const handleLastPage = useCallback((pageSize: number) => {
@@ -57,40 +122,9 @@ const MyJobs: FunctionComponent = () => {
 
   const title = useMemo(() => {
     if (data === undefined) return cluster.id;
-    if (activeJobs === undefined) {
-      return `(0) ${cluster.id}`;
-    }
-    return `(${activeJobs.length}) ${cluster.id}`;
-  }, [data, activeJobs, cluster]);
-
-  const actions = useMemo(() => {
-    if (cluster.admin) {
-      return [
-        support,
-        approve,
-        pause,
-        resume,
-        kill,
-        batchApprove,
-        batchPause,
-        batchResume,
-        batchKill
-      ];
-    } else {
-      return [support];
-    }
-  }, [
-    cluster.admin,
-    support,
-    approve,
-    pause,
-    resume,
-    kill,
-    batchApprove,
-    batchPause,
-    batchResume,
-    batchKill
-  ]);
+    const length = reduce(activeStatusesJobs, (length, jobs) => length + jobs.length, 0)
+    return `(${length}) ${cluster.id}`;
+  }, [data, activeStatusesJobs, cluster]);
 
   useEffect(() => {
     if (loading === false) {
@@ -116,46 +150,26 @@ const MyJobs: FunctionComponent = () => {
   return (
     <>
       { title && <Helmet title={title}/> }
-      <JobsTable
-        title="Active Jobs"
-        jobs={activeJobs}
-        isLoading={data === undefined}
-        defaultPageSize={5}
-        selection
-        columns={[
-          name,
-          user,
-          status,
-          type,
-          gpu,
-          preemptible,
-          priority,
-          submitted,
-        ]}
-        actions={actions}
-      />
-      <JobsTable
+      { [ 'Unapproved', 'Pending', 'Running', 'Paused' ].map(
+        status => activeStatusesJobs[status] && (
+          <ActiveJobsTable
+            key={status}
+            title={`${status} Jobs`}
+            jobs={activeStatusesJobs[status]}
+            defaultPageSize={5}
+            selection
+          />
+        )
+      ) }
+      <InactiveJobsTable
         title="Inactive Jobs"
         jobs={inactiveJobs}
         isLoading={data === undefined}
         defaultPageSize={10}
-        columns={[
-          name,
-          user,
-          status,
-          type,
-          gpu,
-          preemptible,
-          priority,
-          finished,
-        ]}
-        actions={[
-          support,
-        ]}
         onLastPage={handleLastPage}
       />
     </>
   );
 };
 
-export default MyJobs;
+export default AllJobs;
