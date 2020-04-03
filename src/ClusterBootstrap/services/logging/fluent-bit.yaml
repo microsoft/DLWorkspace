@@ -19,7 +19,7 @@ spec:
         kubernetes.io/cluster-service: "true"
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "2020"
+        prometheus.io/port: "{{cnf["fluent_bit"]["port"]}}"
         prometheus.io/path: /api/v1/metrics/prometheus
     spec:
       containers:
@@ -33,8 +33,12 @@ spec:
             cpu: 100m
             memory: 256Mi
         ports:
-        - containerPort: 2020
+        - containerPort: {{cnf["fluent_bit"]["port"]}}
         env:
+        - name: HOST
+          value: '0.0.0.0'
+        - name: PORT
+          value: '{{cnf["fluent_bit"]["port"]}}'
         {% if cnf["elasticsearch"]["enabled"] -%}
         - name: FLUENT_ELASTICSEARCH_HOST
           value: "$(ELASTICSEARCH_SERVICE_HOST)"
