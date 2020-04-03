@@ -73,6 +73,11 @@ spec:
           value: '{{cnf["azure_blob_log"]["container_name"]}}'
         - name: UWSGI_HTTP
           value: 127.0.0.1:{{cnf["azure_blob_log"]["port"]["adapter"]}}
+        livenessProbe:
+          httpGet:
+            host: '127.0.0.1'
+            port: {{cnf["azure_blob_log"]["port"]["adapter"]}}
+            path: /healthz
       {%- endif %}
       hostNetwork: true
       terminationGracePeriodSeconds: 10
