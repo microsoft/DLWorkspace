@@ -157,7 +157,7 @@ then
             fi
         done
         if [ "$succ" = "false" ] ; then
-            exit 1
+            exit 205
         fi
     done
 fi
