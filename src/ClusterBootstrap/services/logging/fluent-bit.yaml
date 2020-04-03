@@ -26,6 +26,12 @@ spec:
       - name: fluent-bit
         image: fluent/fluent-bit:1.4.1
         imagePullPolicy: Always
+        resources:
+          limits:
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
         ports:
         - containerPort: 2020
         env:
