@@ -117,7 +117,7 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers }, query }) =>
     render: ({ memory }) => <>{humanBytes(memory)}</>,
     width: 'auto'
   } as Column<any>, {
-    title: 'GPU Utilization',
+    title: 'Available GPU Utilization',
     field: 'gpuMetrics.utilization',
     type: 'numeric',
     render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && <>{Number(gpuMetrics.utilization).toPrecision(2)}%</>

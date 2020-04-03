@@ -140,7 +140,7 @@ const Clusters: FunctionComponent = () => {
     columns.push(...resourceColumns);
 
     columns.push({
-      title: 'GPU Utilization',
+      title: 'Available GPU Utilization',
       type: 'numeric',
       field: 'metrics',
       render: ({ metrics }) => metrics !== undefined ? (
