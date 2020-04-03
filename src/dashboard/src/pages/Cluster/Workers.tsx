@@ -22,9 +22,6 @@ import {
   Tooltip,
   Typography
 } from '@material-ui/core';
-import {
-  Favorite
-} from '@material-ui/icons';
 import MaterialTable, {
   Column,
   Options,
@@ -98,12 +95,10 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, o
                 component="button"
                 variant="subtitle2"
                 style={{ textAlign: 'left' }}
+                color={healthy ? 'inherit' : 'error'}
                 onClick={handleWorkerClick(id)}
               >
-                <>
-                  { healthy || <Favorite color="error" fontSize="inherit"/> }
-                  {id}
-                </>
+                {id}
               </Link>
             </Tooltip>
           );
