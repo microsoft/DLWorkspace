@@ -19,6 +19,7 @@ import MaterialTable, {
   Options
 } from 'material-table';
 
+import SortArrow from '../../components/SortArrow';
 import TeamsContext from '../../contexts/Teams';
 import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
@@ -204,6 +205,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods
       columns={columns}
       options={options}
       parentChildData={parentChildData}
+      icons={{ SortArrow }}
     />
   )
 };

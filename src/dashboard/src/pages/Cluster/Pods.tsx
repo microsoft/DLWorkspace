@@ -22,11 +22,12 @@ import MaterialTable, {
   Options
 } from 'material-table';
 
+import SortArrow from '../../components/SortArrow';
+import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
 import TeamsContext from '../../contexts/Teams';
 
 import { humanBytes } from '../Clusters/useResourceColumns';
-import usePrometheus from '../../hooks/usePrometheus';
 
 interface Props {
   data: any;
@@ -147,6 +148,7 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers }, query }) =>
       data={tableData}
       columns={columns}
       options={options}
+      icons={{ SortArrow }}
     />
   );
 };

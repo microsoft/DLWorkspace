@@ -31,6 +31,7 @@ import MaterialTable, {
   DetailPanel
 } from 'material-table';
 
+import SortArrow from '../../components/SortArrow';
 import TeamsContext from '../../contexts/Teams';
 import useTableData from '../../hooks/useTableData';
 import usePrometheus from '../../hooks/usePrometheus';
@@ -164,6 +165,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, o
       columns={columns}
       options={options}
       detailPanel={detailPanel}
+      icons={{ SortArrow }}
     />
   );
 };
