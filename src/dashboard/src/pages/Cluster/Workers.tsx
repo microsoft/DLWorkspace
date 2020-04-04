@@ -109,7 +109,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, o
     }];
     columns.push(...resourceColumns);
     columns.push({
-      title: 'Available GPU Utilization',
+      title: 'GPU Utilization',
       field: 'gpuUtilization',
       type: 'numeric',
       render: ({ gpuUtilization }) => gpuUtilization && <>{Number(gpuUtilization).toPrecision(2)}%</>
