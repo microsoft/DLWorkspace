@@ -18,15 +18,6 @@ append_blob_service = AppendBlobService(connection_string=environ['AZURE_STORAGE
 container_name = environ['AZURE_STORAGE_CONTAINER_NAME']
 
 
-def get_container():
-
-
-def append_blob(blob_name, blob, count):
-
-
-def create_blob(blob_name):
-
-
 @PlainRequest.application
 def application(request):
     '''
