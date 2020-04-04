@@ -62,7 +62,7 @@ const Header: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
         {job['jobName']}
       </Typography>
       <Box flexGrow={1} paddingX={1}>
-        <JobStatus job={job}/>
+        <JobStatus cluster={clusterId} job={job}/>
       </Box>
       {actionButtons}
     </Toolbar>

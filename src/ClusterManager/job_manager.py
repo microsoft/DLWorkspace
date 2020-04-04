@@ -229,14 +229,15 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
 
         if "preemptionAllowed" in jobParams and jobParams[
                 "preemptionAllowed"] is True:
-            logger.info("Job {} preemptible, approve!".format(job_id))
+            logger.info("Job %s preemptible, approve!", job_id)
             detail = [{
                 "message": "waiting for available preemptible resource."
             }]
 
             dataFields = {
                 "jobStatusDetail": b64encode(json.dumps(detail)),
-                "jobStatus": "queued"
+                "jobStatus": "queued",
+                "lastUpdated": datetime.datetime.now().isoformat(),
             }
             conditionFields = {"jobId": job_id}
             dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -277,15 +278,14 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
                 running_gpus += running_job_total_gpus
 
             logger.info(
-                "Job {} require {}, used quota (exclude preemptible GPUs) {}, with user quota of {}."
-                .format(job_id, job_total_gpus, running_gpus,
-                        metadata["user_quota"]))
+                "Job %s require %s, used quota (exclude preemptible GPUs) %s, with user quota of %s.",
+                job_id, job_total_gpus, running_gpus, metadata["user_quota"])
             if job_total_gpus > 0 and int(
                     metadata["user_quota"]) < (running_gpus + job_total_gpus):
                 logger.info(
-                    "Job {} excesses the user quota: {} + {} > {}. Will need approve from admin."
-                    .format(job_id, running_gpus, job_total_gpus,
-                            metadata["user_quota"]))
+                    "Job %s excesses the user quota: %s + %s > %s. Will need approve from admin.",
+                    job_id, running_gpus, job_total_gpus,
+                    metadata["user_quota"])
                 detail = [{
                     "message":
                         "exceeds the user quota in VC: {} (used) + {} (requested) > {} (user quota). Will need admin approval."
@@ -303,7 +303,8 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
 
         dataFields = {
             "jobStatusDetail": b64encode(json.dumps(detail)),
-            "jobStatus": "queued"
+            "jobStatus": "queued",
+            "lastUpdated": datetime.datetime.now().isoformat(),
         }
         conditionFields = {"jobId": job_id}
         dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -335,7 +336,7 @@ def UpdateJobStatus(redis_conn,
     jobParams = json.loads(b64decode(job["jobParams"]))
 
     result, details, diagnostics = launcher.get_job_status(job["jobId"])
-    logger.info("++++++++ Job status: {} {}".format(job["jobId"], result))
+    logger.info("Job status: %s %s", job["jobId"], result)
 
     jobPath, workPath, dataPath = GetStoragePath(jobParams["jobPath"],
                                                  jobParams["workPath"],
@@ -437,7 +438,7 @@ def UpdateJobStatus(redis_conn,
             endpoints = dataHandler.GetJobEndpoints(job["jobId"])
             for endpoint_id, endpoint in list(endpoints.items()):
                 endpoint["status"] = "pending"
-                logger.info("Reset endpoint status to 'pending': {}".format(
+                logger.debug("Reset endpoint status to 'pending': {}".format(
                     endpoint_id))
                 dataHandler.UpdateEndpoint(endpoint)
 
@@ -509,14 +510,15 @@ def get_cluster_schedulable(cluster_status):
             "memory": cluster_status["memory_capacity"],
             "gpu": cluster_status["gpu_capacity"],
         })
-    cluster_unschedulable = ClusterResource(
+    # On 1 node, reserved = unschedulable - used
+    cluster_reserved = ClusterResource(
         params={
-            "cpu": cluster_status["cpu_unschedulable"],
-            "memory": cluster_status["memory_unschedulable"],
-            "gpu": cluster_status["gpu_unschedulable"],
+            "cpu": cluster_status["cpu_reserved"],
+            "memory": cluster_status["memory_reserved"],
+            "gpu": cluster_status["gpu_reserved"],
         })
 
-    cluster_schedulable = cluster_capacity - cluster_unschedulable
+    cluster_schedulable = cluster_capacity - cluster_reserved
     cluster_schedulable = discount_cluster_resource(cluster_schedulable)
     logger.info("cluster schedulable: %s", cluster_schedulable)
     return cluster_schedulable
@@ -581,10 +583,10 @@ def get_jobs_info(jobs):
             priority = 999999 - reverse_priority
 
             # Job time
-            job_time = str(job["jobTime"])
+            queue_time = int(datetime.datetime.timestamp(job["lastUpdated"]))
 
             sort_key = "{}_{}_{:06d}_{}".format(preemptible, job_status_key,
-                                                priority, job_time)
+                                                priority, queue_time)
 
             single_job_info = {
                 "job": job,

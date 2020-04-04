@@ -22,9 +22,6 @@ import k8sUtils
 
 logger = logging.getLogger(__name__)
 
-elasticsearch_deployed = isinstance(config.get('elasticsearch'),
-                                    list) and len(config['elasticsearch']) > 0
-
 
 def create_log(logdir='/var/log/dlworkspace'):
     if not os.path.exists(logdir):
@@ -37,16 +34,19 @@ def create_log(logdir='/var/log/dlworkspace'):
         logging.config.dictConfig(logging_config)
 
 
+_get_job_log_enabled = config.get('logging') in ['azure_blob', 'elasticsearch']
+_extract_job_log_legacy = config.get('__extract_job_log_legacy', not _get_job_log_enabled)
+
+
 def extract_job_log(job_id, log_path, user_id):
-    if elasticsearch_deployed and not config.get('__extract_job_log_legacy',
-                                                 False):
-        extract_job_log_with_elastic_search(job_id, log_path, user_id)
+    if not _extract_job_log_legacy:
+        _extract_job_log(job_id, log_path, user_id)
     else:
-        extract_job_log_legacy(job_id, log_path, user_id)
+        _extract_job_log_legacy(job_id, log_path, user_id)
 
 
 @record
-def extract_job_log_with_elastic_search(jobId, logPath, userId):
+def _extract_job_log(jobId, logPath, userId):
     dataHandler = None
     try:
         dataHandler = DataHandler()
@@ -54,34 +54,21 @@ def extract_job_log_with_elastic_search(jobId, logPath, userId):
         old_cursor = dataHandler.GetJobTextField(jobId, "jobLogCursor")
         if old_cursor is not None and len(old_cursor) == 0:
             old_cursor = None
-        (logs, new_cursor) = GetJobLog(jobId, cursor=old_cursor)
-
-        container_logs = {}
-        for log in logs:
-            try:
-                container_id = log["_source"]["docker"]["container_id"]
-                log_text = log["_source"]["log"]
-                if container_id in container_logs:
-                    container_logs[container_id] += log_text
-                else:
-                    container_logs[container_id] = log_text
-            except Exception:
-                logging.exception(
-                    "Failed to parse elasticsearch log: {}".format(log))
+        (pod_logs, new_cursor) = GetJobLog(jobId, cursor=old_cursor)
 
         jobLogDir = os.path.dirname(logPath)
         if not os.path.exists(jobLogDir):
             mkdirsAsUser(jobLogDir, userId)
 
-        for (container_id, log_text) in container_logs.items():
+        for (pod_name, log_text) in pod_logs.items():
             try:
-                containerLogPath = os.path.join(
-                    jobLogDir, "log-conatainer-" + container_id + ".txt")
-                with open(containerLogPath, 'a') as f:
+                podLogPath = os.path.join(jobLogDir,
+                                          "log-pod-" + pod_name + ".txt")
+                with open(podLogPath, 'a', encoding="utf-8") as f:
                     f.write(log_text)
-                os.system("chown -R %s %s" % (userId, containerLogPath))
+                os.system("chown -R %s %s" % (userId, podLogPath))
             except Exception:
-                logger.exception("write container log failed")
+                logger.exception("write pod log of {} failed".format(jobId))
 
         logging.info("cursor of job %s: %s" % (jobId, new_cursor))
         if new_cursor is not None:
@@ -96,7 +83,7 @@ def extract_job_log_with_elastic_search(jobId, logPath, userId):
 
 
 @record
-def extract_job_log_legacy(jobId, logPath, userId):
+def _extract_job_log_legacy(jobId, logPath, userId):
     dataHandler = None
     try:
         dataHandler = DataHandler()
@@ -195,6 +182,7 @@ def update_job_logs():
             pendingJobs = dataHandler.GetPendingJobs()
             dataHandler.Close()
             for job in pendingJobs:
+                update_file_modification_time("joblog_manager")
                 try:
                     if job["jobStatus"] == "running":
                         logger.info("updating job logs for job %s" %

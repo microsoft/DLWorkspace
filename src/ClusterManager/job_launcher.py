@@ -93,7 +93,7 @@ class JobRole(object):
             # https://github.com/kubernetes/kubernetes/issues/72226
             # https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
             if self.pod.metadata.deletion_timestamp is not None:
-                logger.info(
+                logger.warning(
                     "pod %s has deletion_timestamp %s. Marking pod as Unknown."
                     % (self.pod_name, self.pod.metadata.deletion_timestamp))
                 return "Unknown"
@@ -125,8 +125,8 @@ class JobRole(object):
             if container.name == self.pod_name and container.readiness_probe is not None:
                 for status in self.pod.status.container_statuses:
                     if status.name == self.pod_name:
-                        logger.info("pod %s have readiness_probe result",
-                                    self.pod_name)
+                        logger.debug("pod %s have readiness_probe result",
+                                     self.pod_name)
                         return status.ready
         # no readiness_probe defined, fallback to old way
         return self._is_file_exist(JobRole.MARK_ROLE_READY_FILE)
@@ -381,15 +381,15 @@ class Launcher(object):
             for secret in secrets
             if secret["kind"] == "Secret"
         ]
-        logger.info("Trying to delete secrets %s" % secret_names)
+        logger.debug("Trying to delete secrets %s" % secret_names)
         self._cleanup_secrets(secret_names)
 
         created = []
         for secret in secrets:
             created_secret = self._create_secret(secret)
             created.append(created_secret)
-            logger.info("Creating secret succeeded: %s" %
-                        created_secret.metadata.name)
+            logger.debug("Creating secret succeeded: %s" %
+                         created_secret.metadata.name)
         return created
 
     @record
@@ -438,7 +438,7 @@ class Launcher(object):
     def pod_exec(self, pod_name, exec_command, timeout=60):
         """work as the command (with timeout): kubectl exec 'pod_name' 'exec_command'"""
         try:
-            logger.info("Exec on pod {}: {}".format(pod_name, exec_command))
+            logger.debug("Exec on pod {}: {}".format(pod_name, exec_command))
             client = stream(
                 self.k8s_CoreAPI.connect_get_namespaced_pod_exec,
                 name=pod_name,
@@ -463,7 +463,7 @@ class Launcher(object):
                     pod_name, exec_command, err))
                 status_code = int(err["details"]["causes"][0]["message"])
             output = client.read_all()
-            logger.info(
+            logger.debug(
                 "Exec on pod {}, status: {}, cmd: {}, output: {}".format(
                     pod_name, status_code, exec_command, output))
             return [status_code, output]
@@ -500,7 +500,7 @@ class LauncherStub(Launcher):
             return "Deleting"
         elif framework_state in {"AttemptCompleted", "Completed"}:
             if completion_status is None:
-                logger.info(
+                logger.warning(
                     "framework_state is %s, but completion_status still not posted, assume running"
                 )
                 return "Running"
@@ -600,8 +600,8 @@ class LauncherStub(Launcher):
             endpoints = dataHandler.GetJobEndpoints(job_id)
             for endpoint_id, endpoint in list(endpoints.items()):
                 endpoint["status"] = "pending"
-                logger.info("Reset endpoint status to 'pending': %s",
-                            endpoint_id)
+                logger.debug("Reset endpoint status to 'pending': %s",
+                             endpoint_id)
                 dataHandler.UpdateEndpoint(endpoint)
 
             job["cluster"] = config
@@ -729,7 +729,7 @@ class LauncherStub(Launcher):
                 try:
                     self.delete_job(job_id, force=True)
                     logger.info(
-                        "Cleaning up job %s succeeded after %d retries of job submission"
+                        "Cleaned up job %s succeeded after %d retries of job submission"
                         % (job["jobId"], retries))
                 except:
                     logger.warning(
@@ -742,7 +742,7 @@ class LauncherStub(Launcher):
 
     def delete_job(self, job_id, force=False):
         framework_name = framework.transform_name(job_id)
-        logger.info("deleting framework %s", framework_name)
+        logger.debug("deleting framework %s", framework_name)
         framework_errors = self._cleanup_framework(framework_name, force=force)
 
         label_selector = "run={}".format(job_id)
@@ -815,7 +815,7 @@ class PythonLauncher(Launcher):
             if job_role.role_name not in ["master", "ps"]:
                 continue
             if job_role.status() == "Succeeded":
-                logger.info("Job: {}, Succeeded!".format(job_id))
+                logger.debug("Job: {}, Succeeded!".format(job_id))
                 return "Succeeded", [], ""
 
         statuses = [job_role.status() for job_role in job_roles]
@@ -870,7 +870,7 @@ class PythonLauncher(Launcher):
             else:
                 logger.error("unknown kind %s, with body %s", pod["kind"], pod)
             created.append(created_pod)
-            logger.info("Create pod succeed: %s" % created_pod.metadata.name)
+            logger.debug("Create pod succeed: %s" % created_pod.metadata.name)
         return created
 
     @record
@@ -879,7 +879,7 @@ class PythonLauncher(Launcher):
 
         # query pods then delete
         pod_errors = self._cleanup_pods_with_labels(label_selector)
-        logger.info("deleting pods %s" % label_selector)
+        logger.debug("deleting pods %s" % label_selector)
         # query services then delete
         services = self._get_services_by_label(label_selector)
         service_errors = self._cleanup_services(services)
@@ -890,13 +890,13 @@ class PythonLauncher(Launcher):
         ]
         deployment_errors = self._cleanup_deployment(deployment_names, force)
 
-        logger.info("deleting deployments %s" % ",".join(deployment_names))
+        logger.debug("deleting deployments %s" % ",".join(deployment_names))
 
         # query and delete secrets
         secrets = self.get_secrets(label_selector=label_selector)
         secret_names = [secret.metadata.name for secret in secrets]
         secret_errors = self._cleanup_secrets_with_labels(label_selector)
-        logger.info("deleting secrets for %s" % label_selector)
+        logger.debug("deleting secrets for %s" % label_selector)
 
         configmap_errors = self._cleanup_configmap(label_selector)
 
@@ -921,7 +921,7 @@ class PythonLauncher(Launcher):
     def _all_pods_not_existing(self, job_id):
         job_roles = self.get_job_roles(job_id)
         statuses = [job_role.status() for job_role in job_roles]
-        logger.info("Job: {}, status: {}".format(job_id, statuses))
+        logger.debug("Job: {}, status: {}".format(job_id, statuses))
         return all([status == "NotFound" for status in statuses])
 
     def submit_job(self, job):
@@ -950,7 +950,7 @@ class PythonLauncher(Launcher):
             endpoints = dataHandler.GetJobEndpoints(job_id)
             for endpoint_id, endpoint in list(endpoints.items()):
                 endpoint["status"] = "pending"
-                logger.info("Reset endpoint status to 'pending': {}".format(
+                logger.debug("Reset endpoint status to 'pending': {}".format(
                     endpoint_id))
                 dataHandler.UpdateEndpoint(endpoint)
 

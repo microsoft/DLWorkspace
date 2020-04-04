@@ -6,9 +6,9 @@ rules:
   ecc_reboot_node_rule:
     module_name: rules.ecc_reboot_node_rule
     class_name: EccRebootNodeRule
-  nvidia_smi_latency_rule :
-    module_name: rules.nvidia_smi_latency_rule 
-    class_name: NvidiaSmiLatencyRule
+#  nvidia_smi_latency_rule :
+#    module_name: rules.nvidia_smi_latency_rule 
+#    class_name: NvidiaSmiLatencyRule
 
 rule_wait_time: 30 # time to sleep between rule execution (seconds)
 

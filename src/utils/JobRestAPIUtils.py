@@ -77,10 +77,6 @@ def base64decode(str_val):
     return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
 
-elasticsearch_deployed = isinstance(config.get('elasticsearch'),
-                                    list) and len(config['elasticsearch']) > 0
-
-
 def adjust_job_priority(priority, permission):
     priority_range = (DEFAULT_JOB_PRIORITY, DEFAULT_JOB_PRIORITY)
     if permission == Permission.User:
@@ -602,6 +598,10 @@ def isBase64(s):
         pass
     return False
 
+_get_job_log_enabled = config.get('logging') in ['azure_blob', 'elasticsearch']
+_extract_job_log_legacy = config.get('__extract_job_log_legacy', not _get_job_log_enabled)
+_get_job_log_legacy = config.get('__get_job_log_legacy', _extract_job_log_legacy)
+
 
 def GetJobDetail(userName, jobId):
     job = None
@@ -612,8 +612,21 @@ def GetJobDetail(userName, jobId):
                 userName, ResourceType.VC, jobs[0]["vcName"],
                 Permission.Collaborator):
             job = jobs[0]
+            job["log"] = ""
             if "jobDescription" in job:
                 job.pop("jobDescription", None)
+            if _extract_job_log_legacy:
+                try:
+                    log = dataHandler.GetJobTextField(jobId, "jobLog")
+                    try:
+                        if isBase64(log):
+                            log = base64decode(log)
+                    except Exception:
+                        pass
+                    if log is not None:
+                        job["log"] = log
+                except Exception:
+                    job["log"] = "fail-to-get-logs"
     dataHandler.Close()
     return job
 
@@ -647,7 +660,6 @@ def GetJobStatus(jobId):
     dataHandler.Close()
     return result
 
-
 def GetJobLog(userName, jobId, cursor=None, size=100):
     dataHandler = DataHandler()
     jobs = dataHandler.GetJob(jobId=jobId)
@@ -655,21 +667,7 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(
                 userName, ResourceType.VC, jobs[0]["vcName"],
                 Permission.Collaborator):
-            if elasticsearch_deployed:
-                (lines, cursor) = UtilsGetJobLog(jobId, cursor, size)
-
-                pod_logs = {}
-                for (pod_name, pod_lines) in itertools.groupby(
-                        lines,
-                        lambda line: line["_source"]["kubernetes"]["pod_name"]):
-                    pod_logs[pod_name] = ''.join(
-                        line["_source"]["log"] for line in pod_lines)
-
-                return {
-                    "log": pod_logs,
-                    "cursor": cursor,
-                }
-            else:
+            if _get_job_log_legacy:
                 try:
                     log = dataHandler.GetJobTextField(jobId, "jobLog")
                     try:
@@ -684,6 +682,19 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
                         }
                 except:
                     pass
+            elif _get_job_log_enabled:
+                (pod_logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
+
+                return {
+                    "log": pod_logs,
+                    "cursor": cursor,
+                }
+            else:
+                return {
+                    "log": "See your job folder on NFS / Samba",
+                    "cursor": None,
+                }
+
     return {
         "log": {},
         "cursor": None,
@@ -1142,9 +1153,9 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
                 endpoint_id = "e-" + pod_name + "-ssh"
 
                 if endpoint_id in job_endpoints:
-                    logger.info("Endpoint %s exists. Skip.", endpoint_id)
+                    logger.debug("Endpoint %s exists. Skip.", endpoint_id)
                     continue
-                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+                logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
 
                 endpoint = {
                     "id": endpoint_id,
@@ -1170,7 +1181,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             endpoint_id = "e-" + jobId + "-ipython"
 
             if endpoint_id not in job_endpoints:
-                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+                logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
                     "id": endpoint_id,
                     "jobId": jobId,
@@ -1182,7 +1193,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
                 }
                 endpoints[endpoint_id] = endpoint
             else:
-                logger.info("Endpoint %s exists. Skip.", endpoint_id)
+                logger.debug("Endpoint %s exists. Skip.", endpoint_id)
 
         # Only open tensorboard on the master
         if 'tensorboard' in requested_endpoints:
@@ -1197,7 +1208,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             endpoint_id = "e-" + jobId + "-tensorboard"
 
             if endpoint_id not in job_endpoints:
-                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+                logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
                     "id": endpoint_id,
                     "jobId": jobId,
@@ -1209,7 +1220,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
                 }
                 endpoints[endpoint_id] = endpoint
             else:
-                logger.info("Endpoint %s exists. Skip.", endpoint_id)
+                logger.debug("Endpoint %s exists. Skip.", endpoint_id)
 
         # interactive port
         for interactive_port in interactive_ports:
@@ -1224,7 +1235,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             endpoint_id = "e-" + jobId + "-port-" + \
                 str(interactive_port["podPort"])
             if endpoint_id not in job_endpoints:
-                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+                logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
                     "id": endpoint_id,
                     "jobId": jobId,
@@ -1237,7 +1248,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
                 }
                 endpoints[endpoint_id] = endpoint
             else:
-                logger.info("Endpoint %s exists. Skip.", endpoint_id)
+                logger.debug("Endpoint %s exists. Skip.", endpoint_id)
 
         dataHandler.UpdateJobTextFields({"jobId": jobId},
                                         {"endpoints": json.dumps(endpoints)})

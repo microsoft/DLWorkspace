@@ -92,7 +92,7 @@ ${log[podName]}
 
   useEffect(() => {
     if (error === undefined) return;
-    if (error.message === 'Not Found') return;
+    if (Number(error.name) === 404) return;
 
     const key = enqueueSnackbar(`Failed to fetch job log: ${clusterId}/${jobId}`, {
       variant: 'error',

@@ -7,12 +7,6 @@ groups:
         annotations:
           summary: "{{$labels.name}} is under disk pressure"
 
-      - alert: NodeDiskPressure
-        expr: pai_node_count{memory_pressure="true"} > 0
-        for: 30m
-        annotations:
-          summary: "{{$labels.name}} is under memory pressure"
-
       - alert: NodeOutOfDisk
         expr: pai_node_count{out_of_disk="true"} > 0
         for: 10m

@@ -24,15 +24,21 @@ spec:
     spec:
       containers:
       - name: fluent-bit
-        image: fluent/fluent-bit:1.4.0
+        image: fluent/fluent-bit:1.4.1
         imagePullPolicy: Always
         ports:
         - containerPort: 2020
         env:
+        {% if cnf["elasticsearch"]["enabled"] -%}
         - name: FLUENT_ELASTICSEARCH_HOST
           value: "$(ELASTICSEARCH_SERVICE_HOST)"
         - name: FLUENT_ELASTICSEARCH_PORT
           value: "$(ELASTICSEARCH_SERVICE_PORT)"
+        {%- endif %}
+        {% if cnf["azure_blob_log"]["enabled"] -%}
+        - name: FLUENT_AZURE_BLOB_ADAPTER_PORT
+          value: "{{cnf["azure_blob_log"]["port"]["adapter"]}}"
+        {%- endif %}
         volumeMounts:
         - name: varlog
           mountPath: /var/log
@@ -44,6 +50,20 @@ spec:
           readOnly: true
         - name: fluent-bit-config
           mountPath: /fluent-bit/etc/
+      {% if cnf["azure_blob_log"]["enabled"] -%}
+      - name: azure-blob-adapter
+        image: '{{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/azure-blob-adapter:{{cnf["dockertag"]}}'
+        imagePullPolicy: Always
+        ports:
+        - containerPort: {{cnf["azure_blob_log"]["port"]["adapter"]}}
+        env:
+        - name: AZURE_STORAGE_CONNECTION_STRING
+          value: '{{cnf["azure_blob_log"]["connection_string"]}}'
+        - name: AZURE_STORAGE_CONTAINER_NAME
+          value: '{{cnf["azure_blob_log"]["container_name"]}}'
+        - name: UWSGI_HTTP
+          value: 127.0.0.1:{{cnf["azure_blob_log"]["port"]["adapter"]}}
+      {%- endif %}
       hostNetwork: true
       terminationGracePeriodSeconds: 10
       volumes:

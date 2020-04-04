@@ -17,7 +17,11 @@ from az_utils import \
     remove_nsg_rule_whitelist, \
     delete_nsg_rule_whitelist, \
     create_nsg_rules_with_service_tags, \
-    delete_nsg_rules_with_service_tags
+    delete_nsg_rules_with_service_tags, \
+    create_logging_storage_account, \
+    create_logging_container, \
+    delete_logging_storage_account, \
+    get_connection_string_for_logging_storage_account
 
 from cloud_init_deploy import load_node_list_by_role_from_config
 sys.path.append("../utils")
@@ -671,8 +675,31 @@ def dynamically_add_or_delete_around_a_num(config, args):
             delete_specified_or_cordoned_idling_nodes(config, args, -delta)
         os.system("sleep {}m".format(monitor_again_after))
 
+def white_list_ip(config, args):
+    if args.nargs[0] == "add":
+            ips = None if len(args.nargs) == 1 else args.nargs[1]
+            add_nsg_rule_whitelist(config, args, ips)
+        elif args.nargs[0] == "remove":
+            ips = None if len(args.nargs) == 1 else args.nargs[1]
+            remove_nsg_rule_whitelist(config, args, ips)
+        elif args.nargs[0] == "delete":
+            delete_nsg_rule_whitelist(config, args)
 
-def run_command(command, config, args, nargs):
+
+def logging_storage(config, args):
+    if args.nargs[0] == "create":
+            create_logging_storage_account(config, args)
+            create_logging_container(config, args)
+    elif args.nargs[0] == "delete":
+        response = input(
+            "Delete logging storage? (Please type YES to confirm)")
+        if response == "YES":
+            delete_logging_storage_account(config, args)
+    elif args.nargs[0] == "connection_string":
+        get_connection_string_for_logging_storage_account(config, args)
+
+
+def run_command(command, config, args):
     if command == "prerender":
         gen_machine_list_4_deploy_action(args.output, config)
     if command == "deploy":
@@ -687,21 +714,16 @@ def run_command(command, config, args, nargs):
     if command == "listcluster":
         get_deployed_cluster_info(config, args)
     if command == "whitelist":
-        if nargs[0] == "add":
-            ips = None if len(nargs) == 1 else nargs[1]
-            add_nsg_rule_whitelist(config, args, ips)
-        elif nargs[0] == "remove":
-            ips = None if len(nargs) == 1 else nargs[1]
-            remove_nsg_rule_whitelist(config, args, ips)
-        elif nargs[0] == "delete":
-            delete_nsg_rule_whitelist(config, args)
+        white_list_ip(config, args)
     if command == "service_tag_rules":
-        service_tag_func = eval("{}_nsg_rules_with_service_tags".format(nargs[0]))
+        service_tag_func = eval("{}_nsg_rules_with_service_tags".format(args.nargs[0]))
         service_tag_func(config, args)
     if command == "delete_nodes":
         delete_specified_or_cordoned_idling_nodes(config, args)
     if command == "dynamic_around":
         dynamically_add_or_delete_around_a_num(config, args)
+    if command == "logging_storage":
+        logging_storage(config, args)
 
 
 if __name__ == "__main__":

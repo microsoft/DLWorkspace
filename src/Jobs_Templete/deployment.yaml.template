@@ -37,7 +37,7 @@ spec:
       - name: main
         image: {{ job["image"] }}
         imagePullPolicy: Always
-        command: ["sh", "-c", "printenv DLTS_LAUNCH_CMD > /pod/job_command.sh ; sh /pod/job_command.sh"]
+        command: ["sh", "-c", "printenv DLTS_LAUNCH_CMD > /pod/job_command.sh ; bash -x /pod/job_command.sh"]
         securityContext:
           runAsUser: {{ job["containerUserId"] }}
           capabilities:

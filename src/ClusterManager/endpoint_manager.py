@@ -11,6 +11,7 @@ import logging
 import yaml
 import logging.config
 import argparse
+import pytz
 
 from kubernetes import client, config as k8s_config
 from kubernetes.client.rest import ApiException
@@ -284,6 +285,8 @@ def start_endpoints():
             pendings, runnings = data_handler.GetPendingEndpoints()
 
             for endpoint_id, endpoint in pendings.items():
+                update_file_modification_time("endpoint_manager")
+
                 try:
                     job = data_handler.GetJob(jobId=endpoint["jobId"])[0]
                     logger.info("checking endpoint %s, status is %s",
@@ -292,7 +295,7 @@ def start_endpoints():
                         continue
 
                     point = get_k8s_endpoint(endpoint["id"])
-                    logger.info("get endpoint %s", endpoint["jobId"])
+                    logger.debug("get endpoint %s", endpoint["jobId"])
                     if point is not None:
                         endpoint["status"] = "running"
                         # only retain spec here, some other fields have datetime,
@@ -324,7 +327,7 @@ def start_endpoints():
 
 def fix_endpoints(runnings):
     if len(runnings) == 0:
-        logger.info("no running endpoints to fix")
+        logger.debug("no running endpoints to fix")
         return
 
     resp = k8s_core_api.list_namespaced_pod(
@@ -332,11 +335,19 @@ def fix_endpoints(runnings):
         pretty="pretty_example",
         label_selector="type=job",
     )
-    pods = {pod.metadata.name: pod for pod in resp.items}
+    start = pytz.UTC.localize(datetime.datetime.now() -
+                              datetime.timedelta(hours=1))
+    pods = {
+        pod.metadata.name: pod
+        for pod in resp.items
+        if pod.metadata.creation_timestamp > start
+    }
     logger.info("get running pods %s", pods.keys())
 
     with DataHandler() as data_handler:
         for endpoint_id, point in runnings.items():
+            update_file_modification_time("endpoint_manager")
+
             if is_need_fix(endpoint_id, point, pods):
                 delete_k8s_endpoint(point["id"])
                 point["status"] = "pending"
@@ -353,8 +364,8 @@ def is_need_fix(endpoint_id, endpoint, pods):
 
         real_pod = pods.get(pod_name)
 
-        if real_pod == None:
-            return True
+        if real_pod is None: # pod maybe old than 1 hour, skip check to accelerate
+            return False
 
         if node_name != real_pod.spec.node_name:
             return True
@@ -389,7 +400,7 @@ def cleanup_endpoints():
                     logger.info("Begin to cleanup endpoint %s", endpoint_id)
                     point = get_k8s_endpoint(dead_endpoint["id"])
                     if point is None:
-                        logger.info("Endpoint already gone %s", endpoint_id)
+                        logger.debug("Endpoint already gone %s", endpoint_id)
                         status = "stopped"
                     else:
                         delete_resp = delete_k8s_endpoint(point.metadata.name)
