@@ -364,3 +364,4 @@ spec:
       {% endif %}
     {% endfor %}
   {% endif %}
+  priorityClassName: job-priority
