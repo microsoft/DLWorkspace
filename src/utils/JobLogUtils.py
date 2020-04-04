@@ -40,15 +40,17 @@ if config.get("logging") == 'azure_blob':
                     container_name=container_name,
                     blob_name=blob_name)
                 start_range = max(0, blob.properties.content_length - CHUNK_SIZE)
-                chunk = append_blob_service.get_blob_to_text(
+                chunk = append_blob_service.get_blob_to_bytes(
                     container_name=container_name,
                     blob_name=blob_name,
                     start_range=start_range)
+                content = chunk.content.decode(
+                    encoding='utf-8', errors='ignore')
 
-                chunk_lines = chunk.content.split('\n')
-                for i, chunk_line in enumerate(chunk_lines, 1):
+                content_lines = content.split('\n')
+                for i, content_line in enumerate(content_lines, 1):
                     try:
-                        line = loads(chunk_line)
+                        line = loads(content_line)
                         lines.append(line)
                     except JSONDecodeError:
                         if i == 1:
@@ -60,7 +62,7 @@ if config.get("logging") == 'azure_blob':
                         #     Log it down and parse next lines
                         logger.exception(
                             'Failed to parse log line {} of job {}: {}'.format(
-                                i, jobId, chunk_line))
+                                i, jobId, content_line))
             except AzureHttpError as error:
                 if error.status_code in (
                         404,  # Not Found (No such job)
