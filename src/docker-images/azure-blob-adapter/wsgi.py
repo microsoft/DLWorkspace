@@ -18,6 +18,15 @@ append_blob_service = AppendBlobService(connection_string=environ['AZURE_STORAGE
 container_name = environ['AZURE_STORAGE_CONTAINER_NAME']
 
 
+def get_container():
+
+
+def append_blob(blob_name, blob, count):
+
+
+def create_blob(blob_name):
+
+
 @PlainRequest.application
 def application(request):
     '''
@@ -25,13 +34,8 @@ def application(request):
     '''
     try:
         if request.method == 'GET' and request.path == '/healthz':
-            def get_container():
-                container = append_blob_service.get_container_properties(
-                    container_name=container_name)
-                logger.info('Successfully get container {}: {}'.format(
-                    container_name, container.properties.etag))
-
-            get_container()
+            container = append_blob_service.get_container_properties(
+                container_name=container_name)
             return Response(status=200)
 
         if request.method == 'POST' and request.path == '/':
@@ -41,28 +45,24 @@ def application(request):
                 logger.exception('Key Error')
                 return Response(status=400)
 
-            def append_blob():
-                resource_properties = append_blob_service.append_blob_from_bytes(
-                    container_name=container_name,
-                    blob_name=blob_name,
-                    blob=request.get_data(),
-                    count=request.content_length)
-                logger.info('Successfully append {} bytes to blob {} in container {}: {}'.format(
-                    request.content_length, blob_name, container_name, resource_properties.etag))
-
-            def create_blob():
-                resource_properties = append_blob_service.create_blob(
-                    container_name=container_name,
-                    blob_name=blob_name)
-                logger.info('Successfully create blob {} in container {}: {}'.format(
-                    blob_name, container_name, resource_properties.etag))
-
             try:
+                blob = request.get_data()
+                count = request.content_length
                 try:
-                    append_blob()
+                    resource_properties = append_blob_service.append_blob_from_bytes(
+                        container_name=container_name,
+                        blob_name=blob_name,
+                        blob=blob,
+                        count=count)
                 except AzureMissingResourceHttpError:
-                    create_blob()
-                    append_blob()
+                    resource_properties = append_blob_service.create_blob(
+                        container_name=container_name,
+                        blob_name=blob_name)
+                    resource_properties = append_blob_service.append_blob_from_bytes(
+                        container_name=container_name,
+                        blob_name=blob_name,
+                        blob=blob,
+                        count=count)
                 return Response(status=201)
             except AzureHttpError:
                 logger.exception('Azure HTTP Error')
