@@ -25,6 +25,7 @@ import MaterialTable, {
 import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
 
+import SortArrow from '../../components/SortArrow';
 import TeamsContext from '../../contexts/Teams';
 import ClustersContext from '../../contexts/Clusters';
 import useTableData from '../../hooks/useTableData';
@@ -140,7 +141,7 @@ const Clusters: FunctionComponent = () => {
     columns.push(...resourceColumns);
 
     columns.push({
-      title: 'GPU Utilization',
+      title: 'Assigned GPU Utilization',
       type: 'numeric',
       field: 'metrics',
       render: ({ metrics }) => metrics !== undefined ? (
@@ -184,6 +185,7 @@ const Clusters: FunctionComponent = () => {
         columns={columns}
         options={options}
         parentChildData={parentChildData}
+        icons={{ SortArrow }}
       />
     </Container>
   )

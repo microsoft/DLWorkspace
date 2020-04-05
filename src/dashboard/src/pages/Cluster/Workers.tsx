@@ -22,15 +22,13 @@ import {
   Tooltip,
   Typography
 } from '@material-ui/core';
-import {
-  Favorite
-} from '@material-ui/icons';
 import MaterialTable, {
   Column,
   Options,
   DetailPanel
 } from 'material-table';
 
+import SortArrow from '../../components/SortArrow';
 import TeamsContext from '../../contexts/Teams';
 import useTableData from '../../hooks/useTableData';
 import usePrometheus from '../../hooks/usePrometheus';
@@ -97,12 +95,10 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, o
                 component="button"
                 variant="subtitle2"
                 style={{ textAlign: 'left' }}
+                color={healthy ? 'inherit' : 'error'}
                 onClick={handleWorkerClick(id)}
               >
-                <>
-                  { healthy || <Favorite color="error" fontSize="inherit"/> }
-                  {id}
-                </>
+                {id}
               </Link>
             </Tooltip>
           );
@@ -164,6 +160,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, o
       columns={columns}
       options={options}
       detailPanel={detailPanel}
+      icons={{ SortArrow }}
     />
   );
 };
