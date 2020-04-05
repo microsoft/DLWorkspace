@@ -15,8 +15,8 @@ data:
         Daemon        off
         Parsers_File  parsers.conf
         HTTP_Server   On
-        HTTP_Listen   0.0.0.0
-        HTTP_Port     2020
+        HTTP_Listen   ${HOST}
+        HTTP_Port     ${PORT}
 
     @INCLUDE input-kubernetes.conf
     @INCLUDE filter-kubernetes.conf
@@ -36,7 +36,7 @@ data:
         Path              /var/log/containers/*.log
         Parser            docker
         DB                /var/log/flb_kube.db
-        Mem_Buf_Limit     5MB
+        Mem_Buf_Limit     64MB
         Skip_Long_Lines   On
         Refresh_Interval  1
 
