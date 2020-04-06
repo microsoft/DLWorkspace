@@ -160,7 +160,9 @@ def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
 
     finished_at = k8sUtils.localize_time(datetime.datetime.now())
     new_job_status_detail = []
-    # Override finishedAt for all pods if absent
+    status_change_message = "{} at {}. {}".format(status, finished_at, msg)
+
+    # add finishedAt for all pods if absent
     for pod_status_detail in job_status_detail:
         # Mark started time the same as finished time for a fast finishing job
         if "startedAt" not in pod_status_detail:
@@ -169,8 +171,10 @@ def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
         if "finishedAt" not in pod_status_detail:
             pod_status_detail["finishedAt"] = finished_at
 
-        pod_status_detail["message"] = "{} at {}. {}".format(
-            status, finished_at, msg)
+        if "message" not in pod_status_detail:
+            pod_status_detail["message"] = status_change_message
+        else:
+            pod_status_detail["message"] += "\n" + status_change_message
         new_job_status_detail.append(pod_status_detail)
 
     return new_job_status_detail
@@ -1093,44 +1097,32 @@ class PythonLauncher(Launcher):
             "desired_state": desired_state
         }))
 
-    def kill_job_impl(self,
-                      job_id,
-                      desired_state="killed",
-                      dataHandlerOri=None):
-        if dataHandlerOri is None:
-            dataHandler = DataHandler()
-        else:
-            dataHandler = dataHandlerOri
+    def kill_job_impl(self, job_id, desired_state="killed"):
+        with DataHandler() as dataHandler:
+            result, detail = k8sUtils.GetJobStatus(job_id)
+            detail = job_status_detail_with_finished_time(detail, desired_state)
+            dataHandler.UpdateJobTextFields(
+                {"jobId": job_id},
+                {"jobStatusDetail": b64encode(json.dumps(detail))})
+            logger.info("Killing job %s, with status %s, %s" %
+                        (job_id, result, detail))
 
-        # TODO: Use JobDeployer?
-        result, detail = k8sUtils.GetJobStatus(job_id)
-        detail = job_status_detail_with_finished_time(detail, desired_state)
-        dataHandler.UpdateJobTextFields(
-            {"jobId": job_id},
-            {"jobStatusDetail": b64encode(json.dumps(detail))})
-        logger.info("Killing job %s, with status %s, %s" %
-                    (job_id, result, detail))
+            errors = self.delete_job(job_id, force=True)
 
-        errors = self.delete_job(job_id, force=True)
-
-        dataFields = {
-            "jobStatusDetail": b64encode(json.dumps(detail)),
-            "lastUpdated": datetime.datetime.now().isoformat()
-        }
-        conditionFields = {"jobId": job_id}
-        if len(errors) == 0:
-            dataFields["jobStatus"] = desired_state
-            dataHandler.UpdateJobTextFields(conditionFields, dataFields)
-            if dataHandlerOri is None:
-                dataHandler.Close()
-            return True
-        else:
-            dataFields["jobStatus"] = "error"
-            dataHandler.UpdateJobTextFields(conditionFields, dataFields)
-            if dataHandlerOri is None:
-                dataHandler.Close()
-            logger.error("Kill job failed with errors: {}".format(errors))
-            return False
+            dataFields = {
+                "jobStatusDetail": b64encode(json.dumps(detail)),
+                "lastUpdated": datetime.datetime.now().isoformat()
+            }
+            conditionFields = {"jobId": job_id}
+            if len(errors) == 0:
+                dataFields["jobStatus"] = desired_state
+                dataHandler.UpdateJobTextFields(conditionFields, dataFields)
+                return True
+            else:
+                dataFields["jobStatus"] = "error"
+                dataHandler.UpdateJobTextFields(conditionFields, dataFields)
+                logger.error("Kill job failed with errors: {}".format(errors))
+                return False
 
     def run(self, queue):
         # TODO maintain a data_handler so do not need to init it every time

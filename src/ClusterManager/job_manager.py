@@ -166,41 +166,6 @@ def update_job_state_latency(redis_conn, job_id, state, event_time=None):
         set_job_status(redis_conn, job_id, job_status)
 
 
-def get_scheduling_job_details(details):
-    pod_details = []
-    for detail in details:
-        # Users are mostly interested in
-        # 1. Pod name
-        # 2. Pod phase
-        # 3. Message indicating why it's pending
-        pod_detail = {}
-        if "metadata" in detail and "labels" in detail["metadata"] and \
-                "podName" in detail["metadata"]["labels"]:
-            pod_detail["podName"] = detail["metadata"]["labels"]["podName"]
-
-        if "status" in detail:
-            status = detail["status"]
-            if "phase" in status:
-                pod_phase = status["phase"]
-                pod_detail["podPhase"] = pod_phase
-                if pod_phase == "Pending":
-                    message = {}
-                    if "conditions" in status:
-                        conditions = status["conditions"]
-                        for condition in conditions:
-                            condition["last_transition_time"] = str(
-                                condition["last_transition_time"])
-                        message["conditions"] = conditions
-                    if "container_statuses" in status:
-                        message["containerStatuses"] = status[
-                            "container_statuses"]
-                    pod_detail["message"] = message
-
-        pod_details.append(pod_detail)
-
-    return pod_details
-
-
 def GetJobTotalGpu(jobParams):
     numWorkers = 1
     if "numpsworker" in jobParams:
@@ -453,7 +418,7 @@ def UpdateJobStatus(redis_conn,
                                                         result.strip()))
 
     elif result == "Pending":
-        detail = get_scheduling_job_details(details)
+        _, detail = k8sUtils.GetJobStatus(job["jobId"])
         dataHandler.UpdateJobTextFields(
             {"jobId": job["jobId"]},
             {"jobStatusDetail": b64encode(json.dumps(detail))})
