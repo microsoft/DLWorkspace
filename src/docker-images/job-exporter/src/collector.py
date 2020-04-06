@@ -135,17 +135,15 @@ class ResourceGauges(object):
         self.add_task_and_service_gauge("{0}_mem_usage_byte",
                                         "how much memory this {0} used")
         self.add_task_and_service_gauge(
-            "{0}_mem_usage_percent",
-            "how much percent of memory this {0} used")
+            "{0}_mem_usage_percent", "how much percent of memory this {0} used")
         self.add_task_and_service_gauge(
-            "{0}_mem_limit_byte",
-            "how much memory this {0} are constrained to")
+            "{0}_mem_limit_byte", "how much memory this {0} are constrained to")
         self.add_task_and_service_gauge(
             "{0}_net_in_byte", "how much network inbound this task used")
         self.add_task_and_service_gauge(
             "{0}_net_out_byte", "how much network outbound this {0} used")
-        self.add_task_and_service_gauge(
-            "{0}_block_in_byte", "how much block inbound this {0} used")
+        self.add_task_and_service_gauge("{0}_block_in_byte",
+                                        "how much block inbound this {0} used")
         self.add_task_and_service_gauge(
             "{0}_block_out_byte", "how much block outbound this {0} used")
 
@@ -160,8 +158,8 @@ class ResourceGauges(object):
         self.add_gauge(name_tmpl.format("task"), desc_tmpl.format("task"),
                        self.task_labels)
 
-        self.add_gauge(name_tmpl.format("service"),
-                       desc_tmpl.format("service"), self.service_labels)
+        self.add_gauge(name_tmpl.format("service"), desc_tmpl.format("service"),
+                       self.service_labels)
 
     def add_gauge(self, name, desc, labels):
         self.gauges[name] = GaugeMetricFamily(name, desc, labels=labels)
@@ -259,8 +257,7 @@ class Collector(object):
                     self.atomic_ref.set(self.collect_impl(),
                                         datetime.datetime.now())
                 except Exception as e:
-                    logger.exception("%s collector get an exception",
-                                     self.name)
+                    logger.exception("%s collector get an exception", self.name)
 
                 logger.debug(
                     "finished collect metrcis from %s, will sleep for %s",
@@ -274,8 +271,7 @@ class Collector(object):
         pass
 
 
-def instantiate_collector(name, sleep_time, decay_time, collector_class,
-                          *args):
+def instantiate_collector(name, sleep_time, decay_time, collector_class, *args):
     """ test cases helper fn to instantiate a collector """
     atomic_ref = AtomicRef(decay_time)
     return atomic_ref, collector_class(name, sleep_time, atomic_ref,
@@ -306,7 +302,7 @@ class DockerCollector(Collector):
         buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0,
                  1024.0, float("inf")))
 
-    cmd_timeout = 1  # 99th latency is 0.01s
+    cmd_timeout = 1 # 99th latency is 0.01s
 
     def collect_impl(self):
         cmd = ["docker", "info"]
@@ -341,7 +337,7 @@ class GpuCollector(Collector):
                                        64.0, 128.0, 256.0, 512.0, 1024.0,
                                        float("inf")))
 
-    cmd_timeout = 60  # 99th latency is 0.97s
+    cmd_timeout = 60 # 99th latency is 0.97s
 
     def __init__(self, name, sleep_time, atomic_ref, iteration_counter,
                  gpu_info_ref, zombie_info_ref, mem_leak_thrashold):
@@ -371,8 +367,7 @@ class GpuCollector(Collector):
                         return True, parts[1]
                 elif "/kubepods/" in line:
                     parts = line.split("/kubepods/")
-                    if len(parts) == 2 and re.match(u"pod[0-9a-f-]+",
-                                                    parts[1]):
+                    if len(parts) == 2 and re.match(u"pod[0-9a-f-]+", parts[1]):
                         return True, parts[1]
                 else:
                     logger.info("unknown format in pid cgroup %s", line)
@@ -393,11 +388,11 @@ class GpuCollector(Collector):
         external_process = gen_gpu_used_by_external_process_counter()
         zombie_container = gen_gpu_used_by_zombie_container_counter()
 
-        pids_use_gpu = {}  # key is gpu minor, value is an array of pid
+        pids_use_gpu = {} # key is gpu minor, value is an array of pid
 
         for minor, info in gpu_info.items():
             if not minor.isdigit():
-                continue  # ignore UUID
+                continue # ignore UUID
 
             core_utils.add_metric([minor], info.gpu_util)
             mem_utils.add_metric([minor], info.gpu_mem_util)
@@ -486,23 +481,20 @@ class ContainerCollector(Collector):
     inspect_histogram = Histogram(
         "cmd_docker_inspect_latency_seconds",
         "Command call latency for docker inspect (seconds)")
-    inspect_timeout = 1  # 99th latency is 0.042s
+    inspect_timeout = 1 # 99th latency is 0.042s
 
     iftop_histogram = Histogram("cmd_iftop_latency_seconds",
                                 "Command call latency for iftop (seconds)")
-    iftop_timeout = 10  # 99th latency is 7.4s
+    iftop_timeout = 10 # 99th latency is 7.4s
 
     lsof_histogram = Histogram("cmd_lsof_latency_seconds",
                                "Command call latency for lsof (seconds)")
-    lsof_timeout = 2  # 99th latency is 0.5s
+    lsof_timeout = 2 # 99th latency is 0.5s
 
     pai_services = list(
         map(
             lambda s: "k8s_" + s,
             [
-                "rest-server",
-                "pylon",
-                "webportal",
                 "grafana",
                 "prometheus",
                 "alertmanager",
@@ -529,6 +521,15 @@ class ContainerCollector(Collector):
                 "nvidia-device-plugin-ctr",
                 "mysql",
                 "jobmanager",
+                "fluent-bit",
+                "azure-blob-adapter",
+                "nvidia-dcgm-exporter",
+                "alert-manager",
+                "reaper",
+                "dashboard",
+                "kubedns",
+                "repairmanager",
+                "redis",
             ]))
 
     def __init__(self, name, sleep_time, atomic_ref, iteration_counter,
@@ -597,9 +598,8 @@ class ContainerCollector(Collector):
                     if gpu_infos.get(id) is not None:
                         gpu_ids.append(gpu_infos[id].minor)
                     else:
-                        logger.warning(
-                            "gpu uuid %s can not be found in map %s", id,
-                            gpu_infos)
+                        logger.warning("gpu uuid %s can not be found in map %s",
+                                       id, gpu_infos)
                 else:
                     logger.warning("unknown gpu id %s, gpu_infos is %s", id,
                                    gpu_infos)
@@ -617,15 +617,14 @@ class ContainerCollector(Collector):
         # TODO speed this up, since this is O(n^2)
         for service_name in cls.pai_services:
             if container_name.startswith(service_name):
-                return service_name[4:]  # remove "k8s_" prefix
+                return service_name[4:] # remove "k8s_" prefix
 
         return None
 
     def process_one_container(self, container_id, stats, gpu_infos, all_conns,
                               gauges):
         container_name = utils.walk_json_field_safe(stats, "name")
-        pai_service_name = ContainerCollector.infer_service_name(
-            container_name)
+        pai_service_name = ContainerCollector.infer_service_name(container_name)
 
         inspect_info = docker_inspect.inspect(
             container_id, ContainerCollector.inspect_histogram,
@@ -639,7 +638,7 @@ class ContainerCollector(Collector):
 
         if job_name is None and pai_service_name is None:
             logger.debug("%s is ignored", container_name)
-            return  # other container, maybe kubelet or api-server
+            return # other container, maybe kubelet or api-server
 
         # get network consumption, if container is host network, we will treat
         # node network consumption as container consumption. If not, use data
@@ -721,12 +720,12 @@ class ContainerCollector(Collector):
 
 
 class ZombieCollector(Collector):
-    logs_histogram = Histogram(
-        "cmd_docker_logs_latency_seconds",
-        "Command call latency for docker logs (seconds)",
-        buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0,
-                 1024.0, float("inf")))
-    logs_timeout = 1  # 99th latency is 0.04s
+    logs_histogram = Histogram("cmd_docker_logs_latency_seconds",
+                               "Command call latency for docker logs (seconds)",
+                               buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0,
+                                        64.0, 128.0, 256.0, 512.0, 1024.0,
+                                        float("inf")))
+    logs_timeout = 1 # 99th latency is 0.04s
 
     zombie_container_count = Gauge(
         "zombie_container_count",
@@ -735,8 +734,7 @@ class ZombieCollector(Collector):
     class ZombieRecorder(object):
         def __init__(self, type):
             self.type = type
-            self.zombies = {
-            }  # key is container id, value is enter zombie time
+            self.zombies = {} # key is container id, value is enter zombie time
 
             # When we first meet zombie container, we only record time of that meet,
             # we wait extra decay_time to report it as zombie. Because at the time
@@ -781,8 +779,7 @@ class ZombieCollector(Collector):
 
         self.yarn_pattern = u"container_\w{3}_[0-9]{13}_[0-9]{4}_[0-9]{2}_[0-9]{6}"
         self.yarn_container_reg = re.compile(u"^" + self.yarn_pattern + "$")
-        self.job_container_reg = re.compile(u"^.+(" + self.yarn_pattern +
-                                            u")$")
+        self.job_container_reg = re.compile(u"^.+(" + self.yarn_pattern + u")$")
 
     def update_zombie_count_type1(self, exited_containers, now):
         """ this fn will generate zombie container count for the first type,
@@ -811,7 +808,7 @@ class ZombieCollector(Collector):
                 value = match.groups()[0]
                 job_containers[name] = (value, id)
             else:
-                pass  # ignore
+                pass # ignore
 
         for job_name, val in job_containers.items():
             yarn_name, job_id = val
@@ -827,7 +824,7 @@ class ZombieCollector(Collector):
                  str(tail),
                  str(container_id)],
                 histogram=ZombieCollector.logs_histogram,
-                stderr=subprocess.STDOUT,  # also capture stderr output
+                stderr=subprocess.STDOUT, # also capture stderr output
                 timeout=ZombieCollector.logs_timeout)
         except subprocess.TimeoutExpired as e:
             logger.warning("docker log timeout")
@@ -878,7 +875,7 @@ class ProcessCollector(Collector):
                                        64.0, 128.0, 256.0, 512.0, 1024.0,
                                        float("inf")))
 
-    cmd_timeout = 10  # TODO 99th latency is xxx
+    cmd_timeout = 10 # TODO 99th latency is xxx
 
     def __init__(self, name, sleep_time, atomic_ref, iteration_counter):
         Collector.__init__(self, name, sleep_time, atomic_ref,
@@ -899,12 +896,12 @@ class ProcessCollector(Collector):
                         # override command name to make alert rule easier
                         zombie_count["nvidia-smi"] += 1
                     else:
-                        cmd = info.cmd.split()[0]  # remove args
+                        cmd = info.cmd.split()[0] # remove args
                         zombie_count[cmd] += 1
 
                 if info.rss > 500 * 1024 * 1024:
                     # only record large memory consumption to save space in prometheus
-                    cmd = info.cmd.split()[0]  # remove args
+                    cmd = info.cmd.split()[0] # remove args
                     process_mem_metrics.add_metric([str(info.pid), cmd],
                                                    info.rss)
 
