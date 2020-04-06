@@ -140,7 +140,7 @@ const MyJobs: FunctionComponent = () => {
   return (
     <>
       { title && <Helmet title={title}/> }
-      { [ 'Unapproved', 'Pending', 'Running', 'Paused' ].map(
+      { [ 'Running', 'Pending', 'Unapproved', 'Paused' ].map(
         status => activeStatusesJobs[status] && (
           <ActiveJobsTable
             key={status}

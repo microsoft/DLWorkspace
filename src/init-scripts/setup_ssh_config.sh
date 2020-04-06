@@ -13,11 +13,13 @@ worker_host_list=""
 if [ "$DLTS_ROLE_NAME" = "master" ];
 then
     worker_host_list="${DLTS_ROLE_NAME}"
+    self_name="${DLTS_ROLE_NAME}" # for testing self connection
 else
     for i in $(seq 0 $(( ${DLTS_NUM_WORKER} - 1 )) )
     do
         worker_host_list+="worker-${i} "
     done
+    self_name="${DLTS_ROLE_NAME}-${DLTS_ROLE_IDX}" # for testing self connection
 fi
 
 # generate host list
@@ -142,22 +144,35 @@ then
     do
         succ=false
         for i in `seq 1 3600` ; do
-            echo "testing $host"
+            echo `date` "testing $host"
             ssh $host "echo 1"
             # do not add code here
             rtn=$?
-            echo "done testing $host"
+            echo `date` "done testing $host"
             if [ "$rtn" -eq "0" ] ; then
                 succ=true
                 echo "$host has done sshd setup"
                 break
             else
-                echo "$host has not done sshd setup wait 1s"
+                echo `date` "$host has not done sshd setup wait 1s"
                 sleep 1
             fi
         done
         if [ "$succ" = "false" ] ; then
-            exit 1
+            echo `date` "could not establish ssh connection to $host, abort"
+            exit 205
         fi
     done
+else
+    echo `date` "testing self"
+    ssh ${self_name}
+    # do not add code here
+    rtn=$?
+    echo `date` "done testing self"
+    if [ "$rtn" -eq "0" ] ; then
+        exit 0
+    else
+        echo "failed to test self"
+        exit 209
+    fi
 fi
