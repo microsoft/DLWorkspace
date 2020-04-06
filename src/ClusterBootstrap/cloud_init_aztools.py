@@ -328,7 +328,7 @@ def delete_az_vms(config, args, machine_list):
             delete_cmds.append('az resource delete -g {} -n {} --resource-type Microsoft.Compute/disks'.format(config["azure_cluster"]["resource_group"], disk["name"]))
         delete_cmds.append('az resource delete -g {} -n {} --resource-type Microsoft.Compute/disks'.format(config["azure_cluster"]["resource_group"], vm_spec["storageProfile"]["osDisk"]["name"]))
         for cmd in delete_cmds:
-            execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+            execute_or_dump_locally(cmd, args.verbose, delay_run or args.dryrun, args.output)
             if delay_run:
                 commands_list.append(cmd)
     if os.path.exists(args.output):
@@ -351,10 +351,12 @@ def execute_cmd_local_in_parallel(cmds, args):
 
 
 def add_n_machines(config, args, num_2_add):
+    target_spec = None
     for spec in config["azure_cluster"]["virtual_machines"]:
         if "worker" in spec["role"]:
             target_spec = spec
             break
+    assert target_spec is not None, "no worker node spec found, please specify in config.yaml"
     target_spec["number_of_instance"] = num_2_add
     config["azure_cluster"]["virtual_machines"] = [target_spec]
     node_2_add_cnf = gen_machine_list_4_deploy_action(None, config)
@@ -667,7 +669,7 @@ def dynamically_add_or_delete_around_a_num(config, args):
         query_cmd = "./ctl.py kubectl get nodes -l worker=active --no-headers | awk '{print $1}'"
         k8s_worker_nodes = get_k8s_node_list_under_condition(query_cmd)
         worker_in_records = load_node_list_by_role_from_config(config, ["worker"], False)
-        print("Dynamically tuning # of worker nodes:\n {}/{} worker nodes registered in k8s, targeting {}".format(len(k8s_worker_nodes), len(worker_in_records), dynamic_worker_num))
+        print("Dynamically scaling number of workers:\n {}/{} worker nodes registered in k8s, targeting {}".format(len(k8s_worker_nodes), len(worker_in_records), dynamic_worker_num))
         delta = dynamic_worker_num - len(worker_in_records)
         if delta > 0:
             add_n_machines(config, args, delta)
@@ -675,15 +677,16 @@ def dynamically_add_or_delete_around_a_num(config, args):
             delete_specified_or_cordoned_idling_nodes(config, args, -delta)
         os.system("sleep {}m".format(monitor_again_after))
 
+
 def white_list_ip(config, args):
     if args.nargs[0] == "add":
-            ips = None if len(args.nargs) == 1 else args.nargs[1]
-            add_nsg_rule_whitelist(config, args, ips)
-        elif args.nargs[0] == "remove":
-            ips = None if len(args.nargs) == 1 else args.nargs[1]
-            remove_nsg_rule_whitelist(config, args, ips)
-        elif args.nargs[0] == "delete":
-            delete_nsg_rule_whitelist(config, args)
+        ips = None if len(args.nargs) == 1 else args.nargs[1]
+        add_nsg_rule_whitelist(config, args, ips)
+    elif args.nargs[0] == "remove":
+        ips = None if len(args.nargs) == 1 else args.nargs[1]
+        remove_nsg_rule_whitelist(config, args, ips)
+    elif args.nargs[0] == "delete":
+        delete_nsg_rule_whitelist(config, args)
 
 
 def logging_storage(config, args):
