@@ -60,14 +60,10 @@ class JobTemplate(object):
         # TODO: Refactor special VC dependency
         if params["vcName"] not in vc_without_shared_storage:
             job.add_mountpoints({
-                "name":
-                "home",
-                "containerPath":
-                "/home/{}".format(job.get_alias()),
-                "hostPath":
-                job.get_homefolder_hostpath(),
-                "enabled":
-                True
+                "name": "home",
+                "containerPath": "/home/{}".format(job.get_alias()),
+                "hostPath": job.get_homefolder_hostpath(),
+                "enabled": True
             })
 
         if "mountpoints" in params:
@@ -79,17 +75,15 @@ class JobTemplate(object):
         job.add_mountpoints(job.vc_custom_storage_mountpoints())
         job.add_mountpoints(job.vc_storage_mountpoints())
 
-        params["job_mountpoints"] = [
-            mp.to_dict() for mp in job.job_mountpoints
-        ]
+        params["job_mountpoints"] = [mp.to_dict() for mp in job.job_mountpoints]
         params["mountpoints"] = job.mountpoints
         params["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
 
         params["user_email"] = params["userName"]
         params["homeFolderHostpath"] = job.get_homefolder_hostpath()
         params["pod_ip_range"] = job.get_pod_ip_range()
-        params["jobNameLabel"] = ''.join(e for e in params["jobName"]
-                                         if e.isalnum())
+        params["jobNameLabel"] = ''.join(
+            e for e in params["jobName"] if e.isalnum())
 
         if "nodeSelector" not in params:
             params["nodeSelector"] = {}
@@ -196,10 +190,8 @@ class RegularJobTemplate(JobTemplate):
             "value": params["cmd"]
         })
         pod_obj["spec"]["containers"][0]["env"].append({
-            "name":
-            "DLTS_SSH_PRIVATE_KEY",
-            "value":
-            params["private_key"]
+            "name": "DLTS_SSH_PRIVATE_KEY",
+            "value": params["private_key"]
         })
 
         return [pod_obj], None
@@ -245,6 +237,10 @@ class InferenceJobTemplate(JobTemplate):
             "name": "DLTS_LAUNCH_CMD",
             "value": params["cmd"]
         })
+        pod_obj["spec"]["containers"][0]["env"].append({
+            "name": "DLTS_SSH_PRIVATE_KEY",
+            "value": params["private_key"]
+        })
         k8s_pods.append(pod_obj)
 
         deployment_params = copy.deepcopy(params)
@@ -252,8 +248,7 @@ class InferenceJobTemplate(JobTemplate):
         deployment_params["deployment_replicas"] = params["resourcegpu"]
         deployment_params["LaunchCMD"] = params["cmd"]
 
-        deployment_yaml = self.deployment_template.render(
-            job=deployment_params)
+        deployment_yaml = self.deployment_template.render(job=deployment_params)
         deployment_obj = yaml.full_load(deployment_yaml)
         # because user's cmd can be multiple lines, should add after yaml load
         deployment_obj["spec"]["template"]["spec"]["containers"][0][
@@ -309,10 +304,8 @@ class DistributeJobTemplate(JobTemplate):
             "value": pod["cmd"]
         })
         pod_obj["spec"]["containers"][0]["env"].append({
-            "name":
-            "DLTS_SSH_PRIVATE_KEY",
-            "value":
-            pod["private_key"]
+            "name": "DLTS_SSH_PRIVATE_KEY",
+            "value": pod["private_key"]
         })
         return pod_obj
 

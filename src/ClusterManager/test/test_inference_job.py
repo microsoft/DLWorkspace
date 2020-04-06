@@ -59,8 +59,8 @@ def test_inference_job_running(args):
 
             cmd.append(";".join(remain_cmd))
 
-            code, output = utils.kube_pod_exec(args.config, "default",
-                                               pod_name, container_name, cmd)
+            code, output = utils.kube_pod_exec(args.config, "default", pod_name,
+                                               container_name, cmd)
 
             logger.debug("cmd %s output for %s.%s is %s", cmd, pod_name,
                          container_name, output)

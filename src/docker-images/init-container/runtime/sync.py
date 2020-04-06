@@ -21,16 +21,16 @@ logger = logging.getLogger(__name__)
 job_namespace = "default"
 
 ERROR_EXIT_CODE = {
-    "environment": 1,
-    "network": 2,
-    "k8s_api": 3,
-    "port": 4,
-    "wait_sync_fail": 5,
+    "environment": 200,
+    "network": 201,
+    "k8s_api": 202,
+    "port": 203,
+    "wait_sync_fail": 204,
 }
 
 
 def find_free_port(min=40000, max=49999):
-    for i in range(100):  # try 100 times
+    for i in range(100): # try 100 times
         port = random.randint(min, max)
 
         with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
