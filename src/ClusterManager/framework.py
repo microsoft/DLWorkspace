@@ -306,7 +306,7 @@ def gen_containers(job, role):
             "mountPath": "/etc/resolv.conf"
         })
 
-    volume_mounts.extend(transform_mount_points(job.mount_points))
+    volume_mounts.extend(job.mount_points)
 
     if job.init_image is None:
         cmd = [
