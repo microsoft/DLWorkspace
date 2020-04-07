@@ -543,3 +543,36 @@ def test_fault_tolerance(args):
                                            cmd)
         assert code == 0, "code is %s, output is %s" % (code, output)
         assert output == "dummy\n", "output is %s" % (output)
+
+
+@utils.case()
+def test_distributed_job_mountpoints(args):
+    mps = utils.load_cluster_nfs_mountpoints(args)
+    mps.extend(utils.load_system_mountpoints(args))
+    mps.extend(utils.load_infiniband_mounts(args))
+
+    job_spec = utils.gen_default_job_description("distributed", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued"})
+        assert state in ["scheduling", "running"]
+
+        pods = utils.kube_get_pods(args.config, "default",
+                                   "jobId=%s" % job.jid)
+
+        ps_pod = pods[0]
+        mps = utils.load_cluster_nfs_mountpoints(args)
+        mps.extend(utils.load_system_mountpoints(args))
+
+        for mp in mps:
+            assert utils.mountpoint_in_pod(mp, ps_pod), \
+                "mountpoint %s not in ps for job %s" % (mp, job.jid)
+
+        worker_pod = pods[1]
+        mps.extend(utils.load_infiniband_mounts(args))
+
+        for mp in mps:
+            assert utils.mountpoint_in_pod(mp, worker_pod), \
+                "mountpoint %s not in worker for job %s" % (mp, job.jid)

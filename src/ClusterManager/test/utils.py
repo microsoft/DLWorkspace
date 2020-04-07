@@ -11,6 +11,7 @@ import yaml
 import base64
 import functools
 import inspect
+import re
 
 import requests
 
@@ -63,12 +64,26 @@ def case(unstable=False):
     return decorator
 
 
-def load_azure_blob_config(config_path, mount_path):
-    config_path = os.path.join(config_path, "config.yaml")
+def snake_case(s):
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', s)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
+
+def get_alias(email):
+    if not isinstance(email, str):
+        return None
+    return email.split("@")[0]
+
+
+def get_config(config_path):
+    config_path = os.path.join(config_path, "config.yaml")
     with open(config_path) as f:
         config = yaml.full_load(f)
+    return config
 
+
+def load_azure_blob_config(config_path, mount_path):
+    config = get_config(config_path)
     blob_config = walk_json_safe(config, "integration-test", "azure-blob")
 
     if walk_json_safe(blob_config, "account") is None or \
@@ -84,6 +99,98 @@ def load_azure_blob_config(config_path, mount_path):
             "mountPath": mount_path,
         }]
     }
+
+
+def load_cluster_nfs_mountpoints(args):
+    config = get_config(args.config)
+    cluster_nfs = walk_json_safe(config, "cluster_nfs")
+
+    if walk_json_safe(cluster_nfs, "server") is None or \
+            walk_json_safe(cluster_nfs, "path") is None:
+        raise RuntimeError("no cluster_nfs configured")
+
+    server = walk_json_safe(cluster_nfs, "server")
+    path = walk_json_safe(cluster_nfs, "path")
+    alias = get_alias(args.email)
+
+    mps = [{
+        # /home/<alias>
+        "server": server,
+        "path": os.path.join(path, "work", alias),
+        "mountPath": "/home/%s" % alias,
+        "mountType": "nfs",
+    }, {
+        # /job
+        "server": server,
+        "path": os.path.join(path, "work"),
+        "mountPath": "/job",
+        "mountType": "nfs",
+    }, {
+        # /work
+        "server": server,
+        "path": os.path.join(path, "work", alias),
+        "mountPath": "/work",
+        "mountType": "nfs",
+    }, {
+        # /data
+        "server": server,
+        "path": os.path.join(path, "storage"),
+        "mountPath": "/data",
+        "mountType": "nfs",
+    }]
+
+    return mps
+
+
+def load_system_mountpoints(args):
+    config = get_config(args.config)
+    sys_mps = walk_json_safe(config, "system_mountpoints")
+    if sys_mps is None:
+        sys_mps = []
+    mps = []
+    for mp in sys_mps:
+        vc = mp.get("vc")
+        if vc is not None and vc != args.vc:
+            continue
+        if "mountType" not in mp:
+            mp["mountType"] = "hostPath"
+        mps.append(mp)
+    return mps
+
+
+def load_infiniband_mounts(args):
+    config = get_config(args.config)
+    mps = walk_json_safe(config, "infiniband_mounts")
+    if mps is None:
+        mps = []
+    return [{
+        "mountType": "hostPath",
+        "mountPath": mp["containerPath"],
+        "hostPath": mp["hostPath"],
+    } for mp in mps]
+
+
+def mountpoint_in_pod(mountpoint, pod):
+    volumes = pod.spec.volumes
+    volume_mounts = pod.spec.containers[0].volume_mounts
+
+    def mountpoint_in_volumes(mp):
+        mount_type = snake_case(mp["mountType"])
+        for volume in volumes:
+            v = volume.get(mount_type)
+            if v and v["path"] == mp["hostPath"]:
+                return True
+        return False
+
+    def mountpoint_in_volume_mounts(mp):
+        for volume_mount in volume_mounts:
+            mount_path = volume_mount.get("mount_path")
+            if mount_path == mp["mountPath"]:
+                return True
+        return False
+
+    return mountpoint_in_volumes(mountpoint) and \
+        mountpoint_in_volume_mounts(mountpoint)
 
 
 def gen_default_job_description(
