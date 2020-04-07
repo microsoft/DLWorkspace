@@ -299,10 +299,10 @@ def add_machines(config, args):
     # be added sequentially, but we could avoid overburdening devbox(sending too many request at one batch)
     os.system('rm -f ' + args.output)
     delay_run = (args.batch_size > 1) and (not args.dryrun)
+    no_execution = delay_run or args.dryrun
     commands_list = []
     for vmname, spec in config["machines"].items():
-        cmd = add_machine(vmname, spec, args.verbose,
-                          delay_run or args.dryrun, args.output)
+        cmd = add_machine(vmname, spec, args.verbose, no_execution, args.output)
         if delay_run:
             commands_list += cmd,
     if os.path.exists(args.output):
@@ -316,6 +316,7 @@ def add_machines(config, args):
 def delete_az_vms(config, args, machine_list):
     os.system('rm -f ' + args.output)
     delay_run = (args.batch_size > 1) and (not args.dryrun)
+    no_execution = delay_run or args.dryrun
     commands_list = []
     for vmname in machine_list:
         vm_spec = get_default_vm_info_json(config, vmname, False)
@@ -328,7 +329,7 @@ def delete_az_vms(config, args, machine_list):
             delete_cmds.append('az resource delete -g {} -n {} --resource-type Microsoft.Compute/disks'.format(config["azure_cluster"]["resource_group"], disk["name"]))
         delete_cmds.append('az resource delete -g {} -n {} --resource-type Microsoft.Compute/disks'.format(config["azure_cluster"]["resource_group"], vm_spec["storageProfile"]["osDisk"]["name"]))
         for cmd in delete_cmds:
-            execute_or_dump_locally(cmd, args.verbose, delay_run or args.dryrun, args.output)
+            execute_or_dump_locally(cmd, args.verbose, no_execution, args.output)
             if delay_run:
                 commands_list.append(cmd)
     if os.path.exists(args.output):
