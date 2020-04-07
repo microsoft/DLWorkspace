@@ -495,8 +495,10 @@ def gen_task_role(job, role):
             if mp.get("type") is not None:
                 volume["hostPath"]["type"] = mp["type"]
         elif mp.get("mountType") == "nfs":
-            volume["server"] = mp["server"]
-            volume["path"] = mp["path"]
+            volume["nfs"] = {
+                "server": mp["server"],
+                "path": mp["path"],
+            }
         elif mp.get("mountType") == "blobfuse":
             options = {"container": mp["containerName"]}
             if mp.get("rootTmppath") is not None and \
