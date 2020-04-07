@@ -70,7 +70,7 @@ spec:
         {% endif %}
         {% for mp in job["mountpoints"] %}
         {% if mp.enabled %}
-        - mountPath: {{ mp.containerPath }}
+        - mountPath: {{ mp["mountPath"] }}
           name: {{ mp.name }}
           {% if mp.readOnly %}
           readOnly: true

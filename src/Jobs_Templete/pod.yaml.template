@@ -186,15 +186,6 @@ spec:
     - mountPath: /etc/resolv.conf
       name: resolv
     {% endif %}
-    {% for mp in job["mountpoints"] %}
-    {% if mp.enabled %}
-    - mountPath: {{ mp.containerPath }}
-      name: {{ mp.name }}
-      {% if mp.readOnly %}
-      readOnly: true
-      {% endif %}
-    {% endif %}
-    {% endfor %}
     - mountPath: /dev/shm
       name: dshm
     {% for mp in job["mountpoints"] %}

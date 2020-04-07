@@ -132,17 +132,12 @@ def gen_init_container(job, role):
     }]
 
 
-def transform_mount_points(mount_points, plugins):
+def transform_mount_points(mount_points):
     result = [{
-        "mountPath": mp["containerPath"],
+        "mountPath": mp["mountPath"],
         "name": mp["name"],
         "readOnly": mp.get("readOnly", False),
     } for mp in mount_points if mp.get("enabled")]
-
-    result.extend([{
-        "name": bf["name"],
-        "mountPath": bf["mountPath"],
-    } for bf in plugins.get("blobfuse", []) if bf.get("enabled")])
 
     return result
 
@@ -311,7 +306,7 @@ def gen_containers(job, role):
             "mountPath": "/etc/resolv.conf"
         })
 
-    volume_mounts.extend(transform_mount_points(job.mount_points, job.plugins))
+    volume_mounts.extend(transform_mount_points(job.mount_points))
 
     if job.init_image is None:
         cmd = [
