@@ -35,12 +35,14 @@ class TestMountPoint(TestCase):
         params = {
             "mountType": "nfs",
             "mountPath": "/data",
+            "subPath": "sub_dir",
             "server": "10.0.0.1",
             "path": "/data/share/storage",
         }
         expected_dict = {
             "mountType": "nfs",
             "mountPath": "/data",
+            "subPath": "sub_dir",
             "server": "10.0.0.1",
             "path": "/data/share/storage",
             "name": "data",

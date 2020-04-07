@@ -33,6 +33,7 @@ class MountPoint(object):
     def __init__(self, params):
         self.mount_path = None
         self.mount_type = None
+        self.sub_path = None
         self.vc = None
         self.name = None
         self.enabled = True
