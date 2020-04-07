@@ -137,13 +137,19 @@ def transform_mount_points(mount_points):
     for mp in mount_points:
         if mp.get("enabled") is not True:
             continue
+
         res = {
             "mountPath": mp["mountPath"],
             "name": mp["name"],
         }
+        sub_path = mp.get("subPath")
+        if sub_path is not None:
+            res["subPath"] = sub_path
         read_only = mp.get("readOnly")
         if read_only is not None:
             res["readOnly"] = read_only
+
+        result.append(res)
     return result
 
 

@@ -10,7 +10,6 @@ import base64
 
 from marshmallow import Schema, fields, post_load, validate
 from jinja2 import Environment, FileSystemLoader, Template
-from pathlib import Path
 from mountpoint import MountPoint, make_mountpoint
 
 logger = logging.getLogger(__name__)
@@ -144,19 +143,16 @@ class Job:
     def job_path_nfs_mountpoint(self):
         assert isinstance(self.job_path, str) and len(self.job_path) > 0
         server = self.get_cluster_nfs_server()
-        path = self.get_nfs_path_with_folder("work", self.job_path)
+        path = self.get_nfs_path_with_folder("work", "")
         mp = make_mountpoint(params={
             "name": "job",
             "mountPath": "/job",
             "mountType": "nfs",
             "server": server,
-            "path": path
+            "path": path,
+            "subPath": self.job_path,
         })
         logger.info("job %s has job path nfs mountpoint: %s", self.job_id, mp)
-        # Create NFS path for /job, otherwise scheduling fails with the reason
-        # given by server: No such file or directory
-        job_host_path = self.get_hostpath(self.job_path)
-        Path(job_host_path).mkdir(parents=True, exist_ok=True)
         return mp
 
     def work_path_nfs_mountpoint(self):
