@@ -133,12 +133,17 @@ def gen_init_container(job, role):
 
 
 def transform_mount_points(mount_points):
-    result = [{
-        "mountPath": mp["mountPath"],
-        "name": mp["name"],
-        "readOnly": mp.get("readOnly", False),
-    } for mp in mount_points if mp.get("enabled")]
-
+    result = []
+    for mp in mount_points:
+        if mp.get("enabled") is not True:
+            continue
+        res = {
+            "mountPath": mp["mountPath"],
+            "name": mp["name"],
+        }
+        read_only = mp.get("readOnly")
+        if read_only is not None:
+            res["readOnly"] = read_only
     return result
 
 
@@ -306,7 +311,8 @@ def gen_containers(job, role):
             "mountPath": "/etc/resolv.conf"
         })
 
-    volume_mounts.extend(job.mount_points)
+    volume_mounts.extend(transform_mount_points(job.mount_points))
+    logger.info("volume_mounts: %s", volume_mounts)
 
     if job.init_image is None:
         cmd = [
@@ -499,20 +505,20 @@ def gen_task_role(job, role):
                     mp["rootTmppath"], job.job_id, job.pod_name, mp["tmppath"])
             if mp.get("mountOptions") is not None:
                 options["mountoptions"] = mp["mountOptions"]
-            volume.update({
-                "flexVolume": {
-                    "driver": "azure/blobfuse",
-                    "readOnly": False,
-                    "secretRef": {
-                        "name": mp["secreds"]
-                    },
-                    "options": options,
-                }
-            })
+            volume["flexVolume"] = {
+                "driver": "azure/blobfuse",
+                "readOnly": False,
+                "secretRef": {
+                    "name": mp["secreds"]
+                },
+                "options": options,
+            }
         else:
             logger.warning("Unrecognized mountpoint %s", mp)
             continue
         volumes.append(volume)
+
+    logger.info("volumes: %s", volumes)
 
     pod_spec = {
         "nodeSelector": node_selector,
