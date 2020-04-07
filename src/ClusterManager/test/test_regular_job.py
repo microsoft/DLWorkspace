@@ -716,7 +716,7 @@ def test_regular_job_mountpoints(args):
         pod = utils.kube_get_pods(args.config, "default",
                                   "jobId=%s" % job.jid)[0]
 
-        mps = utils.load_cluster_nfs_mountpoints(args)
+        mps = utils.load_cluster_nfs_mountpoints(args, job.jid)
         mps.extend(utils.load_system_mountpoints(args))
 
         for mp in mps:

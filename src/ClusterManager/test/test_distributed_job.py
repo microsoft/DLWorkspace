@@ -563,7 +563,7 @@ def test_distributed_job_mountpoints(args):
                                    "jobId=%s" % job.jid)
 
         ps_pod = pods[0]
-        mps = utils.load_cluster_nfs_mountpoints(args)
+        mps = utils.load_cluster_nfs_mountpoints(args, job.jid)
         mps.extend(utils.load_system_mountpoints(args))
 
         for mp in mps:
