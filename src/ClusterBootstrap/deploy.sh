@@ -12,7 +12,7 @@ rm -rf deploy/* cloudinit* az_complementary.yaml
 ./cloud_init_deploy.py docker servicesprerequisite
 # execute a deployment action based on the rendered files and machine list got in prerender
 ./cloud_init_aztools.py -v deploy
-# connect the nodes inside the cluster
-./cloud_init_aztools.py interconnect
 # get status of the cluster
 ./cloud_init_aztools.py listcluster
+# connect the nodes inside the cluster
+./cloud_init_aztools.py interconnect

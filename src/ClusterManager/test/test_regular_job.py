@@ -703,6 +703,33 @@ def test_fault_tolerance(args):
         assert output == "dummy\n", "output is %s" % (output)
 
 
+def test_no_resource_info(args):
+    expected = "Insufficient nvidia.com/gpu"
+
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 resourcegpu=5)
+    # TODO hardcode 5 here, may need to change to `gpu_per_host + 1` manually
+    # when testing other clusters
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = job.block_until_state_not_in({"unapproved", "queued"})
+        assert state == "scheduling"
+
+        for _ in range(50):
+            details = utils.get_job_detail(args.rest, args.email, job.jid)
+
+            message = utils.walk_json_safe(details, "jobStatusDetail", 0,
+                                           "message")
+            if expected in message:
+                break
+
+            time.sleep(0.5)
+        assert expected in message, "unexpected detail " + details
+
+
 @utils.case()
 def test_regular_job_mountpoints(args):
     job_spec = utils.gen_default_job_description("regular", args.email,

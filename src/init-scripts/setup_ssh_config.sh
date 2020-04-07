@@ -154,11 +154,12 @@ then
                 echo "$host has done sshd setup"
                 break
             else
-                echo "$host has not done sshd setup wait 1s"
+                echo `date` "$host has not done sshd setup wait 1s"
                 sleep 1
             fi
         done
         if [ "$succ" = "false" ] ; then
+            echo `date` "could not establish ssh connection to $host, abort"
             exit 205
         fi
     done

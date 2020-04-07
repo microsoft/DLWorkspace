@@ -82,7 +82,7 @@ ${log[podName]}
     if (loading) return;
 
     const cursor = data && data.cursor;
-    const delay = error ? 3000 : 0;
+    const delay = error || cursor == null ? 3000 : 0;
     const querystring = cursor && `?cursor=${encodeURIComponent(cursor)}`;
     const timeout = setTimeout(get, delay, querystring);
     return () => {
@@ -112,7 +112,7 @@ ${log[podName]}
       <CodeBlock>
         {logText}
       </CodeBlock>
-      {error === undefined && <Loading/>}
+      {loading && <Loading/>}
     </Box>
   );
 }
