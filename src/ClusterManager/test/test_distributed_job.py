@@ -547,10 +547,6 @@ def test_fault_tolerance(args):
 
 @utils.case()
 def test_distributed_job_mountpoints(args):
-    mps = utils.load_cluster_nfs_mountpoints(args)
-    mps.extend(utils.load_system_mountpoints(args))
-    mps.extend(utils.load_infiniband_mounts(args))
-
     job_spec = utils.gen_default_job_description("distributed", args.email,
                                                  args.uid, args.vc)
 

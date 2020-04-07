@@ -113,7 +113,7 @@ def load_cluster_nfs_mountpoints(args, job_id):
     path = walk_json_safe(cluster_nfs, "path")
     alias = get_alias(args.email)
 
-    job_path = get_job_detail(args.rest_url, args.email,
+    job_path = get_job_detail(args.rest, args.email,
                               job_id)["jobParams"]["jobPath"]
 
     mps = [{
@@ -175,19 +175,29 @@ def load_infiniband_mounts(args):
 
 
 def mountpoint_in_volumes(mp, volumes):
-    mount_type = snake_case(mp["mountType"])
+    mount_type = mp["mountType"]
+    if mount_type == "hostPath":
+        path = mp["hostPath"]
+    elif mount_type == "nfs":
+        path = mp["path"]
+    else:
+        raise RuntimeError("Unrecognized mountpoint type %s" % mount_type)
+
     for volume in volumes:
-        v = volume.get(mount_type)
-        if v and v["path"] == mp["hostPath"]:
+        v = volume.to_dict().get(snake_case(mount_type))
+        if v and v["path"].rstrip("/") == path.rstrip("/"):
             return True
     return False
 
 
 def mountpoint_in_volume_mounts(mp, volume_mounts):
     for volume_mount in volume_mounts:
+        volume_mount = volume_mount.to_dict()
         mount_path = volume_mount.get("mount_path")
-        sub_path = volume_mounts.get("sub_path")
-        if mount_path == mp["mountPath"] and sub_path == mp.get("subPath"):
+        sub_path = volume_mount.get("sub_path")
+        if sub_path is not None:
+            sub_path = sub_path.rstrip("/")
+        if mount_path.rstrip("/") == mp["mountPath"].rstrip("/") and sub_path == mp.get("subPath"):
             return True
     return False
 
