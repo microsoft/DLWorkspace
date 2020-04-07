@@ -55,7 +55,7 @@ class JobTemplate(object):
         # Other VCs should not be able to access /data.
         vc_without_shared_storage = job.get_vc_without_shared_storage()
         if params["vcName"] not in vc_without_shared_storage:
-            job.add_mountpoints(job.get_homefolder_nfs_path())
+            job.add_mountpoints(job.home_path_nfs_mountpoint())
             job.add_mountpoints(job.work_path_nfs_mountpoint())
             job.add_mountpoints(job.data_path_nfs_mountpoint())
 
