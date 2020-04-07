@@ -169,7 +169,7 @@ class Job:
         return mp
 
     def data_path_nfs_mountpoint(self):
-        assert isinstance(self.data_path, str) and len(self.data_path) > 0
+        assert isinstance(self.data_path, str)
         server = self.get_cluster_nfs_server()
         path = self.get_nfs_path_with_folder("storage", self.data_path)
         mp = make_mountpoint(params={
