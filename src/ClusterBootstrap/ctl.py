@@ -25,16 +25,18 @@ from cloud_init_deploy import render_restfulapi, render_dashboard, render_storag
 from cloud_init_deploy import check_buildable_images, push_docker_images
 
 FILE_MAP_PATH = 'deploy/cloud-config/file_map.yaml'
+ENV_CNF_YAML = 'config.yaml'
+STATUS_YAML = 'status.yaml'
 
 
 def load_config_4_ctl(args, command):
     # if we need to load all config
     if command in ["svc", "render_template", "download", "docker"]:
-        args.config = ['config.yaml', 'status.yaml'] if not args.config else args.config
+        args.config = [ENV_CNF_YAML, STATUS_YAML] if not args.config else args.config
         config = load_deploy_config(args)
     else:
         if not args.config and command != "restorefromdir":
-            args.config = ['status.yaml']
+            args.config = [STATUS_YAML]
         config = init_config(default_config_parameters)
         config = add_configs_in_order(args.config, config)
         config["ssh_cert"] = config.get("ssh_cert", "./deploy/sshkey/id_rsa")

@@ -16,6 +16,8 @@ from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker
 from params import default_config_parameters
 
 CLOUD_INIT_FILE_MAP = "cloudinit/file_map.yaml"
+ENV_CNF_YAML = 'config.yaml'
+ACTION_YAML = 'action.yaml'
 
 
 def generate_ip_from_cluster(cluster_ip_range, index):
@@ -984,7 +986,7 @@ def run_command(args, command, parser):
     if command == "clusterID":
         create_cluster_id(args.force)
     else:
-        args.config = ["config.yaml", "az_complementary.yaml"] if len(
+        args.config = [ENV_CNF_YAML, ACTION_YAML] if len(
             args.config) == 0 else args.config
         config = load_config(args)
     if command == "dumpconfig":
@@ -1070,7 +1072,7 @@ if __name__ == '__main__':
                         )
     # we use action='append', instead of nargs='+', to avoid conflict between list and additional command argument
     parser.add_argument('-cnf', '--config', action='append', default=[], help='Specify the config files you want to load, later ones \
-        would overwrite former ones, e.g., -cnf config.yaml -cnf az_complementary.yaml')
+        would overwrite former ones, e.g., -cnf config.yaml -cnf action.yaml')
     parser.add_argument("command",
                         help="See above for the list of valid command")
     parser.add_argument('nargs', nargs=argparse.REMAINDER,

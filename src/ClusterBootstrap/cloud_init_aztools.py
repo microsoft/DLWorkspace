@@ -29,6 +29,11 @@ from ctl import run_kubectl
 sys.path.append("../utils")
 from ConfigUtils import add_configs_in_order, merge_config
 
+ENV_CNF_YAML = 'config.yaml'
+STATUS_YAML = 'status.yaml'
+ACTION_YAML = 'action.yaml'
+
+
 def init_config():
     config = {}
     for k, v in list(default_config_parameters.items()):
@@ -44,9 +49,9 @@ def load_config_based_on_command(command):
     if not args.config:
         config_file_list = ["config.yaml"]
         if command in ["deploy", "addmachines"]:
-            config_file_list.append("az_complementary.yaml")
+            config_file_list.append(ACTION_YAML)
         if command in ["delete_nodes", "dynamic_around", "interconnect"]:
-            config_file_list.append("status.yaml")
+            config_file_list.append(STATUS_YAML)
     config = add_configs_in_order(config_file_list, default_config)
     if command not in ["prerender"]:
         config = update_config_resgrp(config)
@@ -281,7 +286,7 @@ def gen_machine_list_4_deploy_action(complementary_file_name, config):
                         cc["machines"][vmname]["kube_label_groups"].append(
                             role)
     if complementary_file_name is not None:
-        complementary_file_name = "az_complementary.yaml" if complementary_file_name == '' else complementary_file_name
+        complementary_file_name = ACTION_YAML if complementary_file_name == '' else complementary_file_name
         with open(complementary_file_name, 'w') as outfile:
             yaml.safe_dump(cc, outfile, default_flow_style=False)
     return cc
@@ -520,7 +525,7 @@ def list_vm(config, verbose=True):
 
 
 def vm_interconnects(config, args):
-    with open("status.yaml") as f:
+    with open(STATUS_YAML) as f:
         vminfo = yaml.safe_load(f)
     ip_list, infra_ip_list = [], []
     for name, onevm in vminfo["machines"].items():
@@ -584,7 +589,7 @@ def vm_interconnects(config, args):
 
 def get_deployed_cluster_info(config, args):
     # load existing status yaml file, default {}
-    output_file = "status.yaml" if not args.output else args.output
+    output_file = STATUS_YAML if not args.output else args.output
     existing_info = {}
     if os.path.exists(output_file):
         with open(output_file) as ef:
@@ -606,7 +611,7 @@ def get_deployed_cluster_info(config, args):
     #     yaml.safe_dump({"machines": az_cli_config}, azf)
     # load action yaml file
     action_info = {}
-    action_file = "az_complementary.yaml"
+    action_file = ACTION_YAML
     if os.path.exists(action_file):
         with open(action_file) as af:
             action_info = yaml.safe_load(af).get("machines", {})
