@@ -10,6 +10,7 @@ import base64
 
 from marshmallow import Schema, fields, post_load, validate
 from jinja2 import Environment, FileSystemLoader, Template
+from pathlib import Path
 from mountpoint import MountPoint, make_mountpoint
 
 logger = logging.getLogger(__name__)
@@ -152,6 +153,10 @@ class Job:
             "path": path
         })
         logger.info("job %s has job path nfs mountpoint: %s", self.job_id, mp)
+        # Create NFS path for /job, otherwise scheduling fails with the reason
+        # given by server: No such file or directory
+        job_host_path = self.get_hostpath(self.job_path)
+        Path(job_host_path).mkdir(parents=True, exist_ok=True)
         return mp
 
     def work_path_nfs_mountpoint(self):
@@ -206,6 +211,10 @@ class Job:
 
     def get_alias(self):
         return self.email.split("@")[0].strip()
+
+    def get_hostpath(self, *path_relate_to_workpath):
+        return os.path.join(self.cluster["storage-mount-path"], "work",
+                            *path_relate_to_workpath)
 
     def infiniband_mountpoints(self):
         infiniband_mounts = self.get_infiniband_mounts()
