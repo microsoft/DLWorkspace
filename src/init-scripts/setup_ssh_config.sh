@@ -1,6 +1,8 @@
 #! /bin/bash
 set -x
 
+CWD=$(dirname $0)
+
 # generate ps host list
 ps_host_list=""
 for i in $(seq 0 $(( ${DLTS_NUM_PS} - 1 )) )
@@ -136,6 +138,8 @@ ${host} slots=${slots}
 EOF
     done
 fi
+
+bash ${CWD}/setup_sshd.sh
 
 # make sure worker have sshd up and running
 if [ "$DLTS_ROLE_NAME" = "ps" ];

@@ -28,7 +28,6 @@ fi
 set -e
 
 bash ${CWD}/init_user.sh
-bash ${CWD}/setup_sshd.sh
 bash ${CWD}/setup_ssh_config.sh
 
 echo bootstrap ends at `date`
