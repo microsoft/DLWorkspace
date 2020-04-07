@@ -429,7 +429,7 @@ def gen_mounting_yaml(config):
     for nfs in config["nfs_node"]:
         nfs_machine_name = nfs.split('.')[0]
         spec = config["machines"][nfs_machine_name]
-        assert "private_ip_address" in spec, "Need IP for NFS node!"
+        assert "private_ip" in spec, "Need private IP for NFS node!"
         mount_triplets = []
         if "fileshares" not in spec or len(spec["fileshares"]) == 0:
             spec["fileshares"] = [[]]
@@ -473,7 +473,7 @@ def gen_mounting_yaml(config):
                                        "remote_mount_path": mnt_mnt, "remote_link_path": mnt_lnk},
         options = spec["options"] if "options" in spec else config["mountconfig"]["nfs"]["options"]
         mountconfig[nfs_machine_name] = {
-            "private_ip_address": spec["private_ip_address"], "fileshares": mount_triplets, "options": options}
+            "private_ip": spec["private_ip"], "fileshares": mount_triplets, "options": options}
     with open("./deploy/storage/auto_share/mounting.yaml", 'w') as mntfile:
         yaml.dump(mountconfig, mntfile, default_flow_style=False)
     return allmountpoints

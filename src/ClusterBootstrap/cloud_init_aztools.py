@@ -24,6 +24,7 @@ from az_utils import \
     get_connection_string_for_logging_storage_account
 
 from cloud_init_deploy import load_node_list_by_role_from_config
+from ctl import run_kubectl
 sys.path.append("../utils")
 from ConfigUtils import add_configs_in_order
 
@@ -41,9 +42,9 @@ def load_config_based_on_command(command):
     config_file_list = args.config
     if not args.config:
         config_file_list = ["config.yaml"]
-        if command in ["deploy", "interconnect", "addmachines"]:
+        if command in ["deploy", "addmachines"]:
             config_file_list.append("az_complementary.yaml")
-        if command in ["delete_nodes", "dynamic_around"]:
+        if command in ["delete_nodes", "dynamic_around", "interconnect"]:
             config_file_list.append("status.yaml")
     config = add_configs_in_order(config_file_list, default_config)
     if command not in ["prerender"]:
@@ -299,10 +300,11 @@ def add_machines(config, args):
     # be added sequentially, but we could avoid overburdening devbox(sending too many request at one batch)
     os.system('rm -f ' + args.output)
     delay_run = (args.batch_size > 1) and (not args.dryrun)
-    no_execution = delay_run or args.dryrun
+    # we don't execute when dryrun specified, otherwise we delay execution if possible to run in batch
+    dryrun_or_delay = delay_run or args.dryrun
     commands_list = []
     for vmname, spec in config["machines"].items():
-        cmd = add_machine(vmname, spec, args.verbose, no_execution, args.output)
+        cmd = add_machine(vmname, spec, args.verbose, dryrun_or_delay, args.output)
         if delay_run:
             commands_list += cmd,
     if os.path.exists(args.output):
@@ -316,7 +318,8 @@ def add_machines(config, args):
 def delete_az_vms(config, args, machine_list):
     os.system('rm -f ' + args.output)
     delay_run = (args.batch_size > 1) and (not args.dryrun)
-    no_execution = delay_run or args.dryrun
+    # we don't execute when dryrun specified, otherwise we delay execution if possible to run in batch
+    dryrun_or_delay = delay_run or args.dryrun
     commands_list = []
     for vmname in machine_list:
         vm_spec = get_default_vm_info_json(config, vmname, False)
@@ -329,7 +332,7 @@ def delete_az_vms(config, args, machine_list):
             delete_cmds.append('az resource delete -g {} -n {} --resource-type Microsoft.Compute/disks'.format(config["azure_cluster"]["resource_group"], disk["name"]))
         delete_cmds.append('az resource delete -g {} -n {} --resource-type Microsoft.Compute/disks'.format(config["azure_cluster"]["resource_group"], vm_spec["storageProfile"]["osDisk"]["name"]))
         for cmd in delete_cmds:
-            execute_or_dump_locally(cmd, args.verbose, no_execution, args.output)
+            execute_or_dump_locally(cmd, args.verbose, dryrun_or_delay, args.output)
             if delay_run:
                 commands_list.append(cmd)
     if os.path.exists(args.output):
@@ -382,8 +385,8 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
 
     # if just want to update private IP, then keep vmname unchanged, and only update IP.
     priv_ip = ""
-    if "private_ip_address" in spec:
-        priv_ip = "--private-ip-address {} ".format(spec["private_ip_address"])
+    if "private_ip" in spec:
+        priv_ip = "--private-ip-address {} ".format(spec["private_ip"])
     else:
         assert (not 'nfs' in spec["role"]
                 ), "Must specify IP address for NFS node!"
@@ -613,19 +616,20 @@ def get_k8s_node_list_under_condition(k8scmd):
     nodes = output.split()
     return nodes
 
-def delete_k8s_nodes(node_list, args):
+
+def delete_k8s_nodes(node_list, config, args):
     for node in node_list:
-        cmd = './ctl.py kubectl delete node {}'.format(node)
+        cmd = run_kubectl(config, args, ['delete node {}'.format(node)], True)
         execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
-def cordon_node_2_delete_later(num_of_worker_2_cordon, args):
+def cordon_node_2_delete_later(num_of_worker_2_cordon, config, args):
     if num_of_worker_2_cordon <= 0:
         return
-    query_cmd = "./ctl.py kubectl get nodes -l worker=active --no-headers | grep Ready | awk '{print $1}'"
+    query_cmd = run_kubectl(config, args, ["get nodes -l worker=active --no-headers | grep Ready | awk '{print $1}'"], True)
     ready_nodes = get_k8s_node_list_under_condition(query_cmd)
     for node in ready_nodes[:num_of_worker_2_cordon]:
-        cmd = './ctl.py kubectl cordon {}'.format(node)
+        cmd =  run_kubectl(config, args, ['cordon {}'.format(node)], True)
         execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
@@ -633,9 +637,9 @@ def delete_specified_or_cordoned_idling_nodes(config, args, num_limit=-1):
     if args.node_list:
         nodes2delete = args.node_list
     else:
-        busy_cmd = "./ctl.py kubectl get pods -l type=job -o jsonpath='{.items[*].spec.nodeName}'"
+        busy_cmd = run_kubectl(config, args, ["get pods -l type=job -o jsonpath='{.items[*].spec.nodeName}'"], True)
         busy_nodes = get_k8s_node_list_under_condition(busy_cmd)
-        cordoned_cmd = "./ctl.py kubectl get nodes -l worker=active --no-headers | grep SchedulingDisabled | awk '{print $1}'"
+        cordoned_cmd = run_kubectl(config, args, ["get nodes -l worker=active --no-headers | grep SchedulingDisabled | awk '{print $1}'"], True)
         # would be [] if no such node
         cordoned_nodes = get_k8s_node_list_under_condition(cordoned_cmd)
         cordoned_idling = set(cordoned_nodes) - set(busy_nodes)
@@ -647,10 +651,10 @@ def delete_specified_or_cordoned_idling_nodes(config, args, num_limit=-1):
     if args.verbose:
         print("Deleting following nodes:\n", nodes2delete)
     delete_az_vms(config, args, nodes2delete)
-    delete_k8s_nodes(nodes2delete, args)
+    delete_k8s_nodes(nodes2delete, config, args)
     # if we don't have enough qualified node to delete, we randomly cordon some nodes so they'll be cordoned when pod on them finished
     num_of_worker_2_cordon = num_limit - len(nodes2delete)
-    cordon_node_2_delete_later(num_of_worker_2_cordon, args)
+    cordon_node_2_delete_later(num_of_worker_2_cordon, config, args)
     if not args.dryrun:
         get_deployed_cluster_info(config, args)
 
@@ -667,7 +671,7 @@ def dynamically_add_or_delete_around_a_num(config, args):
             print("This round would be skipped. Please specify dynamic_worker_num in config.")
             os.system("sleep {}m".format(monitor_again_after))
             continue
-        query_cmd = "./ctl.py kubectl get nodes -l worker=active --no-headers | awk '{print $1}'"
+        query_cmd = run_kubectl(config, args, ["get nodes -l worker=active --no-headers | awk '{print $1}'"], True)
         k8s_worker_nodes = get_k8s_node_list_under_condition(query_cmd)
         worker_in_records = load_node_list_by_role_from_config(config, ["worker"], False)
         print("Dynamically scaling number of workers:\n {}/{} worker nodes registered in k8s, targeting {}".format(len(k8s_worker_nodes), len(worker_in_records), dynamic_worker_num))
