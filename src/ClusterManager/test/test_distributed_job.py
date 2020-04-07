@@ -558,17 +558,11 @@ def test_distributed_job_mountpoints(args):
         pods = utils.kube_get_pods(args.config, "default",
                                    "jobId=%s" % job.jid)
 
-        ps_pod = pods[0]
         mps = utils.load_cluster_nfs_mountpoints(args, job.jid)
         mps.extend(utils.load_system_mountpoints(args))
-
-        for mp in mps:
-            assert utils.mountpoint_in_pod(mp, ps_pod), \
-                "mountpoint %s not in ps for job %s" % (mp, job.jid)
-
-        worker_pod = pods[1]
         mps.extend(utils.load_infiniband_mounts(args))
 
-        for mp in mps:
-            assert utils.mountpoint_in_pod(mp, worker_pod), \
-                "mountpoint %s not in worker for job %s" % (mp, job.jid)
+        for pod in pods:
+            for mp in mps:
+                assert utils.mountpoint_in_pod(mp, pod), \
+                    "mountpoint %s not in distributed job %s" % (mp, job.jid)

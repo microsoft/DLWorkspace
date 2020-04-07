@@ -721,4 +721,10 @@ def test_regular_job_mountpoints(args):
 
         for mp in mps:
             assert utils.mountpoint_in_pod(mp, pod), \
-                "mountpoint %s not in job %s" % (mp, job.jid)
+                "mountpoint %s not in regular job %s" % (mp, job.jid)
+
+        # Regular job should not have IB mounted
+        ib_mps = utils.load_infiniband_mounts(args)
+        for mp in ib_mps:
+            assert not utils.mountpoint_in_pod(mp, pod), \
+                "infiniband mountpoint %s in regular job %s" % (mp, job.jid)
