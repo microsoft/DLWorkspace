@@ -312,27 +312,22 @@ def delete_az_vms(config, args, machine_list):
     os.system('rm -f ' + args.output)
     delay_run = (args.batch_size > 1) and (not args.dryrun)
     # we don't execute when dryrun specified, otherwise we delay execution if possible to run in batch
-    dryrun_or_delay = delay_run or args.dryrun
     commands_list = []
+    az_cli_verbose = '--verbose' if args.verbose else ''
     for vmname in machine_list:
         vm_spec = get_default_vm_info_json(config, vmname, False)
         delete_cmds = []
-        delete_cmds.append('az vm delete -g {} -n {} --yes'.format(config["azure_cluster"]["resource_group"], vmname))
+        delete_cmds.append('az vm delete -g {} -n {} --yes {}'.format(config["azure_cluster"]["resource_group"], vmname, az_cli_verbose))
         # Nic must be deleted first, then public IP
-        delete_cmds.append('az resource delete -g {} -n {}VMNic --resource-type Microsoft.Network/networkInterfaces'.format(config["azure_cluster"]["resource_group"], vmname))
-        delete_cmds.append('az resource delete -g {} -n {}PublicIP --resource-type Microsoft.Network/publicIPAddresses'.format(config["azure_cluster"]["resource_group"], vmname))
+        delete_cmds.append('az resource delete -g {} -n {}VMNic --resource-type Microsoft.Network/networkInterfaces {}'.format(config["azure_cluster"]["resource_group"], vmname, az_cli_verbose))
+        delete_cmds.append('az resource delete -g {} -n {}PublicIP --resource-type Microsoft.Network/publicIPAddresses {}'.format(config["azure_cluster"]["resource_group"], vmname, az_cli_verbose))
         for disk in vm_spec["storageProfile"]["dataDisks"]:
-            delete_cmds.append('az resource delete -g {} -n {} --resource-type Microsoft.Compute/disks'.format(config["azure_cluster"]["resource_group"], disk["name"]))
-        delete_cmds.append('az resource delete -g {} -n {} --resource-type Microsoft.Compute/disks'.format(config["azure_cluster"]["resource_group"], vm_spec["storageProfile"]["osDisk"]["name"]))
+            delete_cmds.append('az resource delete -g {} -n {} --resource-type Microsoft.Compute/disks {}'.format(config["azure_cluster"]["resource_group"], disk["name"], az_cli_verbose))
+        delete_cmds.append('az resource delete -g {} -n {} --resource-type Microsoft.Compute/disks {}'.format(config["azure_cluster"]["resource_group"], vm_spec["storageProfile"]["osDisk"]["name"], az_cli_verbose))
         for cmd in delete_cmds:
-            execute_or_dump_locally(cmd, args.verbose, dryrun_or_delay, args.output)
-            if delay_run:
-                commands_list.append(cmd)
+            execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
     if os.path.exists(args.output):
         os.system('chmod +x ' + args.output)
-    if delay_run:
-        outputs = execute_cmd_local_in_parallel(commands_list, args)
-        return outputs
 
 
 def is_independent_nfs(role):
@@ -590,10 +585,10 @@ def vm_interconnects(config, args):
 def get_deployed_cluster_info(config, args):
     # load existing status yaml file, default {}
     output_file = "status.yaml" if not args.output else args.output
-    existing_config = {}
+    existing_info = {}
     if os.path.exists(output_file):
         with open(output_file) as ef:
-            existing_config = yaml.safe_load(ef)
+            existing_info = yaml.safe_load(ef).get("machines", {})
     # get info from az cli
     vminfo = list_vm(config, False)
     brief = {}
@@ -606,24 +601,30 @@ def get_deployed_cluster_info(config, args):
         brief_spec["fqdns"] = spec["fqdns"]
         brief_spec["role"] = spec["tags"]["role"].split('-')
         brief[name] = brief_spec
-    az_cli_config = {"machines": brief}
-    with open("azcli.yaml", "w") as wf:
-        yaml.safe_dump(az_cli_config, wf)
+    # az_cli_config = {"machines": brief}
+    # with open('azcli.yaml', "w") as azf:
+    #     yaml.safe_dump({"machines": az_cli_config}, azf)
     # load action yaml file
+    action_info = {}
     action_file = "az_complementary.yaml"
     if os.path.exists(action_file):
         with open(action_file) as af:
-            action_config = yaml.safe_load(af)
-    # merge and dump
-    print(existing_config, action_config, az_cli_config)
-    merge_config(existing_config, action_config)
-    merge_config(existing_config, az_cli_config)
+            action_info = yaml.safe_load(af).get("machines", {})
+    # merge and dump, based on az_cli_config(that's the real-time accurate info)
+    updated_info = {}
+    # import ipdb; ipdb.set_trace()
+    for vm_name, vm_spec in brief.items():
+        # print(vm_name, vm_spec)
+        merge_config(vm_spec, existing_info.get(vm_name, {}))
+        merge_config(vm_spec, action_info.get(vm_name, {}))
+        updated_info[vm_name] = vm_spec
     with open(output_file, "w") as wf:
-        yaml.safe_dump(existing_config, wf)
+        yaml.safe_dump({"machines": updated_info}, wf)
 
 
-def get_k8s_node_list_under_condition(k8scmd):
-    output = exec_cmd_local(k8scmd)
+def get_k8s_node_list_under_condition(config, args, k8scmd):
+    '''we only do query here, so won't dump commands'''
+    output = run_kubectl(config, args, [k8scmd], True) 
     nodes = output.split()
     return nodes
 
@@ -631,28 +632,26 @@ def get_k8s_node_list_under_condition(k8scmd):
 def delete_k8s_nodes(node_list, config, args):
     for node in node_list:
         cmd = run_kubectl(config, args, ['delete node {}'.format(node)], True)
-        execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
 def cordon_node_2_delete_later(num_of_worker_2_cordon, config, args):
     if num_of_worker_2_cordon <= 0:
         return
-    query_cmd = run_kubectl(config, args, ["get nodes -l worker=active --no-headers | grep Ready | awk '{print $1}'"], True)
-    ready_nodes = get_k8s_node_list_under_condition(query_cmd)
+    query_cmds = "get nodes -l worker=active --no-headers | grep Ready | awk '{print $1}'"
+    ready_nodes = get_k8s_node_list_under_condition(config, args, query_cmds)
     for node in ready_nodes[:num_of_worker_2_cordon]:
         cmd =  run_kubectl(config, args, ['cordon {}'.format(node)], True)
-        execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
 def delete_specified_or_cordoned_idling_nodes(config, args, num_limit=-1):
     if args.node_list:
         nodes2delete = args.node_list
     else:
-        busy_cmd = run_kubectl(config, args, ["get pods -l type=job -o jsonpath='{.items[*].spec.nodeName}'"], True)
-        busy_nodes = get_k8s_node_list_under_condition(busy_cmd)
-        cordoned_cmd = run_kubectl(config, args, ["get nodes -l worker=active --no-headers | grep SchedulingDisabled | awk '{print $1}'"], True)
+        busy_cmds = "get pods -l type=job -o jsonpath='{.items[*].spec.nodeName}'"
+        busy_nodes = get_k8s_node_list_under_condition(config, args, busy_cmds)
+        cordoned_cmds = "get nodes -l worker=active --no-headers | grep SchedulingDisabled | awk '{print $1}'"
         # would be [] if no such node
-        cordoned_nodes = get_k8s_node_list_under_condition(cordoned_cmd)
+        cordoned_nodes = get_k8s_node_list_under_condition(config, args, cordoned_cmds)
         cordoned_idling = set(cordoned_nodes) - set(busy_nodes)
         nodes2delete = cordoned_idling
         if args.verbose:
@@ -682,9 +681,10 @@ def dynamically_add_or_delete_around_a_num(config, args):
             print("This round would be skipped. Please specify dynamic_worker_num in config.")
             os.system("sleep {}m".format(monitor_again_after))
             continue
-        query_cmd = run_kubectl(config, args, ["get nodes -l worker=active --no-headers | awk '{print $1}'"], True)
-        k8s_worker_nodes = get_k8s_node_list_under_condition(query_cmd)
-        worker_in_records = load_node_list_by_role_from_config(config, ["worker"], False)
+        query_cmds = "get nodes -l worker=active --no-headers | awk '{print $1}'"
+        k8s_worker_nodes = get_k8s_node_list_under_condition(config, args, query_cmds)
+        worker_in_records, config = load_node_list_by_role_from_config(config, ["worker"], False)
+        print("worker in records:\n", worker_in_records)
         print("Dynamically scaling number of workers:\n {}/{} worker nodes registered in k8s, targeting {}".format(len(k8s_worker_nodes), len(worker_in_records), dynamic_worker_num))
         delta = dynamic_worker_num - len(worker_in_records)
         if delta > 0:

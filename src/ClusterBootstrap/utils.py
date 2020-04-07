@@ -337,13 +337,13 @@ def exec_cmd_local(execmd, verbose=False, max_run=1200, supressWarning=False):
     return output
 
 
-def execute_or_dump_locally(cmd, verbose, dryrun, output_file):
-    cmd = ' '.join(cmd.split())+'\n'
+def execute_or_dump_locally(cmd, verbose, dryrun, output_file, max_run=1200, supress_warning=False):
+    cmd = ' '.join(cmd.split())
     if output_file:
         with open(output_file, 'a') as wf:
-            wf.write(cmd)
+            wf.write(cmd + '\n')
     if not dryrun:
-        output = exec_cmd_local(cmd, verbose)
+        output = exec_cmd_local(cmd, verbose, max_run, supress_warning)
         return output
 
 
