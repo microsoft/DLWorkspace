@@ -17,6 +17,7 @@ from az_utils import \
     remove_nsg_rule_whitelist, \
     delete_nsg_rule_whitelist, \
     create_nsg_rules_with_service_tags, \
+    create_nsg_rule_with_service_tag, \
     delete_nsg_rules_with_service_tags, \
     create_logging_storage_account, \
     create_logging_container, \
@@ -26,7 +27,7 @@ from az_utils import \
 from cloud_init_deploy import load_node_list_by_role_from_config
 from ctl import run_kubectl
 sys.path.append("../utils")
-from ConfigUtils import add_configs_in_order
+from ConfigUtils import add_configs_in_order, merge_config
 
 def init_config():
     config = {}
@@ -223,20 +224,12 @@ def create_nfs_nsg(config, args):
                )
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
-    cmd = """az network nsg rule create \
-            --resource-group %s \
-            --nsg-name %s \
-            --name allow_share \
-            --priority 1300 \
-            --source-address-prefixes %s \
-            --destination-port-ranges \'*\' \
-            --access allow
-        """ % (config["azure_cluster"]["resource_group"],
-               config["azure_cluster"]["nfs_nsg_name"],
-               " ".join(config["cloud_config_nsg_rules"]
-                        ["nfs_share"]["source_ips"]),
-               )
-    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+    for i, service_tag in enumerate(config["cloud_config_nsg_rules"].get("service_tags", [])):
+        create_nsg_rule_with_service_tag(config["azure_cluster"]["resource_group"],
+            config["azure_cluster"]["nfs_nsg_name"], 1300 + i,
+            config["cloud_config_nsg_rules"].get("tcp_port_ranges", "\'*\'"),
+            service_tag, args)
+
 
 
 def deploy_cluster(config, args):
@@ -599,7 +592,8 @@ def get_deployed_cluster_info(config, args):
     output_file = "status.yaml" if not args.output else args.output
     existing_config = {}
     if os.path.exists(output_file):
-        existing_config = yaml.safe_load(output_file)
+        with open(output_file) as ef:
+            existing_config = yaml.safe_load(ef)
     # get info from az cli
     vminfo = list_vm(config, False)
     brief = {}
@@ -612,15 +606,20 @@ def get_deployed_cluster_info(config, args):
         brief_spec["fqdns"] = spec["fqdns"]
         brief_spec["role"] = spec["tags"]["role"].split('-')
         brief[name] = brief_spec
+    az_cli_config = {"machines": brief}
+    with open("azcli.yaml", "w") as wf:
+        yaml.safe_dump(az_cli_config, wf)
     # load action yaml file
     action_file = "az_complementary.yaml"
     if os.path.exists(action_file):
-        action_config = yaml.safe_load(action_file)
+        with open(action_file) as af:
+            action_config = yaml.safe_load(af)
     # merge and dump
-    existing_config.update(action_config)
-    existing_config.update(brief)
+    print(existing_config, action_config, az_cli_config)
+    merge_config(existing_config, action_config)
+    merge_config(existing_config, az_cli_config)
     with open(output_file, "w") as wf:
-        yaml.safe_dump({"machines": brief}, wf)
+        yaml.safe_dump(existing_config, wf)
 
 
 def get_k8s_node_list_under_condition(k8scmd):
