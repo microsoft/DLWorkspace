@@ -1,6 +1,7 @@
 #!/bin/bash
 /opt/resolve_ip.sh
 ETCDIP=$(cat /opt/defaultip)
+/usr/bin/docker rm -f etcd3 
 /usr/bin/docker run -v /usr/share/ca-certificates/mozilla:/etc/ssl/certs -v /etc/etcd/ssl:/etc/etcd/ssl -v /var/etcd:/var/etcd -p {{cnf["etcd3port1"]}}:{{cnf["etcd3port1"]}} -p {{cnf["etcd3portserver"]}}:{{cnf["etcd3portserver"]}} \
   --net=host \
   --name etcd3 {{cnf["dockers"]["container"]["etcd"]["fullname"]}} /usr/local/bin/etcd \
