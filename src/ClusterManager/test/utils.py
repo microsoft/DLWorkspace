@@ -101,7 +101,7 @@ def load_azure_blob_config(config_path, mount_path):
     }
 
 
-def load_cluster_nfs_mountpoints(args):
+def load_cluster_nfs_mountpoints(args, job_id):
     config = get_config(args.config)
     cluster_nfs = walk_json_safe(config, "cluster_nfs")
 
@@ -112,6 +112,9 @@ def load_cluster_nfs_mountpoints(args):
     server = walk_json_safe(cluster_nfs, "server")
     path = walk_json_safe(cluster_nfs, "path")
     alias = get_alias(args.email)
+
+    job_path = get_job_detail(args.rest_url, args.email,
+                              job_id)["jobParams"]["jobPath"]
 
     mps = [{
         # /home/<alias>
@@ -125,6 +128,7 @@ def load_cluster_nfs_mountpoints(args):
         "path": os.path.join(path, "work"),
         "mountPath": "/job",
         "mountType": "nfs",
+        "subPath": job_path
     }, {
         # /work
         "server": server,
@@ -170,27 +174,29 @@ def load_infiniband_mounts(args):
     } for mp in mps]
 
 
+def mountpoint_in_volumes(mp, volumes):
+    mount_type = snake_case(mp["mountType"])
+    for volume in volumes:
+        v = volume.get(mount_type)
+        if v and v["path"] == mp["hostPath"]:
+            return True
+    return False
+
+
+def mountpoint_in_volume_mounts(mp, volume_mounts):
+    for volume_mount in volume_mounts:
+        mount_path = volume_mount.get("mount_path")
+        sub_path = volume_mounts.get("sub_path")
+        if mount_path == mp["mountPath"] and sub_path == mp.get("subPath"):
+            return True
+    return False
+
+
 def mountpoint_in_pod(mountpoint, pod):
     volumes = pod.spec.volumes
     volume_mounts = pod.spec.containers[0].volume_mounts
-
-    def mountpoint_in_volumes(mp):
-        mount_type = snake_case(mp["mountType"])
-        for volume in volumes:
-            v = volume.get(mount_type)
-            if v and v["path"] == mp["hostPath"]:
-                return True
-        return False
-
-    def mountpoint_in_volume_mounts(mp):
-        for volume_mount in volume_mounts:
-            mount_path = volume_mount.get("mount_path")
-            if mount_path == mp["mountPath"]:
-                return True
-        return False
-
-    return mountpoint_in_volumes(mountpoint) and \
-        mountpoint_in_volume_mounts(mountpoint)
+    return mountpoint_in_volumes(mountpoint, volumes) and \
+        mountpoint_in_volume_mounts(mountpoint, volume_mounts)
 
 
 def gen_default_job_description(
