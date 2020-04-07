@@ -74,7 +74,7 @@ If you run into a deployment issue, please check [here](FAQ.md) first.
 
 `./ctl.py` is the main file used for maintaining a cluster. It provides several handy tools that provide more convenient interface for developers. We introduce some commands below:
 
-## Adding more machines
+## adding more machines
 This might be the only maintain task where need `cloud_init_aztools.py` instead of `ctl.py`.
 To add more machines (worker/elasticsearch nodes etc., NFS/infra nodes not supported), re-configure `azure_cluster.virtual_machines` in `config.yaml` and use below command:
 ```
@@ -91,6 +91,11 @@ After reconfiguration, you may use below commands to finish the new deployment o
 ```
 
 Sometimes you might also want to add a new NFS node, which currently has not been automated. Any change to infra node would be considered a cluster change, as for now, we redeploy the whole cluster instead of adding a infra node. Contact us for more details.
+
+## dynamically scaling up/down # or workers
+specify "dynamic_worker_num" in config.yaml, 
+and use `./cloud_init_aztools.py dynamic_around`.
+the monitoring frequency is specified by "monitor_again_after" in config.yaml
 
 ## back up and restore cluster information
 ```
