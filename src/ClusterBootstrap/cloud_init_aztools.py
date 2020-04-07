@@ -595,6 +595,12 @@ def vm_interconnects(config, args):
 
 
 def get_deployed_cluster_info(config, args):
+    # load existing status yaml file, default {}
+    output_file = "status.yaml" if not args.output else args.output
+    existing_config = {}
+    if os.path.exists(output_file):
+        existing_config = yaml.safe_load(output_file)
+    # get info from az cli
     vminfo = list_vm(config, False)
     brief = {}
     for name, spec in vminfo.items():
@@ -606,7 +612,13 @@ def get_deployed_cluster_info(config, args):
         brief_spec["fqdns"] = spec["fqdns"]
         brief_spec["role"] = spec["tags"]["role"].split('-')
         brief[name] = brief_spec
-    output_file = "status.yaml" if not args.output else args.output
+    # load action yaml file
+    action_file = "az_complementary.yaml"
+    if os.path.exists(action_file):
+        action_config = yaml.safe_load(action_file)
+    # merge and dump
+    existing_config.update(action_config)
+    existing_config.update(brief)
     with open(output_file, "w") as wf:
         yaml.safe_dump({"machines": brief}, wf)
 
@@ -776,4 +788,4 @@ Command:
     nargs = args.nargs
     config = load_config_based_on_command(command)
     set_subscription(config)
-    run_command(command, config, args, nargs)
+    run_command(command, config, args)
