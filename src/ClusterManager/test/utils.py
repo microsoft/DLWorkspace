@@ -125,7 +125,7 @@ def load_cluster_nfs_mountpoints(args, job_id):
     }, {
         # /job
         "server": server,
-        "path": os.path.join(path, "work"),
+        "path": os.path.join(path, "work", ""),
         "mountPath": "/job",
         "mountType": "nfs",
         "subPath": job_path
@@ -138,7 +138,7 @@ def load_cluster_nfs_mountpoints(args, job_id):
     }, {
         # /data
         "server": server,
-        "path": os.path.join(path, "storage"),
+        "path": os.path.join(path, "storage", ""),
         "mountPath": "/data",
         "mountType": "nfs",
     }]
@@ -185,7 +185,7 @@ def mountpoint_in_volumes(mp, volumes):
 
     for volume in volumes:
         v = volume.to_dict().get(snake_case(mount_type))
-        if v and v["path"].rstrip("/") == path.rstrip("/"):
+        if v and v["path"] == path:
             return True
     return False
 
@@ -195,9 +195,7 @@ def mountpoint_in_volume_mounts(mp, volume_mounts):
         volume_mount = volume_mount.to_dict()
         mount_path = volume_mount.get("mount_path")
         sub_path = volume_mount.get("sub_path")
-        if sub_path is not None:
-            sub_path = sub_path.rstrip("/")
-        if mount_path.rstrip("/") == mp["mountPath"].rstrip("/") and sub_path == mp.get("subPath"):
+        if mount_path == mp["mountPath"] and sub_path == mp.get("subPath"):
             return True
     return False
 
