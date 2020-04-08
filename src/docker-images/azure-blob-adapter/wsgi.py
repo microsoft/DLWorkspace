@@ -1,5 +1,5 @@
 from azure.storage.blob import AppendBlobService
-from azure.common import AzureMissingResourceHttpError, AzureHttpError
+from azure.common import AzureMissingResourceHttpError, AzureConflictHttpError, AzureHttpError
 from dotenv import load_dotenv
 from logging import getLogger, StreamHandler
 from os import environ
@@ -30,16 +30,21 @@ def application(request):
             append_blob_service.get_container_properties(
                 container_name=container_name)
             return Response(status=200)
+
         elif request.method == 'POST' and request.path == '/':
             try:
-                blob_name = request.headers['X-Tag']
+                tag = request.headers['X-Tag']
             except KeyError:
                 logger.exception('Key Error')
                 return Response(status=400)
 
-            try:
-                blob = request.get_data()
-                count = request.content_length
+            blob = request.get_data()
+            count = request.content_length
+
+            suffix = 0
+            blob_name = tag
+
+            for _ in range(10):
                 try:
                     append_blob_service.append_blob_from_bytes(
                         container_name=container_name,
@@ -50,15 +55,17 @@ def application(request):
                     append_blob_service.create_blob(
                         container_name=container_name,
                         blob_name=blob_name)
-                    append_blob_service.append_blob_from_bytes(
-                        container_name=container_name,
-                        blob_name=blob_name,
-                        blob=blob,
-                        count=count)
+                    continue
+                except AzureConflictHttpError:
+                    suffix += 1
+                    blob_name = tag + '.' + suffix
+                    continue
+                except AzureHttpError:
+                    logger.exception('Azure HTTP Error')
+                    return Response(status=502)
+
                 return Response(status=201)
-            except AzureHttpError:
-                logger.exception('Azure HTTP Error')
-                return Response(status=502)
+
         else:
             return Response(status=400)
     except Exception:
