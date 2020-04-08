@@ -127,7 +127,7 @@ def mount_fileshare(verbose=True):
                 time.sleep(3)
             if len(existmounts) <= 0:
                 nMounts += 1
-                exec_with_output("mount {}:{} {} -o {} ".format(mnt_itm["private_ip_address"],
+                exec_with_output("mount {}:{} {} -o {} ".format(mnt_itm["private_ip"],
                     triplet["nfs_local_path"], triplet["remote_mount_path"], mnt_itm["options"]), verbose=verbose)
     if nMounts > 0:
         time.sleep(1)

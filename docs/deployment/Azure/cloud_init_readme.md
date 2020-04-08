@@ -84,10 +84,21 @@ to generate new machine list. You can also edit `az_complementary.yaml` directly
 You may want to save the previous config files in advance.
 
 After reconfiguration, you may use below commands to finish the new deployment of several nodes to the existing cluster:
+
+if you are adding NFS node, need to run these lines in advance:
+
 ```
+./cloud_init_deploy.py render
+./cloud_init_deploy.py pack
+./cloud_init_deploy.py docker push cloudinit
+```
+
+then run below lines. (start from here if you are adding workers only)
+```
+./cloud_init_deploy.py render
 ./cloud_init_aztools.py -v addmachines
-./cloud_init_aztools.py interconnect
 ./cloud_init_aztools.py listcluster
+./cloud_init_aztools.py interconnect
 ```
 
 Sometimes you might also want to add a new NFS node, which currently has not been automated. Any change to infra node would be considered a cluster change, as for now, we redeploy the whole cluster instead of adding a infra node. Contact us for more details.
@@ -136,6 +147,7 @@ Notice that here the script path cannot be src/ClusterBootstrap since it contain
 ```
 
 ## start/stop service
+If you need to update service config of an already deployed node, edit status.yaml, not config.yaml
 ```
 ./ctl.py svc stop <service1, service2, ...> (e.g., ./ctl.py svc stop monitor)
 ./ctl.py svc start <service1, service2, ...> (e.g., ./ctl.py svc start monitor)

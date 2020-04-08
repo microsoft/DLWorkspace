@@ -16,6 +16,8 @@ os.chdir(cwd)
 sys.path.append("../utils")
 
 from ConfigUtils import *
+from constants import FILE_MAP_PATH, ENV_CNF_YAML, STATUS_YAML
+
 from params import default_config_parameters
 from cloud_init_deploy import load_node_list_by_role_from_config
 from cloud_init_deploy import update_service_path
@@ -24,17 +26,15 @@ from cloud_init_deploy import load_config as load_deploy_config
 from cloud_init_deploy import render_restfulapi, render_dashboard, render_storagemanager, render_repairmanager
 from cloud_init_deploy import check_buildable_images, push_docker_images
 
-FILE_MAP_PATH = 'deploy/cloud-config/file_map.yaml'
-
 
 def load_config_4_ctl(args, command):
     # if we need to load all config
     if command in ["svc", "render_template", "download", "docker"]:
-        args.config = ['config.yaml', 'status.yaml'] if not args.config else args.config
+        args.config = [ENV_CNF_YAML, STATUS_YAML] if not args.config else args.config
         config = load_deploy_config(args)
     else:
         if not args.config and command != "restorefromdir":
-            args.config = ['status.yaml']
+            args.config = [STATUS_YAML]
         config = init_config(default_config_parameters)
         config = add_configs_in_order(args.config, config)
         config["ssh_cert"] = config.get("ssh_cert", "./deploy/sshkey/id_rsa")
@@ -54,7 +54,7 @@ def connect_to_machine(config, args):
                       ["admin_username"], config["machines"][node]["fqdns"])
 
 
-def run_kubectl(config, args, commands, need_output=False):
+def run_kubectl(config, args, commands, need_output=False, dump_to_file=''):
     if not os.path.exists("./deploy/bin/kubectl"):
         print("please make sure ./deploy/bin/kubectl exists. One way is to use ./ctl.py download")
         exit(-1)
@@ -63,11 +63,11 @@ def run_kubectl(config, args, commands, need_output=False):
     master_node = random.choice(nodes)
     kube_command = "./deploy/bin/kubectl --server=https://{}:{} --certificate-authority={} --client-key={} --client-certificate={} {}".format(
         config["machines"][master_node]["fqdns"], config["k8sAPIport"], "./deploy/ssl/ca/ca.pem", "./deploy/ssl/kubelet/apiserver-key.pem", "./deploy/ssl/kubelet/apiserver.pem", one_command)
-    if args.verbose:
-        print(kube_command)
     if need_output:
-        output = utils.exec_cmd_local(kube_command, verbose=False)
-        print(output)
+        # we may want to dump command to another file instead of args.output, when we don't want to mix k8s commands with others
+        output = utils.execute_or_dump_locally(kube_command, args.verbose, args.dryrun, dump_to_file)
+        if not args.verbose:
+            print(output)
         return output
     else:
         os.system(kube_command)
@@ -257,23 +257,23 @@ def run_command(args, command):
     config = load_config_4_ctl(args, command)
     if command == "restorefromdir":
         utils.restore_keys_from_dir(args.nargs)
-    if command == "connect":
+    elif command == "connect":
         connect_to_machine(config, args)
-    if command == "kubectl":
+    elif command == "kubectl":
         run_kubectl(config, args, args.nargs[0:])
-    if command == "runscript":
+    elif command == "runscript":
         parallel_action_by_role(config, args, run_script_wrapper)
-    if command == "runcmd":
+    elif command == "runcmd":
         parallel_action_by_role(config, args, run_cmd_wrapper)
-    if command == "copy2":
+    elif command == "copy2":
         parallel_action_by_role(config, args, copy2_wrapper)
-    if command == "backuptodir":
+    elif command == "backuptodir":
         utils.backup_keys_to_dir(args.nargs)
-    if command == "restorefromdir":
+    elif command == "restorefromdir":
         utils.restore_keys_from_dir(args.nargs)
-    if command == "verifyallnodes":
+    elif command == "verifyallnodes":
         verify_all_nodes_ready(config, args)
-    if command == "svc":
+    elif command == "svc":
         assert len(
             args.nargs) > 1 and "at least 1 action and 1 kubernetes service name should be provided"
         if args.nargs[0] == "start":
@@ -284,16 +284,18 @@ def run_command(args, command):
             render_services(config, args.nargs[1:])
         elif args.nargs[0] == "configupdate":
             remote_config_update(config, args, True)
-    if command == "render_template":
+    elif command == "render_template":
         render_template_or_dir(config, args)
-    if command == "download":
+    elif command == "download":
         if not os.path.exists('deploy/bin/kubectl') or args.force:
             get_kubectl_binary(config)
-    if command == "docker":
+    elif command == "docker":
         nargs = args.nargs
         if nargs[0] == "push":
             check_buildable_images(args.nargs[1], config)
             push_docker_images(args, config)
+    else:
+        print("invalid command, please read the doc")
 
 
 if __name__ == '__main__':

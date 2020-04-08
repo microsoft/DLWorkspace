@@ -10,12 +10,12 @@ import uuid
 import utils
 import textwrap
 import argparse
+
 sys.path.append("../utils")
 from ConfigUtils import *
+from constants import CLOUD_INIT_FILE_MAP, ENV_CNF_YAML, ACTION_YAML, STATUS_YAML
 from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image, configuration
 from params import default_config_parameters
-
-CLOUD_INIT_FILE_MAP = "cloudinit/file_map.yaml"
 
 
 def generate_ip_from_cluster(cluster_ip_range, index):
@@ -429,7 +429,7 @@ def gen_mounting_yaml(config):
     for nfs in config["nfs_node"]:
         nfs_machine_name = nfs.split('.')[0]
         spec = config["machines"][nfs_machine_name]
-        assert "private_ip_address" in spec, "Need IP for NFS node!"
+        assert "private_ip" in spec, "Need private IP for NFS node!"
         mount_triplets = []
         if "fileshares" not in spec or len(spec["fileshares"]) == 0:
             spec["fileshares"] = [[]]
@@ -473,7 +473,7 @@ def gen_mounting_yaml(config):
                                        "remote_mount_path": mnt_mnt, "remote_link_path": mnt_lnk},
         options = spec["options"] if "options" in spec else config["mountconfig"]["nfs"]["options"]
         mountconfig[nfs_machine_name] = {
-            "private_ip_address": spec["private_ip_address"], "fileshares": mount_triplets, "options": options}
+            "private_ip": spec["private_ip"], "fileshares": mount_triplets, "options": options}
     with open("./deploy/storage/auto_share/mounting.yaml", 'w') as mntfile:
         yaml.dump(mountconfig, mntfile, default_flow_style=False)
     return allmountpoints
@@ -698,6 +698,8 @@ def get_cni_binary(config):
 
 
 def get_kubectl_binary(config, force=False):
+    if os.path.exists("./deploy/bin/kubectl"):
+        return
     get_hyperkube_docker(config, force=force)
     get_cni_binary(config)
 
@@ -984,8 +986,10 @@ def run_command(args, command, parser):
     if command == "clusterID":
         create_cluster_id(args.force)
     else:
-        args.config = ["config.yaml", "az_complementary.yaml"] if len(
-            args.config) == 0 else args.config
+        if len(args.config) == 0:
+            args.config = [ENV_CNF_YAML, ACTION_YAML]
+            if os.path.exists(STATUS_YAML):
+                args.config.append(STATUS_YAML)
         config = load_config(args)
     if command == "dumpconfig":
         with open("todeploy.yaml", "w") as wf:
@@ -1070,7 +1074,7 @@ if __name__ == '__main__':
                         )
     # we use action='append', instead of nargs='+', to avoid conflict between list and additional command argument
     parser.add_argument('-cnf', '--config', action='append', default=[], help='Specify the config files you want to load, later ones \
-        would overwrite former ones, e.g., -cnf config.yaml -cnf az_complementary.yaml')
+        would overwrite former ones, e.g., -cnf config.yaml -cnf action.yaml')
     parser.add_argument("command",
                         help="See above for the list of valid command")
     parser.add_argument('nargs', nargs=argparse.REMAINDER,
