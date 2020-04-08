@@ -8,7 +8,6 @@ import argparse
 
 from az_params import *
 from params import *
-from constants import ENV_CNF_YAML, ACTION_YAML, STATUS_YAML
 from utils import random_str, keep_widest_subnet, \
     multiprocess_with_func_arg_tuples, exec_cmd_local, \
     execute_or_dump_locally
@@ -28,6 +27,7 @@ from az_utils import \
 from cloud_init_deploy import load_node_list_by_role_from_config
 from ctl import run_kubectl
 sys.path.append("../utils")
+from constants import ENV_CNF_YAML, ACTION_YAML, STATUS_YAML
 from ConfigUtils import add_configs_in_order, merge_config
 
 
@@ -642,6 +642,9 @@ def get_deployed_cluster_info(config, args):
         merge_config(vm_spec, existing_info.get(vm_name, {}))
         merge_config(vm_spec, action_info.get(vm_name, {}))
         updated_info[vm_name] = vm_spec
+    for vm_name, vm_spec in existing_info.items():
+        if "samba" in vm_spec["role"]:
+            updated_info[vm_name] = vm_spec
     with open(output_file, "w") as wf:
         yaml.safe_dump({"machines": updated_info}, wf)
 
