@@ -45,7 +45,7 @@ if config.get("logging") == 'azure_blob':
                     try:
                         blob = append_blob_service.get_blob_properties(
                             container_name=container_name,
-                            blob_name=tag + '.' + suffix)
+                            blob_name=tag + '.' + str(suffix))
                     except AzureMissingResourceHttpError:
                         break
 

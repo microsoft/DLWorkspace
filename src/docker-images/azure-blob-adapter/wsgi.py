@@ -58,7 +58,7 @@ def application(request):
                     continue
                 except AzureConflictHttpError:
                     suffix += 1
-                    blob_name = tag + '.' + suffix
+                    blob_name = tag + '.' + str(suffix)
                     continue
                 except AzureHttpError:
                     logger.exception('Azure HTTP Error')
