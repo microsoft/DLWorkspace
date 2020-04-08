@@ -487,7 +487,7 @@ def test_job_directory(args):
 @utils.case()
 def test_fault_tolerance(args):
     # Job is only retried when launcher is controller.
-    if utils.get_launcher(args) == "python":
+    if utils.get_launcher(args.config) == "python":
         return
 
     job_spec = utils.gen_default_job_description("distributed", args.email,
