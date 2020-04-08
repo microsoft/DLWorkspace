@@ -8,6 +8,7 @@ import argparse
 
 from az_params import *
 from params import *
+from constants import ENV_CNF_YAML, ACTION_YAML, STATUS_YAML
 from utils import random_str, keep_widest_subnet, \
     multiprocess_with_func_arg_tuples, exec_cmd_local, \
     execute_or_dump_locally
@@ -29,10 +30,6 @@ from ctl import run_kubectl
 sys.path.append("../utils")
 from ConfigUtils import add_configs_in_order, merge_config
 
-ENV_CNF_YAML = "config.yaml"
-STATUS_YAML = "status.yaml"
-ACTION_YAML = "action.yaml"
-
 
 def init_config():
     config = {}
@@ -47,7 +44,7 @@ def load_config_based_on_command(command):
     default_config = init_config()
     config_file_list = args.config
     if not args.config:
-        config_file_list = ["config.yaml"]
+        config_file_list = [ENV_CNF_YAML]
         if command in ["deploy", "addmachines"]:
             config_file_list.append(ACTION_YAML)
         if command in ["delete_nodes", "dynamic_around", "interconnect"]:
@@ -818,7 +815,6 @@ Command:
         '-d', '--dryrun', help='Dry run -- no actual execution', action="store_true")
     args = parser.parse_args()
     command = args.command
-    nargs = args.nargs
     config = load_config_based_on_command(command)
     set_subscription(config)
     run_command(command, config, args)

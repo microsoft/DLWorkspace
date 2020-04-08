@@ -10,15 +10,12 @@ import uuid
 import utils
 import textwrap
 import argparse
+
 sys.path.append("../utils")
 from ConfigUtils import *
+from constants import CLOUD_INIT_FILE_MAP, ENV_CNF_YAML, ACTION_YAML, STATUS_YAML
 from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image, configuration
 from params import default_config_parameters
-
-CLOUD_INIT_FILE_MAP = "cloudinit/file_map.yaml"
-ENV_CNF_YAML = "config.yaml"
-STATUS_YAML = "status.yaml"
-ACTION_YAML = "action.yaml"
 
 
 def generate_ip_from_cluster(cluster_ip_range, index):

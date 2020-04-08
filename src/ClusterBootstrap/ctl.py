@@ -16,6 +16,8 @@ os.chdir(cwd)
 sys.path.append("../utils")
 
 from ConfigUtils import *
+from constants import FILE_MAP_PATH, ENV_CNF_YAML, STATUS_YAML
+
 from params import default_config_parameters
 from cloud_init_deploy import load_node_list_by_role_from_config
 from cloud_init_deploy import update_service_path
@@ -23,10 +25,6 @@ from cloud_init_deploy import get_kubectl_binary
 from cloud_init_deploy import load_config as load_deploy_config
 from cloud_init_deploy import render_restfulapi, render_dashboard, render_storagemanager, render_repairmanager
 from cloud_init_deploy import check_buildable_images, push_docker_images
-
-FILE_MAP_PATH = "deploy/cloud-config/file_map.yaml"
-ENV_CNF_YAML = "config.yaml"
-STATUS_YAML = "status.yaml"
 
 
 def load_config_4_ctl(args, command):

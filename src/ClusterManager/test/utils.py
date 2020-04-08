@@ -11,9 +11,9 @@ import yaml
 import base64
 import functools
 import inspect
-
 import requests
 
+STATUS_YAML = "status.yaml"
 from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
 from kubernetes.client import Configuration, ApiClient
@@ -382,7 +382,7 @@ def find_infra_node_name(machines):
 def build_k8s_config(config_path):
     cluster_path = os.path.join(config_path, "cluster.yaml")
     if not os.path.isfile(cluster_path):
-        cluster_path = os.path.join(config_path, "az_complementary.yaml")
+        cluster_path = os.path.join(config_path, STATUS_YAML)
 
     with open(cluster_path) as f:
         cluster_config = yaml.full_load(f)
@@ -390,10 +390,16 @@ def build_k8s_config(config_path):
     config = Configuration()
 
     infra_host = find_infra_node_name(cluster_config["machines"])
-    config.host = "https://%s.%s:1443" % (infra_host,
-                                          cluster_config["network"]["domain"])
 
-    basic_auth = cluster_config["basic_auth"]
+    if os.path.isfile(cluster_path):
+        config.host = "https://%s.%s:1443" % (infra_host,
+                                          cluster_config["network"]["domain"])
+        basic_auth = cluster_config["basic_auth"]
+    else:
+        config.host = cluster_config["machines"][infra_host]["fqdns"]
+        with open(os.path.join(config_path, "clusterID", "k8s_basic_auth.yml")) as auf:
+            basic_auth = yaml.safe_load(auf)["basic_auth"]
+
     config.username = basic_auth.split(",")[1]
     config.password = basic_auth.split(",")[0]
     bearer = "%s:%s" % (config.username, config.password)
