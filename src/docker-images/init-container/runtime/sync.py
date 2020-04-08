@@ -66,13 +66,28 @@ def get_worker_number():
     return int(os.environ.get("DLTS_NUM_WORKER", 0))
 
 
-def create_own_config(k8s_core_api, job_name, pod_name, ip, ssh_port):
+def get_framework_attempt_id():
+    return os.environ.get("FC_FRAMEWORK_ATTEMPT_ID", "0")
+
+
+def get_task_attempt_id():
+    return os.environ.get("FC_TASK_ATTEMPT_ID", "0")
+
+
+def create_own_config(k8s_core_api, job_name, pod_name, ip, ssh_port,
+                      framework_attempt, task_attempt):
     config_name = "c-" + pod_name
+
+    labels = {
+        "run": job_name,
+        "framework_attempt_id": framework_attempt,
+        "task_attempt_id": task_attempt
+    }
 
     metadata = k8s_client.V1ObjectMeta(
         namespace=job_namespace,
         name=config_name,
-        labels={"run": job_name},
+        labels=labels,
     )
 
     data = json.dumps({"ip": ip, "ssh_port": ssh_port})
@@ -144,9 +159,13 @@ def main(args):
     worker_num = get_worker_number()
     expected_num = ps_num + worker_num
 
+    framework_attempt = get_framework_attempt_id()
+    task_attempt = get_task_attempt_id()
+
     logger.debug(
-        "pod_name %s, job_name %s, ip %s, port %d, ps_num %d, worker_num %d",
-        pod_name, job_name, ip, ssh_port, ps_num, worker_num)
+        "pod_name %s, job_name %s, ip %s, port %d, ps_num %d, worker_num %d, framework_attempt %s, task_attempt %s",
+        pod_name, job_name, ip, ssh_port, ps_num, worker_num, framework_attempt,
+        task_attempt)
 
     if pod_name is None or job_name is None or ip is None:
         logger.error("one of essential environment variable is missing %s", {
@@ -161,9 +180,10 @@ def main(args):
     # k8s_apps_api = k8s_client.AppsV1Api()
 
     config_name = create_own_config(k8s_core_api, job_name, pod_name, ip,
-                                    ssh_port)
+                                    ssh_port, framework_attempt, task_attempt)
 
-    labels = "run=%s" % (job_name)
+    labels = "run=%s,framework_attempt_id=%s,task_attempt_id=%s" % (
+        job_name, framework_attempt, task_attempt)
 
     items = []
     # wait forever. If the resource is not enought, some worker will be in pending state, if
