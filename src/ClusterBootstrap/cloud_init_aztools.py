@@ -377,7 +377,9 @@ def add_n_machines(config, args, num_2_add):
     assert target_spec is not None, "no worker node spec found, please specify in config.yaml"
     target_spec["number_of_instance"] = num_2_add
     config["azure_cluster"]["virtual_machines"] = [target_spec]
-    node_2_add_cnf = gen_machine_list_4_deploy_action(None, config)
+    # we have to dump the action config, to keep more detailed info
+    # (kube_label_groups etc.), otherwise render might lose this
+    node_2_add_cnf = gen_machine_list_4_deploy_action(args.output, config)
     config.update(node_2_add_cnf)
     add_machines(config, args)
     script_fn, args.output = args.output, ''
