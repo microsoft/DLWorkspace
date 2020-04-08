@@ -21,7 +21,7 @@ if config.get("logging") == 'azure_blob':
     logger.info('Azure Blob log backend is enabled.')
 
     from azure.storage.blob import AppendBlobService
-    from azure.common import AzureHttpError
+    from azure.common import AzureMissingResourceHttpError, AzureHttpError
 
     append_blob_service = AppendBlobService(
         connection_string=config['azure_blob_log']['connection_string'])
@@ -31,18 +31,28 @@ if config.get("logging") == 'azure_blob':
 
     def GetJobLog(jobId, cursor=None, size=None):
         try:
-            blob_name = 'jobs.' + jobId
+            tag = 'jobs.' + jobId
 
             lines = []
 
             try:
                 blob = append_blob_service.get_blob_properties(
                     container_name=container_name,
-                    blob_name=blob_name)
+                    blob_name=tag)
+
+                for suffix in range(1, 10):
+                    # Try to find the latest blob
+                    try:
+                        blob = append_blob_service.get_blob_properties(
+                            container_name=container_name,
+                            blob_name=tag + '.' + suffix)
+                    except AzureMissingResourceHttpError:
+                        break
+
                 start_range = max(0, blob.properties.content_length - CHUNK_SIZE)
                 chunk = append_blob_service.get_blob_to_bytes(
                     container_name=container_name,
-                    blob_name=blob_name,
+                    blob_name=blob.name,
                     start_range=start_range)
                 content = chunk.content.decode(
                     encoding='utf-8', errors='ignore')
