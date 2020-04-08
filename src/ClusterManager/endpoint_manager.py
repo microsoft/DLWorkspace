@@ -205,7 +205,7 @@ def setup_jupyter_server(user_name, pod_name):
     bash_script = "bash -c 'export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get --no-install-recommends install -y python3-pip && python3 -m pip install --upgrade pip && python3 -m pip install jupyter && cd /home/" + \
         user_name + " && runuser -l " + user_name + \
         " -c \"jupyter notebook --no-browser --ip=0.0.0.0 --NotebookApp.token= --port=" + \
-        str(jupyter_port) + " &>/dev/null &\"'"
+        str(jupyter_port) + " &>> /tmp/dlts-jupyter.out &\"'"
     output = k8sUtils.kubectl_exec("exec %s %s" %
                                    (pod_name, " -- " + bash_script))
     if output == "":
@@ -221,7 +221,7 @@ def setup_tensorboard(user_name, pod_name):
     tensorboard_port = random.randint(40000, 49999)
     bash_script = "bash -c 'export DEBIAN_FRONTEND=noninteractive; pip install tensorboard; runuser -l " + user_name + \
         " -c \"mkdir -p ~/tensorboard/\${DLWS_JOB_ID}/logs; nohup tensorboard --logdir=~/tensorboard/\${DLWS_JOB_ID}/logs --port=" + str(
-            tensorboard_port) + " &>/dev/null &\"'"
+            tensorboard_port) + " &>> /tmp/dlts-tensorboard.out &\"'"
     output = k8sUtils.kubectl_exec("exec %s %s" %
                                    (pod_name, " -- " + bash_script))
     if output == "":
