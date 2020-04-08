@@ -82,6 +82,14 @@ def get_config(config_path):
     return config
 
 
+def get_launcher(config_path):
+    config = get_config(config_path)
+    launcher = walk_json_safe(config, "job-manager", "launcher")
+    if launcher is None:
+        launcher = "python"
+    return launcher
+
+
 def load_azure_blob_config(config_path, mount_path):
     config = get_config(config_path)
     blob_config = walk_json_safe(config, "integration-test", "azure-blob")

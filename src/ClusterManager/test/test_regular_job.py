@@ -645,6 +645,10 @@ def test_ssh_multi_gpu_job_cuda_visible_devices(args):
 
 @utils.case()
 def test_fault_tolerance(args):
+    # Job is only retried when launcher is controller.
+    if utils.get_launcher(args) == "python":
+        return
+
     job_spec = utils.gen_default_job_description("regular", args.email,
                                                  args.uid, args.vc)
 
