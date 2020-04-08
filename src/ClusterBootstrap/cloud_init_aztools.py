@@ -236,7 +236,6 @@ def create_nfs_nsg(config, args):
             service_tag, args)
 
 
-
 def deploy_cluster(config, args):
     if args.output != "":
         with open(args.output, 'w') as f:
@@ -313,24 +312,37 @@ def add_machines(config, args):
         return outputs
 
 
+def delete_az_vm(config, args, vm_name):
+    # TODO try delete with resource delete, if possible, remove this function
+    az_cli_verbose = '--verbose' if args.verbose else ''
+    resource_group = config["azure_cluster"]["resource_group"]
+    delete_cmd = 'az vm delete -g {} -n {} --yes {}'.format(resource_group, vm_name, az_cli_verbose)
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+
+
+def delete_az_resource(config, args, resource_name, resource_type):
+    az_cli_verbose = '--verbose' if args.verbose else ''
+    resource_group = config["azure_cluster"]["resource_group"]
+    delete_cmd = 'az resource delete -g {} -n {} --resource-type {} {}'.format(resource_group, resource_name, resource_type, az_cli_verbose)
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+
+
 def delete_az_vms(config, args, machine_list):
     os.system('rm -f ' + args.output)
     delay_run = (args.batch_size > 1) and (not args.dryrun)
     # we don't execute when dryrun specified, otherwise we delay execution if possible to run in batch
     commands_list = []
     az_cli_verbose = '--verbose' if args.verbose else ''
-    for vmname in machine_list:
-        vm_spec = get_default_vm_info_json(config, vmname, False)
-        delete_cmds = []
-        delete_cmds.append('az vm delete -g {} -n {} --yes {}'.format(config["azure_cluster"]["resource_group"], vmname, az_cli_verbose))
+    for vm_name in machine_list:
+        vm_spec = get_default_vm_info_json(config, vm_name, False)
+        # TODO parallelize deleting resource of different nodes
+        delete_az_vm(config, args, vm_name)
         # Nic must be deleted first, then public IP
-        delete_cmds.append('az resource delete -g {} -n {}VMNic --resource-type Microsoft.Network/networkInterfaces {}'.format(config["azure_cluster"]["resource_group"], vmname, az_cli_verbose))
-        delete_cmds.append('az resource delete -g {} -n {}PublicIP --resource-type Microsoft.Network/publicIPAddresses {}'.format(config["azure_cluster"]["resource_group"], vmname, az_cli_verbose))
+        delete_az_resource(config, args, "{}VMNic".format(vm_name), "Microsoft.Network/networkInterfaces")
+        delete_az_resource(config, args, "{}PublicIP".format(vm_name), "Microsoft.Network/publicIPAddresses")
         for disk in vm_spec["storageProfile"]["dataDisks"]:
-            delete_cmds.append('az resource delete -g {} -n {} --resource-type Microsoft.Compute/disks {}'.format(config["azure_cluster"]["resource_group"], disk["name"], az_cli_verbose))
-        delete_cmds.append('az resource delete -g {} -n {} --resource-type Microsoft.Compute/disks {}'.format(config["azure_cluster"]["resource_group"], vm_spec["storageProfile"]["osDisk"]["name"], az_cli_verbose))
-        for cmd in delete_cmds:
-            execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+            delete_az_resource(config, args, disk["name"], "Microsoft.Compute/disks")
+        delete_az_resource(config, args, vm_spec["storageProfile"]["osDisk"]["name"], "Microsoft.Compute/disks")
     if os.path.exists(args.output):
         os.system('chmod +x ' + args.output)
 
@@ -606,9 +618,6 @@ def get_deployed_cluster_info(config, args):
         brief_spec["fqdns"] = spec["fqdns"]
         brief_spec["role"] = spec["tags"]["role"].split('-')
         brief[name] = brief_spec
-    # az_cli_config = {"machines": brief}
-    # with open('azcli.yaml', "w") as azf:
-    #     yaml.safe_dump({"machines": az_cli_config}, azf)
     # load action yaml file
     action_info = {}
     action_file = ACTION_YAML
@@ -617,9 +626,7 @@ def get_deployed_cluster_info(config, args):
             action_info = yaml.safe_load(af).get("machines", {})
     # merge and dump, based on az_cli_config(that's the real-time accurate info)
     updated_info = {}
-    # import ipdb; ipdb.set_trace()
     for vm_name, vm_spec in brief.items():
-        # print(vm_name, vm_spec)
         merge_config(vm_spec, existing_info.get(vm_name, {}))
         merge_config(vm_spec, action_info.get(vm_name, {}))
         updated_info[vm_name] = vm_spec

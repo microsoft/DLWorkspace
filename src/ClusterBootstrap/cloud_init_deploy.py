@@ -17,6 +17,7 @@ from params import default_config_parameters
 
 CLOUD_INIT_FILE_MAP = "cloudinit/file_map.yaml"
 ENV_CNF_YAML = 'config.yaml'
+STATUS_YAML = 'status.yaml'
 ACTION_YAML = 'action.yaml'
 
 
@@ -700,6 +701,8 @@ def get_cni_binary(config):
 
 
 def get_kubectl_binary(config, force=False):
+    if os.path.exists("./deploy/bin/kubectl"):
+        return
     get_hyperkube_docker(config, force=force)
     get_cni_binary(config)
 
@@ -986,8 +989,10 @@ def run_command(args, command, parser):
     if command == "clusterID":
         create_cluster_id(args.force)
     else:
-        args.config = [ENV_CNF_YAML, ACTION_YAML] if len(
-            args.config) == 0 else args.config
+        if len(args.config) == 0:
+            args.config = [ENV_CNF_YAML, ACTION_YAML]
+            if os.path.exists(STATUS_YAML):
+                args.config.append(STATUS_YAML)
         config = load_config(args)
     if command == "dumpconfig":
         with open("todeploy.yaml", "w") as wf:
