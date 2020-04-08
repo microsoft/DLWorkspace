@@ -29,9 +29,9 @@ from ctl import run_kubectl
 sys.path.append("../utils")
 from ConfigUtils import add_configs_in_order, merge_config
 
-ENV_CNF_YAML = 'config.yaml'
-STATUS_YAML = 'status.yaml'
-ACTION_YAML = 'action.yaml'
+ENV_CNF_YAML = "config.yaml"
+STATUS_YAML = "status.yaml"
+ACTION_YAML = "action.yaml"
 
 
 def init_config():
@@ -98,7 +98,8 @@ def create_availability_set(config, args):
     for vmname, spec in config["machines"].items():
         if "availability_set" in spec:
             availability_sets.add(spec["availability_set"])
-    listcmd = "az vm availability-set list --resource-group {} --query \"[].name\"".format(config["azure_cluster"]["resource_group"])
+    listcmd = "az vm availability-set list --resource-group {} --query \"[].name\"".format(
+        config["azure_cluster"]["resource_group"])
     as_res = execute_or_dump_locally(listcmd, args.verbose, False, args.output)
     existing_as = set(json.loads(as_res))
     availability_sets -= existing_as
@@ -115,10 +116,10 @@ def create_vnet(config, args):
             --subnet-name {} \
             --subnet-prefix {}
         """.format(config["azure_cluster"]["resource_group"],
-               config["azure_cluster"]["vnet_name"],
-               config["cloud_config_nsg_rules"]["vnet_range"],
-               config["azure_cluster"]["subnet_name"],
-               config["cloud_config_nsg_rules"]["vnet_range"])
+                   config["azure_cluster"]["vnet_name"],
+                   config["cloud_config_nsg_rules"]["vnet_range"],
+                   config["azure_cluster"]["subnet_name"],
+                   config["cloud_config_nsg_rules"]["vnet_range"])
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
@@ -231,9 +232,10 @@ def create_nfs_nsg(config, args):
 
     for i, service_tag in enumerate(config["cloud_config_nsg_rules"].get("service_tags", [])):
         create_nsg_rule_with_service_tag(config["azure_cluster"]["resource_group"],
-            config["azure_cluster"]["nfs_nsg_name"], 1300 + i,
-            config["cloud_config_nsg_rules"].get("tcp_port_ranges", "\'*\'"),
-            service_tag, args)
+                                         config["azure_cluster"]["nfs_nsg_name"], 1300 + i,
+                                         config["cloud_config_nsg_rules"].get(
+                                             "tcp_port_ranges", "\'*\'"),
+                                         service_tag, args)
 
 
 def deploy_cluster(config, args):
@@ -301,7 +303,8 @@ def add_machines(config, args):
     dryrun_or_delay = delay_run or args.dryrun
     commands_list = []
     for vmname, spec in config["machines"].items():
-        cmd = add_machine(vmname, spec, args.verbose, dryrun_or_delay, args.output)
+        cmd = add_machine(vmname, spec, args.verbose,
+                          dryrun_or_delay, args.output)
         if delay_run:
             commands_list += cmd,
     if os.path.exists(args.output):
@@ -316,14 +319,16 @@ def delete_az_vm(config, args, vm_name):
     # TODO try delete with resource delete, if possible, remove this function
     az_cli_verbose = '--verbose' if args.verbose else ''
     resource_group = config["azure_cluster"]["resource_group"]
-    delete_cmd = 'az vm delete -g {} -n {} --yes {}'.format(resource_group, vm_name, az_cli_verbose)
+    delete_cmd = 'az vm delete -g {} -n {} --yes {}'.format(
+        resource_group, vm_name, az_cli_verbose)
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
 def delete_az_resource(config, args, resource_name, resource_type):
     az_cli_verbose = '--verbose' if args.verbose else ''
     resource_group = config["azure_cluster"]["resource_group"]
-    delete_cmd = 'az resource delete -g {} -n {} --resource-type {} {}'.format(resource_group, resource_name, resource_type, az_cli_verbose)
+    delete_cmd = 'az resource delete -g {} -n {} --resource-type {} {}'.format(
+        resource_group, resource_name, resource_type, az_cli_verbose)
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
@@ -338,11 +343,15 @@ def delete_az_vms(config, args, machine_list):
         # TODO parallelize deleting resource of different nodes
         delete_az_vm(config, args, vm_name)
         # Nic must be deleted first, then public IP
-        delete_az_resource(config, args, "{}VMNic".format(vm_name), "Microsoft.Network/networkInterfaces")
-        delete_az_resource(config, args, "{}PublicIP".format(vm_name), "Microsoft.Network/publicIPAddresses")
+        delete_az_resource(config, args, "{}VMNic".format(
+            vm_name), "Microsoft.Network/networkInterfaces")
+        delete_az_resource(config, args, "{}PublicIP".format(
+            vm_name), "Microsoft.Network/publicIPAddresses")
         for disk in vm_spec["storageProfile"]["dataDisks"]:
-            delete_az_resource(config, args, disk["name"], "Microsoft.Compute/disks")
-        delete_az_resource(config, args, vm_spec["storageProfile"]["osDisk"]["name"], "Microsoft.Compute/disks")
+            delete_az_resource(
+                config, args, disk["name"], "Microsoft.Compute/disks")
+        delete_az_resource(
+            config, args, vm_spec["storageProfile"]["osDisk"]["name"], "Microsoft.Compute/disks")
     if os.path.exists(args.output):
         os.system('chmod +x ' + args.output)
 
@@ -378,9 +387,11 @@ def add_n_machines(config, args, num_2_add):
 
 
 def add_machine(vmname, spec, verbose, dryrun, output_file):
-    multual_exclusive_roles = set(["infra", "worker", "elasticsearch", "mysqlserver"])
+    multual_exclusive_roles = set(
+        ["infra", "worker", "elasticsearch", "mysqlserver"])
     mul_ex_role_in_spec = list(set(spec["role"]) & multual_exclusive_roles)
-    assert len(mul_ex_role_in_spec) <= 1, "We don't allow role overlapping between these roles:{}.".format(",".join(list(multual_exclusive_roles)))
+    assert len(mul_ex_role_in_spec) <= 1, "We don't allow role overlapping between these roles:{}.".format(
+        ",".join(list(multual_exclusive_roles)))
     if "pwd" in spec:
         auth = "--authentication-type password --admin-password '{}' ".format(
             spec["pwd"])
@@ -449,7 +460,8 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
     else:
         if len(mul_ex_role_in_spec) == 1:
             data_disk_sizes_gb += " " + \
-                str(config["azure_cluster"]["{}_local_storage_sz".format(mul_ex_role_in_spec[0])])
+                str(config["azure_cluster"]
+                    ["{}_local_storage_sz".format(mul_ex_role_in_spec[0])])
             storage_sku = config["azure_cluster"]["vm_local_storage_sku"]
         if "nfs" in spec["role"]:
             nfs_dd_sz, nfs_dd_num = config["azure_cluster"]["nfs_data_disk_sz"], config["azure_cluster"]["nfs_data_disk_num"]
@@ -461,7 +473,8 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
         vm_size = spec["vm_size"]
     else:
         if "infra" in spec["role"]:
-            vm_size = config["azure_cluster"]["{}_vm_size".format(mul_ex_role_in_spec[0])]
+            vm_size = config["azure_cluster"]["{}_vm_size".format(
+                mul_ex_role_in_spec[0])]
         elif "nfs" in spec["role"]:
             vm_size = config["azure_cluster"]["nfs_vm_size"]
 
@@ -514,7 +527,7 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
 
 def get_default_vm_info_json(config, vmname, verbose=True):
     cmd = """ az vm show -d -g %s -n %s""" % (
-            config["azure_cluster"]["resource_group"], vmname)
+        config["azure_cluster"]["resource_group"], vmname)
     output1 = exec_cmd_local(cmd, verbose)
     az_vm_spec = json.loads(output1)
     return az_vm_spec
@@ -636,7 +649,7 @@ def get_deployed_cluster_info(config, args):
 
 def get_k8s_node_list_under_condition(config, args, k8scmd):
     '''we only do query here, so won't dump commands'''
-    output = run_kubectl(config, args, [k8scmd], True) 
+    output = run_kubectl(config, args, [k8scmd], True)
     nodes = output.split()
     return nodes
 
@@ -652,7 +665,7 @@ def cordon_node_2_delete_later(num_of_worker_2_cordon, config, args):
     query_cmds = "get nodes -l worker=active --no-headers | grep Ready | awk '{print $1}'"
     ready_nodes = get_k8s_node_list_under_condition(config, args, query_cmds)
     for node in ready_nodes[:num_of_worker_2_cordon]:
-        cmd =  run_kubectl(config, args, ['cordon {}'.format(node)], True)
+        cmd = run_kubectl(config, args, ['cordon {}'.format(node)], True)
 
 
 def delete_specified_or_cordoned_idling_nodes(config, args, num_limit=-1):
@@ -663,11 +676,13 @@ def delete_specified_or_cordoned_idling_nodes(config, args, num_limit=-1):
         busy_nodes = get_k8s_node_list_under_condition(config, args, busy_cmds)
         cordoned_cmds = "get nodes -l worker=active --no-headers | grep SchedulingDisabled | awk '{print $1}'"
         # would be [] if no such node
-        cordoned_nodes = get_k8s_node_list_under_condition(config, args, cordoned_cmds)
+        cordoned_nodes = get_k8s_node_list_under_condition(
+            config, args, cordoned_cmds)
         cordoned_idling = set(cordoned_nodes) - set(busy_nodes)
         nodes2delete = cordoned_idling
         if args.verbose:
-            print("Node list not specified, would delete cordoned idling worker nodes by default")
+            print(
+                "Node list not specified, would delete cordoned idling worker nodes by default")
     # with :num_limit, we always only delete min(num_limit, # of qualified node) nodes
     nodes2delete = list(nodes2delete)[:num_limit]
     if args.verbose:
@@ -690,14 +705,18 @@ def dynamically_add_or_delete_around_a_num(config, args):
         config = load_config_based_on_command("dynamic_around")
         dynamic_worker_num = config.get("dynamic_worker_num", -1)
         if dynamic_worker_num < 0:
-            print("This round would be skipped. Please specify dynamic_worker_num in config.")
+            print(
+                "This round would be skipped. Please specify dynamic_worker_num in config.")
             os.system("sleep {}m".format(monitor_again_after))
             continue
         query_cmds = "get nodes -l worker=active --no-headers | awk '{print $1}'"
-        k8s_worker_nodes = get_k8s_node_list_under_condition(config, args, query_cmds)
-        worker_in_records, config = load_node_list_by_role_from_config(config, ["worker"], False)
+        k8s_worker_nodes = get_k8s_node_list_under_condition(
+            config, args, query_cmds)
+        worker_in_records, config = load_node_list_by_role_from_config(config, [
+                                                                       "worker"], False)
         print("worker in records:\n", worker_in_records)
-        print("Dynamically scaling number of workers:\n {}/{} worker nodes registered in k8s, targeting {}".format(len(k8s_worker_nodes), len(worker_in_records), dynamic_worker_num))
+        print("Dynamically scaling number of workers:\n {}/{} worker nodes registered in k8s, targeting {}".format(
+            len(k8s_worker_nodes), len(worker_in_records), dynamic_worker_num))
         delta = dynamic_worker_num - len(worker_in_records)
         if delta > 0:
             add_n_machines(config, args, delta)
@@ -719,8 +738,8 @@ def white_list_ip(config, args):
 
 def logging_storage(config, args):
     if args.nargs[0] == "create":
-            create_logging_storage_account(config, args)
-            create_logging_container(config, args)
+        create_logging_storage_account(config, args)
+        create_logging_container(config, args)
     elif args.nargs[0] == "delete":
         response = input(
             "Delete logging storage? (Please type YES to confirm)")
@@ -747,7 +766,8 @@ def run_command(command, config, args):
     if command == "whitelist":
         white_list_ip(config, args)
     if command == "service_tag_rules":
-        service_tag_func = eval("{}_nsg_rules_with_service_tags".format(args.nargs[0]))
+        service_tag_func = eval(
+            "{}_nsg_rules_with_service_tags".format(args.nargs[0]))
         service_tag_func(config, args)
     if command == "delete_nodes":
         delete_specified_or_cordoned_idling_nodes(config, args)

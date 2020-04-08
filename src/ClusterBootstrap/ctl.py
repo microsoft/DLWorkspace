@@ -24,9 +24,9 @@ from cloud_init_deploy import load_config as load_deploy_config
 from cloud_init_deploy import render_restfulapi, render_dashboard, render_storagemanager, render_repairmanager
 from cloud_init_deploy import check_buildable_images, push_docker_images
 
-FILE_MAP_PATH = 'deploy/cloud-config/file_map.yaml'
-ENV_CNF_YAML = 'config.yaml'
-STATUS_YAML = 'status.yaml'
+FILE_MAP_PATH = "deploy/cloud-config/file_map.yaml"
+ENV_CNF_YAML = "config.yaml"
+STATUS_YAML = "status.yaml"
 
 
 def load_config_4_ctl(args, command):

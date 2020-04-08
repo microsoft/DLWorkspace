@@ -16,9 +16,9 @@ from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker
 from params import default_config_parameters
 
 CLOUD_INIT_FILE_MAP = "cloudinit/file_map.yaml"
-ENV_CNF_YAML = 'config.yaml'
-STATUS_YAML = 'status.yaml'
-ACTION_YAML = 'action.yaml'
+ENV_CNF_YAML = "config.yaml"
+STATUS_YAML = "status.yaml"
+ACTION_YAML = "action.yaml"
 
 
 def generate_ip_from_cluster(cluster_ip_range, index):
