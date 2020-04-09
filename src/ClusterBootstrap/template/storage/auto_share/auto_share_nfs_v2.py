@@ -127,10 +127,16 @@ def mount_fileshare(verbose=True):
                 time.sleep(3)
             if len(existmounts) <= 0:
                 nMounts += 1
-                exec_with_output("mount {}:{} {} -o {} ".format(mnt_itm["private_ip"],
-                    triplet["nfs_local_path"], triplet["remote_mount_path"], mnt_itm["options"]), verbose=verbose)
+                if mnt_itm["fileshare_system"] == "nfs":
+                    mount_cmd = "mount {}:{} {} -o {} ".format(mnt_itm["private_ip"],
+                    triplet["storage_local_path"], triplet["remote_mount_path"], mnt_itm["options"])
+                if mnt_itm["fileshare_system"] == "lustre":
+                    mount_cmd = "mount {}:/lustrefs {} -t lustre".format(mnt_itm["private_ip"], triplet["remote_mount_path"])
+                exec_with_output(mount_cmd, verbose=verbose)
+                exec_with_output("chmod 777 {}".format(triplet["remote_mount_path"]), verbose=verbose)
     if nMounts > 0:
         time.sleep(1)
+
 
 def link_fileshare():
     with open("mounting.yaml", 'r') as datafile:
@@ -140,7 +146,7 @@ def link_fileshare():
     for mnt_itm in config.values():
         for triplet in mnt_itm["fileshares"]:
             if output.find(triplet["remote_mount_path"]) < 0:
-                logging.debug("!!!Warning!!! {} has not been mounted at {} ".format(triplet["nfs_local_path"], triplet["remote_mount_path"]))
+                logging.debug("!!!Warning!!! {} has not been mounted at {} ".format(triplet["storage_local_path"], triplet["remote_mount_path"]))
                 logging.debug(output)
                 continue
             if not os.path.exists(triplet["remote_link_path"]):
