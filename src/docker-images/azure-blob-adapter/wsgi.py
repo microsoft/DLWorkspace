@@ -3,16 +3,17 @@ from azure.common import AzureMissingResourceHttpError, AzureConflictHttpError, 
 from dotenv import load_dotenv
 from logging import getLogger, StreamHandler
 from os import environ
-from sys import stdout
+from sys import stderr
 from werkzeug.wrappers import PlainRequest, Response
 
 __all__ = ['application']
 
 load_dotenv()
 
+rootLogger = getLogger()
+rootLogger.setLevel('INFO')
+rootLogger.addHandler(StreamHandler(stderr))
 logger = getLogger(__name__)
-logger.setLevel('INFO')
-logger.addHandler(StreamHandler(stdout))
 
 connection_string = environ['AZURE_STORAGE_CONNECTION_STRING']
 container_name = environ['AZURE_STORAGE_CONTAINER_NAME']
