@@ -40,7 +40,6 @@ if config.get("logging") == 'azure_blob':
                     container_name=container_name,
                     prefix=prefix
                 )
-                blobs = sorted(blobs, key=lambda blob: blob.name)
 
                 if len(blobs) == 0:
                     return ({}, None)
