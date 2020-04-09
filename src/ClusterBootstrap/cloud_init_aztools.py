@@ -27,8 +27,8 @@ from az_utils import \
 from cloud_init_deploy import load_node_list_by_role_from_config
 from ctl import run_kubectl
 sys.path.append("../utils")
-from constants import ENV_CNF_YAML, ACTION_YAML, STATUS_YAML
 from ConfigUtils import add_configs_in_order, merge_config
+from constants import ENV_CNF_YAML, ACTION_YAML, STATUS_YAML
 
 
 def init_config():
@@ -59,13 +59,15 @@ def load_config_based_on_command(command):
 
 def update_config_resgrp(config):
     """load resource group related config info"""
-    if "resource_group" not in config["azure_cluster"]:
-        config["azure_cluster"]["resource_group"] = config["cluster_name"] + "ResGrp"
-    config["azure_cluster"]["vnet_name"] = config["cluster_name"] + "-VNet"
-    config["azure_cluster"]["subnet_name"] = config["cluster_name"] + "-subnet"
-    config["azure_cluster"]["storage_account_name"] = config["cluster_name"] + "storage"
-    config["azure_cluster"]["nsg_name"] = config["cluster_name"] + "-nsg"
-    config["azure_cluster"]["nfs_nsg_name"] = config["cluster_name"] + [
+    cnf_az_cluster = config["azure_cluster"]
+    cnf_az_cluster["resource_group"] = cnf_az_cluster.get(
+        "resource_group", config["cluster_name"] + "ResGrp")
+    cnf_az_cluster["vnet_name"] = config["cluster_name"] + "-VNet"
+    cnf_az_cluster["subnet_name"] = cnf_az_cluster.get(
+        "subnet_name", config["cluster_name"] + "-subnet")
+    cnf_az_cluster["storage_account_name"] = config["cluster_name"] + "storage"
+    cnf_az_cluster["nsg_name"] = config["cluster_name"] + "-nsg"
+    cnf_az_cluster["nfs_nsg_name"] = config["cluster_name"] + [
         "", "-nfs"][int(int(config["azure_cluster"]["nfs_node_num"]) > 0)] + "-nsg"
     return config
 
@@ -318,7 +320,7 @@ def delete_az_vm(config, args, vm_name):
     resource_group = config["azure_cluster"]["resource_group"]
     delete_cmd = 'az vm delete -g {} -n {} --yes {}'.format(
         resource_group, vm_name, az_cli_verbose)
-    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+    execute_or_dump_locally(delete_cmd, args.verbose, args.dryrun, args.output)
 
 
 def delete_az_resource(config, args, resource_name, resource_type):
@@ -326,7 +328,7 @@ def delete_az_resource(config, args, resource_name, resource_type):
     resource_group = config["azure_cluster"]["resource_group"]
     delete_cmd = 'az resource delete -g {} -n {} --resource-type {} {}'.format(
         resource_group, resource_name, resource_type, az_cli_verbose)
-    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+    execute_or_dump_locally(delete_cmd, args.verbose, args.dryrun, args.output)
 
 
 def delete_az_vms(config, args, machine_list):
@@ -685,8 +687,8 @@ def delete_specified_or_cordoned_idling_nodes(config, args, num_limit=-1):
         if args.verbose:
             print(
                 "Node list not specified, would delete cordoned idling worker nodes by default")
-    # with :num_limit, we always only delete min(num_limit, # of qualified node) nodes
-    nodes2delete = list(nodes2delete)[:num_limit]
+        # with :num_limit, we always only delete min(num_limit, # of qualified node) nodes
+        nodes2delete = list(nodes2delete)[:num_limit]
     if args.verbose:
         print("Deleting following nodes:\n", nodes2delete)
     delete_az_vms(config, args, nodes2delete)
