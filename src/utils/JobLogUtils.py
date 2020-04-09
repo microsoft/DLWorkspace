@@ -31,24 +31,21 @@ if config.get("logging") == 'azure_blob':
 
     def GetJobLog(jobId, cursor=None, size=None):
         try:
-            tag = 'jobs.' + jobId
+            prefix = 'jobs.' + jobId
 
             lines = []
 
             try:
-                blob = append_blob_service.get_blob_properties(
+                blobs = append_blob_service.list_blobs(
                     container_name=container_name,
-                    blob_name=tag)
+                    prefix=prefix
+                )
+                blobs = sorted(blobs, key=lambda blob: blob.name)
 
-                for suffix in range(1, 10):
-                    # Try to find the latest blob
-                    try:
-                        blob = append_blob_service.get_blob_properties(
-                            container_name=container_name,
-                            blob_name=tag + '.' + str(suffix))
-                    except AzureMissingResourceHttpError:
-                        break
+                if len(blobs) == 0:
+                    return ({}, None)
 
+                blob = blobs[-1]
                 start_range = max(0, blob.properties.content_length - CHUNK_SIZE)
                 chunk = append_blob_service.get_blob_to_bytes(
                     container_name=container_name,
