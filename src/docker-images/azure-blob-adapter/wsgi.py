@@ -67,6 +67,7 @@ def application(request):
                         blob_names = append_blob_service.list_blob_names(
                             container_name=container_name,
                             prefix=tag)
+                        blob_names = list(blob_names)
                         if len(blob_names) == 1:
                             # P1: make it [Full, ->New<-]
                             blob_name = tag + '.1'

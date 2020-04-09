@@ -38,8 +38,8 @@ if config.get("logging") == 'azure_blob':
             try:
                 blobs = append_blob_service.list_blobs(
                     container_name=container_name,
-                    prefix=prefix
-                )
+                    prefix=prefix)
+                blobs = list(blobs)
 
                 if len(blobs) == 0:
                     return ({}, None)
