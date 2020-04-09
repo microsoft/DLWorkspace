@@ -42,7 +42,6 @@ def application(request):
             blob = request.get_data()
             count = request.content_length
 
-            suffix = 0
             blob_name = tag
 
             while True:

@@ -21,7 +21,7 @@ if config.get("logging") == 'azure_blob':
     logger.info('Azure Blob log backend is enabled.')
 
     from azure.storage.blob import AppendBlobService
-    from azure.common import AzureMissingResourceHttpError, AzureHttpError
+    from azure.common import AzureHttpError
 
     append_blob_service = AppendBlobService(
         connection_string=config['azure_blob_log']['connection_string'])
