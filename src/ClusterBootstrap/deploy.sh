@@ -1,5 +1,7 @@
 #!/bin/bash
-rm -rf deploy/!\(bin\) cloudinit* !\(config\).yaml
+# delete existing deployment file, to start deploying a new cluster, skip this if need existing files.
+shopt -s extglob
+rm -rf deploy/!(bin) cloudinit* !(config).yaml
 # prepare clusterID
 ./cloud_init_deploy.py clusterID
 # render a machine list which is to be deployed

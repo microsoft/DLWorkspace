@@ -325,8 +325,9 @@ def load_config(args):
     # deploy new cluster or load info of an existing cluster? specify the yaml file to specify explicitly
     config = add_configs_in_order(args.config, config)
     config = gen_platform_wise_config(config)
-    load_node_list_by_role_from_config(
-        config, config["allroles"])
+    # risky to load allroles here, e.g., mysql_node might be misfilled
+    load_node_list_by_role_from_config(config,
+        ["infra", "worker", "nfs", "etcd", "kubernetes_master", "elasticsearch", "lustre", "mdt", "oss"])
     config = set_node_user(config)
     config = load_default_config(config)
     config = get_ssh_config(config)
