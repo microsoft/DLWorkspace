@@ -39,8 +39,8 @@ class Framework(object):
                  user_cmd, alias, email, gid, uid, mount_points, plugins,
                  family_token, vc_name, dns_policy, node_selector,
                  home_folder_host_path, ssh_private_key, ssh_public_keys,
-                 priority_class, is_preemption_allowed, is_host_network,
-                 is_host_ipc, is_privileged, is_nccl_ib_disabled, is_debug):
+                 is_preemption_allowed, is_host_network, is_host_ipc,
+                 is_privileged, is_nccl_ib_disabled, is_debug):
         self.init_image = init_image # str, maybe None
         self.labels = labels # map
         self.annotations = annotations # map
@@ -61,7 +61,6 @@ class Framework(object):
         self.home_folder_host_path = home_folder_host_path # str
         self.ssh_private_key = ssh_private_key # str
         self.ssh_public_keys = ssh_public_keys # list of str
-        self.priority_class = priority_class # str
         self.is_preemption_allowed = is_preemption_allowed # bool
         self.is_host_network = is_host_network # bool
         self.is_host_ipc = is_host_ipc # bool
@@ -528,7 +527,6 @@ def gen_task_role(job, role):
         "affinity": gen_affinity(job, role),
         "containers": gen_containers(job, role),
         "volumes": volumes,
-        "priorityClassName": job.priority_class,
     }
 
     if job.init_image is not None:
@@ -683,7 +681,6 @@ def transform_regular_job(params, cluster_config):
         params["homeFolderHostpath"],
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
-        "job-priority",
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
@@ -753,7 +750,6 @@ def transform_distributed_job(params, cluster_config):
         params["homeFolderHostpath"],
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
-        "job-priority",
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
@@ -819,7 +815,6 @@ def transform_inference_job(params, cluster_config):
         params["homeFolderHostpath"],
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
-        "inference-job-priority",
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
