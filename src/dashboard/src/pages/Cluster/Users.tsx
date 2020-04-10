@@ -7,6 +7,7 @@ import React, {
   useState
 } from 'react';
 import { entries, find, get, set } from 'lodash';
+import { formatDistanceStrict } from 'date-fns';
 
 import {
   Button,
@@ -30,13 +31,7 @@ import { humanBytes } from '../Clusters/useResourceColumns';
 
 const humanSeconds = (seconds: number) => {
   if (typeof seconds !== 'number') return seconds;
-  if (seconds >= 60 * 60) {
-    return (seconds / 60 / 60).toFixed(0) + ' hours'
-  }
-  if (seconds >= 60) {
-    return (seconds / 60).toFixed(0) + ' minutes'
-  }
-  return seconds + ' s'
+  return formatDistanceStrict(seconds * 1000, 0);
 }
 
 interface Props {
