@@ -415,7 +415,7 @@ def GetCommands(userName, jobId):
 
 
 def get_access_to_job(username, job):
-    is_owner = job["userName"] == username
+    is_owner = job["userName"].lower() == username.lower()
     is_admin = has_access(username, VC, job["vcName"], ADMIN)
     allowed = is_owner or is_admin
 
@@ -600,8 +600,10 @@ def isBase64(s):
 
 
 _get_job_log_enabled = config.get('logging') in ['azure_blob', 'elasticsearch']
-_extract_job_log_legacy = config.get('__extract_job_log_legacy', not _get_job_log_enabled)
-_get_job_log_legacy = config.get('__get_job_log_legacy', _extract_job_log_legacy)
+_extract_job_log_legacy = config.get('__extract_job_log_legacy',
+                                     not _get_job_log_enabled)
+_get_job_log_legacy = config.get('__get_job_log_legacy',
+                                 _extract_job_log_legacy)
 _get_job_log_fallback = config.get('__get_job_log_fallback', False)
 
 
@@ -661,6 +663,7 @@ def GetJobStatus(jobId):
                                           ["jobStatus", "jobTime", "errorMsg"])
     dataHandler.Close()
     return result
+
 
 def GetJobLog(userName, jobId, cursor=None, size=100):
     dataHandler = DataHandler()
