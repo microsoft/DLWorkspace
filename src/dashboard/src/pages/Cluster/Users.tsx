@@ -14,6 +14,9 @@ import {
   Tooltip,
   Typography
 } from '@material-ui/core';
+import {
+  AccountBox
+} from '@material-ui/icons';
 import MaterialTable, {
   Column,
   Options
@@ -64,17 +67,32 @@ const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods
 
   const data = useMemo(() => {
     const data = [];
+
+    const totalStatus = Object.create(null);
+    const total = {
+      status: totalStatus,
+      gpu: { booked: 0, idle: 0 },
+      gpuIdle: 0,
+      tableData: { isTreeExpanded: true }
+    };
+    data.push(total);
     for (const [userName, {types, gpu}] of entries<any>(users)) {
       if (types == null && filterCurrent) continue;
       const userStatus = Object.create(null);
       const gpuIdle = usersGPUIdle[userName];
       data.push({ id: userName, status: userStatus, gpu, gpuIdle });
+      total.gpu.booked += get(gpu, 'booked', 0);
+      total.gpu.idle += get(gpu, 'idle', 0);
+      total.gpuIdle += gpuIdle !== undefined ? gpuIdle : 0;
       for (const [typeName, status] of entries(types)) {
         data.push({ id: typeName, userName, status })
         for (const resourceType of ['cpu', 'gpu', 'memory']) {
           for (const resourceKind of ['used', 'preemptable']) {
             set(userStatus, [resourceType, resourceKind],
               get(userStatus, [resourceType, resourceKind], 0) +
+              get(status, [resourceType, resourceKind], 0));
+            set(totalStatus, [resourceType, resourceKind],
+              get(totalStatus, [resourceType, resourceKind], 0) +
               get(status, [resourceType, resourceKind], 0));
           }
         }
@@ -90,7 +108,10 @@ const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods
 
   const columns = useRef<Column<any>[]>([{
     field: 'id',
-    render: (row) => row.userName
+    render: (row) =>
+      row.id === undefined
+      ? <Typography variant="subtitle2">(total)</Typography>
+      : row.userName
       ? <Typography variant="subtitle2">{row.id}</Typography>
       : (
         <Tooltip title={`Show ${row.id}'s Pods`}>
@@ -100,6 +121,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods
             style={{ textAlign: 'left' }}
             onClick={handleUserClick(row.id)}
           >
+            <AccountBox fontSize="inherit"/>
             {row.id}
           </Link>
         </Tooltip>
@@ -190,8 +212,10 @@ const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods
     paging: false
   }).current;
 
-  const parentChildData = useCallback(({ userName }, rows: any[]) => {
-    return find(rows, ({ id }) => userName === id);
+  const parentChildData = useCallback(({ id, userName }, rows: any[]) => {
+    if (id !== undefined) {
+      return find(rows, ({ id }) => userName === id);
+    }
   }, []);
 
   return (
