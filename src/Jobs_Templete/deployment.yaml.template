@@ -158,4 +158,3 @@ spec:
       - name: dshm
         emptyDir:
           medium: Memory
-      priorityClassName: inference-job-priority
