@@ -112,7 +112,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, o
       title: 'GPU Utilization',
       field: 'gpuUtilization',
       type: 'numeric',
-      render: ({ gpuUtilization }) => gpuUtilization && <>{Number(gpuUtilization).toPrecision(2)}%</>
+      render: ({ gpuUtilization }) => gpuUtilization && <>{Number(gpuUtilization).toFixed(2)}%</>
     });
     return columns;
   }, [resourceColumns, handleWorkerClick]);
