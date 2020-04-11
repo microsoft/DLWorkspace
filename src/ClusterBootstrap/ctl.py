@@ -4,12 +4,13 @@ import os
 import re
 import sys
 import time
+import json
 import utils
 import yaml
 import argparse
 import textwrap
 import random
-
+from mysql import connector
 cwd = os.path.dirname(__file__)
 os.chdir(cwd)
 
@@ -29,7 +30,7 @@ from cloud_init_deploy import check_buildable_images, push_docker_images
 
 def load_config_4_ctl(args, command):
     # if we need to load all config
-    if command in ["svc", "render_template", "download", "docker"]:
+    if command in ["svc", "render_template", "download", "docker", "db"]:
         args.config = [ENV_CNF_YAML, STATUS_YAML] if not args.config else args.config
         config = load_deploy_config(args)
     else:
@@ -253,6 +254,47 @@ def render_template_or_dir(config, args):
         utils.render_template(src, dst, config)
 
 
+def maintain_db(config, args):
+    """
+    push/pull a table to/from DB
+    """
+    assert args.nargs[0] in ["pull", "push", "connect"], "invalid action."
+    host = config["mysql_node"]
+    user = config["mysql_username"]
+    password = config["mysql_password"]
+    if args.nargs[0] == "connect":
+        os.system("mysql -h {} -u {} -p{}".format(host, user, password))
+    else:
+        database = "DLWSCluster-{}".format(config["clusterId"])
+        assert args.nargs[1] in ["vc", "acl"], "invalid table."
+        
+        if args.verbose:
+            print("connecting to {}@{}, DB {}".format(user, host, database))
+        conn = connector.connect(user=user, password=password,
+               host=host, database=database)
+        if args.nargs[0] == "pull":
+            sql = "SELECT * from {}".format(args.nargs[1])
+        cursor = conn.cursor()
+        cursor.execute(sql)
+        col_names = [col[0] for col in cursor.description]
+        serialized_rows = []
+        rows = cursor.fetchall()
+        cursor.close()
+        for row in rows:
+            serialized_row = {}
+            for i, v in enumerate(row):
+                try:
+                    serialized_row[col_names[i]] = json.loads(v)
+                # JSONDecodeError
+                except:
+                    serialized_row[col_names[i]] = v
+            serialized_rows.append(serialized_row)
+        table_config = {"col_names": col_names, "rows": serialized_rows}
+        dump2 = args.output if args.output else "{}.yaml".format(args.nargs[1])
+        with open(dump2, "w") as wf:
+            yaml.safe_dump(table_config, wf)
+        
+
 def run_command(args, command):
     config = load_config_4_ctl(args, command)
     if command == "restorefromdir":
@@ -294,6 +336,8 @@ def run_command(args, command):
         if nargs[0] == "push":
             check_buildable_images(args.nargs[1], config)
             push_docker_images(args, config)
+    elif command == "db":
+        maintain_db(config, args)
     else:
         print("invalid command, please read the doc")
 
@@ -318,7 +362,7 @@ if __name__ == '__main__':
         would overwrite former ones, e.g., -cnf config.yaml -cnf status.yaml')
     parser.add_argument('-i', '--in', action='append',
                         default=[], help='Files to take as input')
-    parser.add_argument('-o', '--out', help='File to dump to as output')
+    parser.add_argument('-o', '--output', default='', help='File to dump to as output')
     parser.add_argument("-v", "--verbose",
                         help="verbose print", action="store_true")
     parser.add_argument('-r', '--roles_or_machine', action='append', default=[], help='Specify the roles of machines that you want to copy file \
