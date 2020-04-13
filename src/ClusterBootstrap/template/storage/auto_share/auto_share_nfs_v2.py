@@ -113,11 +113,11 @@ def mount_fileshare(verbose=True):
     for mnt_itm in config.values():
         # gives mounted information only, would not write anything or carry out mount action
         for triplet in mnt_itm["fileshares"]:
-            output = pipe_with_output("mount", "grep {}".format(triplet["remote_mount_path"]), verbose=False)
+            output = pipe_with_output("mount", "grep {}".format(triplet["client_mount_root"]), verbose=False)
             umounts, existmounts = [], []
             # we would have only 1 line, since we now mount at leaf-path level
             for line in output.splitlines():
-                umounts, existmounts = confirm_mounted(line, triplet["remote_mount_path"], umounts, existmounts, verbose)
+                umounts, existmounts = confirm_mounted(line, triplet["client_mount_root"], umounts, existmounts, verbose)
             umounts.sort()
             # Examine mount point, unmount those file shares that fails. 
             for um in umounts:
@@ -127,13 +127,14 @@ def mount_fileshare(verbose=True):
                 time.sleep(3)
             if len(existmounts) <= 0:
                 nMounts += 1
+                exec_with_output("mkdir -p {}".format(triplet["client_mount_root"]), verbose=verbose)
                 if mnt_itm["fileshare_system"] == "nfs":
                     mount_cmd = "mount {}:{} {} -o {} ".format(mnt_itm["private_ip"],
-                    triplet["storage_local_path"], triplet["remote_mount_path"], mnt_itm["options"])
+                    triplet["server_path"], triplet["client_mount_root"], mnt_itm["options"])
                 if mnt_itm["fileshare_system"] == "lustre":
-                    mount_cmd = "mount {}:/lustrefs {} -t lustre".format(mnt_itm["private_ip"], triplet["remote_mount_path"])
+                    mount_cmd = "mount {}:{} {} -t lustre".format(mnt_itm["private_ip"], triplet["server_path"], triplet["client_mount_root"])
                 exec_with_output(mount_cmd, verbose=verbose)
-                exec_with_output("chmod 777 {}".format(triplet["remote_mount_path"]), verbose=verbose)
+                exec_with_output("chmod 777 {}".format(triplet["client_mount_root"]), verbose=verbose)
     if nMounts > 0:
         time.sleep(1)
 
@@ -145,13 +146,19 @@ def link_fileshare():
     (retcode, output, err) = exec_with_output("sudo mount")
     for mnt_itm in config.values():
         for triplet in mnt_itm["fileshares"]:
-            if output.find(triplet["remote_mount_path"]) < 0:
-                logging.debug("!!!Warning!!! {} has not been mounted at {} ".format(triplet["storage_local_path"], triplet["remote_mount_path"]))
+            if output.find(triplet["client_mount_root"]) < 0:
+                logging.debug("!!!Warning!!! {} has not been mounted at {} ".format(triplet["storage_local_path"], triplet["client_mount_root"]))
                 logging.debug(output)
                 continue
-            if not os.path.exists(triplet["remote_link_path"]):
-                exec_wo_output("mkdir -p {}; sudo ln -s {} {}; ".format(
-                    os.path.dirname(triplet["remote_link_path"]), triplet["remote_mount_path"], triplet["remote_link_path"]))
+            for link_itm in triplet["client_links"]:
+                if not os.path.exists(link_itm["dst"]):
+                    if link_itm["src"][0] == '/':
+                        link_src = link_itm["src"][0]
+                    else:
+                        link_src = os.path.join(triplet["client_mount_root"], link_itm["src"])
+                    exec_wo_output("mkdir -p {}; mkdir -p {}; sudo ln -s {} {}; ".format(
+                        os.path.dirname(link_itm["dst"]), link_src, link_src, link_itm["dst"]))
+                    exec_with_output("chmod 777 {}".format(link_src), verbose=verbose)
 
 def start_logging( logdir = '/var/log/auto_share' ):
     if not os.path.exists( logdir ):

@@ -437,58 +437,44 @@ def gen_mounting_yaml(config):
     mount_sources_set = set()
     os.system("mkdir -p ./deploy/storage/auto_share")
     for node_fqdn in config.get("nfs_node", []) + config.get("mdt_node",[]):
-        storage_node_name = node_fqdn.split('.')[0]
+        storage_node_name = node_fqdn.split(".")[0]
         spec = config["machines"][storage_node_name]
         assert "private_ip" in spec, "Need IP for NFS or MDT node {}!".format(storage_node_name)
-        mount_items = []
+        file_shares = []
         if "fileshares" not in spec or len(spec["fileshares"]) == 0:
             spec["fileshares"] = [[]]
         for v in spec["fileshares"]:
-            if "remote_mount_path" in v:
-                assert v['remote_mount_path'] not in mount_sources_set, "Duplicate mounting mount path detected:\n{}".format(v["remote_mount_path"])
-                if "nfs" in spec["role"]:
-                    assert set(v.keys()) == set(['storage_local_path', 'remote_mount_path', 'remote_link_path']), "invalid mounting format for NFS"
-                elif "lustre" in spec["role"]:
-                    assert set(v.keys()) == set(['remote_mount_path', 'remote_link_path']), "invalid mounting format for lustre"
-                mount_sources_set.add(v['remote_mount_path'])
-                mount_items.append(v)
+            server_path = v["server_path"] if "server_path" in v else config["nfs-mnt-src-path"]
+            vc = v["vc"] if "vc" in v else ""
+            # must have client_mount_root, need client_link_root only when there are dst in relative path format
+            if "client_mount_root" in v:
+                mnt_root = os.path.join(v["client_mount_root"], vc) if "vc" in v else v["client_mount_root"]
             else:
-                full_mnt_item = {}
-                src_root = v['storage_local_path_root'] if "storage_local_path_root" in v else config["nfs-mnt-src-path"]
-                if 'remote_mount_path_root' in v:
-                    mnt_root = v['remote_mount_path_root']
+                mnt_root = config["physical-mount-path-vc"] if "vc" in v else config["physical-mount-path"]
+            assert mnt_root not in mount_sources_set, "Duplicate mounting mount path detected:\n{}".format(mnt_root)
+            mount_sources_set.add(mnt_root)
+            if "client_link_root" in v:
+                lnk_root = os.path.join(v["client_link_root"], vc)
+            else:
+                lnk_root = config["dltsdata-storage-mount-path"] if "vc" in v else config["storage-mount-path"]
+            # process leaves
+            if not "client_links" in v or len(v["client_links"]) == 0:
+                v["client_links"] = [{"src": fldr, "dst": fldr} for fldr in config["default-storage-folders"]]
+            file_share_item = {"server_path": server_path, "client_mount_root": mnt_root, "client_links": []}
+            for link_pair in v["client_links"]:
+                # if link destination path is relative path
+                if link_pair["dst"][0] != '/':
+                    link_dst = os.path.join(lnk_root, link_pair["dst"])
                 else:
-                    mnt_root = config["physical-mount-path-vc"] if 'vc' in v else config["physical-mount-path"]
-                if 'remote_link_path_root' in v:
-                    lnk_root = v['remote_link_path_root']
-                else:
-                    lnk_root = config["dltsdata-storage-mount-path"] if 'vc' in v else config["storage-mount-path"]
-                vc = v["vc"] if "vc" in v else ""
-                # process leaves
-                if not "leaves" in v or len(v["leaves"]) == 0:
-                    v["leaves"] = [{"storage_local_path": fldr, "remote_mount_path": fldr, "remote_link_path": fldr}
-                                   for fldr in config["default-storage-folders"]]
-                for leaf in v["leaves"]:
-                    mnt_from = os.path.join(
-                        src_root, vc, leaf.get("storage_local_path", "can_only_be_nfs"))
-                    mnt_mnt = os.path.join(
-                        mnt_root, vc, leaf["remote_mount_path"])
-                    mnt_lnk = os.path.join(
-                        lnk_root, vc, leaf["remote_link_path"])
-                    if mnt_mnt in mount_sources_set:
-                        raise Exception(
-                            "Duplicate mounting source path detected:\n{}".format(mnt_mnt))
-                    mount_sources_set.add(mnt_from)
-                    mount_item = {"remote_mount_path": mnt_mnt, "remote_link_path": mnt_lnk}
-                    if "nfs" in spec["role"]:
-                        mount_item["storage_local_path"] = mnt_from
-                    mount_items.append(mount_item)
+                    link_dst = link_pair["dst"]
+                file_share_item["client_links"].append({"src": link_pair["src"], "dst": link_dst})   
+            file_shares.append(file_share_item)
         options = spec["options"] if "options" in spec else config["mountconfig"]["nfs"]["options"]
         fileshare_system = list(set(["nfs", "lustre"]) & set(spec["role"]))[0]
         mountconfig[storage_node_name] = {
             "fileshare_system": fileshare_system,
-            "private_ip": spec["private_ip"], "fileshares": mount_items, "options": options}
-    with open("./deploy/storage/auto_share/mounting.yaml", 'w') as mntfile:
+            "private_ip": spec["private_ip"], "fileshares": file_shares, "options": options}
+    with open("./deploy/storage/auto_share/mounting.yaml", "w") as mntfile:
         yaml.dump(mountconfig, mntfile, default_flow_style=False)
     return allmountpoints
 
@@ -527,7 +513,7 @@ def storage_client_config(config):
     for mnt_itm in mounting.values():
         config["fileshare_system"].add(mnt_itm["fileshare_system"])
         for fs in mnt_itm["fileshares"]:
-            config["mount_and_link"] += fs["remote_mount_path"],
+            config["mount_and_link"] += fs["client_mount_root"],
     config["fileshare_system"] = list(config["fileshare_system"])
     return config
 
@@ -599,7 +585,7 @@ def render_nfs_node_specific(config, args):
         config["data_disk_mnt_path"] = config["machines"][nfs_machine_name]["data_disk_mnt_path"]
         config["files2share"] = []
         for itm in mounting[nfs_machine_name]["fileshares"]:
-            config["files2share"].append(itm["storage_local_path"])
+            config["files2share"].append(itm["server_path"])
         config["kube_labels"] = get_kube_labels_of_machine_name(
             config, nfs_machine_name)
         config["storage_manager"] = config["machines"][nfs_machine_name]["storage_manager"]
@@ -1045,9 +1031,11 @@ def run_command(args, command, parser):
         create_cluster_id(args.force)
     else:
         if len(args.config) == 0:
-            args.config = [ENV_CNF_YAML, ACTION_YAML]
+            args.config = [ENV_CNF_YAML]
             if os.path.exists(STATUS_YAML):
                 args.config.append(STATUS_YAML)
+            # in case action tries to update status
+            args.config.append(ACTION_YAML)
         config = load_config(args)
     if command == "dumpconfig":
         with open("todeploy.yaml", "w") as wf:
