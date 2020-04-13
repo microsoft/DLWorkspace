@@ -155,6 +155,12 @@ class ResourceGauges(object):
         self.add_gauge("task_gpu_mem_percent",
                        "how much percent of gpu memory this task used",
                        self.task_labels_gpu)
+        self.add_gauge("task_dcgm_gpu_utils",
+                       "how much percent of gpu core this task used from dcgm",
+                       self.task_labels_gpu)
+        self.add_gauge("task_dcgm_mem_copy_util",
+                       "Memory utilization (in %). from dcgm",
+                       self.task_labels_gpu)
 
     def add_task_and_service_gauge(self, name_tmpl, desc_tmpl):
         self.add_gauge(name_tmpl.format("task"), desc_tmpl.format("task"),
@@ -565,12 +571,15 @@ class ContainerCollector(Collector):
         now = datetime.datetime.now()
         gpu_infos = self.gpu_info_ref.get(now)
         self.stats_info_ref.set(stats_obj, now)
+        dcgm_infos = self.dcgm_info_ref.get(now)
 
         logger.debug("all_conns is %s", all_conns)
         logger.debug("gpu_info is %s", gpu_infos)
         logger.debug("stats_obj is %s", stats_obj)
+        logger.debug("dcgm_infos is %s", dcgm_infos)
 
-        return self.collect_container_metrics(stats_obj, gpu_infos, all_conns)
+        return self.collect_container_metrics(stats_obj, gpu_infos, all_conns,
+                                              dcgm_infos)
 
     @staticmethod
     def parse_from_labels(inspect_info, gpu_infos):
@@ -627,7 +636,7 @@ class ContainerCollector(Collector):
         return None
 
     def process_one_container(self, container_id, stats, gpu_infos, all_conns,
-                              gauges):
+                              gauges, dcgm_infos):
         container_name = utils.walk_json_field_safe(stats, "name")
         pai_service_name = ContainerCollector.infer_service_name(container_name)
 
@@ -677,6 +686,21 @@ class ContainerCollector(Collector):
                     gauges.add_value("task_gpu_mem_percent", labels,
                                      nvidia_gpu_status.gpu_mem_util)
 
+            if dcgm_infos:
+                for id in gpu_ids:
+                    if dcgm_infos.get(id) is None:
+                        contine
+                    dcgm_metric = dcgm_infos[id] # will be type of DCGMMetrics
+                    uuid = dcgm_metric.uuid
+                    labels = copy.deepcopy(container_labels)
+                    labels["minor_number"] = id
+                    labels["uuid"] = uuid
+
+                    gauges.add_value("task_dcgm_gpu_utils", labels,
+                                     dcgm_metric.gpu_util)
+                    gauges.add_value("task_dcgm_mem_copy_util", labels,
+                                     dcgm_metric.mem_copy_util)
+
             gauges.add_value("task_cpu_percent", container_labels,
                              stats["CPUPerc"])
             gauges.add_value("task_mem_usage_byte", container_labels,
@@ -707,7 +731,8 @@ class ContainerCollector(Collector):
             gauges.add_value("service_block_out_byte", labels,
                              stats["BlockIO"]["out"])
 
-    def collect_container_metrics(self, stats_obj, gpu_infos, all_conns):
+    def collect_container_metrics(self, stats_obj, gpu_infos, all_conns,
+                                  dcgm_infos):
         if stats_obj is None:
             logger.warning("docker stats returns None")
             return None
@@ -717,7 +742,7 @@ class ContainerCollector(Collector):
         for container_id, stats in stats_obj.items():
             try:
                 self.process_one_container(container_id, stats, gpu_infos,
-                                           all_conns, gauges)
+                                           all_conns, gauges, dcgm_infos)
             except Exception:
                 logger.exception(
                     "error when trying to process container %s with name %s",
