@@ -1265,7 +1265,7 @@
             "steppedLine": false,
             "targets": [
               {
-                "expr": "task_gpu_percent{job_name=\"$job_name\"}",
+                "expr": "avg(task_gpu_percent{job_name=\"$job_name\"}) by (minor_number, instance)",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": "GPU {{'{{'}}minor_number{{'}}'}} on {{'{{'}}instance{{'}}'}}",
@@ -1341,7 +1341,7 @@
             "steppedLine": false,
             "targets": [
               {
-                "expr": "task_gpu_mem_percent{job_name=\"$job_name\"}",
+                "expr": "avg(task_gpu_mem_percent{job_name=\"$job_name\"}) by (minor_number, instance)",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": "GPU {{'{{'}}minor_number{{'}}'}} on {{'{{'}}instance{{'}}'}}",
@@ -1417,7 +1417,7 @@
             "steppedLine": false,
             "targets": [
               {
-                "expr": "task_cpu_percent{job_name=\"$job_name\"} / 100",
+                "expr": "avg(task_cpu_percent{job_name=\"$job_name\"}) by (instance) / 100",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": " {{'{{'}}instance{{'}}'}}",
@@ -1493,7 +1493,7 @@
             "steppedLine": false,
             "targets": [
               {
-                "expr": "task_mem_usage_byte{job_name=\"$job_name\"}",
+                "expr": "avg(task_mem_usage_byte{job_name=\"$job_name\"}) by (instance)",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": " {{'{{'}}instance{{'}}'}}",
