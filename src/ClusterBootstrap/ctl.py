@@ -258,42 +258,62 @@ def maintain_db(config, args):
     """
     push/pull a table to/from DB
     """
-    assert args.nargs[0] in ["pull", "push", "connect"], "invalid action."
+    subcommand = args.nargs[0]
+    assert subcommand in ["pull", "push", "connect"], "invalid action."
     host = config["mysql_node"]
     user = config["mysql_username"]
     password = config["mysql_password"]
-    if args.nargs[0] == "connect":
+    if subcommand == "connect":
         os.system("mysql -h {} -u {} -p{}".format(host, user, password))
     else:
         database = "DLWSCluster-{}".format(config["clusterId"])
-        assert args.nargs[1] in ["vc", "acl"], "invalid table."
+        table_name = args.nargs[1]
+        assert table_name in ["vc", "acl"], "invalid table."
         
         if args.verbose:
             print("connecting to {}@{}, DB {}".format(user, host, database))
         conn = connector.connect(user=user, password=password,
                host=host, database=database)
-        if args.nargs[0] == "pull":
-            sql = "SELECT * from {}".format(args.nargs[1])
-        cursor = conn.cursor()
-        cursor.execute(sql)
-        col_names = [col[0] for col in cursor.description]
-        serialized_rows = []
-        rows = cursor.fetchall()
+        if subcommand == "pull":
+            sql = "SELECT * from {}".format(table_name)
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            col_names = [col[0] for col in cursor.description]
+            serialized_rows = []
+            rows = cursor.fetchall()
+            for row in rows:
+                serialized_row = {}
+                for i, v in enumerate(row):
+                    try:
+                        serialized_row[col_names[i]] = json.loads(v)
+                    # JSONDecodeError
+                    except:
+                        serialized_row[col_names[i]] = v
+                serialized_rows.append(serialized_row)
+            table_config = {"col_names": col_names, "rows": serialized_rows}
+            dump2 = args.output if args.output else "{}.yaml".format(table_name)
+            with open(dump2, "w") as wf:
+                yaml.safe_dump(table_config, wf)
+        elif subcommand == "push":
+            sql = "DELETE from {}".format(table_name)
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            with open("{}.yaml".format(table_name)) as f:
+                table_config = yaml.safe_load(f)
+            col_names = table_config["col_names"]
+            cols_2_ignore = table_config.get("columns_to_ignore", ["time"])
+            cols_filtered = [col for col in col_names if col not in cols_2_ignore]
+            cols_str = ", ".join(cols_filtered)
+            for row in table_config["rows"]:
+                vals = ", ".join(["'{}'".format(json.dumps(row[col])) for col in cols_filtered])
+                sql = "INSERT INTO `{}` ({}) VALUES ({})".format(table_name, cols_str, vals)
+                if args.verbose:
+                    print(sql)
+                cursor.execute(sql)
+            conn.commit()
+
         cursor.close()
-        for row in rows:
-            serialized_row = {}
-            for i, v in enumerate(row):
-                try:
-                    serialized_row[col_names[i]] = json.loads(v)
-                # JSONDecodeError
-                except:
-                    serialized_row[col_names[i]] = v
-            serialized_rows.append(serialized_row)
-        table_config = {"col_names": col_names, "rows": serialized_rows}
-        dump2 = args.output if args.output else "{}.yaml".format(args.nargs[1])
-        with open(dump2, "w") as wf:
-            yaml.safe_dump(table_config, wf)
-        
+
 
 def run_command(args, command):
     config = load_config_4_ctl(args, command)
