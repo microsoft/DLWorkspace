@@ -118,16 +118,16 @@ class DCGMHandler(object):
         self.thread.start()
 
     def run(self):
-        try:
-            with nv_host():
-                while True:
+        with nv_host():
+            while True:
+                try:
                     metrics, gauges = self.get_dcgm_metric()
                     now = datetime.datetime.now()
                     self.info_ref.set(metrics, now)
                     self.gauge_ref.set(gauges, now)
                     time.sleep(self.interval)
-        except Exception:
-            logger.exception("DCGMHandler.run got exception")
+                except Exception:
+                    logger.exception("DCGMHandler.run got exception")
 
     def get_dcgm_metric(self):
         metrics = {} # minor_number -> DCGMMetrics
