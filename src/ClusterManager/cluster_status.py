@@ -160,16 +160,16 @@ class ClusterStatus(object):
             if isinstance(self_val, list) and isinstance(other_val, list):
                 for item in self_val:
                     if item not in other_val:
-                        logger.warning("For %s: self %s, other %s", k,
+                        logger.debug("For %s: self %s, other %s", k,
                                      self.__dict__[k], other.__dict__[k])
                         return False
                 for item in other_val:
                     if item not in self_val:
-                        logger.warning("For %s: self %s, other %s", k,
+                        logger.debug("For %s: self %s, other %s", k,
                                      self.__dict__[k], other.__dict__[k])
                         return False
             elif self_val != other_val:
-                logger.warning("For %s: self %s, other %s", k, self.__dict__[k],
+                logger.debug("For %s: self %s, other %s", k, self.__dict__[k],
                              other.__dict__[k])
                 return False
 
