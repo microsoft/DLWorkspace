@@ -34,7 +34,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Number of GPUs allocated to the VC.",
             "format": "none",
             "gauge": {
@@ -112,7 +112,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#7eb26d"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Number of GPUs immediately assignable to jobs in the VC.",
             "format": "none",
             "gauge": {
@@ -188,7 +188,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#cca300"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Number of unhealthy GPUs in the VC.",
             "format": "none",
             "gauge": {
@@ -266,7 +266,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#6ed0e0"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Number of GPUs assigned to jobs in the VC.",
             "format": "none",
             "gauge": {
@@ -344,7 +344,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Number of active GPUs (>0%) in the VC.",
             "format": "none",
             "gauge": {
@@ -420,7 +420,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Number of assigned GPUs having utilization 0% in the VC.",
             "format": "none",
             "gauge": {
@@ -504,7 +504,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "GPU numbers in the VC over time.",
             "fill": 0,
             "id": 21,
@@ -632,7 +632,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU utilization across all GPUs allocated to the VC.",
             "format": "percent",
             "gauge": {
@@ -709,7 +709,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU utilization across all GPUs in the VC in the selected time range.",
             "format": "percent",
             "gauge": {
@@ -785,7 +785,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU utilization across all assigned GPUs in the VC.",
             "format": "percent",
             "gauge": {
@@ -862,7 +862,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU utilization across all assigned GPUs in the VC in the selected time range.",
             "format": "percent",
             "gauge": {
@@ -938,7 +938,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU utilization across all active GPUs (>0%) in the VC.",
             "format": "percent",
             "gauge": {
@@ -1015,7 +1015,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU utilization across all active GPUs (>0%) in the VC in the selected time range.",
             "format": "percent",
             "gauge": {
@@ -1100,7 +1100,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU utilization in the VC over time.",
             "fill": 1,
             "id": 22,
@@ -1206,7 +1206,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU memory utilization across all active GPUs (>0%) in the VC.",
             "format": "percent",
             "gauge": {
@@ -1284,7 +1284,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average CPU usage per GPU across all active GPUs (>0%) in the VC.\n\nTODO: Distinguish 0 GPU task_cpu_percent.",
             "format": "none",
             "gauge": {
@@ -1362,7 +1362,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average memory usage per GPU across all active GPUs (>0%) in the VC.\n\nTODO: Distinguish 0 GPU task_mem_usage_byte.",
             "format": "decbytes",
             "gauge": {
@@ -1440,7 +1440,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average disk read rate per GPU across all active GPUs (>0%) in the VC.\n\nTODO: Distinguish 0 GPU task_block_in_byte.",
             "format": "Bps",
             "gauge": {
@@ -1518,7 +1518,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average disk write rate per GPU across all active GPUs (>0%) in the VC.\n\nTODO: Distinguish 0 GPU task_block_out_byte.",
             "format": "Bps",
             "gauge": {
@@ -1596,7 +1596,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average network inbound rate per GPU across all active GPUs (>0%) in the VC.\n\nTODO: Distinguish 0 GPU task_net_in_byte.",
             "format": "Bps",
             "gauge": {
@@ -1674,7 +1674,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average network outbound rate per GPU across all active GPUs (>0%) in the VC.\n\nTODO: Distinguish 0 GPU task_net_out_byte.",
             "format": "Bps",
             "gauge": {
@@ -1752,7 +1752,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "format": "none",
             "gauge": {
               "maxValue": 100,
@@ -1835,7 +1835,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU memory utilization per active GPU.",
             "fill": 1,
             "id": 23,
@@ -1918,7 +1918,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average CPU usage per active GPU.",
             "fill": 1,
             "id": 24,
@@ -2001,7 +2001,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average memory usage per active GPU.",
             "fill": 1,
             "id": 25,
@@ -2084,7 +2084,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "",
             "fill": 1,
             "id": 43,
@@ -2186,7 +2186,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "",
             "fill": 1,
             "id": 44,
@@ -2300,7 +2300,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "fill": 0,
             "id": 42,
             "legend": {
@@ -2375,7 +2375,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "fill": 0,
             "id": 46,
             "legend": {
@@ -2450,7 +2450,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "fill": 0,
             "id": 45,
             "legend": {
@@ -2525,7 +2525,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "fill": 0,
             "id": 47,
             "legend": {
@@ -2612,7 +2612,7 @@
         {
           "allValue": null,
           "current": {},
-          "datasource": "${DS_PM}",
+          "datasource": null,
           "hide": 0,
           "includeAll": false,
           "label": "vc_name",

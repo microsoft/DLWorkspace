@@ -34,7 +34,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#6ed0e0"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Number of GPUs assigned to the user.",
             "format": "none",
             "gauge": {
@@ -110,7 +110,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Number of active GPUs (>0%) assigned to the user.",
             "format": "none",
             "gauge": {
@@ -187,7 +187,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Number of idle GPUs under  the user.",
             "format": "none",
             "gauge": {
@@ -272,7 +272,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "fill": 0,
             "id": 8,
             "legend": {
@@ -378,7 +378,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU utilization across all assigned GPUs to the user.",
             "format": "percent",
             "gauge": {
@@ -455,7 +455,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU utilization across all assigned GPUs to the user over the selected time range.",
             "format": "percent",
             "gauge": {
@@ -532,7 +532,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU utilization across all active GPUs (>0%) assigned to the user.",
             "format": "percent",
             "gauge": {
@@ -609,7 +609,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU utilization across all active GPUs (>0%) assigned to the user over the selected time range.",
             "format": "percent",
             "gauge": {
@@ -694,7 +694,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "fill": 1,
             "id": 10,
             "legend": {
@@ -806,7 +806,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU memory utilization across all active GPUs (>0%) assigned to the user.",
             "format": "percent",
             "gauge": {
@@ -882,7 +882,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "CPU usage per active GPU (>0%) assigned to the user.",
             "format": "short",
             "gauge": {
@@ -958,7 +958,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Memory usage per active GPU (>0%) assigned to the user.",
             "format": "decbytes",
             "gauge": {
@@ -1034,7 +1034,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Block In Rate per active GPU (>0%) assigned to the user.",
             "format": "Bps",
             "gauge": {
@@ -1110,7 +1110,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Block Out Rate per active GPU (>0%) assigned to the user.",
             "format": "Bps",
             "gauge": {
@@ -1186,7 +1186,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Network Inbound Rate per active GPU (>0%) assigned to the user.",
             "format": "Bps",
             "gauge": {
@@ -1262,7 +1262,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Network Outbound Rate per active GPU (>0%) assigned to the user.",
             "format": "Bps",
             "gauge": {
@@ -1346,7 +1346,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "fill": 1,
             "id": 9,
             "legend": {
@@ -1428,7 +1428,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "fill": 1,
             "id": 18,
             "legend": {
@@ -1510,7 +1510,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "fill": 1,
             "id": 19,
             "legend": {
@@ -1592,7 +1592,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "fill": 1,
             "id": 20,
             "legend": {
@@ -1693,7 +1693,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "fill": 1,
             "id": 21,
             "legend": {
@@ -1806,7 +1806,7 @@
         {
           "allValue": null,
           "current": {},
-          "datasource": "${DS_PM}",
+          "datasource": null,
           "hide": 0,
           "includeAll": false,
           "label": null,
@@ -1826,7 +1826,7 @@
         {
           "allValue": null,
           "current": {},
-          "datasource": "${DS_PM}",
+          "datasource": null,
           "hide": 0,
           "includeAll": false,
           "label": null,

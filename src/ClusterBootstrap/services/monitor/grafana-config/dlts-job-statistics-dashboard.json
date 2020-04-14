@@ -34,7 +34,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#6ed0e0"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Number of GPUs assigned to the job.",
             "format": "none",
             "gauge": {
@@ -112,7 +112,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Number of active GPUs (>0%) in the job.",
             "format": "none",
             "gauge": {
@@ -191,7 +191,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Number of active GPUs (>0%) in the job.",
             "format": "none",
             "gauge": {
@@ -282,7 +282,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU utilization across all assigned GPUs in the job.",
             "format": "percent",
             "gauge": {
@@ -360,7 +360,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU utilization across all assigned GPUs in the job in the selected time range.",
             "format": "percent",
             "gauge": {
@@ -438,7 +438,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU utilization across all active GPUs (>0%) in the job.",
             "format": "percent",
             "gauge": {
@@ -516,7 +516,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU utilization across all active GPUs (>0%) in the job over the selected time range.",
             "format": "percent",
             "gauge": {
@@ -606,7 +606,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#299c46"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Average GPU memory utilization across all active GPUs (>0%) in the job.",
             "format": "percent",
             "gauge": {
@@ -685,7 +685,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "CPU usage per active GPU in the job.",
             "format": "short",
             "gauge": {
@@ -763,7 +763,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "decimals": null,
             "description": "Memory usage per active GPU in the job.",
             "format": "decbytes",
@@ -842,7 +842,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Block In Rate per active GPU in the job.",
             "format": "Bps",
             "gauge": {
@@ -920,7 +920,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Block Out Rate per active GPU in the job.",
             "format": "Bps",
             "gauge": {
@@ -998,7 +998,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Network In Rate per active GPU in the job.",
             "format": "Bps",
             "gauge": {
@@ -1076,7 +1076,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Network Out Rate per active GPU in the job.",
             "format": "Bps",
             "gauge": {
@@ -1154,7 +1154,7 @@
               "rgba(237, 129, 40, 0.89)",
               "#d44a3a"
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "format": "none",
             "gauge": {
               "maxValue": 100,
@@ -1237,7 +1237,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "GPU utilization for all GPUs in the job.",
             "fill": 1,
             "id": 2,
@@ -1313,7 +1313,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "GPU memory utilization for all GPUs in the job.",
             "fill": 1,
             "id": 3,
@@ -1389,7 +1389,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "CPU usage in the job.",
             "fill": 1,
             "id": 9,
@@ -1465,7 +1465,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Memory usage in the job.",
             "fill": 1,
             "id": 10,
@@ -1541,7 +1541,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Disk IO rate in the job.",
             "fill": 1,
             "id": 12,
@@ -1629,7 +1629,7 @@
             "bars": false,
             "dashLength": 10,
             "dashes": false,
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "description": "Network I/O rate in the job.",
             "fill": 1,
             "id": 11,
@@ -1735,7 +1735,7 @@
         {
           "allValue": null,
           "current": {},
-          "datasource": "${DS_PM}",
+          "datasource": null,
           "hide": 0,
           "includeAll": false,
           "label": "job_id",

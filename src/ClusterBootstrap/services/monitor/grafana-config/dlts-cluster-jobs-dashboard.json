@@ -31,7 +31,7 @@
                 "value": "current"
               }
             ],
-            "datasource": "${DS_PM}",
+            "datasource": null,
             "fontSize": "100%",
             "id": 1,
             "links": [],
