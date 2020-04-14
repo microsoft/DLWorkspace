@@ -37,7 +37,8 @@ class nv_host(object):
 
 # Ref: https://github.com/NVIDIA/gpu-monitoring-tools/blob/9e2979804d297cf5a81640ba8a8e941365e58f14/dcgm-exporter/dcgm-exporter#L85
 mapping = [
-    (54, "uuid", "uuid of gpu"),
+    (54, "uuid",
+     "uuid of gpu"), # do not remove uuid, this is very important metric
     (100, "sm_clock", "SM clock frequency (in MHz)."),
     (101, "memory_clock", "Memory clock frequency (in MHz)."),
     (140, "memory_temp", "Memory temperature (in C)."),
