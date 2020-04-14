@@ -50,7 +50,10 @@ class TestClusterStatus(TestCase):
             "available_job_num",
         ]
         exclusion = [
+            "exclusion", # exclude self
             "jobs",
+            "jobs_without_pods",
+            "pods_without_node_assignment",
             "node_statuses",
             "pod_statuses",
             "user_statuses",
