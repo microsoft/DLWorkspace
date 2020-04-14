@@ -295,7 +295,7 @@ class ClusterStatus(object):
         # Account pods without node assignment.
         # This occurs when fragmentation happens and job manager still let
         # through jobs because there is still remaining quota.
-        for name, pod_status in self.pods_without_node_assignment:
+        for name, pod_status in self.pods_without_node_assignment.items():
             if pod_status["preemption_allowed"] is False:
                 self.gpu_used += pod_status["gpu"]
                 self.cpu_used += pod_status["cpu"]
