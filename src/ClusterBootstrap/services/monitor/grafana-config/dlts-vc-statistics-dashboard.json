@@ -1,41 +1,5 @@
 {
   "dashboard": {
-    "__inputs": [
-      {
-        "name": "DS_PM",
-        "label": "PM",
-        "description": "",
-        "type": "datasource",
-        "pluginId": "prometheus",
-        "pluginName": "Prometheus"
-      }
-    ],
-    "__requires": [
-      {
-        "type": "grafana",
-        "id": "grafana",
-        "name": "Grafana",
-        "version": "4.6.3"
-      },
-      {
-        "type": "panel",
-        "id": "graph",
-        "name": "Graph",
-        "version": ""
-      },
-      {
-        "type": "datasource",
-        "id": "prometheus",
-        "name": "Prometheus",
-        "version": "1.0.0"
-      },
-      {
-        "type": "panel",
-        "id": "singlestat",
-        "name": "Singlestat",
-        "version": ""
-      }
-    ],
     "annotations": {
       "list": [
         {
@@ -55,7 +19,7 @@
     "hideControls": false,
     "id": null,
     "links": [],
-    "refresh": false,
+    "refresh": "1m",
     "rows": [
       {
         "collapse": false,
@@ -71,10 +35,10 @@
               "#d44a3a"
             ],
             "datasource": "${DS_PM}",
-            "description": "Number of GPUs in the cluster.\n\nTODO: Currently it's showing k8s capacity. Ideally it should all underlying GPUs.",
+            "description": "Number of GPUs allocated to the VC.",
             "format": "none",
             "gauge": {
-              "maxValue": null,
+              "maxValue": 100,
               "minValue": 0,
               "show": false,
               "thresholdLabels": false,
@@ -118,17 +82,16 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "sum(k8s_node_gpu_total)",
+                "expr": "k8s_vc_gpu_total{vc_name=\"$vc_name\"}",
                 "format": "time_series",
-                "hide": false,
                 "instant": false,
                 "intervalFactor": 2,
-                "legendFormat": "Total",
+                "legendFormat": "Allocated",
                 "refId": "A"
               }
             ],
             "thresholds": "",
-            "title": "Total GPUs",
+            "title": "Allocated",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -150,84 +113,7 @@
               "#7eb26d"
             ],
             "datasource": "${DS_PM}",
-            "description": "Number of GPUs immediately assignable to jobs.",
-            "format": "none",
-            "gauge": {
-              "maxValue": 100,
-              "minValue": 0,
-              "show": false,
-              "thresholdLabels": false,
-              "thresholdMarkers": true
-            },
-            "id": 50,
-            "interval": null,
-            "links": [],
-            "mappingType": 1,
-            "mappingTypes": [
-              {
-                "name": "value to text",
-                "value": 1
-              },
-              {
-                "name": "range to text",
-                "value": 2
-              }
-            ],
-            "maxDataPoints": 100,
-            "nullPointMode": "connected",
-            "nullText": null,
-            "postfix": "",
-            "postfixFontSize": "50%",
-            "prefix": "",
-            "prefixFontSize": "50%",
-            "rangeMaps": [
-              {
-                "from": "null",
-                "text": "N/A",
-                "to": "null"
-              }
-            ],
-            "span": 2,
-            "sparkline": {
-              "fillColor": "rgba(31, 118, 189, 0.18)",
-              "full": false,
-              "lineColor": "rgb(31, 120, 193)",
-              "show": true
-            },
-            "tableColumn": "",
-            "targets": [
-              {
-                "expr": "sum(k8s_node_gpu_available)",
-                "format": "time_series",
-                "intervalFactor": 2,
-                "legendFormat": "",
-                "refId": "A"
-              }
-            ],
-            "thresholds": "0,0",
-            "title": "Assignable GPUs",
-            "type": "singlestat",
-            "valueFontSize": "80%",
-            "valueMaps": [
-              {
-                "op": "=",
-                "text": "N/A",
-                "value": "null"
-              }
-            ],
-            "valueName": "current"
-          },
-          {
-            "cacheTimeout": null,
-            "colorBackground": false,
-            "colorValue": true,
-            "colors": [
-              "#299c46",
-              "rgba(237, 129, 40, 0.89)",
-              "#cca300"
-            ],
-            "datasource": "${DS_PM}",
-            "description": "Number of unhealthy GPUs in k8s or marked as unschedulable.",
+            "description": "Number of GPUs immediately assignable to jobs in the VC.",
             "format": "none",
             "gauge": {
               "maxValue": 100,
@@ -274,15 +160,92 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "sum(k8s_node_gpu_total) - sum(k8s_node_gpu_allocatable)",
+                "expr": "count(task_gpu_percent{vc_name=\"$vc_name\"}>0)",
                 "format": "time_series",
                 "intervalFactor": 2,
-                "legendFormat": "",
                 "refId": "A"
               }
             ],
             "thresholds": "0,0",
-            "title": "Unhealthy GPUs",
+            "title": "Assignable GPU",
+            "type": "singlestat",
+            "valueFontSize": "80%",
+            "valueMaps": [
+              {
+                "op": "=",
+                "text": "N/A",
+                "value": "null"
+              }
+            ],
+            "valueName": "current"
+          },
+          {
+            "cacheTimeout": null,
+            "colorBackground": false,
+            "colorValue": true,
+            "colors": [
+              "#299c46",
+              "rgba(237, 129, 40, 0.89)",
+              "#cca300"
+            ],
+            "datasource": "${DS_PM}",
+            "description": "Number of unhealthy GPUs in the VC.",
+            "format": "none",
+            "gauge": {
+              "maxValue": 100,
+              "minValue": 0,
+              "show": false,
+              "thresholdLabels": false,
+              "thresholdMarkers": true
+            },
+            "id": 48,
+            "interval": null,
+            "links": [],
+            "mappingType": 1,
+            "mappingTypes": [
+              {
+                "name": "value to text",
+                "value": 1
+              },
+              {
+                "name": "range to text",
+                "value": 2
+              }
+            ],
+            "maxDataPoints": 100,
+            "nullPointMode": "connected",
+            "nullText": null,
+            "postfix": "",
+            "postfixFontSize": "50%",
+            "prefix": "",
+            "prefixFontSize": "50%",
+            "rangeMaps": [
+              {
+                "from": "null",
+                "text": "N/A",
+                "to": "null"
+              }
+            ],
+            "span": 2,
+            "sparkline": {
+              "fillColor": "rgba(31, 118, 189, 0.18)",
+              "full": false,
+              "lineColor": "rgb(31, 120, 193)",
+              "show": true
+            },
+            "tableColumn": "",
+            "targets": [
+              {
+                "expr": "k8s_vc_gpu_unschedulable{vc_name=\"$vc_name\"}",
+                "format": "time_series",
+                "instant": false,
+                "intervalFactor": 2,
+                "legendFormat": "Allocated",
+                "refId": "A"
+              }
+            ],
+            "thresholds": "0,0",
+            "title": "Unhealthy",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -304,7 +267,7 @@
               "#6ed0e0"
             ],
             "datasource": "${DS_PM}",
-            "description": "Number of GPUs assigned to jobs.\n\nTODO: Exclude unhealthy but in use GPUs.",
+            "description": "Number of GPUs assigned to jobs in the VC.",
             "format": "none",
             "gauge": {
               "maxValue": 100,
@@ -313,7 +276,7 @@
               "thresholdLabels": false,
               "thresholdMarkers": true
             },
-            "id": 7,
+            "id": 2,
             "interval": null,
             "links": [],
             "mappingType": 1,
@@ -351,7 +314,7 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "count(task_gpu_percent) OR on() vector(0)",
+                "expr": "count(task_gpu_percent{vc_name=\"$vc_name\"}) OR on() vector(0)",
                 "format": "time_series",
                 "instant": false,
                 "intervalFactor": 2,
@@ -360,7 +323,7 @@
               }
             ],
             "thresholds": "0,0",
-            "title": "Assigned GPUs",
+            "title": "Assigned",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -382,7 +345,7 @@
               "#299c46"
             ],
             "datasource": "${DS_PM}",
-            "description": "Number of assigned GPUs having utilization > 0%.",
+            "description": "Number of active GPUs (>0%) in the VC.",
             "format": "none",
             "gauge": {
               "maxValue": 100,
@@ -391,7 +354,7 @@
               "thresholdLabels": false,
               "thresholdMarkers": true
             },
-            "id": 46,
+            "id": 37,
             "interval": null,
             "links": [],
             "mappingType": 1,
@@ -429,14 +392,14 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "count(task_gpu_percent>0) OR on() vector(0)",
+                "expr": "count(task_gpu_percent{vc_name=\"$vc_name\"}>0) OR on() vector(0)",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "refId": "A"
               }
             ],
             "thresholds": "0,0",
-            "title": "Active GPUs",
+            "title": "Active",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -458,7 +421,7 @@
               "#d44a3a"
             ],
             "datasource": "${DS_PM}",
-            "description": "Number of assigned GPUs having utilization 0%.",
+            "description": "Number of assigned GPUs having utilization 0% in the VC.",
             "format": "none",
             "gauge": {
               "maxValue": 100,
@@ -467,7 +430,7 @@
               "thresholdLabels": false,
               "thresholdMarkers": true
             },
-            "id": 51,
+            "id": 50,
             "interval": null,
             "links": [],
             "mappingType": 1,
@@ -505,14 +468,14 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "(count(task_gpu_percent) OR on() vector(0)) - (count(task_gpu_percent>0) OR on() vector(0))",
+                "expr": "(count(task_gpu_percent{vc_name=\"$vc_name\"}) OR on() vector(0)) - (count(task_gpu_percent{vc_name=\"$vc_name\"}>0) OR on() vector(0))",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "refId": "A"
               }
             ],
             "thresholds": "0,0",
-            "title": "Idle GPUs",
+            "title": "Idle",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -534,7 +497,7 @@
       },
       {
         "collapse": false,
-        "height": 250,
+        "height": "250px",
         "panels": [
           {
             "aliasColors": {},
@@ -542,9 +505,9 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": "${DS_PM}",
-            "description": "GPU numbers in the cluster over time.",
+            "description": "GPU numbers in the VC over time.",
             "fill": 0,
-            "id": 9,
+            "id": 21,
             "legend": {
               "avg": false,
               "current": false,
@@ -569,46 +532,47 @@
             "steppedLine": false,
             "targets": [
               {
-                "expr": "sum(k8s_node_gpu_total)",
+                "expr": "k8s_vc_gpu_total{vc_name=\"$vc_name\"}",
                 "format": "time_series",
+                "instant": false,
                 "intervalFactor": 2,
-                "legendFormat": "Total",
+                "legendFormat": "Allocated",
                 "refId": "A"
               },
               {
-                "expr": "sum(k8s_node_gpu_available)",
+                "expr": "k8s_vc_gpu_available{vc_name=\"$vc_name\"}",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": "Assignable",
                 "refId": "B"
               },
               {
-                "expr": "sum(k8s_node_gpu_total) - sum(k8s_node_gpu_allocatable)",
+                "expr": "k8s_vc_gpu_unschedulable{vc_name=\"$vc_name\"}",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": "Unhealthy",
-                "refId": "D"
+                "refId": "C"
               },
               {
-                "expr": "count(task_gpu_percent) OR on() vector(0)",
+                "expr": "count(task_gpu_percent{vc_name=\"$vc_name\"}) OR on() vector(0)",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": "Assigned",
-                "refId": "E"
+                "refId": "D"
               },
               {
-                "expr": "count(task_gpu_percent>0) OR on() vector(0)",
+                "expr": "count(task_gpu_percent{vc_name=\"$vc_name\"}>0) OR on() vector(0)",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": "Active",
-                "refId": "F"
+                "refId": "E"
               },
               {
-                "expr": "(count(task_gpu_percent) OR on() vector(0)) - (count(task_gpu_percent>0) OR on() vector(0))",
+                "expr": "(count(task_gpu_percent{vc_name=\"$vc_name\"}) OR on() vector(0)) - (count(task_gpu_percent{vc_name=\"$vc_name\"}>0) OR on() vector(0))",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": "Idle",
-                "refId": "C"
+                "refId": "F"
               }
             ],
             "thresholds": [],
@@ -617,7 +581,7 @@
             "title": "GPUs",
             "tooltip": {
               "shared": true,
-              "sort": 2,
+              "sort": 0,
               "value_type": "individual"
             },
             "type": "graph",
@@ -669,7 +633,7 @@
               "#299c46"
             ],
             "datasource": "${DS_PM}",
-            "description": "Average GPU utilization across all GPUs in the cluster.",
+            "description": "Average GPU utilization across all GPUs allocated to the VC.",
             "format": "percent",
             "gauge": {
               "maxValue": 100,
@@ -678,7 +642,7 @@
               "thresholdLabels": false,
               "thresholdMarkers": true
             },
-            "id": 47,
+            "id": 41,
             "interval": null,
             "links": [],
             "mappingType": 1,
@@ -716,14 +680,15 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "(sum(task_gpu_percent) / sum(k8s_node_gpu_total)) OR on() vector(0)",
+                "expr": "sum(task_gpu_percent{vc_name=\"$vc_name\"}) / sum(k8s_vc_gpu_total{vc_name=\"$vc_name\"}) OR on() vector(0)",
                 "format": "time_series",
+                "instant": false,
                 "intervalFactor": 2,
                 "refId": "A"
               }
             ],
             "thresholds": "50,90",
-            "title": "Cluster GPU Utilization",
+            "title": "Allocated GPU Utilization",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -745,7 +710,7 @@
               "#299c46"
             ],
             "datasource": "${DS_PM}",
-            "description": "Average GPU utlization across all GPUs in the cluster over the selected time range.",
+            "description": "Average GPU utilization across all GPUs in the VC in the selected time range.",
             "format": "percent",
             "gauge": {
               "maxValue": 100,
@@ -754,7 +719,7 @@
               "thresholdLabels": false,
               "thresholdMarkers": true
             },
-            "id": 52,
+            "id": 38,
             "interval": null,
             "links": [],
             "mappingType": 1,
@@ -792,14 +757,14 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "sum(task_gpu_percent) / sum(k8s_node_gpu_total)",
+                "expr": "sum(task_gpu_percent{vc_name=\"$vc_name\"}) / sum(k8s_vc_gpu_total{vc_name=\"$vc_name\"})",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "refId": "A"
               }
             ],
             "thresholds": "50,90",
-            "title": "Cluster GPU Utilization Over Time",
+            "title": "Allocated GPU Utilization Over Time",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -821,7 +786,7 @@
               "#299c46"
             ],
             "datasource": "${DS_PM}",
-            "description": "Average GPU utilization across all assigned GPUs in the cluster.",
+            "description": "Average GPU utilization across all assigned GPUs in the VC.",
             "format": "percent",
             "gauge": {
               "maxValue": 100,
@@ -830,7 +795,7 @@
               "thresholdLabels": false,
               "thresholdMarkers": true
             },
-            "id": 22,
+            "id": 3,
             "interval": null,
             "links": [],
             "mappingType": 1,
@@ -868,11 +833,10 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "avg(task_gpu_percent) OR on() vector(0)",
+                "expr": "avg(task_gpu_percent{vc_name=\"$vc_name\"}) OR on() vector(0)",
                 "format": "time_series",
                 "instant": false,
                 "intervalFactor": 2,
-                "legendFormat": "",
                 "refId": "A"
               }
             ],
@@ -899,7 +863,7 @@
               "#299c46"
             ],
             "datasource": "${DS_PM}",
-            "description": "Average GPU utilization across all assigned GPUs in the cluster over the selected time range.",
+            "description": "Average GPU utilization across all assigned GPUs in the VC in the selected time range.",
             "format": "percent",
             "gauge": {
               "maxValue": 100,
@@ -908,7 +872,7 @@
               "thresholdLabels": false,
               "thresholdMarkers": true
             },
-            "id": 53,
+            "id": 26,
             "interval": null,
             "links": [],
             "mappingType": 1,
@@ -946,11 +910,9 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "avg(task_gpu_percent)",
+                "expr": "avg(task_gpu_percent{vc_name=\"$vc_name\"})",
                 "format": "time_series",
-                "instant": false,
                 "intervalFactor": 2,
-                "legendFormat": "Assigned GPU Util",
                 "refId": "A"
               }
             ],
@@ -977,7 +939,7 @@
               "#299c46"
             ],
             "datasource": "${DS_PM}",
-            "description": "Average GPU utilization across all active GPUs (>0%) in the cluster.",
+            "description": "Average GPU utilization across all active GPUs (>0%) in the VC.",
             "format": "percent",
             "gauge": {
               "maxValue": 100,
@@ -986,7 +948,7 @@
               "thresholdLabels": false,
               "thresholdMarkers": true
             },
-            "id": 25,
+            "id": 4,
             "interval": null,
             "links": [],
             "mappingType": 1,
@@ -1024,11 +986,10 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "avg(task_gpu_percent>0) OR on() vector(0)",
+                "expr": "avg(task_gpu_percent{vc_name=\"$vc_name\"}>0) OR on() vector(0)",
                 "format": "time_series",
                 "instant": false,
                 "intervalFactor": 2,
-                "legendFormat": "Assigned GPU Util",
                 "refId": "A"
               }
             ],
@@ -1055,7 +1016,7 @@
               "#299c46"
             ],
             "datasource": "${DS_PM}",
-            "description": "Average GPU utilization across all active GPUs (>0%) in the cluster over the selected time range.",
+            "description": "Average GPU utilization across all active GPUs (>0%) in the VC in the selected time range.",
             "format": "percent",
             "gauge": {
               "maxValue": 100,
@@ -1064,7 +1025,7 @@
               "thresholdLabels": false,
               "thresholdMarkers": true
             },
-            "id": 54,
+            "id": 39,
             "interval": null,
             "links": [],
             "mappingType": 1,
@@ -1102,11 +1063,10 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "avg(task_gpu_percent>0)",
+                "expr": "avg(task_gpu_percent{vc_name=\"$vc_name\"}>0)",
                 "format": "time_series",
                 "instant": false,
                 "intervalFactor": 2,
-                "legendFormat": "Assigned GPU Util",
                 "refId": "A"
               }
             ],
@@ -1141,17 +1101,17 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": "${DS_PM}",
-            "description": "Average GPU utilization in the cluster over time.",
+            "description": "Average GPU utilization in the VC over time.",
             "fill": 1,
-            "id": 10,
+            "id": 22,
             "legend": {
-              "avg": true,
-              "current": true,
-              "max": true,
-              "min": true,
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
               "show": true,
               "total": false,
-              "values": true
+              "values": false
             },
             "lines": true,
             "linewidth": 1,
@@ -1168,21 +1128,21 @@
             "steppedLine": false,
             "targets": [
               {
-                "expr": "sum(task_gpu_percent) / sum(k8s_node_gpu_total)",
+                "expr": "sum(task_gpu_percent{vc_name=\"$vc_name\"}) / sum(k8s_vc_gpu_total)",
                 "format": "time_series",
                 "intervalFactor": 2,
-                "legendFormat": "Cluster",
+                "legendFormat": "Allocated",
                 "refId": "A"
               },
               {
-                "expr": "avg(task_gpu_percent)",
+                "expr": "avg(task_gpu_percent{vc_name=\"$vc_name\"})",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": "Assigned",
                 "refId": "B"
               },
               {
-                "expr": "avg(task_gpu_percent>0)",
+                "expr": "avg(task_gpu_percent{vc_name=\"$vc_name\"}>0)",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": "Active",
@@ -1209,7 +1169,7 @@
             "yaxes": [
               {
                 "format": "percent",
-                "label": "",
+                "label": null,
                 "logBase": 1,
                 "max": null,
                 "min": null,
@@ -1235,510 +1195,6 @@
       },
       {
         "collapse": false,
-        "height": "250px",
-        "panels": [
-          {
-            "aliasColors": {},
-            "bars": true,
-            "dashLength": 10,
-            "dashes": false,
-            "datasource": "${DS_PM}",
-            "description": "Histogram showing number of nodes with assignable GPUs in the cluster.",
-            "fill": 1,
-            "id": 12,
-            "legend": {
-              "avg": false,
-              "current": false,
-              "max": false,
-              "min": false,
-              "show": false,
-              "total": false,
-              "values": false
-            },
-            "lines": false,
-            "linewidth": 1,
-            "links": [],
-            "nullPointMode": "null",
-            "percentage": false,
-            "pointradius": 5,
-            "points": false,
-            "renderer": "flot",
-            "seriesOverrides": [],
-            "spaceLength": 10,
-            "span": 6,
-            "stack": false,
-            "steppedLine": false,
-            "targets": [
-              {
-                "expr": "k8s_node_gpu_available",
-                "format": "time_series",
-                "instant": true,
-                "intervalFactor": 2,
-                "legendFormat": "",
-                "refId": "A"
-              }
-            ],
-            "thresholds": [],
-            "timeFrom": null,
-            "timeShift": null,
-            "title": "Node Count By Assignable GPUs",
-            "tooltip": {
-              "shared": false,
-              "sort": 2,
-              "value_type": "individual"
-            },
-            "type": "graph",
-            "xaxis": {
-              "buckets": null,
-              "mode": "histogram",
-              "name": null,
-              "show": true,
-              "values": [
-                "total"
-              ]
-            },
-            "yaxes": [
-              {
-                "format": "short",
-                "label": "Node count",
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              },
-              {
-                "format": "short",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              }
-            ]
-          },
-          {
-            "aliasColors": {},
-            "bars": false,
-            "dashLength": 10,
-            "dashes": false,
-            "datasource": "${DS_PM}",
-            "fill": 1,
-            "id": 14,
-            "legend": {
-              "avg": false,
-              "current": false,
-              "max": false,
-              "min": false,
-              "show": true,
-              "total": false,
-              "values": false
-            },
-            "lines": true,
-            "linewidth": 1,
-            "links": [],
-            "nullPointMode": "null",
-            "percentage": false,
-            "pointradius": 5,
-            "points": false,
-            "renderer": "flot",
-            "seriesOverrides": [],
-            "spaceLength": 10,
-            "span": 6,
-            "stack": false,
-            "steppedLine": false,
-            "targets": [
-              {
-                "expr": "count_values(\"gpu_available\", k8s_node_gpu_available)",
-                "format": "time_series",
-                "intervalFactor": 2,
-                "legendFormat": "{{'{{'}}gpu_available{{'}}'}}",
-                "refId": "A"
-              }
-            ],
-            "thresholds": [],
-            "timeFrom": null,
-            "timeShift": null,
-            "title": "Node Count By Assignable GPUs",
-            "tooltip": {
-              "shared": true,
-              "sort": 2,
-              "value_type": "individual"
-            },
-            "type": "graph",
-            "xaxis": {
-              "buckets": null,
-              "mode": "time",
-              "name": null,
-              "show": true,
-              "values": []
-            },
-            "yaxes": [
-              {
-                "format": "short",
-                "label": "Node count",
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              },
-              {
-                "format": "short",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              }
-            ]
-          }
-        ],
-        "repeat": null,
-        "repeatIteration": null,
-        "repeatRowId": null,
-        "showTitle": true,
-        "title": "GPU Fragmentation",
-        "titleSize": "h5"
-      },
-      {
-        "collapse": false,
-        "height": "150px",
-        "panels": [
-          {
-            "cacheTimeout": null,
-            "colorBackground": false,
-            "colorValue": false,
-            "colors": [
-              "#299c46",
-              "rgba(237, 129, 40, 0.89)",
-              "#d44a3a"
-            ],
-            "datasource": "${DS_PM}",
-            "format": "s",
-            "gauge": {
-              "maxValue": 100,
-              "minValue": 0,
-              "show": false,
-              "thresholdLabels": false,
-              "thresholdMarkers": true
-            },
-            "id": 63,
-            "interval": null,
-            "links": [],
-            "mappingType": 1,
-            "mappingTypes": [
-              {
-                "name": "value to text",
-                "value": 1
-              },
-              {
-                "name": "range to text",
-                "value": 2
-              }
-            ],
-            "maxDataPoints": 100,
-            "nullPointMode": "connected",
-            "nullText": null,
-            "postfix": "",
-            "postfixFontSize": "50%",
-            "prefix": "",
-            "prefixFontSize": "50%",
-            "rangeMaps": [
-              {
-                "from": "null",
-                "text": "N/A",
-                "to": "null"
-              }
-            ],
-            "span": 4,
-            "sparkline": {
-              "fillColor": "rgba(31, 118, 189, 0.18)",
-              "full": false,
-              "lineColor": "rgb(31, 120, 193)",
-              "show": true
-            },
-            "tableColumn": "",
-            "targets": [
-              {
-                "expr": "job_state_change_latency_seconds_sum{current_state=\"approved\"} / job_state_change_latency_seconds_count{current_state=\"approved\"}",
-                "format": "time_series",
-                "intervalFactor": 2,
-                "refId": "A"
-              }
-            ],
-            "thresholds": "",
-            "title": "unapproved -> queued",
-            "type": "singlestat",
-            "valueFontSize": "80%",
-            "valueMaps": [
-              {
-                "op": "=",
-                "text": "N/A",
-                "value": "null"
-              }
-            ],
-            "valueName": "current"
-          },
-          {
-            "cacheTimeout": null,
-            "colorBackground": false,
-            "colorValue": false,
-            "colors": [
-              "#299c46",
-              "rgba(237, 129, 40, 0.89)",
-              "#d44a3a"
-            ],
-            "datasource": "${DS_PM}",
-            "format": "s",
-            "gauge": {
-              "maxValue": 100,
-              "minValue": 0,
-              "show": false,
-              "thresholdLabels": false,
-              "thresholdMarkers": true
-            },
-            "id": 64,
-            "interval": null,
-            "links": [],
-            "mappingType": 1,
-            "mappingTypes": [
-              {
-                "name": "value to text",
-                "value": 1
-              },
-              {
-                "name": "range to text",
-                "value": 2
-              }
-            ],
-            "maxDataPoints": 100,
-            "nullPointMode": "connected",
-            "nullText": null,
-            "postfix": "",
-            "postfixFontSize": "50%",
-            "prefix": "",
-            "prefixFontSize": "50%",
-            "rangeMaps": [
-              {
-                "from": "null",
-                "text": "N/A",
-                "to": "null"
-              }
-            ],
-            "span": 4,
-            "sparkline": {
-              "fillColor": "rgba(31, 118, 189, 0.18)",
-              "full": false,
-              "lineColor": "rgb(31, 120, 193)",
-              "show": true
-            },
-            "tableColumn": "",
-            "targets": [
-              {
-                "expr": "job_state_change_latency_seconds_sum{current_state=\"scheduling\"} / job_state_change_latency_seconds_count{current_state=\"scheduling\"}",
-                "format": "time_series",
-                "intervalFactor": 2,
-                "refId": "A"
-              }
-            ],
-            "thresholds": "",
-            "title": "queued -> scheduling",
-            "type": "singlestat",
-            "valueFontSize": "80%",
-            "valueMaps": [
-              {
-                "op": "=",
-                "text": "N/A",
-                "value": "null"
-              }
-            ],
-            "valueName": "current"
-          },
-          {
-            "cacheTimeout": null,
-            "colorBackground": false,
-            "colorValue": false,
-            "colors": [
-              "#299c46",
-              "rgba(237, 129, 40, 0.89)",
-              "#d44a3a"
-            ],
-            "datasource": "${DS_PM}",
-            "format": "s",
-            "gauge": {
-              "maxValue": 100,
-              "minValue": 0,
-              "show": false,
-              "thresholdLabels": false,
-              "thresholdMarkers": true
-            },
-            "id": 65,
-            "interval": null,
-            "links": [],
-            "mappingType": 1,
-            "mappingTypes": [
-              {
-                "name": "value to text",
-                "value": 1
-              },
-              {
-                "name": "range to text",
-                "value": 2
-              }
-            ],
-            "maxDataPoints": 100,
-            "nullPointMode": "connected",
-            "nullText": null,
-            "postfix": "",
-            "postfixFontSize": "50%",
-            "prefix": "",
-            "prefixFontSize": "50%",
-            "rangeMaps": [
-              {
-                "from": "null",
-                "text": "N/A",
-                "to": "null"
-              }
-            ],
-            "span": 4,
-            "sparkline": {
-              "fillColor": "rgba(31, 118, 189, 0.18)",
-              "full": false,
-              "lineColor": "rgb(31, 120, 193)",
-              "show": true
-            },
-            "tableColumn": "",
-            "targets": [
-              {
-                "expr": "job_state_change_latency_seconds_sum{current_state=\"running\"} / job_state_change_latency_seconds_count{current_state=\"running\"}",
-                "format": "time_series",
-                "intervalFactor": 2,
-                "refId": "A"
-              }
-            ],
-            "thresholds": "",
-            "title": "scheduling -> running",
-            "type": "singlestat",
-            "valueFontSize": "80%",
-            "valueMaps": [
-              {
-                "op": "=",
-                "text": "N/A",
-                "value": "null"
-              }
-            ],
-            "valueName": "current"
-          }
-        ],
-        "repeat": null,
-        "repeatIteration": null,
-        "repeatRowId": null,
-        "showTitle": true,
-        "title": "Job Status Latency",
-        "titleSize": "h5"
-      },
-      {
-        "collapse": false,
-        "height": 250,
-        "panels": [
-          {
-            "aliasColors": {},
-            "bars": false,
-            "dashLength": 10,
-            "dashes": false,
-            "datasource": "${DS_PM}",
-            "fill": 1,
-            "id": 55,
-            "legend": {
-              "avg": false,
-              "current": false,
-              "max": false,
-              "min": false,
-              "show": true,
-              "total": false,
-              "values": false
-            },
-            "lines": true,
-            "linewidth": 1,
-            "links": [],
-            "nullPointMode": "null",
-            "percentage": false,
-            "pointradius": 5,
-            "points": false,
-            "renderer": "flot",
-            "seriesOverrides": [],
-            "spaceLength": 10,
-            "span": 12,
-            "stack": false,
-            "steppedLine": false,
-            "targets": [
-              {
-                "expr": "job_state_change_latency_seconds_sum{current_state=\"approved\"} / job_state_change_latency_seconds_count{current_state=\"approved\"}",
-                "format": "time_series",
-                "intervalFactor": 2,
-                "legendFormat": "unapproved -> queued",
-                "refId": "A"
-              },
-              {
-                "expr": "job_state_change_latency_seconds_sum{current_state=\"scheduling\"} / job_state_change_latency_seconds_count{current_state=\"scheduling\"}",
-                "format": "time_series",
-                "intervalFactor": 2,
-                "legendFormat": "queued -> scheduling",
-                "refId": "B"
-              },
-              {
-                "expr": "job_state_change_latency_seconds_sum{current_state=\"running\"} / job_state_change_latency_seconds_count{current_state=\"running\"}",
-                "format": "time_series",
-                "intervalFactor": 2,
-                "legendFormat": "scheduling -> running",
-                "refId": "C"
-              }
-            ],
-            "thresholds": [],
-            "timeFrom": null,
-            "timeShift": null,
-            "title": "Average Job Status Change Latency",
-            "tooltip": {
-              "shared": true,
-              "sort": 0,
-              "value_type": "individual"
-            },
-            "type": "graph",
-            "xaxis": {
-              "buckets": null,
-              "mode": "time",
-              "name": null,
-              "show": true,
-              "values": []
-            },
-            "yaxes": [
-              {
-                "format": "s",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              },
-              {
-                "format": "short",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              }
-            ]
-          }
-        ],
-        "repeat": null,
-        "repeatIteration": null,
-        "repeatRowId": null,
-        "showTitle": false,
-        "title": "Job Status Latency Over Time",
-        "titleSize": "h5"
-      },
-      {
-        "collapse": false,
         "height": "150px",
         "panels": [
           {
@@ -1751,7 +1207,7 @@
               "#299c46"
             ],
             "datasource": "${DS_PM}",
-            "description": "Average GPU memory utilization per GPU across all active GPUs (>0%) in the cluster.",
+            "description": "Average GPU memory utilization across all active GPUs (>0%) in the VC.",
             "format": "percent",
             "gauge": {
               "maxValue": 100,
@@ -1761,7 +1217,7 @@
               "thresholdMarkers": true
             },
             "height": "",
-            "id": 26,
+            "id": 10,
             "interval": null,
             "links": [],
             "mappingType": 1,
@@ -1799,11 +1255,10 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "(sum((task_gpu_percent > bool 0) * task_gpu_mem_percent) / count(task_gpu_percent>0)) OR on() vector(0)",
+                "expr": "(sum((task_gpu_percent{vc_name=\"$vc_name\"} > bool 0) * task_gpu_mem_percent{vc_name=\"$vc_name\"}) / count(task_gpu_percent{vc_name=\"$vc_name\"}>0)) OR on() vector(0)",
                 "format": "time_series",
                 "instant": false,
                 "intervalFactor": 2,
-                "legendFormat": "Assigned GPU Util",
                 "refId": "A"
               }
             ],
@@ -1830,7 +1285,7 @@
               "#d44a3a"
             ],
             "datasource": "${DS_PM}",
-            "description": "Average CPU usage per GPU across all active GPUs (>0%) in the cluster.\n\nTODO: Distinguish 0 GPU task_cpu_percent.",
+            "description": "Average CPU usage per GPU across all active GPUs (>0%) in the VC.\n\nTODO: Distinguish 0 GPU task_cpu_percent.",
             "format": "none",
             "gauge": {
               "maxValue": 100,
@@ -1840,7 +1295,7 @@
               "thresholdMarkers": true
             },
             "height": "",
-            "id": 27,
+            "id": 12,
             "interval": null,
             "links": [],
             "mappingType": 1,
@@ -1878,11 +1333,10 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "(sum(task_cpu_percent) / count(task_gpu_percent>0) / 100) OR on() vector(0)",
+                "expr": "(sum(task_cpu_percent{vc_name=\"$vc_name\"}) / count(task_gpu_percent{vc_name=\"$vc_name\"}>0) / 100) OR on() vector(0)",
                 "format": "time_series",
                 "instant": false,
                 "intervalFactor": 2,
-                "legendFormat": "",
                 "refId": "A"
               }
             ],
@@ -1909,8 +1363,86 @@
               "#d44a3a"
             ],
             "datasource": "${DS_PM}",
-            "description": "Average memory usage per GPU across all active GPUs (>0%) in the cluster.\n\nTODO: Distinguish 0 GPU task_mem_usage_byte.",
+            "description": "Average memory usage per GPU across all active GPUs (>0%) in the VC.\n\nTODO: Distinguish 0 GPU task_mem_usage_byte.",
             "format": "decbytes",
+            "gauge": {
+              "maxValue": 100,
+              "minValue": 0,
+              "show": false,
+              "thresholdLabels": false,
+              "thresholdMarkers": true
+            },
+            "height": "",
+            "id": 14,
+            "interval": null,
+            "links": [],
+            "mappingType": 1,
+            "mappingTypes": [
+              {
+                "name": "value to text",
+                "value": 1
+              },
+              {
+                "name": "range to text",
+                "value": 2
+              }
+            ],
+            "maxDataPoints": 100,
+            "nullPointMode": "connected",
+            "nullText": null,
+            "postfix": "",
+            "postfixFontSize": "50%",
+            "prefix": "",
+            "prefixFontSize": "50%",
+            "rangeMaps": [
+              {
+                "from": "null",
+                "text": "N/A",
+                "to": "null"
+              }
+            ],
+            "span": 1,
+            "sparkline": {
+              "fillColor": "rgba(31, 118, 189, 0.18)",
+              "full": false,
+              "lineColor": "rgb(31, 120, 193)",
+              "show": true
+            },
+            "tableColumn": "",
+            "targets": [
+              {
+                "expr": "(sum(task_mem_usage_byte{vc_name=\"$vc_name\"}) / count(task_gpu_percent{vc_name=\"$vc_name\"}>0)) OR on() vector(0)",
+                "format": "time_series",
+                "instant": false,
+                "intervalFactor": 2,
+                "refId": "A"
+              }
+            ],
+            "thresholds": "",
+            "title": "Memory",
+            "type": "singlestat",
+            "valueFontSize": "50%",
+            "valueMaps": [
+              {
+                "op": "=",
+                "text": "N/A",
+                "value": "null"
+              }
+            ],
+            "valueName": "current"
+          },
+          {
+            "cacheTimeout": null,
+            "colorBackground": false,
+            "colorValue": false,
+            "colors": [
+              "#299c46",
+              "rgba(237, 129, 40, 0.89)",
+              "#d44a3a"
+            ],
+            "datasource": "${DS_PM}",
+            "description": "Average disk read rate per GPU across all active GPUs (>0%) in the VC.\n\nTODO: Distinguish 0 GPU task_block_in_byte.",
+            "format": "Bps",
             "gauge": {
               "maxValue": 100,
               "minValue": 0,
@@ -1957,90 +1489,10 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "(sum(task_mem_usage_byte) / count(task_gpu_percent>0)) OR on() vector(0)",
+                "expr": "(sum(rate(task_block_in_byte{vc_name=\"$vc_name\"}[5m])) / count(task_gpu_percent{vc_name=\"$vc_name\"}>0)) OR on() vector(0)",
                 "format": "time_series",
                 "instant": false,
                 "intervalFactor": 2,
-                "legendFormat": "",
-                "refId": "A"
-              }
-            ],
-            "thresholds": "",
-            "title": "Memory",
-            "type": "singlestat",
-            "valueFontSize": "50%",
-            "valueMaps": [
-              {
-                "op": "=",
-                "text": "N/A",
-                "value": "null"
-              }
-            ],
-            "valueName": "current"
-          },
-          {
-            "cacheTimeout": null,
-            "colorBackground": false,
-            "colorValue": false,
-            "colors": [
-              "#299c46",
-              "rgba(237, 129, 40, 0.89)",
-              "#d44a3a"
-            ],
-            "datasource": "${DS_PM}",
-            "description": "Average disk read rate per active GPU across all active GPUs (>0%) in the cluster.\n\nTODO: Distinguish 0 GPU task_block_in_byte.",
-            "format": "Bps",
-            "gauge": {
-              "maxValue": 100,
-              "minValue": 0,
-              "show": false,
-              "thresholdLabels": false,
-              "thresholdMarkers": true
-            },
-            "height": "",
-            "id": 56,
-            "interval": null,
-            "links": [],
-            "mappingType": 1,
-            "mappingTypes": [
-              {
-                "name": "value to text",
-                "value": 1
-              },
-              {
-                "name": "range to text",
-                "value": 2
-              }
-            ],
-            "maxDataPoints": 100,
-            "nullPointMode": "connected",
-            "nullText": null,
-            "postfix": "",
-            "postfixFontSize": "50%",
-            "prefix": "",
-            "prefixFontSize": "50%",
-            "rangeMaps": [
-              {
-                "from": "null",
-                "text": "N/A",
-                "to": "null"
-              }
-            ],
-            "span": 1,
-            "sparkline": {
-              "fillColor": "rgba(31, 118, 189, 0.18)",
-              "full": false,
-              "lineColor": "rgb(31, 120, 193)",
-              "show": true
-            },
-            "tableColumn": "",
-            "targets": [
-              {
-                "expr": "(sum(rate(task_block_in_byte[5m])) / count(task_gpu_percent>0)) OR on() vector(0)",
-                "format": "time_series",
-                "instant": false,
-                "intervalFactor": 2,
-                "legendFormat": "",
                 "refId": "A"
               }
             ],
@@ -2067,7 +1519,7 @@
               "#d44a3a"
             ],
             "datasource": "${DS_PM}",
-            "description": "Average disk write rate per active GPU across all active GPUs (>0%) in the cluster.\n\nTODO: Distinguish 0 GPU task_block_out_byte.",
+            "description": "Average disk write rate per GPU across all active GPUs (>0%) in the VC.\n\nTODO: Distinguish 0 GPU task_block_out_byte.",
             "format": "Bps",
             "gauge": {
               "maxValue": 100,
@@ -2077,7 +1529,7 @@
               "thresholdMarkers": true
             },
             "height": "",
-            "id": 58,
+            "id": 27,
             "interval": null,
             "links": [],
             "mappingType": 1,
@@ -2115,11 +1567,10 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "(sum(rate(task_block_out_byte[5m])) / count(task_gpu_percent>0)) OR on() vector(0)",
+                "expr": "(sum(rate(task_block_out_byte{vc_name=\"$vc_name\"}[5m])) / count(task_gpu_percent{vc_name=\"$vc_name\"}>0)) OR on() vector(0)",
                 "format": "time_series",
                 "instant": false,
                 "intervalFactor": 2,
-                "legendFormat": "",
                 "refId": "A"
               }
             ],
@@ -2146,7 +1597,7 @@
               "#d44a3a"
             ],
             "datasource": "${DS_PM}",
-            "description": "Average network inbound rate per active GPU across all active GPUs (>0%) in the cluster.\n\nTODO: Distinguish 0 GPU task_net_in_byte.",
+            "description": "Average network inbound rate per GPU across all active GPUs (>0%) in the VC.\n\nTODO: Distinguish 0 GPU task_net_in_byte.",
             "format": "Bps",
             "gauge": {
               "maxValue": 100,
@@ -2156,7 +1607,7 @@
               "thresholdMarkers": true
             },
             "height": "",
-            "id": 59,
+            "id": 29,
             "interval": null,
             "links": [],
             "mappingType": 1,
@@ -2194,11 +1645,10 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "(sum(rate(task_net_in_byte[5m])) / count(task_gpu_percent>0)) OR on() vector(0)",
+                "expr": "(sum(rate(task_net_in_byte{vc_name=\"$vc_name\"}[5m])) / count(task_gpu_percent{vc_name=\"$vc_name\"}>0)) OR on() vector(0)",
                 "format": "time_series",
                 "instant": false,
                 "intervalFactor": 2,
-                "legendFormat": "",
                 "refId": "A"
               }
             ],
@@ -2225,7 +1675,7 @@
               "#d44a3a"
             ],
             "datasource": "${DS_PM}",
-            "description": "Average network outbound rate per active GPU across all active GPUs (>0%) in the cluster.\n\nTODO: Distinguish 0 GPU task_net_out_byte.",
+            "description": "Average network outbound rate per GPU across all active GPUs (>0%) in the VC.\n\nTODO: Distinguish 0 GPU task_net_out_byte.",
             "format": "Bps",
             "gauge": {
               "maxValue": 100,
@@ -2235,7 +1685,7 @@
               "thresholdMarkers": true
             },
             "height": "",
-            "id": 60,
+            "id": 30,
             "interval": null,
             "links": [],
             "mappingType": 1,
@@ -2273,11 +1723,10 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "(sum(rate(task_net_out_byte[5m])) / count(task_gpu_percent>0)) OR on() vector(0)",
+                "expr": "(sum(rate(task_net_out_byte{vc_name=\"$vc_name\"}[5m])) / count(task_gpu_percent{vc_name=\"$vc_name\"}>0)) OR on() vector(0)",
                 "format": "time_series",
                 "instant": false,
                 "intervalFactor": 2,
-                "legendFormat": "",
                 "refId": "A"
               }
             ],
@@ -2293,6 +1742,81 @@
               }
             ],
             "valueName": "current"
+          },
+          {
+            "cacheTimeout": null,
+            "colorBackground": false,
+            "colorValue": false,
+            "colors": [
+              "#299c46",
+              "rgba(237, 129, 40, 0.89)",
+              "#d44a3a"
+            ],
+            "datasource": "${DS_PM}",
+            "format": "none",
+            "gauge": {
+              "maxValue": 100,
+              "minValue": 0,
+              "show": false,
+              "thresholdLabels": false,
+              "thresholdMarkers": true
+            },
+            "id": 40,
+            "interval": null,
+            "links": [],
+            "mappingType": 1,
+            "mappingTypes": [
+              {
+                "name": "value to text",
+                "value": 1
+              },
+              {
+                "name": "range to text",
+                "value": 2
+              }
+            ],
+            "maxDataPoints": 100,
+            "nullPointMode": "connected",
+            "nullText": null,
+            "postfix": "",
+            "postfixFontSize": "50%",
+            "prefix": "",
+            "prefixFontSize": "50%",
+            "rangeMaps": [
+              {
+                "from": "null",
+                "text": "N/A",
+                "to": "null"
+              }
+            ],
+            "span": 5,
+            "sparkline": {
+              "fillColor": "rgba(31, 118, 189, 0.18)",
+              "full": false,
+              "lineColor": "rgb(31, 120, 193)",
+              "show": false
+            },
+            "tableColumn": "",
+            "targets": [
+              {
+                "expr": "",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "refId": "A"
+              }
+            ],
+            "thresholds": "",
+            "title": "",
+            "type": "singlestat",
+            "valueFontSize": "80%",
+            "valueMaps": [
+              {
+                "op": "=",
+                "text": "",
+                "value": "null"
+              }
+            ],
+            "valueName": "avg"
           }
         ],
         "repeat": null,
@@ -2312,15 +1836,15 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": "${DS_PM}",
-            "description": "Average GPU memory utilization per active GPU in the cluster.",
+            "description": "Average GPU memory utilization per active GPU.",
             "fill": 1,
-            "id": 37,
+            "id": 23,
             "legend": {
               "avg": false,
               "current": false,
               "max": false,
               "min": false,
-              "show": false,
+              "show": true,
               "total": false,
               "values": false
             },
@@ -2339,11 +1863,18 @@
             "steppedLine": false,
             "targets": [
               {
+                "expr": "(sum((task_gpu_percent{vc_name=\"$vc_name\"} > bool 0) * task_gpu_mem_percent{vc_name=\"$vc_name\"}) / count(task_gpu_percent{vc_name=\"$vc_name\"}>0)) OR on() vector(0)",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "VC",
+                "refId": "A"
+              },
+              {
                 "expr": "(sum((task_gpu_percent > bool 0) * task_gpu_mem_percent) / count(task_gpu_percent>0)) OR on() vector(0)",
                 "format": "time_series",
                 "intervalFactor": 2,
-                "legendFormat": "",
-                "refId": "A"
+                "legendFormat": "Cluster",
+                "refId": "B"
               }
             ],
             "thresholds": [],
@@ -2352,7 +1883,7 @@
             "title": "GPU Memory Per Active GPU",
             "tooltip": {
               "shared": true,
-              "sort": 2,
+              "sort": 0,
               "value_type": "individual"
             },
             "type": "graph",
@@ -2366,7 +1897,7 @@
             "yaxes": [
               {
                 "format": "percent",
-                "label": "",
+                "label": null,
                 "logBase": 1,
                 "max": null,
                 "min": null,
@@ -2388,15 +1919,15 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": "${DS_PM}",
-            "description": "Average CPU usage per active GPU in the cluster over time.",
+            "description": "Average CPU usage per active GPU.",
             "fill": 1,
-            "id": 16,
+            "id": 24,
             "legend": {
               "avg": false,
               "current": false,
               "max": false,
               "min": false,
-              "show": false,
+              "show": true,
               "total": false,
               "values": false
             },
@@ -2415,12 +1946,18 @@
             "steppedLine": false,
             "targets": [
               {
+                "expr": "(sum(task_cpu_percent{vc_name=\"$vc_name\"}) / count(task_gpu_percent{vc_name=\"$vc_name\"}>0) / 100) OR on() vector(0)",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "VC",
+                "refId": "A"
+              },
+              {
                 "expr": "(sum(task_cpu_percent) / count(task_gpu_percent>0) / 100) OR on() vector(0)",
                 "format": "time_series",
-                "instant": false,
                 "intervalFactor": 2,
-                "legendFormat": "",
-                "refId": "A"
+                "legendFormat": "Cluster",
+                "refId": "B"
               }
             ],
             "thresholds": [],
@@ -2465,16 +2002,15 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": "${DS_PM}",
-            "description": "Average memory usage per active GPU in the cluster.",
+            "description": "Average memory usage per active GPU.",
             "fill": 1,
-            "id": 17,
+            "id": 25,
             "legend": {
-              "alignAsTable": false,
               "avg": false,
               "current": false,
               "max": false,
               "min": false,
-              "show": false,
+              "show": true,
               "total": false,
               "values": false
             },
@@ -2493,20 +2029,27 @@
             "steppedLine": false,
             "targets": [
               {
+                "expr": "(sum(task_mem_usage_byte{vc_name=\"$vc_name\"}) / count(task_gpu_percent{vc_name=\"$vc_name\"}>0)) OR on() vector(0)",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "VC",
+                "refId": "A"
+              },
+              {
                 "expr": "(sum(task_mem_usage_byte) / count(task_gpu_percent>0)) OR on() vector(0)",
                 "format": "time_series",
                 "intervalFactor": 2,
-                "legendFormat": "",
-                "refId": "A"
+                "legendFormat": "Cluster",
+                "refId": "B"
               }
             ],
             "thresholds": [],
             "timeFrom": null,
             "timeShift": null,
-            "title": "Memory Per Active GPU",
+            "title": "Memory Usage Per GPU",
             "tooltip": {
               "shared": true,
-              "sort": 0,
+              "sort": 2,
               "value_type": "individual"
             },
             "type": "graph",
@@ -2520,7 +2063,7 @@
             "yaxes": [
               {
                 "format": "decbytes",
-                "label": "",
+                "label": null,
                 "logBase": 1,
                 "max": null,
                 "min": null,
@@ -2542,8 +2085,9 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": "${DS_PM}",
+            "description": "",
             "fill": 1,
-            "id": 61,
+            "id": 43,
             "legend": {
               "avg": false,
               "current": false,
@@ -2573,18 +2117,32 @@
             "steppedLine": false,
             "targets": [
               {
-                "expr": "(sum(rate(task_block_in_byte[5m])) / count(task_gpu_percent>0)) OR on() vector(0)",
+                "expr": "(sum(rate(task_block_in_byte{vc_name=\"$vc_name\"}[5m])) / count(task_gpu_percent{vc_name=\"$vc_name\"}>0)) OR on() vector(0)",
                 "format": "time_series",
                 "intervalFactor": 2,
-                "legendFormat": "In",
+                "legendFormat": "VC In",
                 "refId": "A"
               },
               {
-                "expr": "(sum(rate(task_block_out_byte[5m])) / count(task_gpu_percent>0) OR on() vector(0))",
+                "expr": "(sum(rate(task_block_out_byte{vc_name=\"$vc_name\"}[5m])) / count(task_gpu_percent{vc_name=\"$vc_name\"}>0)) OR on() vector(0)",
                 "format": "time_series",
                 "intervalFactor": 2,
-                "legendFormat": "Out",
+                "legendFormat": "VC Out",
                 "refId": "B"
+              },
+              {
+                "expr": "(sum(rate(task_block_in_byte[5m])) / count(task_gpu_percent>0)) OR on() vector(0)",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "Cluster In",
+                "refId": "C"
+              },
+              {
+                "expr": "(sum(rate(task_block_out_byte[5m])) / count(task_gpu_percent>0)) OR on() vector(0)",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "Cluster Out",
+                "refId": "D"
               }
             ],
             "thresholds": [],
@@ -2593,7 +2151,7 @@
             "title": "Disk I/O Per Active GPU",
             "tooltip": {
               "shared": true,
-              "sort": 0,
+              "sort": 2,
               "value_type": "individual"
             },
             "type": "graph",
@@ -2629,8 +2187,9 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": "${DS_PM}",
+            "description": "",
             "fill": 1,
-            "id": 62,
+            "id": 44,
             "legend": {
               "avg": false,
               "current": false,
@@ -2660,18 +2219,32 @@
             "steppedLine": false,
             "targets": [
               {
-                "expr": "(sum(rate(task_net_in_byte[5m])) / count(task_gpu_percent>0)) OR on() vector(0)",
+                "expr": "(sum(rate(task_net_in_byte{vc_name=\"$vc_name\"}[5m])) / count(task_gpu_percent{vc_name=\"$vc_name\"}>0)) OR on() vector(0)",
                 "format": "time_series",
                 "intervalFactor": 2,
-                "legendFormat": "In",
+                "legendFormat": "VC In",
                 "refId": "A"
               },
               {
-                "expr": "(sum(rate(task_net_out_byte[5m])) / count(task_gpu_percent>0) OR on() vector(0))",
+                "expr": "(sum(rate(task_net_out_byte{vc_name=\"$vc_name\"}[5m])) / count(task_gpu_percent{vc_name=\"$vc_name\"}>0)) OR on() vector(0)",
                 "format": "time_series",
                 "intervalFactor": 2,
-                "legendFormat": "Out",
+                "legendFormat": "VC Out",
                 "refId": "B"
+              },
+              {
+                "expr": "(sum(rate(task_net_in_byte[5m])) / count(task_gpu_percent>0)) OR on() vector(0)",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "Cluster In",
+                "refId": "C"
+              },
+              {
+                "expr": "(sum(rate(task_net_out_byte[5m])) / count(task_gpu_percent>0)) OR on() vector(0)",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "Cluster Out",
+                "refId": "D"
               }
             ],
             "thresholds": [],
@@ -2680,7 +2253,7 @@
             "title": "Network I/O Per Active GPU",
             "tooltip": {
               "shared": true,
-              "sort": 0,
+              "sort": 2,
               "value_type": "individual"
             },
             "type": "graph",
@@ -2720,7 +2293,7 @@
       },
       {
         "collapse": false,
-        "height": 250,
+        "height": "250px",
         "panels": [
           {
             "aliasColors": {},
@@ -2729,539 +2302,6 @@
             "dashes": false,
             "datasource": "${DS_PM}",
             "fill": 0,
-            "id": 38,
-            "legend": {
-              "avg": false,
-              "current": false,
-              "max": false,
-              "min": false,
-              "show": true,
-              "total": false,
-              "values": false
-            },
-            "lines": true,
-            "linewidth": 1,
-            "links": [],
-            "nullPointMode": "null",
-            "percentage": false,
-            "pointradius": 5,
-            "points": false,
-            "renderer": "flot",
-            "seriesOverrides": [],
-            "spaceLength": 10,
-            "span": 4,
-            "stack": false,
-            "steppedLine": false,
-            "targets": [
-              {
-                "expr": "sum(k8s_vc_gpu_total) by (vc_name)",
-                "format": "time_series",
-                "hide": false,
-                "intervalFactor": 2,
-                "legendFormat": "{{'{{'}}vc_name{{'}}'}}",
-                "refId": "A"
-              }
-            ],
-            "thresholds": [],
-            "timeFrom": null,
-            "timeShift": null,
-            "title": "VC Allocated GPUs",
-            "tooltip": {
-              "shared": true,
-              "sort": 2,
-              "value_type": "individual"
-            },
-            "type": "graph",
-            "xaxis": {
-              "buckets": null,
-              "mode": "time",
-              "name": null,
-              "show": true,
-              "values": []
-            },
-            "yaxes": [
-              {
-                "format": "short",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              },
-              {
-                "format": "short",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              }
-            ]
-          },
-          {
-            "aliasColors": {},
-            "bars": false,
-            "dashLength": 10,
-            "dashes": false,
-            "datasource": "${DS_PM}",
-            "fill": 1,
-            "id": 48,
-            "legend": {
-              "avg": false,
-              "current": false,
-              "max": false,
-              "min": false,
-              "show": true,
-              "total": false,
-              "values": false
-            },
-            "lines": true,
-            "linewidth": 1,
-            "links": [],
-            "nullPointMode": "null",
-            "percentage": false,
-            "pointradius": 5,
-            "points": false,
-            "renderer": "flot",
-            "seriesOverrides": [],
-            "spaceLength": 10,
-            "span": 4,
-            "stack": false,
-            "steppedLine": false,
-            "targets": [
-              {
-                "expr": "sum(k8s_vc_gpu_total) by (vc_name) / ignoring (vc_name) group_left sum(k8s_vc_gpu_total)",
-                "format": "time_series",
-                "hide": false,
-                "instant": false,
-                "intervalFactor": 2,
-                "legendFormat": "{{'{{'}}vc_name{{'}}'}}",
-                "refId": "A"
-              }
-            ],
-            "thresholds": [],
-            "timeFrom": null,
-            "timeShift": null,
-            "title": "VC Allocation Ratio",
-            "tooltip": {
-              "shared": true,
-              "sort": 2,
-              "value_type": "individual"
-            },
-            "type": "graph",
-            "xaxis": {
-              "buckets": null,
-              "mode": "time",
-              "name": null,
-              "show": true,
-              "values": []
-            },
-            "yaxes": [
-              {
-                "format": "percentunit",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              },
-              {
-                "format": "short",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              }
-            ]
-          },
-          {
-            "aliasColors": {},
-            "bars": false,
-            "dashLength": 10,
-            "dashes": false,
-            "datasource": "${DS_PM}",
-            "fill": 1,
-            "id": 43,
-            "legend": {
-              "avg": false,
-              "current": false,
-              "max": false,
-              "min": false,
-              "show": true,
-              "total": false,
-              "values": false
-            },
-            "lines": true,
-            "linewidth": 1,
-            "links": [],
-            "nullPointMode": "null",
-            "percentage": false,
-            "pointradius": 5,
-            "points": false,
-            "renderer": "flot",
-            "seriesOverrides": [],
-            "spaceLength": 10,
-            "span": 4,
-            "stack": false,
-            "steppedLine": false,
-            "targets": [
-              {
-                "expr": "sum(task_gpu_percent) by (vc_name) / sum(k8s_vc_gpu_total) by (vc_name)",
-                "format": "time_series",
-                "hide": false,
-                "intervalFactor": 2,
-                "legendFormat": "{{'{{'}}vc_name{{'}}'}}",
-                "refId": "A"
-              }
-            ],
-            "thresholds": [],
-            "timeFrom": null,
-            "timeShift": null,
-            "title": "VC Allocated GPU Utilization",
-            "tooltip": {
-              "shared": true,
-              "sort": 2,
-              "value_type": "individual"
-            },
-            "type": "graph",
-            "xaxis": {
-              "buckets": null,
-              "mode": "time",
-              "name": null,
-              "show": true,
-              "values": []
-            },
-            "yaxes": [
-              {
-                "format": "percent",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              },
-              {
-                "format": "short",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              }
-            ]
-          },
-          {
-            "aliasColors": {},
-            "bars": false,
-            "dashLength": 10,
-            "dashes": false,
-            "datasource": "${DS_PM}",
-            "fill": 0,
-            "id": 39,
-            "legend": {
-              "avg": false,
-              "current": false,
-              "max": false,
-              "min": false,
-              "show": true,
-              "total": false,
-              "values": false
-            },
-            "lines": true,
-            "linewidth": 1,
-            "links": [],
-            "nullPointMode": "null",
-            "percentage": false,
-            "pointradius": 5,
-            "points": false,
-            "renderer": "flot",
-            "seriesOverrides": [],
-            "spaceLength": 10,
-            "span": 4,
-            "stack": false,
-            "steppedLine": false,
-            "targets": [
-              {
-                "expr": "count(task_gpu_percent) by (vc_name)",
-                "format": "time_series",
-                "hide": false,
-                "intervalFactor": 2,
-                "legendFormat": "{{'{{'}}vc_name{{'}}'}}",
-                "refId": "A"
-              }
-            ],
-            "thresholds": [],
-            "timeFrom": null,
-            "timeShift": null,
-            "title": "VC Assigned GPUs",
-            "tooltip": {
-              "shared": true,
-              "sort": 2,
-              "value_type": "individual"
-            },
-            "type": "graph",
-            "xaxis": {
-              "buckets": null,
-              "mode": "time",
-              "name": null,
-              "show": true,
-              "values": []
-            },
-            "yaxes": [
-              {
-                "format": "short",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              },
-              {
-                "format": "short",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              }
-            ]
-          },
-          {
-            "aliasColors": {},
-            "bars": false,
-            "dashLength": 10,
-            "dashes": false,
-            "datasource": "${DS_PM}",
-            "fill": 1,
-            "id": 41,
-            "legend": {
-              "avg": false,
-              "current": false,
-              "max": false,
-              "min": false,
-              "show": true,
-              "total": false,
-              "values": false
-            },
-            "lines": true,
-            "linewidth": 1,
-            "links": [],
-            "nullPointMode": "null",
-            "percentage": false,
-            "pointradius": 5,
-            "points": false,
-            "renderer": "flot",
-            "seriesOverrides": [],
-            "spaceLength": 10,
-            "span": 4,
-            "stack": false,
-            "steppedLine": false,
-            "targets": [
-              {
-                "expr": "count(task_gpu_percent) by (vc_name) / sum(k8s_vc_gpu_total) by (vc_name)",
-                "format": "time_series",
-                "hide": false,
-                "intervalFactor": 2,
-                "legendFormat": "{{'{{'}}vc_name{{'}}'}}",
-                "refId": "A"
-              }
-            ],
-            "thresholds": [],
-            "timeFrom": null,
-            "timeShift": null,
-            "title": "VC Assignment GPU Ratio",
-            "tooltip": {
-              "shared": true,
-              "sort": 2,
-              "value_type": "individual"
-            },
-            "type": "graph",
-            "xaxis": {
-              "buckets": null,
-              "mode": "time",
-              "name": null,
-              "show": true,
-              "values": []
-            },
-            "yaxes": [
-              {
-                "format": "percentunit",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              },
-              {
-                "format": "short",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              }
-            ]
-          },
-          {
-            "aliasColors": {},
-            "bars": false,
-            "dashLength": 10,
-            "dashes": false,
-            "datasource": "${DS_PM}",
-            "fill": 1,
-            "id": 44,
-            "legend": {
-              "avg": false,
-              "current": false,
-              "max": false,
-              "min": false,
-              "show": true,
-              "total": false,
-              "values": false
-            },
-            "lines": true,
-            "linewidth": 1,
-            "links": [],
-            "nullPointMode": "null",
-            "percentage": false,
-            "pointradius": 5,
-            "points": false,
-            "renderer": "flot",
-            "seriesOverrides": [],
-            "spaceLength": 10,
-            "span": 4,
-            "stack": false,
-            "steppedLine": false,
-            "targets": [
-              {
-                "expr": "avg(task_gpu_percent) by (vc_name)",
-                "format": "time_series",
-                "hide": false,
-                "intervalFactor": 2,
-                "legendFormat": "{{'{{'}}vc_name{{'}}'}}",
-                "refId": "A"
-              }
-            ],
-            "thresholds": [],
-            "timeFrom": null,
-            "timeShift": null,
-            "title": "VC Assigned GPU Utilization",
-            "tooltip": {
-              "shared": true,
-              "sort": 2,
-              "value_type": "individual"
-            },
-            "type": "graph",
-            "xaxis": {
-              "buckets": null,
-              "mode": "time",
-              "name": null,
-              "show": true,
-              "values": []
-            },
-            "yaxes": [
-              {
-                "format": "percent",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              },
-              {
-                "format": "short",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              }
-            ]
-          },
-          {
-            "aliasColors": {},
-            "bars": false,
-            "dashLength": 10,
-            "dashes": false,
-            "datasource": "${DS_PM}",
-            "fill": 0,
-            "id": 40,
-            "legend": {
-              "avg": false,
-              "current": false,
-              "max": false,
-              "min": false,
-              "show": true,
-              "total": false,
-              "values": false
-            },
-            "lines": true,
-            "linewidth": 1,
-            "links": [],
-            "nullPointMode": "null",
-            "percentage": false,
-            "pointradius": 5,
-            "points": false,
-            "renderer": "flot",
-            "seriesOverrides": [],
-            "spaceLength": 10,
-            "span": 4,
-            "stack": false,
-            "steppedLine": false,
-            "targets": [
-              {
-                "expr": "count(task_gpu_percent>0) by (vc_name)",
-                "format": "time_series",
-                "hide": false,
-                "intervalFactor": 2,
-                "legendFormat": "{{'{{'}}vc_name{{'}}'}}",
-                "refId": "A"
-              }
-            ],
-            "thresholds": [],
-            "timeFrom": null,
-            "timeShift": null,
-            "title": "VC Active GPUs",
-            "tooltip": {
-              "shared": true,
-              "sort": 2,
-              "value_type": "individual"
-            },
-            "type": "graph",
-            "xaxis": {
-              "buckets": null,
-              "mode": "time",
-              "name": null,
-              "show": true,
-              "values": []
-            },
-            "yaxes": [
-              {
-                "format": "short",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              },
-              {
-                "format": "short",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-              }
-            ]
-          },
-          {
-            "aliasColors": {},
-            "bars": false,
-            "dashLength": 10,
-            "dashes": false,
-            "datasource": "${DS_PM}",
-            "fill": 1,
             "id": 42,
             "legend": {
               "avg": false,
@@ -3282,26 +2322,25 @@
             "renderer": "flot",
             "seriesOverrides": [],
             "spaceLength": 10,
-            "span": 4,
+            "span": 6,
             "stack": false,
             "steppedLine": false,
             "targets": [
               {
-                "expr": "count(task_gpu_percent>0) by (vc_name) / count(task_gpu_percent) by (vc_name)",
+                "expr": "count(task_gpu_percent{vc_name=\"$vc_name\"}) by (username)",
                 "format": "time_series",
-                "hide": false,
                 "intervalFactor": 2,
-                "legendFormat": "{{'{{'}}vc_name{{'}}'}}",
+                "legendFormat": "{{'{{'}}username{{'}}'}}",
                 "refId": "A"
               }
             ],
             "thresholds": [],
             "timeFrom": null,
             "timeShift": null,
-            "title": "VC Active GPU Ratio",
+            "title": "Assigned GPU By User",
             "tooltip": {
               "shared": true,
-              "sort": 2,
+              "sort": 0,
               "value_type": "individual"
             },
             "type": "graph",
@@ -3314,7 +2353,7 @@
             },
             "yaxes": [
               {
-                "format": "percentunit",
+                "format": "short",
                 "label": null,
                 "logBase": 1,
                 "max": null,
@@ -3337,7 +2376,82 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": "${DS_PM}",
-            "fill": 1,
+            "fill": 0,
+            "id": 46,
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "links": [],
+            "nullPointMode": "null",
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "span": 6,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "avg(task_gpu_percent{vc_name=\"$vc_name\"}) by (username)",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{'{{'}}username{{'}}'}}",
+                "refId": "A"
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeShift": null,
+            "title": "Assigned GPU Utilization By User",
+            "tooltip": {
+              "shared": true,
+              "sort": 0,
+              "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "percent",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              }
+            ]
+          },
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": "${DS_PM}",
+            "fill": 0,
             "id": 45,
             "legend": {
               "avg": false,
@@ -3358,26 +2472,100 @@
             "renderer": "flot",
             "seriesOverrides": [],
             "spaceLength": 10,
-            "span": 4,
+            "span": 6,
             "stack": false,
             "steppedLine": false,
             "targets": [
               {
-                "expr": "avg(task_gpu_percent>0) by (vc_name)",
+                "expr": "count(task_gpu_percent{vc_name=\"$vc_name\"}>0) by (username)",
                 "format": "time_series",
-                "hide": false,
                 "intervalFactor": 2,
-                "legendFormat": "{{'{{'}}vc_name{{'}}'}}",
+                "legendFormat": "{{'{{'}}username{{'}}'}}",
                 "refId": "A"
               }
             ],
             "thresholds": [],
             "timeFrom": null,
             "timeShift": null,
-            "title": "VC Active GPU Utilization",
+            "title": "Active GPU By User",
             "tooltip": {
               "shared": true,
-              "sort": 2,
+              "sort": 0,
+              "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              }
+            ]
+          },
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": "${DS_PM}",
+            "fill": 0,
+            "id": 47,
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "links": [],
+            "nullPointMode": "null",
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "span": 6,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "avg(task_gpu_percent{vc_name=\"$vc_name\"}>0) by (username)",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{'{{'}}username{{'}}'}}",
+                "refId": "A"
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeShift": null,
+            "title": "Active GPU Utilization By User",
+            "tooltip": {
+              "shared": true,
+              "sort": 0,
               "value_type": "individual"
             },
             "type": "graph",
@@ -3412,7 +2600,7 @@
         "repeatIteration": null,
         "repeatRowId": null,
         "showTitle": true,
-        "title": "VC",
+        "title": "User",
         "titleSize": "h5"
       }
     ],
@@ -3420,7 +2608,28 @@
     "style": "dark",
     "tags": [],
     "templating": {
-      "list": []
+      "list": [
+        {
+          "allValue": null,
+          "current": {},
+          "datasource": "${DS_PM}",
+          "hide": 0,
+          "includeAll": false,
+          "label": "vc_name",
+          "multi": false,
+          "name": "vc_name",
+          "options": [],
+          "query": "label_values(k8s_vc_gpu_total, vc_name)",
+          "refresh": 1,
+          "regex": "",
+          "sort": 1,
+          "tagValuesQuery": "",
+          "tags": [],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        }
+      ]
     },
     "time": {
       "from": "now-1h",
@@ -3452,7 +2661,7 @@
       ]
     },
     "timezone": "",
-    "title": "Cluster Statistics",
-    "version": 149
+    "title": "DLTS VC Statistics",
+    "version": 113
   }
 }
