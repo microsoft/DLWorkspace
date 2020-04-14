@@ -186,10 +186,19 @@ if __name__ == '__main__':
     import collector
     import datetime
 
+    from prometheus_client import Histogram
+
+    cmd_histogram = Histogram("cmd_dcgmi_latency_seconds",
+                              "Command call latency for nvidia-smi (seconds)",
+                              buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0,
+                                       64.0, 128.0, 256.0, 512.0, 1024.0,
+                                       float("inf")))
+
     gauge_ref = collector.AtomicRef(datetime.timedelta(seconds=60))
     metric_ref = collector.AtomicRef(datetime.timedelta(seconds=60))
 
-    dcgm_handler = dcgm.DCGMHandler(1, self.dcgm_gauge_ref, dcgm_info_ref)
+    dcgm_handler = dcgm.DCGMHandler(1, self.gauge_ref, metric_ref,
+                                    cmd_histogram, 600)
     dcgm_handler.run()
 
     for _ in range(10):

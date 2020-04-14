@@ -69,16 +69,6 @@ def config_environ():
                  os.environ["LD_LIBRARY_PATH"], os.environ["PATH"])
 
 
-def try_remove_old_prom_file(path):
-    """ try to remove old prom file, since old prom file are exposed by node-exporter,
-    if we do not remove, node-exporter will still expose old metrics """
-    if os.path.isfile(path):
-        try:
-            os.unlink(path)
-        except Exception as e:
-            log.warning("can not remove old prom file %s", path)
-
-
 def get_gpu_count(path):
     hostname = os.environ.get("HOSTNAME")
     ip = os.environ.get("HOST_IP")
@@ -128,11 +118,6 @@ def main(args):
     register_stack_trace_dump()
     burninate_gc_collector()
     config_environ()
-    try_remove_old_prom_file(args.log + "/gpu_exporter.prom")
-    try_remove_old_prom_file(args.log + "/job_exporter.prom")
-    try_remove_old_prom_file(args.log + "/docker.prom")
-    try_remove_old_prom_file(args.log + "/time.prom")
-    try_remove_old_prom_file(args.log + "/configured_gpu.prom")
 
     configured_gpu_counter.set(
         get_gpu_count("/gpu-config/gpu-configuration.json"))
