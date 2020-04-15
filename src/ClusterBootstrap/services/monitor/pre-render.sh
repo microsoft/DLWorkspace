@@ -13,6 +13,11 @@ rm $kill_idle_rule $grafana_file_name $alert_tmpl_file_name $prometheus_file_nam
 # config kill rules
 ${dir}/config_alerting.py "${dir}/../../config.yaml" > $kill_idle_rule
 
+# generate extra grafana-config from ./grafana-config-raw
+for i in `find ${dir}/grafana-config-raw/ -type f -regex ".*json" ` ; do
+    ${dir}/gen_grafana-config.py ${i} ${dir}/grafana-config
+done
+
 # create configmap
 for i in `find ${dir}/grafana-config/ -type f -regex ".*json" ` ; do
     echo --from-file=$i
