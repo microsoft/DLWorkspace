@@ -83,6 +83,7 @@ default_config_parameters = {
     # StorageManager mapping
     "storagemanager": "storagemanager",
     "repairmanager": "repairmanager",
+    "repairmanageretcd": "repairmanageretcd",
     "ssh_cert": "./deploy/sshkey/id_rsa",
     "admin_username": "core",
     # the path of where dfs/nfs is source linked and consumed on each node,
@@ -721,7 +722,7 @@ default_config_parameters = {
         "monitor": ["watchdog", "gpu-reporter", "reaper", "job-exporter"],
         "dashboard": ["dashboard"],
         "restfulapi": ["restfulapi"],
-        "repairmanager": ["repairmanager"],
+        "repairmanager": ["repairmanager, repairmanageretcd"],
         "storagemanager": ["storagemanager"],
         "user-synchronizer": ["user-synchronizer"],
     },

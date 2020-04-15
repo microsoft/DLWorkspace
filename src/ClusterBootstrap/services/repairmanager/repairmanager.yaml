@@ -46,7 +46,11 @@ spec:
         - mountPath: /var/log/dlworkspace
           name: log
         - mountPath: /etc/RepairManager
-          name: backup
+          name: repairmanagerdata
+      - name: etcd
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["repairmanageretcd"]}}:{{cnf["dockertag"]}}
+        command: ["/run.sh"]
+        imagePullPolicy: Always
       {% if cnf["private_docker_registry_username"] %}
       imagePullSecrets:
       - name: svccred
@@ -76,7 +80,7 @@ spec:
       - name: log
         hostPath:
           path: /var/log/clustermanager
-      - name: backup
+      - name: repairmanagerdata
         hostPath:
           path: /etc/RepairManager
       tolerations:

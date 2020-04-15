@@ -1,0 +1,21 @@
+# This is the configuration file for the etcd server
+
+# Path to the data directory
+data-dir: {{cnf['repair-manager']['etcd']['data-dir']}}
+
+# URLs to listen on for peer traffic
+listen-peer-urls: http://0.0.0.0:{{cnf['repair-manager']['etcd']['peer-port']}}
+
+# URLs to listen on for client traffic
+listen-client-urls: http://0.0.0.0:{{cnf['repair-manager']['etcd']['client-port']}}
+
+# client URLS advertised to the rest of the cluster
+advertise-client-urls: http://127.0.0.1:{{cnf['repair-manager']['etcd']['client-port']}}
+
+initial-advertise-peer-urls: http://127.0.0.1:{{cnf['repair-manager']['etcd']['peer-port']}}
+
+# Initial cluster configuration for bootstrapping
+initial-cluster: default=http://127.0.0.1:{{cnf['repair-manager']['etcd']['peer-port']}}
+
+# Accept etcd V2 client requests
+enable-v2: true
