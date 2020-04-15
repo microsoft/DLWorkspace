@@ -12,7 +12,6 @@ from jinja2 import Template
 sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
-from pod_template_utils import enable_cpu_config
 from mountpoint import make_mountpoint
 
 
@@ -38,52 +37,39 @@ class JobTemplate(object):
                 "userId",
                 "resourcegpu",
                 "userName",
+                "vcName",
                 "sku",
         ]):
             return None, "Missing required parameters!"
 
-        # Add NFS mountpoints before hostPath mountpoints.
-        # mountpoints added by NFS mountpoint should not appear in hostPath
-        # mountpoints again.
-        if "job_mountpoints" in params:
-            for mountpoint_params in params["job_mountpoints"]:
-                job.add_job_mountpoints(make_mountpoint(mountpoint_params))
-        job.add_job_mountpoints(job.mountpoints_for_job())
-
-        vc_without_shared_storage = job.get_vc_without_shared_storage()
-
+        # Add /job, /work, /home/<alias>, /data
         job.job_path = params["jobPath"]
         job.work_path = params["workPath"]
         job.data_path = params["dataPath"]
-        # TODO user's mountpoints first, but should after 'job_path'
-        job.add_mountpoints(job.job_path_mountpoint())
-        # TODO: Refactor special VC dependency
-        if params["vcName"] not in vc_without_shared_storage:
-            job.add_mountpoints({
-                "name": "home",
-                "containerPath": "/home/{}".format(job.get_alias()),
-                "hostPath": job.get_homefolder_hostpath(),
-                "enabled": True
-            })
 
+        # Add /job
+        job.add_mountpoints(job.job_path_nfs_mountpoint())
+
+        # Add /home/<alias>, /work, /data.
+        # Some clusters have /data as dedicated storage for 1 VC.
+        # Other VCs should not be able to access /data.
+        vc_without_shared_storage = job.get_vc_without_shared_storage()
+        if params["vcName"] not in vc_without_shared_storage:
+            job.add_mountpoints(job.home_path_nfs_mountpoint())
+            job.add_mountpoints(job.work_path_nfs_mountpoint())
+            job.add_mountpoints(job.data_path_nfs_mountpoint())
+
+        # Add system provided job mountpoints
+        job.add_mountpoints(job.system_mountpoints())
+
+        # Add user provided job mountpoints
         if "mountpoints" in params:
-            job.add_mountpoints(params["mountpoints"])
-        # TODO: Refactor special VC dependency
-        if params["vcName"] not in vc_without_shared_storage:
-            job.add_mountpoints(job.work_path_mountpoint())
-            job.add_mountpoints(job.data_path_mountpoint())
-        job.add_mountpoints(job.vc_custom_storage_mountpoints())
-        job.add_mountpoints(job.vc_storage_mountpoints())
+            for mountpoint_params in params["mountpoints"]:
+                job.add_mountpoints(make_mountpoint(mountpoint_params))
 
-        params["job_mountpoints"] = [mp.to_dict() for mp in job.job_mountpoints]
-        params["mountpoints"] = job.mountpoints
         params["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
-
         params["user_email"] = params["userName"]
-        params["homeFolderHostpath"] = job.get_homefolder_hostpath()
         params["pod_ip_range"] = job.get_pod_ip_range()
-        params["jobNameLabel"] = ''.join(
-            e for e in params["jobName"] if e.isalnum())
 
         if "nodeSelector" not in params:
             params["nodeSelector"] = {}
@@ -115,6 +101,10 @@ class JobTemplate(object):
 
         job.add_plugins(job.get_plugins())
         params["plugins"] = job.plugins
+
+        # Must be after job.get_plugins
+        # TODO: Make mountpoints independent of job.get_plugins
+        params["mountpoints"] = [mp.to_dict() for mp in job.mountpoints]
 
         # Set NCCL_IB_DISABLE=1 if specified
         nccl_ib_disable = job.get_nccl_ib_disable()
@@ -199,8 +189,6 @@ class RegularJobTemplate(JobTemplate):
     def generate_params(self, job):
         params, error = super(RegularJobTemplate, self).generate_params(job)
 
-        params = enable_cpu_config(params, job.cluster)
-
         params["podName"] = job.job_id
         params["role_name"] = "master"
 
@@ -262,8 +250,6 @@ class InferenceJobTemplate(JobTemplate):
 
     def generate_params(self, job):
         params, error = super(InferenceJobTemplate, self).generate_params(job)
-
-        params = enable_cpu_config(params, job.cluster)
 
         params["role_name"] = "master"
         params["podName"] = job.job_id
@@ -328,7 +314,6 @@ class DistributeJobTemplate(JobTemplate):
                 pod["role_name"] = role
                 pod["role_idx"] = str(idx)
                 pod["distId"] = "%s%d" % (role, idx)
-                pod = enable_cpu_config(pod, job.cluster)
                 # ps should use the default 1 CPU and 0 memory configuration
                 if role == "ps":
                     pod.pop("cpurequest", None)
@@ -346,12 +331,12 @@ class DistributeJobTemplate(JobTemplate):
         return k8s_pods, None
 
     def generate_params(self, job):
+        job.add_mountpoints(job.infiniband_mountpoints())
+
         params, error = super(DistributeJobTemplate, self).generate_params(job)
 
         if error is not None:
             return params, error
-
-        job.add_mountpoints(job.infiniband_mountpoints())
 
         params["numworker"] = int(params["numpsworker"])
         params["numps"] = int(params["numps"])

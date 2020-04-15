@@ -69,10 +69,13 @@ spec:
           name: resolv
         {% endif %}
         {% for mp in job["mountpoints"] %}
-        {% if mp.enabled %}
-        - mountPath: {{ mp.containerPath }}
-          name: {{ mp.name }}
-          {% if mp.readOnly %}
+        {% if mp["enabled"] %}
+        - name: {{ mp["name"] }}
+          mountPath: {{ mp["mountPath"] }}
+          {% if mp["subPath"] %}
+          subPath: {{ mp["subPath"] }}
+          {% endif %}
+          {% if mp["readOnly"] %}
           readOnly: true
           {% endif %}
         {% endif %}
@@ -141,20 +144,40 @@ spec:
         hostPath:
           path: /etc/resolv.conf
       {% endif %}
-      {% for mp in job["mountpoints"] %}
-      {% if mp.enabled %}
-      - name: {{ mp.name }}
-        {% if mp.emptydir %}
-        emptyDir: {}
-        {% else %}
-        hostPath:
-          path: {{ mp.hostPath }}
-          {% if mp.type %}
-          type: {{ mp.type }}
-          {% endif %}
-        {% endif %}
-      {% endif %}
-      {% endfor %}
       - name: dshm
         emptyDir:
           medium: Memory
+      {% if job["mountpoints"] %}
+      {% for mp in job["mountpoints"] %}
+      {% if mp["enabled"] %}
+      - name: {{ mp["name"] }}
+      {% if mp["emptydir"] %}
+        emptyDir: {}
+      {% elif mp["mountType"] == "hostPath" %}
+        hostPath:
+          path: {{ mp["hostPath"] }}
+          {% if mp["type"] %}
+          type: {{ mp["type"] }}
+          {% endif %}
+      {% elif mp["mountType"] == "nfs" %}
+        nfs:
+          server: {{ mp["server"] }}
+          path: {{ mp["path"] }}
+      {% elif mp["mountType"] == "blobfuse" %}
+        flexVolume:
+          driver: "azure/blobfuse"
+          readOnly: false
+          secretRef:
+            name: {{ mp["secreds"] }}
+          options:
+            container: {{ mp["containerName"] }}
+            {% if mp["rootTmppath"] and mp["tmppath"] %}
+            tmppath: {{ mp["rootTmppath"] }}/{{ job["jobId"] }}/{{ job["podName"] }}/{{ mp["tmppath"] }}
+            {% endif %}
+            {% if mp["mountOptions"] %}
+            mountoptions: {{ mp["mountOptions"] }}
+            {% endif %}
+      {% endif %}
+      {% endif %}
+      {% endfor %}
+      {% endif %}

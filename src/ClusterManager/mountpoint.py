@@ -25,11 +25,15 @@ def normalize(s):
 
 
 class MountPoint(object):
+    """MountPoints are for a job. They must not have the same name or same
+    mount path.
+    """
     subclasses = {}
 
     def __init__(self, params):
         self.mount_path = None
         self.mount_type = None
+        self.sub_path = None
         self.vc = None
         self.name = None
         self.enabled = True
@@ -66,20 +70,25 @@ class MountPoint(object):
 
     @override
     def __eq__(self, other):
+        # A job cannot tolerate identical mountpoint names
+        if self.name == other.name:
+            return True
+
+        # A job cannot tolerate identical mount paths
+        if self.mount_path.strip("/") == other.mount_path.strip("/"):
+            return True
+
         if self.__class__ != other.__class__:
             return False
 
-        if self.mount_type != other.mount_type:
-            return False
+        for k in self.__dict__:
+            if self.__dict__[k] != other.__dict__[k]:
+                return False
 
-        same_name = self.name == other.name
-        same_mount_path = \
-            self.mount_path.strip("/") == other.mount_path.strip("/") and \
-            self.vc == other.vc
-        return same_name or same_mount_path
+        return True
 
     def to_dict(self):
-        ret = {camel(k): v for k, v in self.__dict__.items()}
+        ret = {camel(k): v for k, v in self.__dict__.items() if v is not None}
         return ret
 
     def __repr__(self):
@@ -96,6 +105,7 @@ class MountPoint(object):
 class HostPathMountPoint(MountPoint):
     def __init__(self, params):
         self.host_path = None
+        self.type = None
         super(HostPathMountPoint, self).__init__(params)
 
     def is_valid(self):
@@ -116,10 +126,27 @@ class NFSMountPoint(MountPoint):
                super(NFSMountPoint, self).is_valid()
 
 
+@MountPoint.register_subclass("blobfuse")
+class BlobfuseMountPoint(MountPoint):
+    def __init__(self, params):
+        self.secreds = None
+        self.container_name = None
+        self.mount_options = None
+        self.root_tmppath = None
+        self.tmppath = None
+        super(BlobfuseMountPoint, self).__init__(params)
+
+    def is_valid(self):
+        return self.secreds is not None and \
+               self.container_name is not None and \
+               super(BlobfuseMountPoint, self).is_valid()
+
+
 def make_mountpoint(params):
     mountpoint = None
     try:
-        mountpoint = MountPoint.create(params.get("mountType"), params)
+        mount_type = params.get("mountType", "hostPath")
+        mountpoint = MountPoint.create(mount_type, params)
     except ValueError:
         logger.exception("Bad mountType in params %s", params, exc_info=True)
     except Exception:

@@ -56,9 +56,10 @@ class Job:
         self.cluster = cluster
         self.job_id = job_id
         self.email = email
-        self.mountpoints = mountpoints
-        self.job_mountpoints = []
-        self.nfs_mountpoints = []
+
+        self.mountpoints = None
+        self.add_mountpoints(mountpoints)
+
         self.job_path = job_path
         self.work_path = work_path
         self.data_path = data_path
@@ -66,52 +67,10 @@ class Job:
         self.plugins = plugins
 
     def add_mountpoints(self, mountpoint):
-        '''
-        1. Silently skip if the name/hostPath/containerPath duplicates with an existing one.
-        2. Name would be normalized.
-
-        Mountpoint example:
-            {
-            "enabled":true,
-            "containerPath":"/home/username",
-            "hostPath":"/dlwsdata/work/username",
-            "name":"homefolder"
-            }
-        '''
-        if mountpoint is None:
-            return
-        if self.mountpoints is None:
-            self.mountpoints = []
-
-        # add each items in the list one by one
-        if isinstance(mountpoint, list):
-            for m in mountpoint:
-                self.add_mountpoints(m)
-            return
-
-        # only allow alphanumeric in "name"
-        if "name" not in mountpoint or mountpoint["name"] == "":
-            mountpoint["name"] = mountpoint["containerPath"]
-        mountpoint["name"] = ''.join(
-            c for c in mountpoint["name"] if c.isalnum() or c == "-")
-
-        # skip duplicate entry
-        # NOTE: mountPath "/data" is the same as "data" in k8s
-        for item in self.mountpoints:
-            if item["name"] == mountpoint["name"] or item["containerPath"].strip(
-                    "/") == mountpoint["containerPath"].strip("/"):
-                logger.warn(
-                    "Current mountpoint: %s is a duplicate of mountpoint: %s" %
-                    (mountpoint, item))
-                return
-
-        self.mountpoints.append(mountpoint)
-
-    def add_job_mountpoints(self, mountpoint):
         """Adds unique mountpoint to job_mountpoints.
 
         Args:
-            mountpoint: A MountPoint.
+            mountpoint: A MountPoint object
 
         Returns:
             None
@@ -119,9 +78,12 @@ class Job:
         if mountpoint is None:
             return
 
+        if self.mountpoints is None:
+            self.mountpoints = []
+
         if isinstance(mountpoint, list):
-            for m in mountpoint:
-                self.add_job_mountpoints(m)
+            for mp in mountpoint:
+                self.add_mountpoints(mp)
             return
 
         # Skip invalid mountpoint
@@ -129,30 +91,116 @@ class Job:
             logger.warning("Skip invalid mountpoint %s", mountpoint)
             return
 
-        if not self._job_mountpoint_exists(mountpoint):
-            self.job_mountpoints.append(mountpoint)
+        if not self._mountpoint_exists_in(mountpoint):
+            self.mountpoints.append(mountpoint)
 
-    def _job_mountpoint_exists(self, mountpoint):
+    def _mountpoint_exists_in(self, mountpoint):
         # Consider None as present in order not to add None
         if mountpoint is None:
             return True
 
-        for job_mountpoint in self.job_mountpoints:
-            if mountpoint == job_mountpoint:
-                logger.warning(
-                    "mountpoint %s is a duplicate of an existing "
-                    "job mountpoint %s", mountpoint, job_mountpoint)
+        # If an equal mountpoint is found, then the mountpoint is present.
+        for mp in self.mountpoints:
+            if mountpoint == mp:
+                logger.warning("mountpoint %s is a duplicate of an existing "
+                               "mountpoint %s", mountpoint, mp)
                 return True
         return False
 
-    def _host_path_as_nfs_in_job_mountpoints(self, mount):
-        # Transitional function to check if a hostPath mountpoint in
-        # dictionary format already exists as an NFSMountPoint
-        params = copy.deepcopy(mount)
-        params["mountType"] = "nfs"
-        params["mountPath"] = params["containerPath"]
-        mountpoint = make_mountpoint(params)
-        return self._job_mountpoint_exists(mountpoint)
+    def get_cluster_nfs(self):
+        cluster_nfs = self._get_cluster_config("cluster_nfs")
+        assert cluster_nfs is not None, "cluster_nfs in config cannot be None"
+        return cluster_nfs
+
+    def get_cluster_nfs_server(self):
+        return self.get_cluster_nfs()["server"]
+
+    def get_cluster_nfs_path(self):
+        return self.get_cluster_nfs()["path"]
+
+    def get_nfs_path_with_folder(self, folder, *rel_path):
+        """Returns cluster shared NFS path for a folder and a relative path."""
+        nsf_path = self.get_cluster_nfs_path()
+        return os.path.join(nsf_path, folder, *rel_path)
+
+    def get_homefolder_nfs_path(self):
+        return self.get_nfs_path_with_folder("work", self.get_alias())
+
+    def home_path_nfs_mountpoint(self):
+        alias = self.get_alias()
+        server = self.get_cluster_nfs_server()
+        path = self.get_nfs_path_with_folder("work", alias)
+        mp = make_mountpoint(params={
+            "name": "home",
+            "mountPath": "/home/%s" % alias,
+            "mountType": "nfs",
+            "server": server,
+            "path": path
+        })
+        logger.info("job %s has home path nfs mountpoint: %s", self.job_id, mp)
+        return mp
+
+    def job_path_nfs_mountpoint(self):
+        assert isinstance(self.job_path, str) and len(self.job_path) > 0
+        server = self.get_cluster_nfs_server()
+        path = self.get_nfs_path_with_folder("work", "")
+        mp = make_mountpoint(params={
+            "name": "job",
+            "mountPath": "/job",
+            "mountType": "nfs",
+            "server": server,
+            "path": path,
+            "subPath": self.job_path,
+        })
+        logger.info("job %s has job path nfs mountpoint: %s", self.job_id, mp)
+        return mp
+
+    def work_path_nfs_mountpoint(self):
+        assert isinstance(self.work_path, str) and len(self.work_path) > 0
+        server = self.get_cluster_nfs_server()
+        path = self.get_nfs_path_with_folder("work", self.work_path)
+        mp = make_mountpoint(params={
+            "name": "work",
+            "mountPath": "/work",
+            "mountType": "nfs",
+            "server": server,
+            "path": path
+        })
+        logger.info("job %s has work path nfs mountpoint: %s", self.job_id, mp)
+        return mp
+
+    def data_path_nfs_mountpoint(self):
+        assert isinstance(self.data_path, str)
+        server = self.get_cluster_nfs_server()
+        path = self.get_nfs_path_with_folder("storage", self.data_path)
+        mp = make_mountpoint(params={
+            "name": "data",
+            "mountPath": "/data",
+            "mountType": "nfs",
+            "server": server,
+            "path": path
+        })
+        logger.info("job %s has data path nfs mountpoint: %s", self.job_id, mp)
+        return mp
+
+    def system_mountpoints(self):
+        """Returns all system defined mountpoints for this job. They can be
+        NFS mountpoints, hostPath mountpoints, and many to be defined. If vc is
+        undefined, the mountpoint is a cluster shared mountpoint.
+        """
+        vc_name = self.params["vcName"]
+        mp_params = [mp for mp in self.get_system_mountpoints()
+                     if mp.get("vc") is None or mp.get("vc") == vc_name]
+        mps = []
+        for mp_param in mp_params:
+            mp = make_mountpoint(mp_param)
+            if mp is not None:
+                logger.info("job %s has mountpoint: %s", self.job_id, mp)
+                mps.append(mp)
+            else:
+                logger.warning("job %s has mountpoint for param %s None",
+                               self.job_id, mp_param)
+        return mps
 
     def add_plugins(self, plugins):
         self.plugins = plugins
@@ -161,113 +209,8 @@ class Job:
         return self.email.split("@")[0].strip()
 
     def get_hostpath(self, *path_relate_to_workpath):
-        """return os.path.join(self.cluster["storage-mount-path"], "work", *path_relate_to_workpath)"""
         return os.path.join(self.cluster["storage-mount-path"], "work",
                             *path_relate_to_workpath)
-
-    def get_homefolder_hostpath(self):
-        return self.get_hostpath(self.get_alias())
-
-    def job_path_mountpoint(self):
-        assert (len(self.job_path) > 0)
-        job_host_path = self.get_hostpath(self.job_path)
-        return {
-            "name": "job",
-            "containerPath": "/job",
-            "hostPath": job_host_path,
-            "enabled": True
-        }
-
-    def work_path_mountpoint(self):
-        assert (len(self.work_path) > 0)
-        work_host_path = self.get_hostpath(self.work_path)
-        return {
-            "name": "work",
-            "containerPath": "/work",
-            "hostPath": work_host_path,
-            "enabled": True
-        }
-
-    def data_path_mountpoint(self):
-        assert (self.data_path is not None)
-        data_host_path = os.path.join(self.cluster["storage-mount-path"],
-                                      "storage", self.data_path)
-        return {
-            "name": "data",
-            "containerPath": "/data",
-            "hostPath": data_host_path,
-            "enabled": True
-        }
-
-    def mountpoints_for_job(self):
-        """Returns all nfs mountpoints for this job, including global and vc.
-        """
-        vc_name = self.params["vcName"]
-        job_mountpoint_params = [
-            mountpoint for mountpoint in self.get_job_mountpoints()
-            if mountpoint.get("vc") is None or mountpoint.get("vc") == vc_name
-        ]
-
-        job_mountpoints = [
-            make_mountpoint(params) for params in job_mountpoint_params
-        ]
-        return job_mountpoints
-
-    def vc_custom_storage_mountpoints(self):
-        vc_name = self.params["vcName"]
-        custom_mounts = self.get_custom_mounts()
-        if not isinstance(custom_mounts, list):
-            return None
-
-        vc_custom_mounts = []
-        for mount in custom_mounts:
-            name = mount.get("name")
-            container_path = mount.get("containerPath")
-            host_path = mount.get("hostPath")
-            vc = mount.get("vc")
-            if vc is None or vc != vc_name:
-                continue
-            if name is None or host_path is None or container_path is None:
-                logger.warning("Ignore invalid mount %s", mount)
-                continue
-            vc_mount = {
-                "name": name.lower(),
-                "containerPath": container_path, # TODO deprecate containerPath
-                "mountPath": container_path,
-                "hostPath": host_path,
-                "enabled": True,
-                "vc": vc_name,
-                "mountType": "hostPath",
-            }
-
-            if not self._host_path_as_nfs_in_job_mountpoints(vc_mount):
-                vc_custom_mounts.append(vc_mount)
-
-        return vc_custom_mounts
-
-    def vc_storage_mountpoints(self):
-        vc_name = self.params["vcName"]
-        dltsdata_vc_path = os.path.join(
-            self.cluster["dltsdata-storage-mount-path"], vc_name)
-        if not os.path.isdir(dltsdata_vc_path):
-            return None
-
-        vc_mountpoints = []
-        for storage in os.listdir(dltsdata_vc_path):
-            vc_mountpoint = {
-                "name": ("%s-%s" % (vc_name, storage)).lower(),
-                "containerPath": "/" + storage, # TODO deprecate containerPath
-                "mountPath": "/" + storage,
-                "hostPath": os.path.join(dltsdata_vc_path, storage),
-                "enabled": True,
-                "vc": vc_name,
-                "mountType": "hostPath",
-            }
-
-            if not self._host_path_as_nfs_in_job_mountpoints(vc_mountpoint):
-                vc_mountpoints.append(vc_mountpoint)
-
-        return vc_mountpoints
 
     def infiniband_mountpoints(self):
         infiniband_mounts = self.get_infiniband_mounts()
@@ -276,13 +219,13 @@ class Job:
 
         ib_mountpoints = []
         for infiniband_mount in infiniband_mounts:
-            ib_mountpoint = {
+            ib_mp = make_mountpoint(params={
                 "name": infiniband_mount["name"].lower(),
-                "containerPath": infiniband_mount["containerPath"],
+                "mountPath": infiniband_mount["containerPath"],
                 "hostPath": infiniband_mount["hostPath"],
-                "enabled": True
-            }
-            ib_mountpoints.append(ib_mountpoint)
+                "mountType": "hostPath",
+            })
+            ib_mountpoints.append(ib_mp)
 
         return ib_mountpoints
 
@@ -315,9 +258,6 @@ class Job:
     def get_pod_ip_range(self):
         return self._get_cluster_config("pod_ip_range")
 
-    def get_custom_mounts(self):
-        return self._get_cluster_config("custom_mounts")
-
     def get_infiniband_mounts(self):
         return self._get_cluster_config("infiniband_mounts")
 
@@ -345,11 +285,12 @@ class Job:
             vc_without_shared_storage = []
         return vc_without_shared_storage
 
-    def get_job_mountpoints(self):
-        job_mountpoints = self._get_cluster_config("job_mountpoints")
-        if job_mountpoints is None or not isinstance(job_mountpoints, list):
-            job_mountpoints = []
-        return job_mountpoints
+    def get_system_mountpoints(self):
+        system_mountpoints = self._get_cluster_config("system_mountpoints")
+        if system_mountpoints is None or \
+                not isinstance(system_mountpoints, list):
+            system_mountpoints = []
+        return system_mountpoints
 
     def _get_cluster_config(self, key):
         if key in self.cluster:
@@ -429,7 +370,7 @@ class Job:
         if local_fast_storage is not None and local_fast_storage != "":
             root_tmppath = local_fast_storage.rstrip("/")
 
-        blobfuse = []
+        blobfuses = []
         for i, p_bf in enumerate(plugins):
             account_name = p_bf.get("accountName")
             account_key = p_bf.get("accountKey")
@@ -462,7 +403,7 @@ class Job:
 
             if root_tmppath is not None:
                 # Make tmppath unique for each blobfuse mount
-                bf["root_tmppath"] = root_tmppath
+                bf["rootTmppath"] = root_tmppath
                 bf["tmppath"] = name
 
             # Also support a list of strings
@@ -472,9 +413,16 @@ class Job:
             if not invalid_entry(mount_options):
                 bf["mountOptions"] = mount_options
 
-            # TODO: Deduplicate blobfuse plugins
-            blobfuse = dedup_add(bf, blobfuse, identical)
-        return blobfuse
+            # TODO: Refactor into mountpoint add
+            blobfuses = dedup_add(bf, blobfuses, identical)
+
+            # Add to mountpoints
+            bf["mountType"] = "blobfuse"
+            bf_mp = make_mountpoint(bf)
+            if bf_mp is not None:
+                self.add_mountpoints(bf_mp)
+
+        return blobfuses
 
     def get_image_pull_secret_plugins(self, plugins):
         """Constructs and returns a list of imagePullSecrets plugins."""

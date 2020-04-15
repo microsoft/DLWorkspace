@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 import logging
-import collections
-import copy
 import re
 
 logger = logging.getLogger(__name__)
@@ -38,9 +36,9 @@ class Framework(object):
     def __init__(self, init_image, labels, annotations, roles, job_id, pod_name,
                  user_cmd, alias, email, gid, uid, mount_points, plugins,
                  family_token, vc_name, dns_policy, node_selector,
-                 home_folder_host_path, ssh_private_key, ssh_public_keys,
-                 is_preemption_allowed, is_host_network, is_host_ipc,
-                 is_privileged, is_nccl_ib_disabled, is_debug):
+                 ssh_private_key, ssh_public_keys,
+                 is_preemption_allowed, is_host_network,
+                 is_host_ipc, is_privileged, is_nccl_ib_disabled, is_debug):
         self.init_image = init_image # str, maybe None
         self.labels = labels # map
         self.annotations = annotations # map
@@ -58,7 +56,6 @@ class Framework(object):
         self.vc_name = vc_name # str
         self.dns_policy = dns_policy # str
         self.node_selector = node_selector # map
-        self.home_folder_host_path = home_folder_host_path # str
         self.ssh_private_key = ssh_private_key # str
         self.ssh_public_keys = ssh_public_keys # list of str
         self.is_preemption_allowed = is_preemption_allowed # bool
@@ -134,18 +131,24 @@ def gen_init_container(job, role):
     }]
 
 
-def transform_mount_points(mount_points, plugins):
-    result = [{
-        "mountPath": mp["containerPath"],
-        "name": mp["name"],
-        "readOnly": mp.get("readOnly", False),
-    } for mp in mount_points if mp.get("enabled")]
+def transform_mount_points(mount_points):
+    result = []
+    for mp in mount_points:
+        if mp.get("enabled") is not True:
+            continue
 
-    result.extend([{
-        "name": bf["name"],
-        "mountPath": bf["mountPath"],
-    } for bf in plugins.get("blobfuse", []) if bf.get("enabled")])
+        res = {
+            "mountPath": mp["mountPath"],
+            "name": mp["name"],
+        }
+        sub_path = mp.get("subPath")
+        if sub_path is not None:
+            res["subPath"] = sub_path
+        read_only = mp.get("readOnly")
+        if read_only is not None:
+            res["readOnly"] = read_only
 
+        result.append(res)
     return result
 
 
@@ -313,7 +316,8 @@ def gen_containers(job, role):
             "mountPath": "/etc/resolv.conf"
         })
 
-    volume_mounts.extend(transform_mount_points(job.mount_points, job.plugins))
+    volume_mounts.extend(transform_mount_points(job.mount_points))
+    logger.debug("volume_mounts: %s", volume_mounts)
 
     if job.init_image is None:
         cmd = [
@@ -485,38 +489,43 @@ def gen_task_role(job, role):
         })
 
     for mp in job.mount_points:
-        if mp["enabled"]:
-            volume = {"name": mp["name"]}
-            if mp.get("emptydir") is not None:
-                volume["emptyDir"] = {}
-            else:
-                volume["hostPath"] = {"path": mp["hostPath"]}
-                if mp.get("type") is not None:
-                    volume["hostPath"]["type"] = mp["type"]
-            volumes.append(volume)
-
-    for bf in job.plugins.get("blobfuse", []):
-        if not bf.get("enabled"):
+        if not mp.get("enabled"):
             continue
 
-        options = {"container": bf["containerName"]}
-        if bf.get("root_tmppath") is not None and bf.get("tmppath") is not None:
-            options["tmppath"] = "%s/%s/%s/%s" % (
-                bf["root_tmppath"], job.job_id, job.pod_name, bf["tmppath"])
-        if bf.get("mountOptions") is not None:
-            options["mountoptions"] = bf["mountOptions"]
-
-        volumes.append({
-            "name": bf["name"],
-            "flexVolume": {
+        volume = {"name": mp["name"]}
+        if mp.get("emptydir") is not None:
+            volume["emptyDir"] = {}
+        elif mp.get("mountType") == "hostPath":
+            volume["hostPath"] = {"path": mp["hostPath"]}
+            if mp.get("type") is not None:
+                volume["hostPath"]["type"] = mp["type"]
+        elif mp.get("mountType") == "nfs":
+            volume["nfs"] = {
+                "server": mp["server"],
+                "path": mp["path"],
+            }
+        elif mp.get("mountType") == "blobfuse":
+            options = {"container": mp["containerName"]}
+            if mp.get("rootTmppath") is not None and \
+                    mp.get("tmppath") is not None:
+                options["tmppath"] = "%s/%s/%s/%s" % (
+                    mp["rootTmppath"], job.job_id, job.pod_name, mp["tmppath"])
+            if mp.get("mountOptions") is not None:
+                options["mountoptions"] = mp["mountOptions"]
+            volume["flexVolume"] = {
                 "driver": "azure/blobfuse",
                 "readOnly": False,
                 "secretRef": {
-                    "name": bf["secreds"]
+                    "name": mp["secreds"]
                 },
                 "options": options,
             }
-        })
+        else:
+            logger.warning("Unrecognized mountpoint %s", mp)
+            continue
+        volumes.append(volume)
+
+    logger.info("volumes: %s", volumes)
 
     pod_spec = {
         "nodeSelector": node_selector,
@@ -678,7 +687,6 @@ def transform_regular_job(params, cluster_config):
         params["vcName"],
         params.get("dnsPolicy"),
         params.get("nodeSelector", {}),
-        params["homeFolderHostpath"],
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
         params.get("preemptionAllowed", False),
@@ -747,7 +755,6 @@ def transform_distributed_job(params, cluster_config):
         params["vcName"],
         params.get("dnsPolicy"),
         params.get("nodeSelector", {}),
-        params["homeFolderHostpath"],
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
         params.get("preemptionAllowed", False),
@@ -812,7 +819,6 @@ def transform_inference_job(params, cluster_config):
         params["vcName"],
         params.get("dnsPolicy"),
         params.get("nodeSelector", {}),
-        params["homeFolderHostpath"],
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
         params.get("preemptionAllowed", False),
