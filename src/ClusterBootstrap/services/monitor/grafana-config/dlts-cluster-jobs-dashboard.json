@@ -1,0 +1,193 @@
+{
+  "dashboard": {
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "gnetId": null,
+    "graphTooltip": 0,
+    "hideControls": false,
+    "id": null,
+    "links": [],
+    "rows": [
+      {
+        "collapse": false,
+        "height": "250px",
+        "panels": [
+          {
+            "columns": [
+              {
+                "text": "Current",
+                "value": "current"
+              }
+            ],
+            "datasource": null,
+            "fontSize": "100%",
+            "id": 1,
+            "links": [],
+            "pageSize": null,
+            "scroll": false,
+            "showHeader": true,
+            "sort": {
+              "col": 2,
+              "desc": false
+            },
+            "span": 12,
+            "styles": [
+              {
+                "alias": "Time",
+                "dateFormat": "YYYY-MM-DD HH:mm:ss",
+                "link": false,
+                "pattern": "Time",
+                "type": "hidden"
+              },
+              {
+                "alias": "Job Id",
+                "colorMode": null,
+                "colors": [
+                  "rgba(245, 54, 54, 0.9)",
+                  "rgba(237, 129, 40, 0.89)",
+                  "rgba(50, 172, 45, 0.97)"
+                ],
+                "dateFormat": "YYYY-MM-DD HH:mm:ss",
+                "decimals": 2,
+                "link": true,
+                "linkTargetBlank": true,
+                "linkTooltip": "Go to job Statistics for $__cell_1",
+                "linkUrl": "/dashboard/db/dlts-job-statistics?orgId=1&var-job_name=$__cell_1",
+                "pattern": "job_name",
+                "sanitize": false,
+                "thresholds": [],
+                "type": "string",
+                "unit": "short"
+              },
+              {
+                "alias": "User",
+                "colorMode": null,
+                "colors": [
+                  "rgba(245, 54, 54, 0.9)",
+                  "rgba(237, 129, 40, 0.89)",
+                  "rgba(50, 172, 45, 0.97)"
+                ],
+                "dateFormat": "YYYY-MM-DD HH:mm:ss",
+                "decimals": 2,
+                "link": true,
+                "linkTargetBlank": true,
+                "linkTooltip": "Go to User Statistics for $__cell_2 in VC $__cell_3",
+                "linkUrl": "/dashboard/db/dlts-user-statistics?orgId=1&var-username=$__cell_2&var-vc_name=$__cell_3",
+                "pattern": "username",
+                "thresholds": [],
+                "type": "string",
+                "unit": "short"
+              },
+              {
+                "alias": "VC",
+                "colorMode": null,
+                "colors": [
+                  "rgba(245, 54, 54, 0.9)",
+                  "rgba(237, 129, 40, 0.89)",
+                  "rgba(50, 172, 45, 0.97)"
+                ],
+                "dateFormat": "YYYY-MM-DD HH:mm:ss",
+                "decimals": 2,
+                "link": true,
+                "linkTargetBlank": true,
+                "linkTooltip": "Go to VC Statistics for VC $__cell_3",
+                "linkUrl": "/dashboard/db/dlts-vc-statistics?refresh=1m&orgId=1&var-vc_name=$__cell_3",
+                "pattern": "vc_name",
+                "thresholds": [],
+                "type": "string",
+                "unit": "short"
+              },
+              {
+                "alias": "",
+                "colorMode": "value",
+                "colors": [
+                  "rgba(245, 54, 54, 0.9)",
+                  "rgba(237, 129, 40, 0.89)",
+                  "rgba(50, 172, 45, 0.97)"
+                ],
+                "decimals": 2,
+                "pattern": "/.*/",
+                "thresholds": [
+                  "50",
+                  "90"
+                ],
+                "type": "number",
+                "unit": "percent"
+              }
+            ],
+            "targets": [
+              {
+                "expr": "avg(task_gpu_percent) by (job_name, username, vc_name)",
+                "format": "table",
+                "hide": false,
+                "instant": true,
+                "intervalFactor": 2,
+                "legendFormat": "",
+                "refId": "A"
+              }
+            ],
+            "title": "Current Assigned GPU Utilization",
+            "transform": "table",
+            "type": "table"
+          }
+        ],
+        "repeat": null,
+        "repeatIteration": null,
+        "repeatRowId": null,
+        "showTitle": false,
+        "title": "Dashboard Row",
+        "titleSize": "h6"
+      }
+    ],
+    "schemaVersion": 14,
+    "style": "dark",
+    "tags": [],
+    "templating": {
+      "list": []
+    },
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": [
+        "5s",
+        "10s",
+        "30s",
+        "1m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "2h",
+        "1d"
+      ],
+      "time_options": [
+        "5m",
+        "15m",
+        "1h",
+        "6h",
+        "12h",
+        "24h",
+        "2d",
+        "7d",
+        "30d"
+      ]
+    },
+    "timezone": "",
+    "title": "DLTS Cluster Jobs",
+    "version": 5
+  }
+}
