@@ -384,6 +384,7 @@
     },
     "timezone": "browser",
     "title": "Performance dashboard",
-    "version": 0
+    "version": 0,
+    "uid": "perf"
   }
 }

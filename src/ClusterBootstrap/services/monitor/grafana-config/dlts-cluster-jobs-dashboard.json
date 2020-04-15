@@ -313,6 +313,7 @@
     },
     "timezone": "",
     "title": "DLTS Cluster Jobs",
-    "version": 1
+    "version": 1,
+    "uid": "dlts-cluster-jobs"
   }
 }

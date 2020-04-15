@@ -1876,6 +1876,7 @@
     },
     "timezone": "",
     "title": "DLTS User Statistics",
-    "version": 68
+    "version": 1,
+    "uid": "dlts-user-statistics"
   }
 }
