@@ -415,7 +415,7 @@ def GetCommands(userName, jobId):
 
 
 def get_access_to_job(username, job):
-    is_owner = job["userName"] == username
+    is_owner = job["userName"].lower() == username.lower()
     is_admin = has_access(username, VC, job["vcName"], ADMIN)
     allowed = is_owner or is_admin
 
@@ -598,9 +598,13 @@ def isBase64(s):
         pass
     return False
 
+
 _get_job_log_enabled = config.get('logging') in ['azure_blob', 'elasticsearch']
-_extract_job_log_legacy = config.get('__extract_job_log_legacy', not _get_job_log_enabled)
-_get_job_log_legacy = config.get('__get_job_log_legacy', _extract_job_log_legacy)
+_extract_job_log_legacy = config.get('__extract_job_log_legacy',
+                                     not _get_job_log_enabled)
+_get_job_log_legacy = config.get('__get_job_log_legacy',
+                                 _extract_job_log_legacy)
+_get_job_log_fallback = config.get('__get_job_log_fallback', False)
 
 
 def GetJobDetail(userName, jobId):
@@ -660,6 +664,7 @@ def GetJobStatus(jobId):
     dataHandler.Close()
     return result
 
+
 def GetJobLog(userName, jobId, cursor=None, size=100):
     dataHandler = DataHandler()
     jobs = dataHandler.GetJob(jobId=jobId)
@@ -684,6 +689,23 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
                     pass
             elif _get_job_log_enabled:
                 (pod_logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
+
+                if _get_job_log_fallback:
+                    if pod_logs is None or len(pod_logs.keys()) == 0:
+                        try:
+                            log = dataHandler.GetJobTextField(jobId, "jobLog")
+                            try:
+                                if isBase64(log):
+                                    log = base64decode(log)
+                            except Exception:
+                                pass
+                            if log is not None:
+                                return {
+                                    "log": log,
+                                    "cursor": None,
+                                }
+                        except:
+                            pass
 
                 return {
                     "log": pod_logs,

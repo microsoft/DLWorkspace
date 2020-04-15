@@ -767,6 +767,20 @@ def process_nodes(k8s_api_addr, ca_path, headers, pods_info, cluster_gpu_info):
     return process_nodes_status(nodes_object, pods_info, cluster_gpu_info)
 
 
+def process_unscheduled_pods(pods_info, cluster_gpu_info):
+    used_gpu = 0
+    preemptable_used_gpu = 0
+    unscheduled_pods = pods_info.get("unscheduled", [])
+    for pod in unscheduled_pods:
+        if pod.preemptable:
+            preemptable_used_gpu += pod.gpu
+        else:
+            used_gpu += pod.gpu
+
+    cluster_gpu_info.available -= used_gpu
+    cluster_gpu_info.preemptable_available -= (used_gpu + preemptable_used_gpu)
+
+
 def load_machine_list(configFilePath):
     with open(configFilePath, "r") as f:
         return yaml.load(f)["hosts"]
@@ -947,6 +961,8 @@ def loop(args, services_ref, result_ref):
             result.extend(
                 process_nodes(address, ca_path, headers, pods_info,
                               cluster_gpu_info))
+
+            process_unscheduled_pods(pods_info, cluster_gpu_info)
 
             result.extend(
                 process_vc_info(vc_quota_url, vc_usage, cluster_gpu_info))

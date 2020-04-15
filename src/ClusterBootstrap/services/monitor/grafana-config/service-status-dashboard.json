@@ -425,5 +425,6 @@
   },
   "timezone": "browser",
   "title": "Service Status",
-  "version": 1
+  "version": 1,
+  "uid": "service-status"
 }}

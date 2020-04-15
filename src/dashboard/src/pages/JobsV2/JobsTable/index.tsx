@@ -5,7 +5,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { ArrowUpward } from '@material-ui/icons';
 import MaterialTable, { Options, MaterialTableProps } from 'material-table';
 import { zipWith } from 'lodash';
 

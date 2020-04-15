@@ -25,15 +25,7 @@ sys.path.append(
 from resource_stat import Gpu, Cpu, Memory
 
 
-class MockK8sConfig(object):
-    def is_initialized(self):
-        for _, v in self.__dict__.items():
-            if v is None:
-                return False
-        return True
-
-
-class MockK8sNodeConfig(MockK8sConfig):
+class MockK8sNodeConfig(object):
     def __init__(self):
         self.name = None
         self.labels = None
@@ -44,7 +36,7 @@ class MockK8sNodeConfig(MockK8sConfig):
         self.ready = None
 
 
-class MockK8sPodConfig(MockK8sConfig):
+class MockK8sPodConfig(object):
     def __int__(self):
         self.name = None
         self.labels = None
@@ -59,9 +51,6 @@ class MockK8sPodConfig(MockK8sConfig):
 def mock_k8s_node(config):
     if not isinstance(config, MockK8sNodeConfig):
         raise TypeError("Wrong config type")
-
-    if not config.is_initialized():
-        raise ValueError("Config uninitialized")
 
     node = V1Node()
 
@@ -82,9 +71,6 @@ def mock_k8s_node(config):
 def mock_k8s_pod(config):
     if not isinstance(config, MockK8sPodConfig):
         raise TypeError("Wrong config type")
-
-    if not config.is_initialized():
-        raise ValueError("Config uninitialized")
 
     pod = V1Pod()
 
@@ -204,7 +190,7 @@ class BaseTestClusterSetup(object):
 
     def get_pods(self):
         """
-        4 pods
+        5 pods
           pod1:
             node:
               node1
@@ -239,6 +225,16 @@ class BaseTestClusterSetup(object):
               P40: 2
             cpu: 6
             memory: 61440Mi
+            user: user1
+            vc: vc2
+          # pod5 is not assigned to any node
+          pod5:
+            node:
+              None
+            gpu:
+              P40: 1
+            cpu: 1
+            memory: 10240Mi
             user: user1
             vc: vc2
         """
@@ -317,7 +313,27 @@ class BaseTestClusterSetup(object):
         }]
         pod4 = mock_k8s_pod(p4_config)
 
-        return [pod1, pod2, pod3, pod4]
+        # Create pod5 (not assigned to any node)
+        p5_config = MockK8sPodConfig()
+        p5_config.name = "pod5"
+        p5_config.labels = {
+            "gpuType": "P40",
+            "userName": "user1",
+            "vcName": "vc1",
+            "jobId": "j7",
+        }
+        p5_config.node_selector = {"sku": "m_type1"}
+        p5_config.namespace = "default"
+        p5_config.phase = "Pending"
+        p5_config.node_name = None
+        p5_config.container_requests = [{
+            "nvidia.com/gpu": "1",
+            "cpu": "1",
+            "memory": "10240Mi"
+        }]
+        pod5 = mock_k8s_pod(p5_config)
+
+        return [pod1, pod2, pod3, pod4, pod5]
 
     def get_jobs(self):
         job1 = {
@@ -361,7 +377,12 @@ class BaseTestClusterSetup(object):
                 "preemptionAllowed": True,
             }
         }
-        return [job1, job2, job3, job4, job5, job6]
+        job7 = {
+            "jobId": "j7",
+            "vcName": "vc1",
+            "jobParams": {},
+        }
+        return [job1, job2, job3, job4, job5, job6, job7]
 
     def get_vc_list(self):
         vc_list = [{
@@ -375,7 +396,7 @@ class BaseTestClusterSetup(object):
                             "m_type2": 16,
                         },
                         "memory": {
-                            "m_type1": "81920Mi",
+                            "m_type1": "92160Mi",
                             "m_type2": "348160Mi",
                         },
                         "gpu": {
@@ -396,7 +417,7 @@ class BaseTestClusterSetup(object):
                             "m_type3": 12,
                         },
                         "memory": {
-                            "m_type1": "20480Mi",
+                            "m_type1": "10240Mi",
                             "m_type2": "61440Mi",
                             "m_type3": "102400Mi",
                         },
@@ -569,23 +590,42 @@ class BaseTestClusterSetup(object):
             "gpu_usage": None,
         }
 
-        return [pod1_status, pod2_status, pod3_status, pod4_status]
+        pod5_status = {
+            "name": "pod5",
+            "pod_name": "pod5 : user1 (gpu #:1)",
+            "job_id": "j7",
+            "vc_name": "vc1",
+            "namespace": "default",
+            "node_name": None,
+            "username": "user1",
+            "preemption_allowed": False,
+            "gpu": Gpu({"m_type1": 1}),
+            "preemptable_gpu": Gpu(),
+            "cpu": Cpu({"m_type1": 1}),
+            "preemptable_cpu": Cpu(),
+            "memory": Memory({"m_type1": "10240Mi"}),
+            "preemptable_memory": Memory(),
+            "gpuType": "P40",
+            "gpu_usage": None,
+        }
+
+        return [pod1_status, pod2_status, pod3_status, pod4_status, pod5_status]
 
     def get_cluster_status(self):
         cs = ClusterStatus({}, {}, [])
 
         # Set resource count
         cs.gpu_capacity = Gpu({"m_type1": 4, "m_type3": 4})
-        cs.gpu_used = Gpu({"m_type1": 3, "m_type3": 2})
+        cs.gpu_used = Gpu({"m_type1": 4, "m_type3": 2})
         cs.gpu_preemptable_used = Gpu()
-        cs.gpu_available = Gpu({"m_type1": 1})
+        cs.gpu_available = Gpu({"m_type1": 0})
         cs.gpu_unschedulable = Gpu({"m_type3": 4})
         cs.gpu_reserved = Gpu({"m_type3": 2})
 
         cs.cpu_capacity = Cpu({"m_type1": 10, "m_type2": 20, "m_type3": 12})
-        cs.cpu_used = Cpu({"m_type1": 6, "m_type2": 17, "m_type3": 6})
+        cs.cpu_used = Cpu({"m_type1": 7, "m_type2": 17, "m_type3": 6})
         cs.cpu_preemptable_used = Cpu({"m_type2": 1})
-        cs.cpu_available = Cpu({"m_type1": 4, "m_type2": 3})
+        cs.cpu_available = Cpu({"m_type1": 3, "m_type2": 3})
         cs.cpu_unschedulable = Cpu({"m_type3": 12})
         cs.cpu_reserved = Cpu({"m_type3": 6})
 
@@ -595,13 +635,13 @@ class BaseTestClusterSetup(object):
             "m_type3": "102400Mi",
         })
         cs.memory_used = Memory({
-            "m_type1": "83968Mi",
+            "m_type1": "94208Mi",
             "m_type2": "348160Mi",
             "m_type3": "61440Mi",
         })
         cs.memory_preemptable_used = Memory()
         cs.memory_available = Memory({
-            "m_type1": "18432Mi",
+            "m_type1": "8192Mi",
             "m_type2": "61440Mi",
         })
         cs.memory_unschedulable = Memory({"m_type3": "102400Mi"})
@@ -618,17 +658,17 @@ class BaseTestClusterSetup(object):
                     "user1",
                 "userGPU":
                     Gpu({
-                        "m_type1": 1,
+                        "m_type1": 2,
                         "m_type3": 2
                     }),
                 "userCPU":
                     Cpu({
-                        "m_type1": 4,
+                        "m_type1": 5,
                         "m_type3": 6
                     }),
                 "userMemory":
                     Memory({
-                        "m_type1": "81920Mi",
+                        "m_type1": "92160Mi",
                         "m_type3": "61440Mi"
                     }),
             },
@@ -668,7 +708,7 @@ class BaseTestClusterSetup(object):
 
         # Cluster active jobs
         cs.jobs = self.jobs
-        cs.available_job_num = 6
+        cs.available_job_num = 7
 
         return cs
 
@@ -686,25 +726,25 @@ class BaseTestClusterSetup(object):
 
         # Set vc1 resource count
         vc1_status.gpu_capacity = Gpu({"m_type1": 2, "m_type2": 0})
-        vc1_status.gpu_used = Gpu({"m_type1": 1, "m_type2": 0})
+        vc1_status.gpu_used = Gpu({"m_type1": 2, "m_type2": 0})
         vc1_status.gpu_preemptable_used = Gpu()
-        vc1_status.gpu_available = Gpu({"m_type1": 1, "m_type2": 0})
+        vc1_status.gpu_available = Gpu({"m_type1": 0, "m_type2": 0})
         vc1_status.gpu_unschedulable = Gpu()
         vc1_status.gpu_reserved = Gpu()
 
         vc1_status.cpu_capacity = Cpu({"m_type1": 8, "m_type2": 16})
-        vc1_status.cpu_used = Cpu({"m_type1": 4, "m_type2": 16})
+        vc1_status.cpu_used = Cpu({"m_type1": 5, "m_type2": 16})
         vc1_status.cpu_preemptable_used = Cpu()
-        vc1_status.cpu_available = Cpu({"m_type1": 4, "m_type2": 0})
+        vc1_status.cpu_available = Cpu({"m_type1": 3, "m_type2": 0})
         vc1_status.cpu_unschedulable = Cpu()
         vc1_status.cpu_reserved = Cpu()
 
         vc1_status.memory_capacity = Memory({
-            "m_type1": "81920Mi",
+            "m_type1": "92160Mi",
             "m_type2": "348160Mi"
         })
         vc1_status.memory_used = Memory({
-            "m_type1": "81920Mi",
+            "m_type1": "92160Mi",
             "m_type2": "348160Mi"
         })
         vc1_status.memory_preemptable_used = Memory()
@@ -717,15 +757,15 @@ class BaseTestClusterSetup(object):
 
         # Set vc1 node and pod status
         vc1_status.node_status = self.node_status
-        vc1_status.pod_status = self.pod_status[:2]
+        vc1_status.pod_status = [self.pod_status[i] for i in [0, 1, 4]]
 
         # Set vc1 user status
         user_status = [
             {
                 "userName": "user1",
-                "userGPU": Gpu({"m_type1": 1}),
-                "userCPU": Cpu({"m_type1": 4}),
-                "userMemory": Memory({"m_type1": "81920Mi"}),
+                "userGPU": Gpu({"m_type1": 2}),
+                "userCPU": Cpu({"m_type1": 5}),
+                "userMemory": Memory({"m_type1": "92160Mi"}),
             },
             {
                 "userName": "user2",
@@ -745,7 +785,7 @@ class BaseTestClusterSetup(object):
         vc1_status.user_status_preemptable = user_status_preemptable
 
         # Set vc1 active job count
-        vc1_status.available_job_num = 2
+        vc1_status.available_job_num = 3
 
         # Set vc2 resource count
         vc2_status.gpu_capacity = Gpu({
@@ -795,7 +835,7 @@ class BaseTestClusterSetup(object):
         })
 
         vc2_status.memory_capacity = Memory({
-            "m_type1": "20480Mi",
+            "m_type1": "10240Mi",
             "m_type2": "61440Mi",
             "m_type3": "102400Mi"
         })
@@ -806,7 +846,7 @@ class BaseTestClusterSetup(object):
         })
         vc2_status.memory_preemptable_used = Memory()
         vc2_status.memory_available = Memory({
-            "m_type1": "18432Mi",
+            "m_type1": "8192Mi",
             "m_type2": "61440Mi",
             "m_type3": "0Mi"
         })
@@ -823,9 +863,9 @@ class BaseTestClusterSetup(object):
 
         # Set vc2 node and pod status
         vc2_status.node_status = self.node_status
-        vc2_status.pod_status = self.pod_status[2:]
+        vc2_status.pod_status = self.pod_status[2:4]
 
-        # Set vc1 user status
+        # Set vc2 user status
         user_status = [
             {
                 "userName": "user1",

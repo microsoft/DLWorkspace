@@ -1,5 +1,5 @@
 #!/bin/bash
-rm -rf deploy/* cloudinit* az_complementary.yaml
+rm -rf deploy/!\(bin\) cloudinit* !\(config\).yaml
 # prepare clusterID
 ./cloud_init_deploy.py clusterID
 # render a machine list which is to be deployed

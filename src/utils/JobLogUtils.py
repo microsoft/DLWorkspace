@@ -31,18 +31,24 @@ if config.get("logging") == 'azure_blob':
 
     def GetJobLog(jobId, cursor=None, size=None):
         try:
-            blob_name = 'jobs.' + jobId
+            prefix = 'jobs.' + jobId
 
             lines = []
 
             try:
-                blob = append_blob_service.get_blob_properties(
+                blobs = append_blob_service.list_blobs(
                     container_name=container_name,
-                    blob_name=blob_name)
+                    prefix=prefix)
+                blobs = list(blobs)
+
+                if len(blobs) == 0:
+                    return ({}, None)
+
+                blob = blobs[-1]
                 start_range = max(0, blob.properties.content_length - CHUNK_SIZE)
                 chunk = append_blob_service.get_blob_to_bytes(
                     container_name=container_name,
-                    blob_name=blob_name,
+                    blob_name=blob.name,
                     start_range=start_range)
                 content = chunk.content.decode(
                     encoding='utf-8', errors='ignore')

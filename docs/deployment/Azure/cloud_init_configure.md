@@ -67,7 +67,7 @@ azure_cluster:
           size_gb: 128
           disk_num: 1
       data_disk_mnt_path: /data
-      private_ip_address: 192.168.0.9
+      private_ip: 192.168.0.9
       fileshares:
         - nfs_local_path: /data/share/ads/jobfiles
           remote_mount_path: /mntdlws/nfs/ads/jobfiles
@@ -258,7 +258,7 @@ az vm list-sizes --location <location, e.g. westus2>
 * `availability_set`: optional availability set under which we create the machines.
 * `number_of_instance`: number of machine instances with the current spec.
 * `data_disk_mnt_path`: the path that all data disks are mounted to.
-* `private_ip_address`: use to bind certain private IP to a machine. If this parameter is specified, number_of_instance should be 1.
+* `private_ip`: use to bind certain private IP to a machine. If this parameter is specified, number_of_instance should be 1.
 * `fileshares`: mounting paths for NFS service. `nfs_local_path` on NFS machines are mounted to `remote_mount_path`, then soft-linked to `remote_link_path`. NFS service might fail. We use the soft-link trick because it guarantees that when NFS service fails, operations would also fail, and we could know. Before we fix it, attempted operations would fail, but no vital damage would be caused. To allow less user effort, we also support stem-leaves mode, where users specify "stem" of paths, (such as `nfs_local_path_root`), and probably `vc` if the NFS machine is for dedicated storage, then several sub paths under `leaves`, and then a joined path would be generated.
 
 Some other properties that worth mentioning:
