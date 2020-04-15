@@ -82,7 +82,7 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "k8s_vc_gpu_total{vc_name=\"$vc_name\"}",
+                "expr": "avg(k8s_vc_gpu_total{vc_name=\"$vc_name\"})",
                 "format": "time_series",
                 "instant": false,
                 "intervalFactor": 2,
@@ -160,7 +160,7 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "sum(k8s_vc_gpu_available{vc_name=\"$vc_name\"})",
+                "expr": "avg(k8s_vc_gpu_available{vc_name=\"$vc_name\"})",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "refId": "A"
@@ -236,7 +236,7 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "k8s_vc_gpu_unschedulable{vc_name=\"$vc_name\"}",
+                "expr": "avg(k8s_vc_gpu_unschedulable{vc_name=\"$vc_name\"})",
                 "format": "time_series",
                 "instant": false,
                 "intervalFactor": 2,
@@ -532,7 +532,7 @@
             "steppedLine": false,
             "targets": [
               {
-                "expr": "k8s_vc_gpu_total{vc_name=\"$vc_name\"}",
+                "expr": "avg(k8s_vc_gpu_total{vc_name=\"$vc_name\"})",
                 "format": "time_series",
                 "instant": false,
                 "intervalFactor": 2,
@@ -540,14 +540,14 @@
                 "refId": "A"
               },
               {
-                "expr": "k8s_vc_gpu_available{vc_name=\"$vc_name\"}",
+                "expr": "avg(k8s_vc_gpu_available{vc_name=\"$vc_name\"})",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": "Assignable",
                 "refId": "B"
               },
               {
-                "expr": "k8s_vc_gpu_unschedulable{vc_name=\"$vc_name\"}",
+                "expr": "avg(k8s_vc_gpu_unschedulable{vc_name=\"$vc_name\"})",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": "Unhealthy",
