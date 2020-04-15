@@ -89,7 +89,7 @@
               }
             ],
             "thresholds": "0,0",
-            "title": "Assigned",
+            "title": "Assigned GPUs",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -166,7 +166,7 @@
               }
             ],
             "thresholds": "0,0",
-            "title": "Active",
+            "title": "Active GPUs",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -243,7 +243,7 @@
               }
             ],
             "thresholds": "0,0",
-            "title": "Idle",
+            "title": "Idle GPUs",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -323,7 +323,7 @@
             "thresholds": [],
             "timeFrom": null,
             "timeShift": null,
-            "title": "GPU",
+            "title": "GPUs",
             "tooltip": {
               "shared": true,
               "sort": 2,
@@ -434,7 +434,7 @@
               }
             ],
             "thresholds": "50,90",
-            "title": "Assigned Utilization",
+            "title": "Assigned GPU Utilization",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -511,7 +511,7 @@
               }
             ],
             "thresholds": "50,90",
-            "title": "Assigned Utilization Over Time",
+            "title": "Assigned GPU Utilization Over Time",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -588,7 +588,7 @@
               }
             ],
             "thresholds": "50,90",
-            "title": "Active Utilization",
+            "title": "Active GPU Utilization",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -665,7 +665,7 @@
               }
             ],
             "thresholds": "50,90",
-            "title": "Active Utilization Over Time",
+            "title": "Active GPU Utilization Over Time",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [

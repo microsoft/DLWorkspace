@@ -86,7 +86,7 @@
                 "format": "time_series",
                 "instant": false,
                 "intervalFactor": 2,
-                "legendFormat": "Allocated",
+                "legendFormat": "Allocated GPUs",
                 "refId": "A"
               }
             ],
@@ -160,14 +160,14 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "count(task_gpu_percent{vc_name=\"$vc_name\"}>0)",
+                "expr": "sum(k8s_vc_gpu_available{vc_name=\"$vc_name\"})",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "refId": "A"
               }
             ],
             "thresholds": "0,0",
-            "title": "Assignable GPU",
+            "title": "Assignable GPUs",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -245,7 +245,7 @@
               }
             ],
             "thresholds": "0,0",
-            "title": "Unhealthy",
+            "title": "Unhealthy GPUs",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -323,7 +323,7 @@
               }
             ],
             "thresholds": "0,0",
-            "title": "Assigned",
+            "title": "Assigned GPUs",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -399,7 +399,7 @@
               }
             ],
             "thresholds": "0,0",
-            "title": "Active",
+            "title": "Active GPUs",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -475,7 +475,7 @@
               }
             ],
             "thresholds": "0,0",
-            "title": "Idle",
+            "title": "Idle GPUs",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -492,7 +492,7 @@
         "repeatIteration": null,
         "repeatRowId": null,
         "showTitle": true,
-        "title": "GPU",
+        "title": "GPUs",
         "titleSize": "h5"
       },
       {
@@ -1077,7 +1077,7 @@
             "valueMaps": [
               {
                 "op": "=",
-                "text": "N/A",
+                "text": "0",
                 "value": "null"
               }
             ],
