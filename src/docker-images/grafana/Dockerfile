@@ -19,7 +19,7 @@
 FROM debian:jessie
 
 ENV \
-  GRAFANA_VERSION=6.7.2 \
+  GRAFANA_VERSION=5.0.4 \
   GF_PLUGIN_DIR=/grafana-plugins \
   GF_PATHS_LOGS=/var/log/grafana \
   GF_PATHS_DATA=/var/lib/grafana \
