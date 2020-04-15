@@ -155,12 +155,6 @@ class ResourceGauges(object):
         self.add_gauge("task_gpu_mem_percent",
                        "how much percent of gpu memory this task used",
                        self.task_labels_gpu)
-        self.add_gauge("task_dcgm_gpu_utils",
-                       "how much percent of gpu core this task used from dcgm",
-                       self.task_labels_gpu)
-        self.add_gauge("task_dcgm_mem_copy_util",
-                       "Memory utilization (in %). from dcgm",
-                       self.task_labels_gpu)
 
     def add_task_and_service_gauge(self, name_tmpl, desc_tmpl):
         self.add_gauge(name_tmpl.format("task"), desc_tmpl.format("task"),
@@ -168,6 +162,20 @@ class ResourceGauges(object):
 
         self.add_gauge(name_tmpl.format("service"), desc_tmpl.format("service"),
                        self.service_labels)
+
+    def add_dcgm_metric(self, dcgm_metrics, labels):
+        for metric_name in dcgm_metrics._fields:
+            if metric_name == "uuid":
+                continue
+            val = dcgm_metrics.__getattribute__(metric_name)
+            if val == "N/A":
+                continue
+
+            key_name = "task_dcgm_" + metric_name
+            if key_name not in self.gauges:
+                self.gauges[key_name] = GaugeMetricFamily(
+                    key_name, "dcgm metric %s", labels=self.task_labels_gpu)
+            self.add_value(key_name, labels, val)
 
     def add_gauge(self, name, desc, labels):
         self.gauges[name] = GaugeMetricFamily(name, desc, labels=labels)
@@ -695,11 +703,7 @@ class ContainerCollector(Collector):
                     labels = copy.deepcopy(container_labels)
                     labels["minor_number"] = id
                     labels["uuid"] = uuid
-
-                    gauges.add_value("task_dcgm_gpu_utils", labels,
-                                     dcgm_metric.gpu_util)
-                    gauges.add_value("task_dcgm_mem_copy_util", labels,
-                                     dcgm_metric.mem_copy_util)
+                    gauges.add_dcgm_metric(dcgm_metric, labels)
 
             gauges.add_value("task_cpu_percent", container_labels,
                              stats["CPUPerc"])
