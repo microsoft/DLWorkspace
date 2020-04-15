@@ -317,7 +317,7 @@ def gen_containers(job, role):
         })
 
     volume_mounts.extend(transform_mount_points(job.mount_points))
-    logger.info("volume_mounts: %s", volume_mounts)
+    logger.debug("volume_mounts: %s", volume_mounts)
 
     if job.init_image is None:
         cmd = [
