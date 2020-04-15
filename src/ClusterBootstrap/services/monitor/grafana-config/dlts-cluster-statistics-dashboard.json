@@ -1423,7 +1423,7 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "job_state_change_latency_seconds_sum{current_state=\"approved\"} / job_state_change_latency_seconds_count{current_state=\"approved\"}",
+                "expr": "avg(job_state_change_latency_seconds_sum{current_state=\"approved\"} / job_state_change_latency_seconds_count{current_state=\"approved\"})",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "refId": "A"
@@ -1498,7 +1498,7 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "job_state_change_latency_seconds_sum{current_state=\"scheduling\"} / job_state_change_latency_seconds_count{current_state=\"scheduling\"}",
+                "expr": "avg(job_state_change_latency_seconds_sum{current_state=\"scheduling\"} / job_state_change_latency_seconds_count{current_state=\"scheduling\"})",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "refId": "A"
@@ -1573,7 +1573,7 @@
             "tableColumn": "",
             "targets": [
               {
-                "expr": "job_state_change_latency_seconds_sum{current_state=\"running\"} / job_state_change_latency_seconds_count{current_state=\"running\"}",
+                "expr": "avg(job_state_change_latency_seconds_sum{current_state=\"running\"} / job_state_change_latency_seconds_count{current_state=\"running\"})",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "refId": "A"
@@ -1636,21 +1636,21 @@
             "steppedLine": false,
             "targets": [
               {
-                "expr": "job_state_change_latency_seconds_sum{current_state=\"approved\"} / job_state_change_latency_seconds_count{current_state=\"approved\"}",
+                "expr": "avg(job_state_change_latency_seconds_sum{current_state=\"approved\"} / job_state_change_latency_seconds_count{current_state=\"approved\"})",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": "unapproved -> queued",
                 "refId": "A"
               },
               {
-                "expr": "job_state_change_latency_seconds_sum{current_state=\"scheduling\"} / job_state_change_latency_seconds_count{current_state=\"scheduling\"}",
+                "expr": "avg(job_state_change_latency_seconds_sum{current_state=\"scheduling\"} / job_state_change_latency_seconds_count{current_state=\"scheduling\"})",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": "queued -> scheduling",
                 "refId": "B"
               },
               {
-                "expr": "job_state_change_latency_seconds_sum{current_state=\"running\"} / job_state_change_latency_seconds_count{current_state=\"running\"}",
+                "expr": "avg(job_state_change_latency_seconds_sum{current_state=\"running\"} / job_state_change_latency_seconds_count{current_state=\"running\"})",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": "scheduling -> running",
