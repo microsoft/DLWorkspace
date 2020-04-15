@@ -2662,6 +2662,7 @@
     },
     "timezone": "",
     "title": "DLTS VC Statistics",
-    "version": 113
+    "version": 1,
+    "uid": "dlts-vc-statistics"
   }
 }

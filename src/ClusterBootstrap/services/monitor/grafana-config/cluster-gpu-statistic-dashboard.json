@@ -530,6 +530,7 @@
     },
     "timezone": "browser",
     "title": "Cluster GPU statistic",
-    "version": 0
+    "version": 0,
+    "uid": "cluster-gpu-statistic"
   }
 }

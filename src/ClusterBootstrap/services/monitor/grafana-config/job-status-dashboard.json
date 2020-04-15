@@ -748,5 +748,6 @@
   },
   "timezone": "browser",
   "title": "Job Status",
-  "version": 1
+  "version": 1,
+  "uid": "job-status"
 }}

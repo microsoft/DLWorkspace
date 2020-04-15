@@ -2958,6 +2958,7 @@
     },
     "timezone": "browser",
     "title": "Job DCGM Metrics",
-    "version": 1
+    "version": 1,
+    "uid": "job-dcgm-metrics"
   }
 }

@@ -1785,6 +1785,7 @@
     },
     "timezone": "",
     "title": "DLTS Job Statistics",
-    "version": 153
+    "version": 1,
+    "uid": "dlts-job-statistics"
   }
 }

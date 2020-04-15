@@ -152,6 +152,7 @@
     },
     "timezone": "browser",
     "title": "User Status",
-    "version": 1
+    "version": 1,
+    "uid": "user-status"
   }
 }
