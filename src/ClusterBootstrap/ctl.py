@@ -291,21 +291,22 @@ def maintain_db(config, args):
                         serialized_row[col_names[i]] = v
                 serialized_rows.append(serialized_row)
             table_config = {"col_names": col_names, "rows": serialized_rows}
-            dump2 = args.output if args.output else "{}.yaml".format(table_name)
-            with open(dump2, "w") as wf:
+            output_file = args.output if args.output else "{}.yaml".format(table_name)
+            with open(output_file, "w") as wf:
                 yaml.safe_dump(table_config, wf)
         elif subcommand == "push":
             sql = "DELETE from {}".format(table_name)
             cursor = conn.cursor()
             cursor.execute(sql)
-            with open("{}.yaml".format(table_name)) as f:
-                table_config = yaml.safe_load(f)
+            input_file_list = args.input if args.input else ["{}.yaml".format(table_name)]
+            table_config = add_configs_in_order(input_file_list, {})
             col_names = table_config["col_names"]
             cols_2_ignore = table_config.get("columns_to_ignore", ["time"])
             cols_filtered = [col for col in col_names if col not in cols_2_ignore]
             cols_str = ", ".join(cols_filtered)
             for row in table_config["rows"]:
                 vals = ", ".join(["'{}'".format(json.dumps(row[col])) for col in cols_filtered])
+                vals = vals.replace("'null'", "NULL")
                 sql = "INSERT INTO `{}` ({}) VALUES ({})".format(table_name, cols_str, vals)
                 if args.verbose:
                     print(sql)
@@ -380,7 +381,7 @@ if __name__ == '__main__':
     '''))
     parser.add_argument('-cnf', '--config', action='append', default=[], help='Specify the config files you want to load, later ones \
         would overwrite former ones, e.g., -cnf config.yaml -cnf status.yaml')
-    parser.add_argument('-i', '--in', action='append',
+    parser.add_argument('-i', '--input', action='append',
                         default=[], help='Files to take as input')
     parser.add_argument('-o', '--output', default='', help='File to dump to as output')
     parser.add_argument("-v", "--verbose",
