@@ -21,7 +21,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: grafana
-        image: mlcloudreg.westus.cloudapp.azure.com:5000/grafana:5.0.4
+        image: dlws/grafana:5.0.4
         imagePullPolicy: Always
         ports:
         - containerPort: {{cnf["grafana"]["port"]}}
