@@ -2663,6 +2663,6 @@
     "timezone": "",
     "title": "DLTS VC Statistics",
     "version": 1,
-    "dashboard": "dlts-vc-statistics"
+    "uid": "dlts-vc-statistics"
   }
 }
