@@ -309,6 +309,26 @@ class ApproveJob(Resource):
         return generate_response(ret)
 
 
+@api.resource("/ScaleInferenceJob")
+class ScaleInferenceJob(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobId", required=True)
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("resourcegpu", required=True)
+
+    def get(self):
+        args = self.get_parser.parse_args()
+        job_id = args["jobId"]
+        username = args["userName"]
+        resourcegpu = int(args["resourcegpu"])
+        msg, statusCode = JobRestAPIUtils.scale_inference_job(username, job_id, resourcegpu)
+        if statusCode != 200:
+            return msg, statusCode
+
+        return generate_response(msg)
+
+
 @api.resource("/KillJobs")
 class KillJobs(Resource):
     def __init__(self):
