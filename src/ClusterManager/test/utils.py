@@ -369,6 +369,16 @@ def post_job(rest_url, job_spec):
     logger.info("job %s created", jid)
     return jid
 
+def scale_job(rest_url, email, job_id, resourcegpu):
+    args = urllib.parse.urlencode({
+        "userName": email,
+        "jobId": job_id,
+        "resourcegpu": resourcegpu,
+    })
+    url = urllib.parse.urljoin(rest_url, "ScaleJob") + "?" + args
+    resp = requests.get(url)
+    return resp.json()
+
 
 class run_job(object):
     def __init__(self, rest_url, job_spec):
@@ -554,6 +564,19 @@ def kube_get_pods(config_path, namespace, label_selector):
                  namespace, api_response)
     return api_response.items
 
+def kube_get_deployment(config_path, namespace, name):
+    k8s_config = build_k8s_config(config_path)
+    api_client = ApiClient(configuration=k8s_config)
+
+    k8s_apps_api = k8s_client.AppsV1Api(api_client)
+    api_response = k8s_apps_api.read_namespaced_deployment_scale(
+        namespace=namespace,
+        pretty="pretty_example",
+        name=name,
+    )
+    logger.debug("%s got deployment from namespace %s: api_response", name,
+                namespace, api_response)
+    return api_response
 
 def kube_delete_pod(config_path, namespace, pod_name):
     k8s_config = build_k8s_config(config_path)

@@ -511,7 +511,7 @@ def scale_inference_job(username, job_id, resourcegpu):
                                         {"jobParams": base64encode(json.dumps(job_params))})
         return "Success", 200
     except Exception as e:
-        logger.error("Scale inference job exception, ex: %s", str(e))
+        logger.exception("Scale inference job exception")
     finally:
         dataHandler.Close()
     return "Server error", 500
