@@ -57,7 +57,14 @@ default_config_parameters = {
             "restful-url": "http://localhost:5000",
         }
     },
-    "repair-manager": { "prometheus-ip": "localhost", "prometheus-port": 9091},
+
+    "repair-manager": { 
+        "prometheus-ip": "localhost",
+        "prometheus-port": 9091,
+        "etcd": {
+            "data-dir": "/etc/RepairManager/etcd"
+        }
+    },
 
     "mysql_port": "3306",
     "mysql_username": "root",
