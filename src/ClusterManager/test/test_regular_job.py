@@ -740,8 +740,7 @@ def test_regular_job_mountpoints(args):
                                                  args.uid, args.vc)
 
     with utils.run_job(args.rest, job_spec) as job:
-        state = job.block_until_state_not_in(
-            {"unapproved", "queued"})
+        state = job.block_until_state_not_in({"unapproved", "queued"})
         assert state in ["scheduling", "running"]
 
         pod = utils.kube_get_pods(args.config, "default",

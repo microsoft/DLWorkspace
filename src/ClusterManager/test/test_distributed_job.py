@@ -579,12 +579,10 @@ def test_distributed_job_mountpoints(args):
                                                  args.uid, args.vc)
 
     with utils.run_job(args.rest, job_spec) as job:
-        state = job.block_until_state_not_in(
-            {"unapproved", "queued"})
+        state = job.block_until_state_not_in({"unapproved", "queued"})
         assert state in ["scheduling", "running"]
 
-        pods = utils.kube_get_pods(args.config, "default",
-                                   "jobId=%s" % job.jid)
+        pods = utils.kube_get_pods(args.config, "default", "jobId=%s" % job.jid)
 
         mps = utils.load_cluster_nfs_mountpoints(args, job.jid)
         mps.extend(utils.load_system_mountpoints(args))
