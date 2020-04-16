@@ -61,6 +61,11 @@ spec:
           readOnly: true
         - name: fluent-bit-config
           mountPath: /fluent-bit/etc/
+        livenessProbe:
+          httpGet:
+            host: '127.0.0.1'
+            port: {{cnf["fluent_bit"]["port"]}}
+            path: /healthz
       {% if cnf["azure_blob_log"]["enabled"] -%}
       - name: azure-blob-adapter
         image: '{{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/azure-blob-adapter:{{cnf["dockertag"]}}'
