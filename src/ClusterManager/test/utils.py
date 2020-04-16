@@ -12,6 +12,8 @@ import base64
 import functools
 import inspect
 import re
+import multiprocessing
+
 import requests
 
 STATUS_YAML = "status.yaml"
@@ -38,6 +40,7 @@ def walk_json_safe(obj, *fields):
 
 
 def case(unstable=False):
+    """ return False on success, True on failed, None on unfinished """
     def decorator(fn):
         @functools.wraps(fn)
         def wrapped(*args, **kwargs):
@@ -50,6 +53,8 @@ def case(unstable=False):
                     logger.info("%s ...(%s times)", full_name, times)
                     fn(*args, **kwargs)
                     return False
+                except KeyboardInterrupt:
+                    return None
                 except Exception:
                     logger.exception("executing %s failed", full_name)
                     continue
@@ -62,6 +67,49 @@ def case(unstable=False):
         return wrapped
 
     return decorator
+
+
+def run_cases_in_parallel(cases, args, pool_size):
+    def wrapper(queue, case, *args, **kwargs):
+        result = None
+        try:
+            result = case(*args, **kwargs)
+        finally:
+            queue.put(result)
+
+    pool = set()
+    queues = [multiprocessing.Queue() for _ in cases]
+
+    try:
+        for i, case in enumerate(cases):
+            if len(pool) >= pool_size:
+                joined = False
+                while not joined:
+                    for p in pool:
+                        p.join(0.1)
+                        if not p.is_alive():
+                            joined = True
+                            pool.remove(p)
+                            break
+
+            processor = functools.partial(wrapper, queues[i], case)
+            p = multiprocessing.Process(target=processor,
+                                        args=(args,),
+                                        name="worker-" + str(i))
+            p.start()
+            pool.add(p)
+
+        for p in pool:
+            p.join()
+    except KeyboardInterrupt:
+        pass
+
+    def getter(queue):
+        if queue.empty():
+            return None
+        return queue.get_nowait()
+
+    return list(map(getter, queues))
 
 
 def snake_case(s):
@@ -124,32 +172,37 @@ def load_cluster_nfs_mountpoints(args, job_id):
     job_path = get_job_detail(args.rest, args.email,
                               job_id)["jobParams"]["jobPath"]
 
-    mps = [{
-        # /home/<alias>
-        "server": server,
-        "path": os.path.join(path, "work", alias),
-        "mountPath": "/home/%s" % alias,
-        "mountType": "nfs",
-    }, {
-        # /job
-        "server": server,
-        "path": os.path.join(path, "work", ""),
-        "mountPath": "/job",
-        "mountType": "nfs",
-        "subPath": job_path
-    }, {
-        # /work
-        "server": server,
-        "path": os.path.join(path, "work", alias),
-        "mountPath": "/work",
-        "mountType": "nfs",
-    }, {
-        # /data
-        "server": server,
-        "path": os.path.join(path, "storage", ""),
-        "mountPath": "/data",
-        "mountType": "nfs",
-    }]
+    mps = [
+        {
+            # /home/<alias>
+            "server": server,
+            "path": os.path.join(path, "work", alias),
+            "mountPath": "/home/%s" % alias,
+            "mountType": "nfs",
+        },
+        {
+            # /job
+            "server": server,
+            "path": os.path.join(path, "work", ""),
+            "mountPath": "/job",
+            "mountType": "nfs",
+            "subPath": job_path
+        },
+        {
+            # /work
+            "server": server,
+            "path": os.path.join(path, "work", alias),
+            "mountPath": "/work",
+            "mountType": "nfs",
+        },
+        {
+            # /data
+            "server": server,
+            "path": os.path.join(path, "storage", ""),
+            "mountPath": "/data",
+            "mountType": "nfs",
+        }
+    ]
 
     return mps
 
@@ -475,7 +528,7 @@ def wait_endpoint_state(rest_url,
                         jid,
                         endpoint_id,
                         state="running",
-                        timeout=30):
+                        timeout=120):
     start = datetime.datetime.now()
     delta = datetime.timedelta(seconds=timeout)
 
@@ -521,12 +574,13 @@ def build_k8s_config(config_path):
     infra_host = find_infra_node_name(cluster_config["machines"])
 
     if os.path.isfile(cluster_path):
-        config.host = "https://%s.%s:1443" % (infra_host,
-                                          cluster_config["network"]["domain"])
+        config.host = "https://%s.%s:1443" % (
+            infra_host, cluster_config["network"]["domain"])
         basic_auth = cluster_config["basic_auth"]
     else:
         config.host = cluster_config["machines"][infra_host]["fqdns"]
-        with open(os.path.join(config_path, "clusterID", "k8s_basic_auth.yml")) as auf:
+        with open(os.path.join(config_path, "clusterID",
+                               "k8s_basic_auth.yml")) as auf:
             basic_auth = yaml.safe_load(auf)["basic_auth"]
 
     config.username = basic_auth.split(",")[1]
