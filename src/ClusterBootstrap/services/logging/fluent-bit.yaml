@@ -28,7 +28,8 @@ spec:
         imagePullPolicy: Always
         resources:
           limits:
-            memory: 256Mi
+            cpu: 100m
+            memory: 4Gi
           requests:
             cpu: 100m
             memory: 256Mi
@@ -64,6 +65,13 @@ spec:
       - name: azure-blob-adapter
         image: '{{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/azure-blob-adapter:{{cnf["dockertag"]}}'
         imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 100m
+            memory: 64Mi
         ports:
         - containerPort: {{cnf["azure_blob_log"]["port"]["adapter"]}}
         env:
