@@ -107,7 +107,7 @@ def run_cases_in_parallel(cases, args, pool_size):
     def getter(queue):
         if queue.empty():
             return None
-        return queue.get(False)
+        return queue.get_nowait()
 
     return list(map(getter, queues))
 
