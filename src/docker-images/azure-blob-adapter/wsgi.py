@@ -64,11 +64,11 @@ def application(request):
                     #   P4. [Full, ..., ->Full<-]
                     if blob_name == tag:
                         # Fist blob is full: P1, P2 or P3
-                        blob_names = append_blob_service.list_blob_names(
+                        blobs = append_blob_service.list_blobs(
                             container_name=container_name,
                             prefix=tag)
-                        blob_names = list(blob_names)
-                        if len(blob_names) == 1:
+                        blobs = list(blobs)
+                        if len(blobs) == 1:
                             # P1: make it [Full, ->New<-]
                             blob_name = tag + '.1'
                             append_blob_service.create_blob(
@@ -77,7 +77,8 @@ def application(request):
                             continue
                         else:
                             # P2 or P3: point to the last one and retry
-                            blob_name = blob_names[-1]
+                            blob = max(blobs, key=lambda blob: blob.properties.last_modified)
+                            blob_name = blob.name
                             continue
                     else:
                         # P4: make it [Full, ..., Full, ->New<-]
