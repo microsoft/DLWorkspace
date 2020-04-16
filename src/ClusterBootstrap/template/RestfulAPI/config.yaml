@@ -87,6 +87,9 @@ __extract_job_log_legacy: True
 {% if cnf["__get_job_log_legacy"] %}
 __get_job_log_legacy: True
 {% endif %}
+{% if cnf["__get_job_log_fallback"] %}
+__get_job_log_fallback: True
+{% endif %}
 
 {% if cnf["job_resource_policy"] %}
 job_resource_policy: {{cnf["job_resource_policy"]}}
