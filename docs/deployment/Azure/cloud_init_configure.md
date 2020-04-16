@@ -124,6 +124,10 @@ repair-manager:
   restore_from_rule_cache_dump: True
   rule_cache_dump: /etc/RepairManager/rule-cache.json
   job_owner_email_domain: <an email domain name like microsoft.com>
+  etcd:
+    data-dir: /etc/RepairManager/etcd
+    peer-port: 2381
+    client-port: 2382
 
 smtp:
   smtp_url: <smtp, like xxx.com:587>
