@@ -240,16 +240,16 @@ class CustomCollector(object):
     def collect(self):
         job_booked = GaugeMetricFamily("job_booked_gpu_second",
                                        "booked gpu second per job",
-                                       labels=["vc", "user", "job", "since"])
+                                       labels=["vc", "user", "job_id", "since"])
 
         job_idle = GaugeMetricFamily("job_idle_gpu_second",
                                      "idle gpu hour per job",
-                                     labels=["vc", "user", "job", "since"])
+                                     labels=["vc", "user", "job_id", "since"])
 
         job_non_idle_utils = GaugeMetricFamily(
             "job_non_idle_utils",
             "non idle gpu avg utils per job",
-            labels=["vc", "user", "job", "since"])
+            labels=["vc", "user", "job_id", "since"])
 
         user_non_idle_utils = GaugeMetricFamily(
             "user_non_idle_utils",
