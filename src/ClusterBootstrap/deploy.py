@@ -2459,7 +2459,7 @@ def run_kube(prog, commands, need_output=False):
         print(kube_command)
     if need_output:
         output = utils.execute_or_dump_locally(kube_command, verbose, False, '')
-        if not args.verbose:
+        if not verbose:
             print(output)
         return output
     else:
