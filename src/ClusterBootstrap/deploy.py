@@ -11,17 +11,22 @@ import re
 import random
 import glob
 import copy
+import pytz
 import requests
 import yaml
 import base64
 import tempfile
+import datetime
 import urllib.request
+
 
 cwd = os.path.dirname(__file__)
 os.chdir(cwd)
 
 sys.path.append("../utils")
 
+from pathlib import Path
+from ctl import cordon, uncordon
 from ConfigUtils import *
 from params import default_config_parameters, scriptblocks
 import az_tools
@@ -2443,7 +2448,7 @@ def update_config_nodes():
 # Running a kubectl commands.
 
 
-def run_kube(prog, commands):
+def run_kube(prog, commands, need_output=False):
     one_command = " ".join(commands)
     kube_command = ""
     nodes = get_ETCD_master_nodes(config["clusterId"])
@@ -2452,11 +2457,18 @@ def run_kube(prog, commands):
                                                                                                                              config["k8sAPIport"], "./deploy/ssl/ca/ca.pem", "./deploy/ssl/kubelet/apiserver-key.pem", "./deploy/ssl/kubelet/apiserver.pem", one_command))
     if verbose:
         print(kube_command)
-    os.system(kube_command)
+    if need_output:
+        output = utils.execute_or_dump_locally(kube_command, verbose, False, '')
+        if not verbose:
+            print(output)
+        return output
+    else:
+        os.system(kube_command)
 
 
-def run_kubectl(commands):
-    run_kube("./deploy/bin/kubectl", commands)
+def run_kubectl(commands, need_output=False):
+    output = run_kube("./deploy/bin/kubectl", commands, need_output)
+    return output
 
 
 def kubernetes_get_node_name(node):
@@ -2470,6 +2482,39 @@ def kubernetes_get_node_name(node):
         kube_node_name = node
     return kube_node_name
 
+def cordon(config, args):
+    home_dir = str(Path.home())
+    dlts_admin_config_path = os.path.join(home_dir, ".dlts-admin.yaml")
+    dlts_admin_config_path = config.get(
+        "dlts_admin_config_path", dlts_admin_config_path)
+    if os.path.exists(dlts_admin_config_path):
+        with open(dlts_admin_config_path) as f:
+            admin_name = yaml.safe_load(f)["admin_name"]
+    else:
+        admin_name = args.admin
+        assert admin_name is not None and admin_name, "specify admin_name by"\
+        "--admin or in ~/.dlts-admin.yaml"
+    now = datetime.datetime.now(pytz.timezone("UTC"))
+    timestr = now.strftime("%Y/%m/%d %H:%M:%S %Z")
+    node = args.nargs[0]
+    note = " ".join(args.nargs[1:])
+    annotation = "cordoned by {} at {}, {}".format(admin_name, timestr, note)
+    k8s_cmd = "annotate node {} --overwrite cordon-note='{}'".format(
+        node, annotation)
+    run_kubectl([k8s_cmd])
+    run_kubectl(["cordon {}".format(node)])
+
+
+def uncordon(config, args):
+    node = args.nargs[0]
+    query_cmd = "get nodes {} -o=jsonpath=\'{{.metadata.annotations.cordon-note}}\'".format(node)
+    output = run_kubectl([query_cmd], need_output=True)
+    if output and not args.force:
+        print("node annotated, if you are sure that you want to uncordon it, "\
+            "please specify --force or use `{} kubectl cordon <node>` to"\
+            " cordon".format(__file__))
+    else:
+        run_kubectl(["uncordon {}".format(node)])
 
 def set_zookeeper_cluster():
     nodes = get_node_lists_for_service("zookeeper")
@@ -3244,8 +3289,11 @@ def run_command(args, command, nargs, parser):
             utils.get_mac_address(
                 config["ssh_cert"], config["admin_username"], node)
 
+    elif command == "cordon":
+        cordon(config, args)
+
     elif command == "uncordon":
-        uncordon_master()
+        uncordon(config, args)
 
     elif command == "checkconfig":
         for k, v in config.items():
