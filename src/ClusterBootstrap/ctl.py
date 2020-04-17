@@ -5,8 +5,10 @@ import re
 import sys
 import time
 import json
+import pytz
 import utils
 import yaml
+import datetime
 import argparse
 import textwrap
 import random
@@ -16,6 +18,7 @@ os.chdir(cwd)
 
 sys.path.append("../utils")
 
+from pathlib import Path
 from ConfigUtils import *
 from constants import FILE_MAP_PATH, ENV_CNF_YAML, STATUS_YAML
 
@@ -316,6 +319,40 @@ def maintain_db(config, args):
         cursor.close()
 
 
+def cordon(config, args):
+    home_dir = str(Path.home())
+    DLTS_admin_config_path = os.path.join(home_dir, ".dlts-admin.yaml")
+    DLTS_admin_config_path = config.get(
+        "DLTS_admin_config_path", DLTS_admin_config_path)
+    if os.path.exists(DLTS_admin_config_path):
+        with open(DLTS_admin_config_path) as f:
+            admin_name = yaml.safe_load(f)["admin_name"]
+    else:
+        admin_name = args.admin
+        assert admin_name is not None and admin_name, "specify admin name by"\
+        "--admin or in ~/.dlts-admin.yaml"
+    now = datetime.datetime.now(pytz.timezone("UTC"))
+    timestr = now.strftime("%Y/%m/%d %H:%M:%S %Z")
+    node = args.nargs[0]
+    note = " ".join(args.nargs[1:])
+    annotation = "cordoned by {} at {}, {}".format(admin_name, timestr, note)
+    k8s_cmd = "annotate node {} --overwrite cordon-note='{}'".format(
+        node, annotation)
+    run_kubectl(config, args, [k8s_cmd])
+    run_kubectl(config, args, ["cordon {}".format(node)])
+
+
+def uncordon(config, args):
+    node = args.nargs[0]
+    query_cmd = "get nodes {} -o=jsonpath=\'{{.metadata.annotations.cordon-note}}\'".format(node)
+    output = run_kubectl(config, args, [query_cmd], need_output=True)
+    if output and not args.force:
+        print("node annotated, if you are sure that you want to uncordon it, "\
+            "please specify --force or use ./ctl.py kubectl cordon <node> to cordon")
+    else:
+        run_kubectl(config, args, ["uncordon {}".format(node)])
+
+
 def run_command(args, command):
     config = load_config_4_ctl(args, command)
     if command == "restorefromdir":
@@ -359,6 +396,10 @@ def run_command(args, command):
             push_docker_images(args, config)
     elif command == "db":
         maintain_db(config, args)
+    elif command == "cordon":
+        cordon(config, args)
+    elif command == "uncordon":
+        uncordon(config, args)
     else:
         print("invalid command, please read the doc")
 
@@ -395,10 +436,14 @@ if __name__ == '__main__':
     parser.add_argument("--nocache",
                         help="Build docker without cache",
                         action="store_true")
+    parser.add_argument("--admin",
+                        help="Name of admin that execute this script")
     parser.add_argument("command",
                         help="See above for the list of valid command")
     parser.add_argument('nargs', nargs=argparse.REMAINDER,
                         help="Additional command argument")
+    parser.add_argument(
+        '-d', '--dryrun', help='Dry run -- no actual execution', action="store_true")
     args = parser.parse_args()
     command = args.command
     nargs = args.nargs
