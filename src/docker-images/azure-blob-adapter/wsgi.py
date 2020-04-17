@@ -77,8 +77,8 @@ def application(request):
                             continue
                         else:
                             # P2 or P3: point to the last one and retry
-                            blob = max(blobs, key=lambda blob: blob.properties.last_modified)
-                            blob_name = blob.name
+                            latest_blob = max(blobs, key=lambda blob: blob.properties.last_modified)
+                            blob_name = latest_blob.name
                             continue
                     else:
                         # P4: make it [Full, ..., Full, ->New<-]
