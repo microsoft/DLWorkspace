@@ -720,28 +720,6 @@ class UpdateVC(Resource):
         return generate_response(ret)
 
 
-@api.resource("/UpdateVC2")
-class UpdateVC(Resource):
-    def __init__(self):
-        self.get_parser = reqparse.RequestParser()
-        self.get_parser.add_argument("userName", required=True)
-        self.get_parser.add_argument("vcName", required=True)
-        self.get_parser.add_argument("quota", required=True)
-        self.get_parser.add_argument("metadata", required=True)
-
-    def get(self):
-        args = self.get_parser.parse_args()
-        vcName = args["vcName"]
-        quota = args["quota"]
-        metadata = args["metadata"]
-        userName = args["userName"]
-        ret = {}
-        ret["result"] = JobRestAPIUtils.UpdateVC(userName, vcName, quota,
-                                                 metadata)
-
-        return generate_response(ret)
-
-
 @api.resource("/ListStorages")
 class ListStorages(Resource):
     def __init__(self):
