@@ -321,15 +321,15 @@ def maintain_db(config, args):
 
 def cordon(config, args):
     home_dir = str(Path.home())
-    DLTS_admin_config_path = os.path.join(home_dir, ".dlts-admin.yaml")
-    DLTS_admin_config_path = config.get(
-        "DLTS_admin_config_path", DLTS_admin_config_path)
-    if os.path.exists(DLTS_admin_config_path):
-        with open(DLTS_admin_config_path) as f:
+    dlts_admin_config_path = os.path.join(home_dir, ".dlts-admin.yaml")
+    dlts_admin_config_path = config.get(
+        "dlts_admin_config_path", dlts_admin_config_path)
+    if os.path.exists(dlts_admin_config_path):
+        with open(dlts_admin_config_path) as f:
             admin_name = yaml.safe_load(f)["admin_name"]
     else:
         admin_name = args.admin
-        assert admin_name is not None and admin_name, "specify admin name by"\
+        assert admin_name is not None and admin_name, "specify admin_name by"\
         "--admin or in ~/.dlts-admin.yaml"
     now = datetime.datetime.now(pytz.timezone("UTC"))
     timestr = now.strftime("%Y/%m/%d %H:%M:%S %Z")
@@ -348,7 +348,8 @@ def uncordon(config, args):
     output = run_kubectl(config, args, [query_cmd], need_output=True)
     if output and not args.force:
         print("node annotated, if you are sure that you want to uncordon it, "\
-            "please specify --force or use ./ctl.py kubectl cordon <node> to cordon")
+            "please specify --force or use `{} kubectl cordon <node>` to"\
+            " cordon".format(__file__))
     else:
         run_kubectl(config, args, ["uncordon {}".format(node)])
 

@@ -2458,8 +2458,6 @@ def run_kube(prog, commands, need_output=False):
     if verbose:
         print(kube_command)
     if need_output:
-        # we may want to dump command to another file instead of args.output, when we don't want to mix k8s commands with others
-        print("output specified")
         output = utils.execute_or_dump_locally(kube_command, verbose, False, '')
         if not args.verbose:
             print(output)
@@ -2486,15 +2484,15 @@ def kubernetes_get_node_name(node):
 
 def cordon(config, args):
     home_dir = str(Path.home())
-    DLTS_admin_config_path = os.path.join(home_dir, ".dlts-admin.yaml")
-    DLTS_admin_config_path = config.get(
-        "DLTS_admin_config_path", DLTS_admin_config_path)
-    if os.path.exists(DLTS_admin_config_path):
-        with open(DLTS_admin_config_path) as f:
+    dlts_admin_config_path = os.path.join(home_dir, ".dlts-admin.yaml")
+    dlts_admin_config_path = config.get(
+        "dlts_admin_config_path", dlts_admin_config_path)
+    if os.path.exists(dlts_admin_config_path):
+        with open(dlts_admin_config_path) as f:
             admin_name = yaml.safe_load(f)["admin_name"]
     else:
         admin_name = args.admin
-        assert admin_name is not None and admin_name, "specify admin name by"\
+        assert admin_name is not None and admin_name, "specify admin_name by"\
         "--admin or in ~/.dlts-admin.yaml"
     now = datetime.datetime.now(pytz.timezone("UTC"))
     timestr = now.strftime("%Y/%m/%d %H:%M:%S %Z")
@@ -2514,7 +2512,8 @@ def uncordon(config, args):
     print("ucd", output, args.force)
     if output and not args.force:
         print("node annotated, if you are sure that you want to uncordon it, "\
-            "please specify --force or use ./ctl.py kubectl cordon <node> to cordon")
+            "please specify --force or use `{} kubectl cordon <node>` to"\
+            " cordon".format(__file__))
     else:
         run_kubectl(["uncordon {}".format(node)])
 
