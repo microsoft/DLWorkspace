@@ -336,6 +336,7 @@ def UpdateJobStatus(redis_conn,
                                                     result.strip()))
     elif result == "Running":
         update_job_state_latency(redis_conn, job["jobId"], "running")
+        launcher.scale_job(job)
         if job["jobStatus"] != "running":
             started_at = k8sUtils.localize_time(datetime.datetime.now())
             detail = [{
