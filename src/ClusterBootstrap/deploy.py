@@ -2509,7 +2509,6 @@ def uncordon(config, args):
     node = args.nargs[0]
     query_cmd = "get nodes {} -o=jsonpath=\'{{.metadata.annotations.cordon-note}}\'".format(node)
     output = run_kubectl([query_cmd], need_output=True)
-    print("ucd", output, args.force)
     if output and not args.force:
         print("node annotated, if you are sure that you want to uncordon it, "\
             "please specify --force or use `{} kubectl cordon <node>` to"\
