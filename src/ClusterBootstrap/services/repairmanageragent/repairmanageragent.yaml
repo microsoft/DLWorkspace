@@ -1,0 +1,90 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: repairmanageragent
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      repairmanageragent-node: pod
+  template:
+    metadata:
+      name: repairmanageragent
+      labels:
+        repairmanageragent-node: pod
+        app: repairmanageragent
+    spec:
+      {% if cnf["dnsPolicy"] %}
+      dnsPolicy: {{cnf["dnsPolicy"]}}
+      {% endif %}
+      hostPID: true
+      nodeSelector:
+        repairmanageragent: active
+      containers:
+      - name: repairmanageragent
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["repairmanageragent"]}}:{{cnf["dockertag"]}}
+        securityContext:
+          capabilities:
+            add: ["SYS_BOOT"]
+        command: ["/run.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: ETCD_SERVER
+          value: "{{cnf['kubernetes_master_node'][0]}}"
+        - name: ETCD_PORT
+          value: "{{cnf['repair-manager']['etcd']['client-port']}}"
+        volumeMounts:
+        - mountPath: /etc/kubernetes/ssl
+          name: certs
+        - mountPath: /etc/kubernetes/restapi-kubeconfig.yaml
+          name: kubeconfig
+        - mountPath: {{cnf["storage-mount-path"]}}/work
+          name: dlwsdatawork
+        - mountPath: {{cnf["storage-mount-path"]}}/storage
+          name: dlwsdatadata
+        - mountPath: {{cnf["storage-mount-path"]}}/jobfiles
+          name: dlwsdatajobfiles
+        - mountPath: {{cnf["dltsdata-storage-mount-path"]}}
+          name: dltsdata
+        - mountPath: {{cnf["folder_auto_share"]}}
+          name: folderautoshare
+        - mountPath: /var/log/dlworkspace
+          name: log
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
+      volumes:
+      - name: certs
+        hostPath:
+          path: /etc/kubernetes/ssl
+      - name: kubeconfig
+        hostPath:
+          path: /etc/kubernetes/restapi-kubeconfig.yaml
+      - name: dlwsdatawork
+        hostPath:
+          path: {{cnf["storage-mount-path"]}}/work
+      - name: dlwsdatadata
+        hostPath:
+          path: {{cnf["storage-mount-path"]}}/storage
+      - name: dlwsdatajobfiles
+        hostPath:
+          path: {{cnf["storage-mount-path"]}}/jobfiles
+      - name: dltsdata
+        hostPath:
+          path: {{cnf["dltsdata-storage-mount-path"]}}
+      - name: folderautoshare
+        hostPath:
+          path: {{cnf["folder_auto_share"]}}
+      - name: log
+        hostPath:
+          path: /var/log/clustermanager
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule

@@ -62,7 +62,9 @@ default_config_parameters = {
         "prometheus-ip": "localhost",
         "prometheus-port": 9091,
         "etcd": {
-            "data-dir": "/etc/RepairManager/etcd"
+            "data-dir": "/etc/RepairManager/etcd",
+            "peer-port": 2381,
+            "client-port": 2382
         }
     },
 
@@ -91,6 +93,7 @@ default_config_parameters = {
     "storagemanager": "storagemanager",
     "repairmanager": "repairmanager",
     "repairmanageretcd": "repairmanageretcd",
+    "repairmanageragent": "repairmanageragent",
     "ssh_cert": "./deploy/sshkey/id_rsa",
     "admin_username": "core",
     # the path of where dfs/nfs is source linked and consumed on each node,
@@ -697,7 +700,7 @@ default_config_parameters = {
         # There is no udp port requirement for now
         #"udp_port_ranges": "25826",
         "inter_connect": {
-            "tcp_port_ranges": "22 1443 2379 3306 5000 8086 9092 9114 9200 9300 10250",
+            "tcp_port_ranges": "22 1443 2379 2382 3306 5000 8086 9092 9114 9200 9300 10250",
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         },
