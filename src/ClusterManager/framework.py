@@ -38,7 +38,7 @@ class Framework(object):
                  family_token, vc_name, dns_policy, node_selector,
                  ssh_private_key, ssh_public_keys,
                  is_preemption_allowed, is_host_network,
-                 is_host_ipc, is_privileged, is_nccl_ib_disabled, is_debug):
+                 is_host_ipc, is_privileged, is_debug):
         self.init_image = init_image # str, maybe None
         self.labels = labels # map
         self.annotations = annotations # map
@@ -62,7 +62,6 @@ class Framework(object):
         self.is_host_network = is_host_network # bool
         self.is_host_ipc = is_host_ipc # bool
         self.is_privileged = is_privileged # bool
-        self.is_nccl_ib_disabled = is_nccl_ib_disabled # bool
         self.is_debug = is_debug # bool
 
 
@@ -274,9 +273,6 @@ def gen_container_envs(job, role):
     if job.is_host_network:
         result.append({"name": "DLWS_HOST_NETWORK", "value": "enable"})
         result.append({"name": "DLTS_HOST_NETWORK", "value": "enable"})
-
-    if job.is_nccl_ib_disabled:
-        result.append({"name": "NCCL_IB_DISABLE", "value": "1"})
 
     for i, key_value in enumerate(job.ssh_public_keys):
         result.append({
@@ -693,7 +689,6 @@ def transform_regular_job(params, cluster_config):
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
         params.get("isPrivileged", False),
-        params.get("nccl_ib_disable", False),
         params.get("debug", False),
     )
 
@@ -761,7 +756,6 @@ def transform_distributed_job(params, cluster_config):
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
         params.get("isPrivileged", False),
-        params.get("nccl_ib_disable", False),
         params.get("debug", False),
     )
 
@@ -825,7 +819,6 @@ def transform_inference_job(params, cluster_config):
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
         params.get("isPrivileged", False),
-        params.get("nccl_ib_disable", False),
         params.get("debug", False),
     )
 
