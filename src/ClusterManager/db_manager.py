@@ -19,7 +19,8 @@ sys.path.append(
 
 from DataHandler import DataHandler
 
-DAYS_AGO = 1
+CLUSTER_STATUS_EXPIRY = 1
+JOBS_EXPIRY = 180
 logger = logging.getLogger(__name__)
 
 
@@ -35,7 +36,7 @@ def create_log(logdir='/var/log/dlworkspace'):
     logging.config.dictConfig(logging_config)
 
 
-def delete_old_cluster_status():
+def delete_old_cluster_status(days_ago):
     table = "clusterstatus"
     with DataHandler() as data_handler:
         num_rows = data_handler.count_rows(table)
@@ -43,12 +44,28 @@ def delete_old_cluster_status():
             return
 
         logger.info("Deleting rows from table %s older than %s day(s)", table,
-                    DAYS_AGO)
+                    days_ago)
         ret = data_handler.delete_rows_from_table_older_than_days(
-            table, DAYS_AGO)
+            table, days_ago)
         ret_status = "succeeded" if ret is True else "failed"
         logger.info("Deleting rows from table %s older than %s day(s) %s",
-                    table, DAYS_AGO, ret_status)
+                    table, days_ago, ret_status)
+
+
+def delete_old_inactive_jobs(days_ago):
+    table = "jobs"
+    with DataHandler() as data_handler:
+        logger.info("Deleting inactive job records from table %s older than %s "
+                    "day(s)", table, days_ago)
+
+        cond = {
+            "jobStatus": ("IN", ["finished", "failed", "killed", "error"])
+        }
+        ret = data_handler.delete_rows_from_table_older_than_days(
+            table, days_ago, col="lastUpdated", cond=cond)
+        ret_status = "succeeded" if ret is True else "failed"
+        logger.info("Deleting inactive job records from table %s older than %s "
+                    "day(s) %s", table, days_ago, ret_status)
 
 
 def run():
@@ -59,7 +76,8 @@ def run():
 
         with manager_iteration_histogram.labels("db_manager").time():
             try:
-                delete_old_cluster_status()
+                delete_old_cluster_status(CLUSTER_STATUS_EXPIRY)
+                delete_old_inactive_jobs(JOBS_EXPIRY)
             except:
                 logger.exception("Deleting old cluster status failed",
                                  exc_info=True)
