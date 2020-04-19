@@ -159,9 +159,6 @@ def link_fileshare(verbose=True):
                 # otherwise the softlink itself would not be deleted
                 link_dst = os.path.abspath(link_itm["dst"])
                 link_src = os.path.abspath(link_src)
-                if os.path.exists(link_dst) and link_dst != '/':
-                    exec_with_output(
-                        "sudo rm -rf {}".format(link_dst), verbose=verbose)
                 exec_with_output(
                     "mkdir -p {}".format(os.path.dirname(link_dst)), verbose=verbose)
                 exec_with_output(
