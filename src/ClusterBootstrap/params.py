@@ -293,6 +293,7 @@ default_config_parameters = {
         'worker': {
             "worker": "active",
             "beta.kubernetes.io/os": "linux",
+            "repairmanageragent": "active"
             },
         'mysqlserver': {
             "mysql-server": "active"
