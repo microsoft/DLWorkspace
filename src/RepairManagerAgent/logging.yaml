@@ -16,6 +16,8 @@ handlers:
     filename: /var/log/dlworkspace/repairmanageragent.log
     # roll over at 10MB
     maxBytes: 102400000
+    # At most 10 logging files
+    backupCount: 10
 loggers:
   basic:
     level: DEBUG
