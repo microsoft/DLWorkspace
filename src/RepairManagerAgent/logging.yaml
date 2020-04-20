@@ -13,11 +13,9 @@ handlers:
   file:
     class : logging.handlers.RotatingFileHandler
     formatter: simple
-    filename: repairmanageragent.log
+    filename: /var/log/dlworkspace/repairmanageragent.log
     # roll over at 10MB
-    maxBytes: 10240000
-    # At most 10 logging files
-    backupCount: 10
+    maxBytes: 102400000
 loggers:
   basic:
     level: DEBUG

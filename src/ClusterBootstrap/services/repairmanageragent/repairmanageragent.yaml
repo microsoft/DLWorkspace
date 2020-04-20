@@ -82,7 +82,7 @@ spec:
           path: {{cnf["folder_auto_share"]}}
       - name: log
         hostPath:
-          path: /var/log/clustermanager
+          path: /var/log/dlworkspace
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists
