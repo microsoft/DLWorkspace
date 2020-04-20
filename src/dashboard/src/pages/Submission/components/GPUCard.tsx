@@ -31,8 +31,8 @@ import {
 import { MoreVert, FileCopyRounded} from "@material-ui/icons";
 
 import {Cell, PieChart, Pie, ResponsiveContainer,Sector} from "recharts";
-import UserContext from "../../contexts/User";
-import TeamsContext from '../../contexts/Teams';
+import UserContext from "../../../contexts/User";
+import TeamsContext from '../../../contexts/Teams';
 import {
   green,
   lightGreen,
@@ -41,8 +41,8 @@ import {
   yellow
 } from "@material-ui/core/colors";
 import copy from 'clipboard-copy'
-import {checkObjIsEmpty, sumValues} from "../../utlities/ObjUtlities";
-import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar";
+import {checkObjIsEmpty, sumValues} from "../../../utlities/ObjUtlities";
+import {DLTSSnackbar} from "../../CommonComponents/DLTSSnackbar";
 
 import _ from "lodash";
 const useStyles = makeStyles((theme: Theme) => createStyles({

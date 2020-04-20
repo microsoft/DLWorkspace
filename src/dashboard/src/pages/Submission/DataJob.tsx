@@ -13,7 +13,7 @@ import {
 } from "@material-ui/core";
 import { makeStyles, createStyles } from "@material-ui/core/styles";
 import ClusterSelectField from "./components/ClusterSelectField";
-import { DirectoryPathTextField } from '../Home/GPUCard'
+import { DirectoryPathTextField } from './components/GPUCard'
 import ClustersContext from "../../contexts/Clusters";
 import UserContext from "../../contexts/User";
 import TeamsContext from "../../contexts/Teams";
