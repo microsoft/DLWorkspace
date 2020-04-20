@@ -14,7 +14,7 @@ import {
   ListItemAvatar,
   Tooltip,
 } from '@material-ui/core';
-import { Folder } from '@material-ui/icons';
+import { Folder, FolderShared } from '@material-ui/icons';
 import { useSnackbar } from 'notistack';
 import copy from 'clipboard-copy';
 
@@ -155,7 +155,7 @@ const StorageList: FunctionComponent = () => {
             <ListItem button component="a" href={href} onClick={handleClick}>
               <ListItemAvatar>
                 <Avatar>
-                  <Folder/>
+                  { containerPath === '~' ? <FolderShared/> : <Folder/>}
                 </Avatar>
               </ListItemAvatar>
               <ListItemText
