@@ -6,8 +6,7 @@ import React, {
   useEffect,
   useState
 } from 'react';
-import { useParams } from 'react-router';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import SwipeableViews from 'react-swipeable-views';
 import {

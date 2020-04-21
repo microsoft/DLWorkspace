@@ -1,4 +1,4 @@
-import { useParams } from 'react-router';
+import { useParams } from 'react-router-dom';
 
 interface RouteParams {
   clusterId: string;

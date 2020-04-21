@@ -6,8 +6,7 @@ import React, {
   useRef,
   useState
 } from 'react';
-import { useParams } from 'react-router';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useParams } from 'react-router-dom';
 
 import { filter, flatMap, map, set } from 'lodash';
 
