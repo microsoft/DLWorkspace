@@ -42,7 +42,7 @@ const ActionIconButton: FunctionComponent = () => {
         open={open}
         onClose={handleMenuClose}
       >
-        <MenuItem component={Link} to={`/jobs-v2/${id}`}>View Jobs</MenuItem>
+        <MenuItem component={Link} to={`/jobs/${id}`}>View Jobs</MenuItem>
         <MenuItem component={Link} to={`/clusters/${id}`}>Cluster Status</MenuItem>
       </Menu>
     </>

@@ -49,7 +49,7 @@ const useActions = (clusterId: string) => {
     const body = `
 Hi DLTS support team,
 
-There is some issue in my job ${window.location.origin}/jobs-v2/${encodeURIComponent(clusterId)}/${encodeURIComponent(job['jobId'])}
+There is some issue in my job ${window.location.origin}/jobs/${encodeURIComponent(clusterId)}/${encodeURIComponent(job['jobId'])}
 
 <Issue description by user>
 

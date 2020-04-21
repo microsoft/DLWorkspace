@@ -234,7 +234,7 @@ const DataJob: React.FC = (props: any) => {
           </DialogContentText>
           <DialogActions>
             <Button component={Link}
-              to={ `/job/${selectedTeam}/${selectedCluster}/${currentJobId}` }
+              to={ `/job/${selectedCluster}/${currentJobId}` }
               color="secondary"
             >
                   ok

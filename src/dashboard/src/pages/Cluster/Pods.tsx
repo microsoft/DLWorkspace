@@ -83,7 +83,7 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers }, query }) =>
     field: 'id',
     render: ({ id, jobId }) => (
       <Tooltip title={`See Job ${jobId}`}>
-        <UILink variant="subtitle2" component={RouterLink} to={`/jobs-v2/${clusterId}/${jobId}`}>
+        <UILink variant="subtitle2" component={RouterLink} to={`/jobs/${clusterId}/${jobId}`}>
           {id}
         </UILink>
       </Tooltip>

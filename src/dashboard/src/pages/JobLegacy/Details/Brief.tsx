@@ -15,7 +15,7 @@ import {green, red} from "@material-ui/core/colors";
 import IconButton from "@material-ui/core/IconButton";
 import DeleteIcon from '@material-ui/icons/Delete';
 import CheckIcon from "@material-ui/icons/Check";
-import {JobsOperationDialog} from "../../Jobs/components/JobsOperationDialog";
+import {JobsOperationDialog} from "../../JobsLegacy/components/JobsOperationDialog";
 import {
   SUCESSFULKILLED,
   SUCCESSFULLYPAUSED,

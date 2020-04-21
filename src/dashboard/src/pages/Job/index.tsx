@@ -1,60 +1,123 @@
-import React, { useCallback } from 'react';
-import { RouteComponentProps, withRouter } from 'react-router-dom';
+import React, {
+  FunctionComponent,
+  useContext,
+  useEffect,
+  useMemo
+} from 'react';
+import { capitalize } from 'lodash';
+import { usePrevious } from 'react-use';
+import Helmet from 'react-helmet';
 import {
-  Box,
-  Button,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogTitle,
-  DialogContent,
-  DialogContentText
+  Container,
 } from '@material-ui/core';
-import Details from './Details';
-import useJob from './useJob';
+import { useSnackbar } from 'notistack';
+import useFetch from 'use-http-2';
 
-type Job = any;
+import UserContext from '../../contexts/User';
+import TeamsContext from '../../contexts/Teams';
+import Loading from '../../components/Loading';
 
-interface Params {
-  clusterId: string;
-  jobId: string;
-  team: string;
+import useRouteParams from './useRouteParams';
+import Context from './Context';
+import Header from './Header';
+import Tabs from './Tabs';
+
+const JobContent: FunctionComponent = () => {
+  const { clusterId, jobId } = useRouteParams();
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+
+  const { email } = useContext(UserContext);
+  const { teams } = useContext(TeamsContext);
+
+  const { data: job, loading: jobLoading, error: jobError, get: getJob } =
+    useFetch(`/api/v2/clusters/${clusterId}/jobs/${jobId}`, undefined, [clusterId, jobId]);
+
+  const { data: cluster, error: clusterError } =
+    useFetch(`/api/clusters/${clusterId}`, undefined, [clusterId]);
+
+  const teamCluster = useMemo(() => {
+    if (job === undefined) return undefined;
+    const team = teams.filter((team: any) => team.id === job['vcName'])[0];
+    if (team === undefined) return undefined;
+    const teamCluster = team.clusters.filter((cluster: any) => cluster.id === clusterId)[0];
+    return teamCluster;
+  }, [job, teams]);
+  const accessible = useMemo(() => {
+    return teamCluster !== undefined;
+  }, [teamCluster]);
+  const admin = useMemo(() => {
+    return accessible && Boolean(teamCluster.admin);
+  }, [accessible, teamCluster]);
+
+  const manageable = useMemo(() => {
+    if (job === undefined) return false;
+    if (admin === true) return true;
+    if (job['userName'] === email) return true;
+    return false;
+  }, [job, admin, email]);
+
+  useEffect(() => {
+    if (jobError !== undefined) {
+      const key = enqueueSnackbar(`Failed to fetch job: ${clusterId}/${jobId}`, {
+        variant: 'error',
+        persist: true
+      });
+      return () => {
+        if (key !== null) closeSnackbar(key);
+      }
+    }
+  }, [jobError, enqueueSnackbar, closeSnackbar, clusterId, jobId]);
+
+  useEffect(() => {
+    if (clusterError !== undefined) {
+      const key = enqueueSnackbar(`Failed to fetch cluster config: ${clusterId}`, {
+        variant: 'error',
+        persist: true
+      });
+      return () => {
+        if (key !== null) closeSnackbar(key);
+      }
+    }
+  }, [clusterError, enqueueSnackbar, closeSnackbar, clusterId]);
+
+  useEffect(() => { // refresh job info
+    if (jobLoading) return;
+
+    const timeout = setTimeout(getJob, 3000);
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [jobLoading, getJob]);
+
+  const status = useMemo(() => job && job['jobStatus'], [job]);
+  const previousStatus = usePrevious(status);
+  useEffect(() => {
+    if (previousStatus !== undefined && status !== previousStatus) {
+      enqueueSnackbar(`Job is ${status} now.`, { variant: "info" });
+    }
+  }, [previousStatus, status, enqueueSnackbar])
+
+  if (cluster === undefined || job === undefined) {
+    return <Loading/>;
+  }
+
+  return (
+    <Context.Provider value={{ cluster, accessible, admin, job }}>
+      <Helmet title={`(${capitalize(job['jobStatus'])}) ${job['jobName']}`}/>
+      <Container fixed maxWidth="lg">
+        <Header manageable={manageable}/>
+        <Tabs manageable={manageable}/>
+      </Container>
+    </Context.Provider>
+  );
 }
 
-const ErrorDialog = withRouter(({ match, history }) => {
-  const { clusterId, jobId } = match.params;
-  const onClick = useCallback(() => history.push('/jobs'), [history])
+const Job: FunctionComponent = () => {
+  const { clusterId, jobId } = useRouteParams();
+  const key = useMemo(() => `${clusterId}/${jobId}`, [clusterId, jobId]);
   return (
-    <Dialog open>
-      <DialogTitle>
-        Error
-      </DialogTitle>
-      <DialogContent>
-        <DialogContentText>
-          Failed to fetch the Job {jobId} in Cluster {clusterId}.
-        </DialogContentText>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClick} color="primary">
-          Back
-        </Button>
-      </DialogActions>
-    </Dialog>
+    <JobContent key={key}/>
   );
-});
+}
 
-const Job: React.FC<RouteComponentProps<Params>> = ({ match }) => {
-  const { clusterId, jobId,team } = match.params;
-  const [job, error] = useJob(clusterId, jobId);
-
-  if (error) return <ErrorDialog/>;
-  if (job) return <Details clusterId={clusterId} jobId={jobId} team={team} job={job}/>;
-
-  return (
-    <Box display="flex" justifyContent="center">
-      <CircularProgress/>
-    </Box>
-  );
-};
-
-export default Job
+export default Job;

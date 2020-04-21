@@ -33,10 +33,10 @@ import { Provider as DrawerProvider } from "./layout/Drawer/Context";
 const Home = React.lazy(() => import('./pages/Home'));
 const SignIn = React.lazy(() => import('./pages/SignIn'));
 const Submission = React.lazy(() => import('./pages/Submission'));
+const JobsLegacy = React.lazy(() => import('./pages/JobsLegacy'));
 const Jobs = React.lazy(() => import('./pages/Jobs'));
-const JobsV2 = React.lazy(() => import('./pages/JobsV2'));
+const JobLegacy = React.lazy(() => import('./pages/JobLegacy'));
 const Job = React.lazy(() => import('./pages/Job'));
-const JobV2 = React.lazy(() => import('./pages/JobV2'));
 const ClusterStatus = React.lazy( () => import('./pages/ClusterStatus'));
 const Clusters = React.lazy(() => import('./pages/Clusters'));
 const Cluster = React.lazy(() => import('./pages/Cluster'));
@@ -113,19 +113,25 @@ const Layout: React.FC<RouteComponentProps> = ({ location, history }) => {
           <React.Suspense fallback={PageLoading}>
             <Switch location={location}>
               <Route exact path="/" component={Home}/>
+
               <Route path="/submission" component={Submission}/>
-              <Route path="/jobs/:cluster" component={Jobs}/>
-              <Route path="/jobs" component={Jobs}/>
-              <Route strict exact path="/jobs-v2/:clusterId/:jobId" component={JobV2}/>
-              <Redirect strict exact from="/jobs-v2/:clusterId" to="/jobs-v2/:clusterId/"/>
-              <Route strict exact path="/jobs-v2/:clusterId/" component={JobsV2}/>
-              <Redirect strict exact from="/jobs-v2" to="/jobs-v2/"/>
-              <Route strict exact path="/jobs-v2/" component={JobsV2}/>
-              <Route path="/job/:team/:clusterId/:jobId" component={Job}/>
-              <Route path="/cluster-status" component={ClusterStatus}/>
+
+              <Route strict exact path="/jobs/:clusterId/:jobId" component={Job}/>
+              <Redirect strict exact from="/jobs/:clusterId" to="/jobs/:clusterId/"/>
+              <Route strict exact path="/jobs/:clusterId/" component={Jobs}/>
+              <Redirect strict exact from="/jobs" to="/jobs/"/>
+              <Route strict exact path="/jobs/" component={Jobs}/>
+
+              <Route path="/jobs-legacy/:cluster" component={JobsLegacy}/>
+              <Route path="/jobs-legacy" component={JobsLegacy}/>
+              <Route path="/job-legacy/:team/:clusterId/:jobId" component={JobLegacy}/>
+
               <Redirect strict exact from="/clusters" to="/clusters/"/>
               <Route strict exact path="/clusters/" component={Clusters}/>
               <Route strict exact path="/clusters/:clusterId" component={Cluster}/>
+
+              <Route path="/cluster-status" component={ClusterStatus}/>
+
               <Redirect to="/"/>
             </Switch>
           </React.Suspense>
