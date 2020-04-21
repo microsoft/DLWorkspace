@@ -683,9 +683,9 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     if (endpoints.length > 0) {
       postEndpoints(`/clusters/${selectedCluster}/jobs/${jobId.current}/endpoints`, { endpoints });
     } else {
-      history.push(`/job/${selectedCluster}/${jobId.current}`);
+      history.push(`/job/${selectedTeam}/${selectedCluster}/${jobId.current}`);
     }
-  }, [postJobData, ssh, ipython, tensorboard, interactivePorts, history, selectedCluster, postEndpoints]);
+  }, [postJobData, ssh, ipython, tensorboard, interactivePorts, history, selectedCluster, postEndpoints, selectedTeam]);
   const fetchGrafanaUrl = `/api/clusters`;
   const request = useFetch(fetchGrafanaUrl);
   const fetchGrafana = async () => {
@@ -701,11 +701,11 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     if (postEndpointsData) {
       setOpen(true);
       setTimeout(()=>{
-        history.push(`/job/${selectedCluster}/${jobId.current}`);
+        history.push(`/job/${selectedTeam}/${selectedCluster}/${jobId.current}`);
       }, 2000)
 
     }
-  }, [history, postEndpointsData, selectedCluster])
+  }, [history, postEndpointsData, selectedCluster, selectedTeam])
 
   React.useEffect(() => {
     if (postJobError) {
