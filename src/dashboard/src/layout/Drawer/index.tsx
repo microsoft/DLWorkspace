@@ -71,13 +71,13 @@ const NavigationList: React.FC = () => {
         <ListItemText>View and Manage Jobs</ListItemText>
       </LinkListItem>
       <LinkListItem to="/jobs-legacy">
-        <ListItemText secondary="legacy">View and Manage Jobs</ListItemText>
+        <ListItemText secondary="(legacy)">View and Manage Jobs</ListItemText>
       </LinkListItem>
       <LinkListItem to="/clusters">
         <ListItemText>Cluster Status</ListItemText>
       </LinkListItem>
       <LinkListItem to="/cluster-status">
-        <ListItemText secondary="legacy">Cluster Status</ListItemText>
+        <ListItemText secondary="(legacy)">Cluster Status</ListItemText>
       </LinkListItem>
       <ListItem button>
         <ListItemText>

@@ -33,10 +33,10 @@ import { Provider as DrawerProvider } from "./layout/Drawer/Context";
 const Home = React.lazy(() => import('./pages/Home'));
 const SignIn = React.lazy(() => import('./pages/SignIn'));
 const Submission = React.lazy(() => import('./pages/Submission'));
-const JobsLegacy = React.lazy(() => import('./pages/JobsLegacy'));
 const Jobs = React.lazy(() => import('./pages/Jobs'));
-const JobLegacy = React.lazy(() => import('./pages/JobLegacy'));
+const JobsLegacy = React.lazy(() => import('./pages/JobsLegacy'));
 const Job = React.lazy(() => import('./pages/Job'));
+const JobLegacy = React.lazy(() => import('./pages/JobLegacy'));
 const ClusterStatus = React.lazy( () => import('./pages/ClusterStatus'));
 const Clusters = React.lazy(() => import('./pages/Clusters'));
 const Cluster = React.lazy(() => import('./pages/Cluster'));
@@ -131,6 +131,8 @@ const Layout: React.FC<RouteComponentProps> = ({ location, history }) => {
               <Route strict exact path="/clusters/:clusterId" component={Cluster}/>
 
               <Route path="/cluster-status" component={ClusterStatus}/>
+
+              <Redirect path="/job/:team/:clusterId/:jobId" to="/jobs/:clusterId/:jobId"/>
 
               <Redirect to="/"/>
             </Switch>
