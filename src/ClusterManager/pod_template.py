@@ -106,10 +106,13 @@ class JobTemplate(object):
         # TODO: Make mountpoints independent of job.get_plugins
         params["mountpoints"] = [mp.to_dict() for mp in job.mountpoints]
 
-        # Set NCCL_IB_DISABLE=1 if specified
-        nccl_ib_disable = job.get_nccl_ib_disable()
-        if nccl_ib_disable is not None and nccl_ib_disable is True:
-            params["nccl_ib_disable"] = True
+        # Set up system environment variables if any
+        system_envs = job.get_system_envs()
+        for env_name, env_val in system_envs.items():
+            params["envs"].append({
+                "name": env_name,
+                "value": env_val
+            })
 
         return params, None
 

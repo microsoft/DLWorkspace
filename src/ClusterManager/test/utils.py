@@ -182,6 +182,14 @@ def load_infiniband_mounts(args):
     } for mp in mps]
 
 
+def load_system_envs(args):
+    config = get_config(args.config)
+    system_envs = walk_json_safe(config, "system_envs")
+    if system_envs is None or not isinstance(system_envs, dict):
+        system_envs = {}
+    return system_envs
+
+
 def mountpoint_in_volumes(mp, volumes):
     mount_type = mp["mountType"]
     if mount_type == "hostPath":
