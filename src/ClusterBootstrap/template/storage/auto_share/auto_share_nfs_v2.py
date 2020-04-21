@@ -103,15 +103,17 @@ def mount_fileshare(verbose=True):
         datafile.close()
     nMounts = 0
     for mnt_itm in config.values():
-        # gives mounted information only, would not write anything or carry out mount action
+        # to make the code backward compatible
+        client_mount_key = "client_mount_root" if "fileshare_system" in mnt_itm else "remote_mount_path"
         for triplet in mnt_itm["fileshares"]:
+            # gives mounted information only, would not write anything or carry out mount action
             output = pipe_with_output("mount", "grep {}".format(
-                triplet["client_mount_root"]), verbose=False)
+                triplet[client_mount_key]), verbose=False)
             umounts, existmounts = [], []
             # we would have only 1 line, since we now mount at leaf-path level
             for line in output.splitlines():
                 umounts, existmounts = confirm_mounted(
-                    line, triplet["client_mount_root"], umounts, existmounts, verbose)
+                    line, triplet[client_mount_key], umounts, existmounts, verbose)
             umounts.sort()
             # Examine mount point, unmount those file shares that fails.
             for um in umounts:
@@ -122,16 +124,20 @@ def mount_fileshare(verbose=True):
             if len(existmounts) <= 0:
                 nMounts += 1
                 exec_with_output(
-                    "mkdir -p {}".format(triplet["client_mount_root"]), verbose=verbose)
-                if mnt_itm["fileshare_system"] == "nfs":
+                    "mkdir -p {}".format(triplet[client_mount_key]), verbose=verbose)
+                if "fileshare_system" not in mnt_itm:
+                    private_ip = mnt_itm.get("private_ip", mnt_itm["private_ip_address"])
+                    mount_cmd = "mount {}:{} {} -o {} ".format(private_ip,
+                    triplet["nfs_local_path"], triplet["remote_mount_path"], mnt_itm["options"])
+                elif mnt_itm["fileshare_system"] == "nfs":
                     mount_cmd = "mount {}:{} {} -o {} ".format(mnt_itm["private_ip"],
                                                                triplet["server_path"], triplet["client_mount_root"], mnt_itm["options"])
-                if mnt_itm["fileshare_system"] == "lustre":
+                elif mnt_itm["fileshare_system"] == "lustre":
                     mount_cmd = "mount {}:{} {} -t lustre".format(
                         mnt_itm["private_ip"], triplet["server_path"], triplet["client_mount_root"])
                 exec_with_output(mount_cmd, verbose=verbose)
                 exec_with_output("sudo chmod 777 {}".format(
-                    triplet["client_mount_root"]), verbose=verbose)
+                    triplet[client_mount_key]), verbose=verbose)
     if nMounts > 0:
         time.sleep(1)
 
@@ -142,31 +148,38 @@ def link_fileshare(verbose=True):
         datafile.close()
     (retcode, output, err) = exec_with_output("sudo mount", verbose=False)
     for mnt_itm in config.values():
+        # to make the code backward compatible
+        client_mount_key = "client_mount_root" if "fileshare_system" in mnt_itm else "remote_mount_path"
+        local_path_key = "storage_local_path" if "fileshare_system" in mnt_itm else "nfs_local_path"
         for triplet in mnt_itm["fileshares"]:
-            if output.find(triplet["client_mount_root"]) < 0:
+            if output.find(triplet[client_mount_key]) < 0:
                 logging.debug("!!!Warning!!! {} has not been mounted at {} ".format(
-                    triplet["storage_local_path"], triplet["client_mount_root"]))
+                    triplet[local_path_key], triplet[client_mount_key]))
                 logging.debug(output)
                 continue
-            for link_itm in triplet["client_links"]:
-                if link_itm["src"][0] == '/':
-                    link_src = link_itm["src"]
-                else:
-                    link_src = os.path.join(
-                        triplet["client_mount_root"], link_itm["src"])
-                # abspath would also remove tailing '/' if it's in ther path string
-                # we need to get rid of tailing '/' of link_dst,
-                # otherwise the softlink itself would not be deleted
-                link_dst = os.path.abspath(link_itm["dst"])
-                link_src = os.path.abspath(link_src)
-                exec_with_output(
-                    "mkdir -p {}".format(os.path.dirname(link_dst)), verbose=verbose)
-                exec_with_output(
-                    "mkdir -p {}".format(link_src), verbose=verbose)
-                exec_with_output(
-                    "ln -s {} {}".format(link_src, link_dst), verbose=verbose)
-                exec_with_output("chmod 777 {}".format(
-                    link_src), verbose=verbose)
+            if "fileshare_system" in mnt_itm:
+                for link_itm in triplet["client_links"]:
+                    if link_itm["src"][0] == '/':
+                        link_src = link_itm["src"]
+                    else:
+                        link_src = os.path.join(
+                            triplet["client_mount_root"], link_itm["src"])
+                    # abspath would also remove tailing '/' if it's in ther path string
+                    # we need to get rid of tailing '/' of link_dst,
+                    # otherwise the softlink itself would not be deleted
+                    link_dst = os.path.abspath(link_itm["dst"])
+                    link_src = os.path.abspath(link_src)
+                    exec_with_output(
+                        "mkdir -p {}".format(os.path.dirname(link_dst)), verbose=verbose)
+                    exec_with_output(
+                        "mkdir -p {}".format(link_src), verbose=verbose)
+                    exec_with_output(
+                        "ln -s {} {}".format(link_src, link_dst), verbose=verbose)
+                    exec_with_output("chmod 777 {}".format(
+                        link_src), verbose=verbose)
+            else:
+                exec_wo_output("mkdir -p {}; sudo ln -s {} {}; ".format(
+                    os.path.dirname(triplet["remote_link_path"]), triplet["remote_mount_path"], triplet["remote_link_path"]))
 
 
 def start_logging(logdir='/var/log/auto_share'):
