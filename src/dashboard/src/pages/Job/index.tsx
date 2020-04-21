@@ -41,7 +41,7 @@ const JobContent: FunctionComponent = () => {
     if (team === undefined) return undefined;
     const teamCluster = team.clusters.filter((cluster: any) => cluster.id === clusterId)[0];
     return teamCluster;
-  }, [job, teams]);
+  }, [job, teams, clusterId]);
   const accessible = useMemo(() => {
     return teamCluster !== undefined;
   }, [teamCluster]);
