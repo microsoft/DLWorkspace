@@ -21,6 +21,8 @@ from flask_cors import CORS
 
 import prometheus_client
 from prometheus_client import Histogram
+from prometheus_client.core import REGISTRY
+from prometheus_client.core import GaugeMetricFamily
 
 logger = logging.getLogger(__name__)
 
@@ -84,8 +86,12 @@ def get_monthly_idleness(prometheus_url):
     step_seconds = STEP_MINUTE * 60
 
     now = datetime.datetime.now()
-    delta = datetime.timedelta(days=31)
-    one_month_ago = int(datetime.datetime.timestamp(now - delta))
+    seven_day_ago = int(
+        datetime.datetime.timestamp(now - datetime.timedelta(days=1)))
+    fourteen_days_ago = int(
+        datetime.datetime.timestamp(now - datetime.timedelta(days=14)))
+    one_month_ago = int(
+        datetime.datetime.timestamp(now - datetime.timedelta(days=31)))
     now = int(datetime.datetime.timestamp(now))
 
     args = urllib.parse.urlencode({
@@ -104,6 +110,7 @@ def get_monthly_idleness(prometheus_url):
     prometheus_request_histogram.observe(elapsed)
     logger.info("request spent %.2fs", elapsed)
 
+    start = timeit.default_timer()
     if walk_json_field_safe(obj, "status") != "success":
         logger.warning("requesting %s failed, body is %s", url, obj)
         return None
@@ -113,12 +120,27 @@ def get_monthly_idleness(prometheus_url):
     default = lambda: {"booked": 0, "idle": 0, "nonidle_util_sum": 0.0}
 
     # the first level is vc, the second level is user
-    vc_level = collections.defaultdict(
-        lambda: collections.defaultdict(default))
+    vc_levels = [
+        ("7d", seven_day_ago,
+         collections.defaultdict(lambda: collections.defaultdict(default))),
+        ("14d", fourteen_days_ago,
+         collections.defaultdict(lambda: collections.defaultdict(default))),
+        ("31d", one_month_ago,
+         collections.defaultdict(lambda: collections.defaultdict(default))),
+    ]
 
     # the first level is vc, the second level is user, the third level is job
-    user_level = collections.defaultdict(lambda: collections.defaultdict(
-        lambda: collections.defaultdict(default)))
+    user_levels = [
+        ("7d", seven_day_ago,
+         collections.defaultdict(lambda: collections.defaultdict(
+             lambda: collections.defaultdict(default)))),
+        ("14d", fourteen_days_ago,
+         collections.defaultdict(lambda: collections.defaultdict(
+             lambda: collections.defaultdict(default)))),
+        ("31d", one_month_ago,
+         collections.defaultdict(lambda: collections.defaultdict(
+             lambda: collections.defaultdict(default)))),
+    ]
 
     for metric in metrics:
         username = walk_json_field_safe(metric, "metric", "username")
@@ -135,50 +157,68 @@ def get_monthly_idleness(prometheus_url):
         if values is None or len(values) == 0:
             continue
 
-        booked_seconds = values[-1][0] - values[0][0] + step_seconds
-        idleness_seconds = 0
-        nonidle_util_sum = 0.0
-
         for time, utils in values:
             utils = float(utils)
-            if utils <= IDLENESS_THRESHOLD:
-                idleness_seconds += step_seconds
-            else:
-                nonidle_util_sum += utils * step_seconds
 
-        vc_level[vc_name][username]["booked"] += booked_seconds
-        vc_level[vc_name][username]["idle"] += idleness_seconds
-        vc_level[vc_name][username]["nonidle_util_sum"] += nonidle_util_sum
+            for _, ago, vc_level in vc_levels:
+                if ago < time:
+                    continue
 
-        user_level[vc_name][username][job_id]["booked"] += booked_seconds
-        user_level[vc_name][username][job_id]["idle"] += idleness_seconds
-        user_level[vc_name][username][job_id][
-            "nonidle_util_sum"] += nonidle_util_sum
+                vc_level[vc_name][username]["booked"] += step_seconds
+                if utils <= IDLENESS_THRESHOLD:
+                    vc_level[vc_name][username]["idle"] += step_seconds
+                else:
+                    vc_level[vc_name][username][
+                        "nonidle_util_sum"] += utils * step_seconds
 
-    for vc_name, vc_values in vc_level.items():
-        for username, user_val in vc_values.items():
-            nonidle_time = user_val["booked"] - user_val["idle"]
-            nonidle_util_sum = user_val["nonidle_util_sum"]
+            for _, ago, user_level in user_levels:
+                if ago < time:
+                    continue
 
-            if nonidle_time == 0:
-                user_val["nonidle_util"] = 0.0
-            else:
-                user_val["nonidle_util"] = nonidle_util_sum / nonidle_time
-            user_val.pop("nonidle_util_sum")
+                user_level[vc_name][username][job_id]["booked"] += step_seconds
+                if utils <= IDLENESS_THRESHOLD:
+                    user_level[vc_name][username][job_id][
+                        "idle"] += step_seconds
+                else:
+                    user_level[vc_name][username][job_id][
+                        "nonidle_util_sum"] += utils * step_seconds
 
-    for vc_name, vc_values in user_level.items():
-        for username, user_values in vc_values.items():
-            for job_id, job_val in user_values.items():
-                nonidle_time = job_val["booked"] - job_val["idle"]
-                nonidle_util_sum = job_val["nonidle_util_sum"]
+    for _, _, vc_level in vc_levels:
+        for vc_name, vc_values in vc_level.items():
+            for username, user_val in vc_values.items():
+                nonidle_time = user_val["booked"] - user_val["idle"]
+                nonidle_util_sum = user_val["nonidle_util_sum"]
 
                 if nonidle_time == 0:
-                    job_val["nonidle_util"] = 0.0
+                    user_val["nonidle_util"] = 0.0
                 else:
-                    job_val["nonidle_util"] = nonidle_util_sum / nonidle_time
-                job_val.pop("nonidle_util_sum")
+                    user_val["nonidle_util"] = nonidle_util_sum / nonidle_time
+                user_val.pop("nonidle_util_sum")
 
-    return {"vc_level": vc_level, "user_level": user_level}
+    for _, _, user_level in user_levels:
+        for vc_name, vc_values in user_level.items():
+            for username, user_values in vc_values.items():
+                for job_id, job_val in user_values.items():
+                    nonidle_time = job_val["booked"] - job_val["idle"]
+                    nonidle_util_sum = job_val["nonidle_util_sum"]
+
+                    if nonidle_time == 0:
+                        job_val["nonidle_util"] = 0.0
+                    else:
+                        job_val[
+                            "nonidle_util"] = nonidle_util_sum / nonidle_time
+                    job_val.pop("nonidle_util_sum")
+
+    result_vc_levels = {}
+    for ago_s, _, vc_level in vc_levels:
+        result_vc_levels[ago_s] = vc_level
+    result_user_levels = {}
+    for ago_s, _, user_level in user_levels:
+        result_user_levels[ago_s] = user_level
+
+    elapsed = timeit.default_timer() - start
+    logger.info("calculation spent %.2fs", elapsed)
+    return {"vc_level": result_vc_levels, "user_level": result_user_levels}
 
 
 def refresher(prometheus_url, atomic_ref):
@@ -193,6 +233,60 @@ def refresher(prometheus_url, atomic_ref):
         time.sleep(5 * 60)
 
 
+class CustomCollector(object):
+    def __init__(self, atomic_ref):
+        self.atomic_ref = atomic_ref
+
+    def collect(self):
+        job_booked = GaugeMetricFamily("job_booked_gpu_second",
+                                       "booked gpu second per job",
+                                       labels=["vc", "user", "job_id", "since"])
+
+        job_idle = GaugeMetricFamily("job_idle_gpu_second",
+                                     "idle gpu hour per job",
+                                     labels=["vc", "user", "job_id", "since"])
+
+        job_non_idle_utils = GaugeMetricFamily(
+            "job_non_idle_utils",
+            "non idle gpu avg utils per job",
+            labels=["vc", "user", "job_id", "since"])
+
+        user_non_idle_utils = GaugeMetricFamily(
+            "user_non_idle_utils",
+            "non idle gpu avg utils per user",
+            labels=["vc", "user", "since"])
+
+        result = self.atomic_ref.get()
+        if result is None:
+            # https://stackoverflow.com/a/6266586
+            # yield nothing
+            return
+            yield
+
+        for ago, user_level in result["user_level"].items():
+            for vc_name, vc_values in user_level.items():
+                for username, user_values in vc_values.items():
+                    for job_id, job_val in user_values.items():
+                        job_booked.add_metric([vc_name, username, job_id, ago],
+                                              job_val["booked"])
+                        job_idle.add_metric([vc_name, username, job_id, ago],
+                                            job_val["idle"])
+                        job_non_idle_utils.add_metric(
+                            [vc_name, username, job_id, ago],
+                            job_val["nonidle_util"])
+
+        for ago, vc_level in result["vc_level"].items():
+            for vc_name, vc_values in vc_level.items():
+                for username, user_val in vc_values.items():
+                    user_non_idle_utils.add_metric([vc_name, username, ago],
+                                                   user_val["nonidle_util"])
+
+        yield job_booked
+        yield job_idle
+        yield job_non_idle_utils
+        yield user_non_idle_utils
+
+
 def serve(prometheus_url, port):
     app = Flask(__name__)
     CORS(app)
@@ -205,6 +299,8 @@ def serve(prometheus_url, port):
                          daemon=True)
     t.start()
 
+    REGISTRY.register(CustomCollector(atomic_ref))
+
     @app.route("/gpu_idle", methods=["GET"])
     def get_gpu_idleness():
         vc_name = request.args.get("vc")
@@ -214,14 +310,14 @@ def serve(prometheus_url, port):
 
         if user_name is None:
             result = atomic_ref.get()
-            vc_level = result["vc_level"]
+            vc_level = result["vc_level"]["31d"]
             if result is None or vc_level.get(vc_name) is None:
                 return flask.jsonify({})
 
             return flask.jsonify(vc_level[vc_name])
         else:
             result = atomic_ref.get()
-            user_level = result["user_level"]
+            user_level = result["user_level"]["31d"]
             if result is None or user_level.get(vc_name) is None or user_level[
                     vc_name].get(user_name) is None:
                 return flask.jsonify({})
@@ -257,10 +353,7 @@ if __name__ == "__main__":
                         required=True,
                         help="Prometheus url, eg: http://127.0.0.1:9091")
 
-    parser.add_argument("--port",
-                        type=int,
-                        default=9092,
-                        help="port to listen")
+    parser.add_argument("--port", type=int, default=9092, help="port to listen")
 
     args = parser.parse_args()
 
