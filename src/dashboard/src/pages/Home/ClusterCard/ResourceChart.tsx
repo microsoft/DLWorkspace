@@ -39,13 +39,14 @@ const getLabelContent = ({ viewBox, offset, ...props }: ComponentPropsWithoutRef
   const { cx, cy, innerRadius, outerRadius } = viewBox as PolarViewBox;
   const x = Number(cx) - Number(offset);
   const y = Number(cy) - (Number(innerRadius) + Number(outerRadius)) / 2;
+  const width = x;
   const { fill, children } = props
   return (
     <Text
       textAnchor="end"
       verticalAnchor="middle"
       fontWeight="bold"
-      {...{ x, y, fill, children }}
+      {...{ x, y, width, fill, children }}
     />
   );
 };
@@ -89,11 +90,12 @@ const ResourceChart: FunctionComponent = () => {
 
   const cpuLabelProps = useMemo(() => {
     if (cpu === undefined) return {};
+    const totalCPUs = `${cpuTotal} CPU${cpuTotal === 1 ? '' : 's'}`;
     if (active === undefined || active.pie === 'gpu') {
-      return { children: `${cpuTotal} CPU${cpuTotal === 1 ? '' : 's'}` }
+      return { children: totalCPUs }
     }
     const { name, value } = cpu[active.index];
-    const children = `${value} ${capitalize(name)} CPU${value === 1 ? '' : 's'}`;
+    const children = `${value} of ${totalCPUs} ${capitalize(name)}`;
     if (name === 'unschedulable') {
       return { fill: colors.red[500] , children };
     } else {
@@ -102,11 +104,12 @@ const ResourceChart: FunctionComponent = () => {
   }, [active, cpu, cpuTotal]);
   const gpuLabelProps = useMemo(() => {
     if (gpu === undefined) return {};
+    const totalGPUs = `${gpuTotal} GPU${gpuTotal === 1 ? '' : 's'}`;
     if (active === undefined || active.pie === 'cpu') {
-      return { children: `${gpuTotal} GPU${gpuTotal === 1 ? '' : 's'}` }
+      return { children: totalGPUs }
     }
     const { name, value } = gpu[active.index];
-    const children = `${value} ${capitalize(name)} GPU${value === 1 ? '' : 's'}`;
+    const children = `${value} of ${totalGPUs} ${capitalize(name)}`;
     if (name === 'unschedulable') {
       return { fill: colors.red[500] , children };
     } else {
