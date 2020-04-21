@@ -65,6 +65,9 @@ local_fast_storage: {{cnf["local_fast_storage"]}}
 infiniband_mounts: {{cnf["infiniband_mounts"]}}
 vc_without_shared_storage: {{cnf["vc_without_shared_storage"]}}
 
+# Environment variables
+system_envs: {{cnf["system_envs"]}}
+
 # TODO: Remove special cpuworker configuration
 enable_cpuworker: {{cnf["enable_cpuworker"]}}
 default_cpu_sku: {{cnf["default_cpu_sku"]}}
@@ -72,7 +75,6 @@ sku_meta: {{cnf["sku_meta"]}}
 
 enable_custom_registry_secrets: {{cnf["enable_custom_registry_secrets"]}}
 master_token: {{cnf["master_token"]}}
-nccl_ib_disable: {{cnf["nccl_ib_disable"]}}
 vc_node_hard_assignment: {{cnf["vc_node_hard_assignment"]}}
 
 gpu_reporter: 'http://{{cnf["prometheus"]["host"]}}:{{cnf["prometheus"]["reporter"]["port"]}}'

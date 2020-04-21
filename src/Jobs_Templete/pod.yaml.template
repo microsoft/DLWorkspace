@@ -265,10 +265,6 @@ spec:
     - name: DLTS_PUBLIC_SSH_KEY_{{loop.index}}
       value: "{{key_value}}"
     {% endfor %}
-    {% if job["nccl_ib_disable"] %}
-    - name: NCCL_IB_DISABLE
-      value: "1"
-    {% endif %}
 
   imagePullSecrets:
   {% if job["plugins"] %}
