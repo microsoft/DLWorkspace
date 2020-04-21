@@ -493,6 +493,17 @@ class TestWatchdog(unittest.TestCase):
         self.assertEqual(1, vc_usage.map["some_vc_name"]["P80"][0])
         self.assertEqual(0, vc_usage.map["some_vc_name"]["P80"][1])
 
+        objs = json.loads(
+            self.get_data_test_input("data/dlts_unscheduled_pods.json"))
+        for obj in objs:
+            watchdog.parse_pod_item(obj, pod_gauge, container_gauge, pod_info,
+                                    [], vc_usage)
+
+        self.assertEqual(1, len(vc_usage.map))
+        self.assertEqual(2, len(vc_usage.map["some_vc_name"]))
+        self.assertEqual(3, vc_usage.map["some_vc_name"]["P40"][0])
+        self.assertEqual(2, vc_usage.map["some_vc_name"]["P40"][1])
+
     def test_parse_monitor_response_time(self):
         obj = json.loads(
             self.get_data_test_input(
@@ -527,6 +538,32 @@ class TestWatchdog(unittest.TestCase):
 
         self.assertEqual(10, endpoint0.timeout)
         self.assertEqual(10, endpoint1.timeout)
+
+    def test_process_unscheduled_pods(self):
+        objs = json.loads(
+            self.get_data_test_input("data/dlts_unscheduled_pods.json"))
+
+        pod_gauge = watchdog.gen_pai_pod_gauge()
+        container_gauge = watchdog.gen_pai_container_gauge()
+        pods_info = collections.defaultdict(lambda: [])
+
+        vc_usage = watchdog.VcUsage()
+
+        for obj in objs:
+            watchdog.parse_pod_item(obj, pod_gauge, container_gauge, pods_info,
+                                    [], vc_usage)
+
+        self.assertEqual(1, len(pods_info))
+        self.assertEqual(2, len(pods_info["unscheduled"]))
+
+        cluster_gpu_info = watchdog.ClusterGPUInfo()
+        cluster_gpu_info.available = 10
+        cluster_gpu_info.preemptable_available = 10
+
+        watchdog.process_unscheduled_pods(pods_info, cluster_gpu_info)
+
+        self.assertEqual(9, cluster_gpu_info.available)
+        self.assertEqual(8, cluster_gpu_info.preemptable_available)
 
 
 if __name__ == '__main__':

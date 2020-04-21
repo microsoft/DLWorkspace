@@ -5,16 +5,11 @@ import argparse
 import logging
 import glob
 import datetime
-from multiprocessing import Pool
 import sys
 
 import utils
 
 logger = logging.getLogger(__file__)
-
-
-def run_case(case):
-    return case(args)
 
 
 def should_run(model_name, case_name, full_name, targets):
@@ -67,20 +62,27 @@ def main(args):
     logger.info("will run %d cases %s", len(case_names), case_names)
     num_proc = min(args.process, len(cases))
 
-    with Pool(processes=num_proc) as pool:
-        result = pool.map(run_case, cases)
+    result = utils.run_cases_in_parallel(cases, args, num_proc)
 
     failed = []
-    for i in range(len(case_names)):
-        if result[i] is not True:
+    unfinished = []
+    for i, case_name in enumerate(case_names):
+        if result[i] is False:
             continue
-        failed.append(case_names[i])
+        elif result[i] is True:
+            failed.append(case_name)
+        elif result[i] is None:
+            unfinished.append(case_name)
+        else:
+            logger.warning("unknown return value for case %s", case_name)
 
-    logger.info("spent %s in executing %d cases %s, %d failed %s",
-                datetime.datetime.now() - start, len(case_names), case_names,
-                len(failed), ",".join(failed))
+    logger.info("spent %s in executing %d cases %s",
+                datetime.datetime.now() - start, len(case_names), case_names)
 
-    if len(failed) > 0:
+    logger.info("%d failed %s", len(failed), ",".join(failed))
+    logger.info("%d unfinished %s", len(unfinished), ",".join(unfinished))
+
+    if len(failed) + len(unfinished) > 0:
         sys.exit(1)
     else:
         sys.exit(0)

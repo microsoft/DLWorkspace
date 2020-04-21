@@ -930,5 +930,6 @@
   },
   "timezone": "browser",
   "title": "Node Status",
-  "version": 1
+  "version": 1,
+  "uid": "node-status"
 }}

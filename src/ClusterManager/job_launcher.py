@@ -252,6 +252,26 @@ class Launcher(object):
         return api_response
 
     @record
+    def _get_deployment(self, name):
+        api_response = self.k8s_AppsAPI.read_namespaced_deployment_scale(
+            namespace=self.namespace,
+            pretty=self.pretty,
+            name=name
+        )
+        logger.debug("Get pods: {}".format(api_response))
+        return api_response
+
+    @record
+    def _patch_deployment(self, name, body):
+        api_response = self.k8s_AppsAPI.patch_namespaced_deployment_scale(
+            namespace=self.namespace,
+            pretty=self.pretty,
+            name=name,
+            body=body
+        )
+        return api_response
+
+    @record
     def _create_service(self, body):
         api_response = self.k8s_CoreAPI.create_namespaced_service(
             namespace=self.namespace,
@@ -786,6 +806,9 @@ class LauncherStub(Launcher):
             logger.error("Kill job failed with errors: {}".format(errors))
             return False
 
+    def scale_job(self, job):
+        pass
+
 
 class PythonLauncher(Launcher):
     def __init__(self, pool_size=3):
@@ -864,7 +887,7 @@ class PythonLauncher(Launcher):
             for pod in pods
             if pod["kind"] == "Deployment"
         ]
-        self._cleanup_deployment(pod_names)
+        self._cleanup_deployment(deployment_names)
         created = []
         for pod in pods:
             if pod["kind"] == "Pod":
@@ -1123,6 +1146,26 @@ class PythonLauncher(Launcher):
                 dataHandler.UpdateJobTextFields(conditionFields, dataFields)
                 logger.error("Kill job failed with errors: {}".format(errors))
                 return False
+
+    def scale_job(self, job):
+        assert ("jobId" in job)
+        job["cluster"] = config
+        job_object, errors = JobSchema().load(job)
+        job_object.params = json.loads(b64decode(job["jobParams"]))
+        if job_object.params["jobtrainingtype"] != "InferenceJob":
+            return
+
+        name = job_object.job_id + "-deployment"
+        deployment = self._get_deployment(name=name)
+        replicas = deployment.spec.replicas
+        new_replicas = int(job_object.params["resourcegpu"])
+        if replicas == new_replicas:
+            return
+
+        deployment.spec.replicas = new_replicas
+        self._patch_deployment(name=name, body=deployment)
+        logger.debug("Scale inference job %s from %d to %d." % (job_object.job_id, replicas, new_replicas))
+
 
     def run(self, queue):
         # TODO maintain a data_handler so do not need to init it every time

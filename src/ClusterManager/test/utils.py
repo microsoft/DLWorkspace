@@ -11,6 +11,9 @@ import yaml
 import base64
 import functools
 import inspect
+import re
+import multiprocessing
+
 import requests
 
 STATUS_YAML = "status.yaml"
@@ -37,6 +40,7 @@ def walk_json_safe(obj, *fields):
 
 
 def case(unstable=False):
+    """ return False on success, True on failed, None on unfinished """
     def decorator(fn):
         @functools.wraps(fn)
         def wrapped(*args, **kwargs):
@@ -49,6 +53,8 @@ def case(unstable=False):
                     logger.info("%s ...(%s times)", full_name, times)
                     fn(*args, **kwargs)
                     return False
+                except KeyboardInterrupt:
+                    return None
                 except Exception:
                     logger.exception("executing %s failed", full_name)
                     continue
@@ -63,12 +69,77 @@ def case(unstable=False):
     return decorator
 
 
-def load_azure_blob_config(config_path, mount_path):
-    config_path = os.path.join(config_path, "config.yaml")
+def run_cases_in_parallel(cases, args, pool_size):
+    def wrapper(queue, case, *args, **kwargs):
+        result = None
+        try:
+            result = case(*args, **kwargs)
+        finally:
+            queue.put(result)
 
+    pool = set()
+    queues = [multiprocessing.Queue() for _ in cases]
+
+    try:
+        for i, case in enumerate(cases):
+            if len(pool) >= pool_size:
+                joined = False
+                while not joined:
+                    for p in pool:
+                        p.join(0.1)
+                        if not p.is_alive():
+                            joined = True
+                            pool.remove(p)
+                            break
+
+            processor = functools.partial(wrapper, queues[i], case)
+            p = multiprocessing.Process(target=processor,
+                                        args=(args,),
+                                        name="worker-" + str(i))
+            p.start()
+            pool.add(p)
+
+        for p in pool:
+            p.join()
+    except KeyboardInterrupt:
+        pass
+
+    def getter(queue):
+        if queue.empty():
+            return None
+        return queue.get_nowait()
+
+    return list(map(getter, queues))
+
+
+def snake_case(s):
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', s)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+
+def get_alias(email):
+    if not isinstance(email, str):
+        return None
+    return email.split("@")[0]
+
+
+def get_config(config_path):
+    config_path = os.path.join(config_path, "config.yaml")
     with open(config_path) as f:
         config = yaml.full_load(f)
+    return config
 
+
+def get_launcher(config_path):
+    config = get_config(config_path)
+    launcher = walk_json_safe(config, "job-manager", "launcher")
+    if launcher is None:
+        launcher = "python"
+    return launcher
+
+
+def load_azure_blob_config(config_path, mount_path):
+    config = get_config(config_path)
     blob_config = walk_json_safe(config, "integration-test", "azure-blob")
 
     if walk_json_safe(blob_config, "account") is None or \
@@ -84,6 +155,125 @@ def load_azure_blob_config(config_path, mount_path):
             "mountPath": mount_path,
         }]
     }
+
+
+def load_cluster_nfs_mountpoints(args, job_id):
+    config = get_config(args.config)
+    cluster_nfs = walk_json_safe(config, "cluster_nfs")
+
+    if walk_json_safe(cluster_nfs, "server") is None or \
+            walk_json_safe(cluster_nfs, "path") is None:
+        raise RuntimeError("no cluster_nfs configured")
+
+    server = walk_json_safe(cluster_nfs, "server")
+    path = walk_json_safe(cluster_nfs, "path")
+    alias = get_alias(args.email)
+
+    job_path = get_job_detail(args.rest, args.email,
+                              job_id)["jobParams"]["jobPath"]
+
+    mps = [
+        {
+            # /home/<alias>
+            "server": server,
+            "path": os.path.join(path, "work", alias),
+            "mountPath": "/home/%s" % alias,
+            "mountType": "nfs",
+        },
+        {
+            # /job
+            "server": server,
+            "path": os.path.join(path, "work", ""),
+            "mountPath": "/job",
+            "mountType": "nfs",
+            "subPath": job_path
+        },
+        {
+            # /work
+            "server": server,
+            "path": os.path.join(path, "work", alias),
+            "mountPath": "/work",
+            "mountType": "nfs",
+        },
+        {
+            # /data
+            "server": server,
+            "path": os.path.join(path, "storage", ""),
+            "mountPath": "/data",
+            "mountType": "nfs",
+        }
+    ]
+
+    return mps
+
+
+def load_system_mountpoints(args):
+    config = get_config(args.config)
+    sys_mps = walk_json_safe(config, "system_mountpoints")
+    if sys_mps is None:
+        sys_mps = []
+    mps = []
+    for mp in sys_mps:
+        vc = mp.get("vc")
+        if vc is not None and vc != args.vc:
+            continue
+        if "mountType" not in mp:
+            mp["mountType"] = "hostPath"
+        mps.append(mp)
+    return mps
+
+
+def load_infiniband_mounts(args):
+    config = get_config(args.config)
+    mps = walk_json_safe(config, "infiniband_mounts")
+    if mps is None:
+        mps = []
+    return [{
+        "mountType": "hostPath",
+        "mountPath": mp["containerPath"],
+        "hostPath": mp["hostPath"],
+    } for mp in mps]
+
+
+def load_system_envs(args):
+    config = get_config(args.config)
+    system_envs = walk_json_safe(config, "system_envs")
+    if system_envs is None or not isinstance(system_envs, dict):
+        system_envs = {}
+    return system_envs
+
+
+def mountpoint_in_volumes(mp, volumes):
+    mount_type = mp["mountType"]
+    if mount_type == "hostPath":
+        path = mp["hostPath"]
+    elif mount_type == "nfs":
+        path = mp["path"]
+    else:
+        raise RuntimeError("Unrecognized mountpoint type %s" % mount_type)
+
+    for volume in volumes:
+        v = volume.to_dict().get(snake_case(mount_type))
+        if v and v["path"] == path:
+            return True
+    return False
+
+
+def mountpoint_in_volume_mounts(mp, volume_mounts):
+    for volume_mount in volume_mounts:
+        volume_mount = volume_mount.to_dict()
+        mount_path = volume_mount.get("mount_path")
+        sub_path = volume_mount.get("sub_path")
+        if mount_path == mp["mountPath"] and sub_path == mp.get("subPath"):
+            return True
+    return False
+
+
+def mountpoint_in_pod(mountpoint, pod):
+    volumes = pod.spec.volumes
+    volume_mounts = pod.spec.containers[0].volume_mounts
+    return mountpoint_in_volumes(mountpoint, volumes) and \
+        mountpoint_in_volume_mounts(mountpoint, volume_mounts)
 
 
 def gen_default_job_description(
@@ -240,6 +430,16 @@ def post_job(rest_url, job_spec):
     logger.info("job %s created", jid)
     return jid
 
+def scale_job(rest_url, email, job_id, resourcegpu):
+    args = urllib.parse.urlencode({
+        "userName": email,
+        "jobId": job_id,
+        "resourcegpu": resourcegpu,
+    })
+    url = urllib.parse.urljoin(rest_url, "ScaleJob") + "?" + args
+    resp = requests.get(url)
+    return resp.json()
+
 
 class run_job(object):
     def __init__(self, rest_url, job_spec):
@@ -346,7 +546,7 @@ def wait_endpoint_state(rest_url,
                         jid,
                         endpoint_id,
                         state="running",
-                        timeout=30):
+                        timeout=120):
     start = datetime.datetime.now()
     delta = datetime.timedelta(seconds=timeout)
 
@@ -392,12 +592,13 @@ def build_k8s_config(config_path):
     infra_host = find_infra_node_name(cluster_config["machines"])
 
     if os.path.isfile(cluster_path):
-        config.host = "https://%s.%s:1443" % (infra_host,
-                                          cluster_config["network"]["domain"])
+        config.host = "https://%s.%s:1443" % (
+            infra_host, cluster_config["network"]["domain"])
         basic_auth = cluster_config["basic_auth"]
     else:
         config.host = cluster_config["machines"][infra_host]["fqdns"]
-        with open(os.path.join(config_path, "clusterID", "k8s_basic_auth.yml")) as auf:
+        with open(os.path.join(config_path, "clusterID",
+                               "k8s_basic_auth.yml")) as auf:
             basic_auth = yaml.safe_load(auf)["basic_auth"]
 
     config.username = basic_auth.split(",")[1]
@@ -425,6 +626,19 @@ def kube_get_pods(config_path, namespace, label_selector):
                  namespace, api_response)
     return api_response.items
 
+def kube_get_deployment(config_path, namespace, name):
+    k8s_config = build_k8s_config(config_path)
+    api_client = ApiClient(configuration=k8s_config)
+
+    k8s_apps_api = k8s_client.AppsV1Api(api_client)
+    api_response = k8s_apps_api.read_namespaced_deployment_scale(
+        namespace=namespace,
+        pretty="pretty_example",
+        name=name,
+    )
+    logger.debug("%s got deployment from namespace %s: api_response", name,
+                namespace, api_response)
+    return api_response
 
 def kube_delete_pod(config_path, namespace, pod_name):
     k8s_config = build_k8s_config(config_path)

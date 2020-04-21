@@ -131,6 +131,8 @@ repairmanager:
     src: ./deploy/RepairManager/rule-config.yaml
   - dst: /etc/RepairManager/config/ecc-config.yaml
     src: ./deploy/RepairManager/ecc-config.yaml
+  - dst: /etc/RepairManager/config/etcd.conf.yaml
+    src: ./deploy/RepairManager/etcd.conf.yaml
 lustre_server:
   - dst: /etc/systemd/system/lustre_server.service
     src: ./deploy/storage/auto_share/lustre_server.service

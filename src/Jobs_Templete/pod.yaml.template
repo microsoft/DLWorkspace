@@ -186,37 +186,20 @@ spec:
     - mountPath: /etc/resolv.conf
       name: resolv
     {% endif %}
+    - mountPath: /dev/shm
+      name: dshm
     {% for mp in job["mountpoints"] %}
-    {% if mp.enabled %}
-    - mountPath: {{ mp.containerPath }}
-      name: {{ mp.name }}
-      {% if mp.readOnly %}
+    {% if mp["enabled"] %}
+    - name: {{ mp["name"] }}
+      mountPath: {{ mp["mountPath"] }}
+      {% if mp["subPath"] %}
+      subPath: {{ mp["subPath"] }}
+      {% endif %}
+      {% if mp["readOnly"] %}
       readOnly: true
       {% endif %}
     {% endif %}
     {% endfor %}
-    - mountPath: /dev/shm
-      name: dshm
-    {% if job["plugins"] %}
-      {% if job["plugins"]["blobfuse"] %}
-        {% for bf in job["plugins"]["blobfuse"] %}
-          {% if bf.enabled %}
-    - name: {{ bf.name }}
-      mountPath: {{ bf.mountPath }}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-    {% endif %}
-    {% if job["job_mountpoints"] %}
-      {% for mp in job["job_mountpoints"] %}
-        {% if mp["enabled"] %}
-          {% if mp["mountType"] == "nfs" %}
-    - name: {{ mp["name"] }}
-      mountPath: {{ mp["mountPath"] }}
-          {% endif %}
-        {% endif %}
-      {% endfor %}
-    {% endif %}
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
@@ -282,10 +265,6 @@ spec:
     - name: DLTS_PUBLIC_SSH_KEY_{{loop.index}}
       value: "{{key_value}}"
     {% endfor %}
-    {% if job["nccl_ib_disable"] %}
-    - name: NCCL_IB_DISABLE
-      value: "1"
-    {% endif %}
 
   imagePullSecrets:
   {% if job["plugins"] %}
@@ -308,60 +287,45 @@ spec:
     emptyDir: {}
   - name: dlts-runtime
     emptyDir: {}
+  - name: dshm
+    emptyDir:
+      medium: Memory
   {% if not job["dnsPolicy"] %}
   - name: resolv
     hostPath:
       path: /etc/resolv.conf
   {% endif %}
+  {% if job["mountpoints"] %}
   {% for mp in job["mountpoints"] %}
-  {% if mp.enabled %}
-  - name: {{ mp.name }}
-    {% if mp.emptydir %}
+  {% if mp["enabled"] %}
+  - name: {{ mp["name"] }}
+  {% if mp["emptydir"] %}
     emptyDir: {}
-    {% else %}
+  {% elif mp["mountType"] == "hostPath" %}
     hostPath:
-      path: {{ mp.hostPath }}
-      {% if mp.type %}
-      type: {{ mp.type }}
+      path: {{ mp["hostPath"] }}
+      {% if mp["type"] %}
+      type: {{ mp["type"] }}
       {% endif %}
-    {% endif %}
-  {% endif %}
-  {% endfor %}
-  - name: dshm
-    emptyDir:
-      medium: Memory
-  {% if job["plugins"] %}
-    {% if job["plugins"]["blobfuse"] %}
-      {% for bf in job["plugins"]["blobfuse"] %}
-        {% if bf.enabled %}
-  - name: {{ bf.name }}
+  {% elif mp["mountType"] == "nfs" %}
+    nfs:
+      server: {{ mp["server"] }}
+      path: {{ mp["path"] }}
+  {% elif mp["mountType"] == "blobfuse" %}
     flexVolume:
       driver: "azure/blobfuse"
       readOnly: false
       secretRef:
-        name: {{ bf.secreds }}
+        name: {{ mp["secreds"] }}
       options:
-        container: {{ bf.containerName }}
-        {% if bf["root_tmppath"] and bf["tmppath"] %}
-        tmppath: {{ bf["root_tmppath"] }}/{{ job["jobId"] }}/{{ job["podName"] }}/{{ bf["tmppath"] }}
+        container: {{ mp["containerName"] }}
+        {% if mp["rootTmppath"] and mp["tmppath"] %}
+        tmppath: {{ mp["rootTmppath"] }}/{{ job["jobId"] }}/{{ job["podName"] }}/{{ mp["tmppath"] }}
         {% endif %}
-        {% if bf["mountOptions"] %}
-        mountoptions: {{ bf["mountOptions"] }}
+        {% if mp["mountOptions"] %}
+        mountoptions: {{ mp["mountOptions"] }}
         {% endif %}
-        {% endif %}
-      {% endfor %}
-    {% endif %}
   {% endif %}
-  {% if job["job_mountpoints"] %}
-    {% for mp in job["job_mountpoints"] %}
-      {% if mp["enabled"] %}
-        {% if mp["mountType"] == "nfs" %}
-  - name: {{ mp["name"] }}
-    nfs:
-      server: {{ mp["server"] }}
-      path: {{ mp["path"] }}
-        {% endif %}
-      {% endif %}
-    {% endfor %}
   {% endif %}
-  priorityClassName: job-priority
+  {% endfor %}
+  {% endif %}

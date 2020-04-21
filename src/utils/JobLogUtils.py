@@ -31,23 +31,29 @@ if config.get("logging") == 'azure_blob':
 
     def GetJobLog(jobId, cursor=None, size=None):
         try:
-            blob_name = 'jobs.' + jobId
+            prefix = 'jobs.' + jobId
 
             lines = []
 
             try:
-                blob = append_blob_service.get_blob_properties(
+                blobs = append_blob_service.list_blobs(
                     container_name=container_name,
-                    blob_name=blob_name)
+                    prefix=prefix)
+                blobs = list(blobs)
+
+                if len(blobs) == 0:
+                    return ({}, None)
+
+                blob = max(blobs, key=lambda blob: blob.properties.last_modified)
                 start_range = max(0, blob.properties.content_length - CHUNK_SIZE)
                 chunk = append_blob_service.get_blob_to_bytes(
                     container_name=container_name,
-                    blob_name=blob_name,
+                    blob_name=blob.name,
                     start_range=start_range)
                 content = chunk.content.decode(
                     encoding='utf-8', errors='ignore')
 
-                content_lines = content.split('\n')
+                content_lines = content.splitlines()
                 for i, content_line in enumerate(content_lines, 1):
                     try:
                         line = loads(content_line)
@@ -56,7 +62,7 @@ if config.get("logging") == 'azure_blob':
                         if i == 1:
                             # Normal case, invalid JSON at the start of the log:
                             #     Directly continue to next line
-                            pass
+                            continue
 
                         # Bad case, invalid JSON in the middle / tail of the log:
                         #     Log it down and parse next lines

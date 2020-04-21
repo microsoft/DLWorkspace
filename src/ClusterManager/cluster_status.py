@@ -98,6 +98,7 @@ class ClusterStatus(object):
         self.node_statuses = node_statuses
         self.pod_statuses = pod_statuses
         self.jobs_without_pods = None
+        self.pods_without_node_assignment = None
         self.user_statuses = None
         self.user_statuses_preemptable = None
 
@@ -105,6 +106,7 @@ class ClusterStatus(object):
             "exclusion", # exclude self
             "jobs",
             "jobs_without_pods",
+            "pods_without_node_assignment",
             "node_statuses",
             "pod_statuses",
             "user_statuses",
@@ -123,6 +125,9 @@ class ClusterStatus(object):
     def compute(self):
         # Generate jobs without k8s pods
         self.gen_jobs_without_pods()
+
+        # Generate pods without node assignment
+        self.gen_pods_without_node_assignment()
 
         # Generate node_status list and pod_status list
         self.gen_node_status()
@@ -174,6 +179,12 @@ class ClusterStatus(object):
         self.jobs_without_pods = get_jobs_without_pods(self.jobs,
                                                        self.pod_statuses)
 
+    def gen_pods_without_node_assignment(self):
+        self.pods_without_node_assignment = {}
+        for name, pod_status in self.pod_statuses.items():
+            if pod_status["node_name"] is None:
+                self.pods_without_node_assignment[name] = pod_status
+
     def gen_node_status(self):
         self.node_status = [
             node_status for _, node_status in self.node_statuses.items()
@@ -203,6 +214,7 @@ class ClusterStatus(object):
                         "cpu": Cpu(),
                         "memory": Memory()
                     }
+                if username not in user_statuses_preemptable:
                     user_statuses_preemptable[username] = {
                         "gpu": Gpu(),
                         "cpu": Cpu(),
@@ -231,6 +243,19 @@ class ClusterStatus(object):
             job_res_params = get_resource_params_from_job_params(job_params)
             job_res = ClusterResource(params=job_res_params)
             username = job["userName"].split("@")[0].strip()
+
+            if username not in self.user_statuses:
+                self.user_statuses[username] = {
+                    "gpu": Gpu(),
+                    "cpu": Cpu(),
+                    "memory": Memory()
+                }
+            if username not in self.user_statuses_preemptable:
+                self.user_statuses_preemptable[username] = {
+                    "gpu": Gpu(),
+                    "cpu": Cpu(),
+                    "memory": Memory()
+                }
 
             preemption_allowed = job_params.get("preemptionAllowed", False)
             if not preemption_allowed:
@@ -280,6 +305,23 @@ class ClusterStatus(object):
                 self.memory_preemptable_used += job_res.memory
                 logger.info("Added job %s resource %s to preemptable used", job,
                             job_res)
+
+        # Account pods without node assignment.
+        # This occurs when fragmentation happens and job manager still let
+        # through jobs because there is still remaining quota.
+        for name, pod_status in self.pods_without_node_assignment.items():
+            if pod_status["preemption_allowed"] is False:
+                self.gpu_used += pod_status["gpu"]
+                self.cpu_used += pod_status["cpu"]
+                self.memory_used += pod_status["memory"]
+
+                self.gpu_available -= pod_status["gpu"]
+                self.cpu_available -= pod_status["cpu"]
+                self.memory_available -= pod_status["memory"]
+            else:
+                self.gpu_preemptable_used += pod_status["preemptable_gpu"]
+                self.cpu_preemptable_used += pod_status["preemptable_cpu"]
+                self.memory_preemptable_used += pod_status["preemptable_memory"]
 
     def gen_user_status(self):
         self.user_status = [{

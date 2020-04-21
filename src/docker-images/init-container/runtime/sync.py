@@ -175,39 +175,6 @@ def main(args):
         })
         sys.exit(ERROR_EXIT_CODE["environment"])
 
-    k8s_config.load_incluster_config()
-    k8s_core_api = k8s_client.CoreV1Api()
-    # k8s_apps_api = k8s_client.AppsV1Api()
-
-    config_name = create_own_config(k8s_core_api, job_name, pod_name, ip,
-                                    ssh_port, framework_attempt, task_attempt)
-
-    labels = "run=%s,framework_attempt_id=%s,task_attempt_id=%s" % (
-        job_name, framework_attempt, task_attempt)
-
-    items = []
-    # wait forever. If the resource is not enought, some worker will be in pending state, if
-    # we exit the job will fail, and user will be confused. Although this wastes some resource
-    # already allocated, we will wait forever until we have a better solution.
-    while True:
-        resp = k8s_core_api.list_namespaced_config_map(
-            namespace=job_namespace,
-            label_selector=labels,
-        )
-
-        logger.debug("Got %d config maps, expected %d", len(resp.items),
-                     expected_num)
-        if len(resp.items) == expected_num:
-            items = resp.items
-            break
-        time.sleep(1)
-
-    if len(items) != expected_num:
-        logger.error(
-            "timeout in waiting other's configmap, maybe because resource not enough"
-        )
-        sys.exit(ERROR_EXIT_CODE["wait_sync_fail"])
-
     # SD stands for service discovery
     envs = {
         "DLTS_SD_SELF_IP": ip,
@@ -216,18 +183,55 @@ def main(args):
         "DLTS_ROLE_IDX": self_role_idx,
     }
 
-    for configmap in items:
-        c_name = configmap.metadata.name
-        role_idx = c_name.split("-")[-1]
-        if role_idx.isnumeric():
-            # created by launcher, have name "xxx-yyy-zzz-role-idx"
-            role_idx = c_name.split("-")[-2] + role_idx
+    if expected_num == 1:
+        logger.info("do not need to sync, skip")
+    else:
+        k8s_config.load_incluster_config()
+        k8s_core_api = k8s_client.CoreV1Api()
+        # k8s_apps_api = k8s_client.AppsV1Api()
 
-        sd_info = json.loads(configmap.data["pod.json"])
-        ip = sd_info["ip"]
-        ssh_port = sd_info["ssh_port"]
-        envs["DLTS_SD_%s_IP" % role_idx] = ip
-        envs["DLTS_SD_%s_SSH_PORT" % role_idx] = ssh_port
+        config_name = create_own_config(k8s_core_api, job_name, pod_name, ip,
+                                        ssh_port, framework_attempt,
+                                        task_attempt)
+
+        labels = "run=%s,framework_attempt_id=%s,task_attempt_id=%s" % (
+            job_name, framework_attempt, task_attempt)
+
+        items = []
+        # wait forever. If the resource is not enought, some worker will be in pending state, if
+        # we exit the job will fail, and user will be confused. Although this wastes some resource
+        # already allocated, we will wait forever until we have a better solution.
+        while True:
+            resp = k8s_core_api.list_namespaced_config_map(
+                namespace=job_namespace,
+                label_selector=labels,
+            )
+
+            logger.debug("Got %d config maps, expected %d", len(resp.items),
+                         expected_num)
+            if len(resp.items) == expected_num:
+                items = resp.items
+                break
+            time.sleep(1)
+
+        if len(items) != expected_num:
+            logger.error(
+                "timeout in waiting other's configmap, maybe because resource not enough"
+            )
+            sys.exit(ERROR_EXIT_CODE["wait_sync_fail"])
+
+        for configmap in items:
+            c_name = configmap.metadata.name
+            role_idx = c_name.split("-")[-1]
+            if role_idx.isnumeric():
+                # created by launcher, have name "xxx-yyy-zzz-role-idx"
+                role_idx = c_name.split("-")[-2] + role_idx
+
+            sd_info = json.loads(configmap.data["pod.json"])
+            ip = sd_info["ip"]
+            ssh_port = sd_info["ssh_port"]
+            envs["DLTS_SD_%s_IP" % role_idx] = ip
+            envs["DLTS_SD_%s_SSH_PORT" % role_idx] = ssh_port
 
     path = Path(os.path.dirname(args.environment))
     path.mkdir(parents=True, exist_ok=True)

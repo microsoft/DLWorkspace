@@ -415,7 +415,7 @@ def GetCommands(userName, jobId):
 
 
 def get_access_to_job(username, job):
-    is_owner = job["userName"] == username
+    is_owner = job["userName"].lower() == username.lower()
     is_admin = has_access(username, VC, job["vcName"], ADMIN)
     allowed = is_owner or is_admin
 
@@ -481,6 +481,40 @@ def resume_job(username, job_id):
 def approve_job(username, job_id):
     return op_job(username, job_id, ApproveOp())
 
+def scale_inference_job(username, job_id, resourcegpu):
+    dataHandler = DataHandler()
+    try:
+        job = dataHandler.GetJobTextFields(
+            job_id, ["userName", "vcName", "jobParams"])
+
+        if job is None:
+            msg = "Job %s cannot be found in database" % job_id
+            logger.error(msg)
+            return msg, 404
+
+        allowed, role = get_access_to_job(username, job)
+
+        if not allowed:
+            msg = "You are not authorized to scale inference job %s" % job_id
+            logger.error(msg)
+            return msg, 403
+
+        job_params = json.loads(base64decode(job["jobParams"]))
+        job_type = job_params["jobtrainingtype"]
+        if job_type != "InferenceJob":
+            msg = "Only inference job could be scaled, current job %s is %s" % (job_id, job_type)
+            logger.error(msg)
+            return msg, 403
+
+        job_params["resourcegpu"] = resourcegpu
+        dataHandler.UpdateJobTextFields({"jobId": job_id},
+                                        {"jobParams": base64encode(json.dumps(job_params))})
+        return "Success", 200
+    except Exception as e:
+        logger.exception("Scale inference job exception")
+    finally:
+        dataHandler.Close()
+    return "Server error", 500
 
 def _op_jobs_in_one_batch(username, job_ids, op, data_handler):
     op_name = op.name
@@ -600,8 +634,10 @@ def isBase64(s):
 
 
 _get_job_log_enabled = config.get('logging') in ['azure_blob', 'elasticsearch']
-_extract_job_log_legacy = config.get('__extract_job_log_legacy', not _get_job_log_enabled)
-_get_job_log_legacy = config.get('__get_job_log_legacy', _extract_job_log_legacy)
+_extract_job_log_legacy = config.get('__extract_job_log_legacy',
+                                     not _get_job_log_enabled)
+_get_job_log_legacy = config.get('__get_job_log_legacy',
+                                 _extract_job_log_legacy)
 _get_job_log_fallback = config.get('__get_job_log_fallback', False)
 
 
@@ -661,6 +697,7 @@ def GetJobStatus(jobId):
                                           ["jobStatus", "jobTime", "errorMsg"])
     dataHandler.Close()
     return result
+
 
 def GetJobLog(userName, jobId, cursor=None, size=100):
     dataHandler = DataHandler()

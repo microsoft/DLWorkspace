@@ -4,17 +4,21 @@ import os
 import re
 import sys
 import time
+import json
+import pytz
 import utils
 import yaml
+import datetime
 import argparse
 import textwrap
 import random
-
+from mysql import connector
 cwd = os.path.dirname(__file__)
 os.chdir(cwd)
 
 sys.path.append("../utils")
 
+from pathlib import Path
 from ConfigUtils import *
 from constants import FILE_MAP_PATH, ENV_CNF_YAML, STATUS_YAML
 
@@ -29,7 +33,7 @@ from cloud_init_deploy import check_buildable_images, push_docker_images
 
 def load_config_4_ctl(args, command):
     # if we need to load all config
-    if command in ["svc", "render_template", "download", "docker"]:
+    if command in ["svc", "render_template", "download", "docker", "db"]:
         args.config = [ENV_CNF_YAML, STATUS_YAML] if not args.config else args.config
         config = load_deploy_config(args)
     else:
@@ -253,6 +257,103 @@ def render_template_or_dir(config, args):
         utils.render_template(src, dst, config)
 
 
+def maintain_db(config, args):
+    """
+    push/pull a table to/from DB
+    """
+    subcommand = args.nargs[0]
+    assert subcommand in ["pull", "push", "connect"], "invalid action."
+    host = config["mysql_node"]
+    user = config["mysql_username"]
+    password = config["mysql_password"]
+    if subcommand == "connect":
+        os.system("mysql -h {} -u {} -p{}".format(host, user, password))
+    else:
+        database = "DLWSCluster-{}".format(config["clusterId"])
+        table_name = args.nargs[1]
+        assert table_name in ["vc", "acl"], "invalid table."
+        
+        if args.verbose:
+            print("connecting to {}@{}, DB {}".format(user, host, database))
+        conn = connector.connect(user=user, password=password,
+               host=host, database=database)
+        if subcommand == "pull":
+            sql = "SELECT * from {}".format(table_name)
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            col_names = [col[0] for col in cursor.description]
+            serialized_rows = []
+            rows = cursor.fetchall()
+            for row in rows:
+                serialized_row = {}
+                for i, v in enumerate(row):
+                    try:
+                        serialized_row[col_names[i]] = json.loads(v)
+                    # JSONDecodeError
+                    except:
+                        serialized_row[col_names[i]] = v
+                serialized_rows.append(serialized_row)
+            table_config = {"col_names": col_names, "rows": serialized_rows}
+            output_file = args.output if args.output else "{}.yaml".format(table_name)
+            with open(output_file, "w") as wf:
+                yaml.safe_dump(table_config, wf)
+        elif subcommand == "push":
+            sql = "DELETE from {}".format(table_name)
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            input_file_list = args.input if args.input else ["{}.yaml".format(table_name)]
+            table_config = add_configs_in_order(input_file_list, {})
+            col_names = table_config["col_names"]
+            cols_2_ignore = table_config.get("columns_to_ignore", ["time"])
+            cols_filtered = [col for col in col_names if col not in cols_2_ignore]
+            cols_str = ", ".join(cols_filtered)
+            for row in table_config["rows"]:
+                vals = ", ".join(["'{}'".format(json.dumps(row[col])) for col in cols_filtered])
+                vals = vals.replace("'null'", "NULL")
+                sql = "INSERT INTO `{}` ({}) VALUES ({})".format(table_name, cols_str, vals)
+                if args.verbose:
+                    print(sql)
+                cursor.execute(sql)
+            conn.commit()
+
+        cursor.close()
+
+
+def cordon(config, args):
+    home_dir = str(Path.home())
+    dlts_admin_config_path = os.path.join(home_dir, ".dlts-admin.yaml")
+    dlts_admin_config_path = config.get(
+        "dlts_admin_config_path", dlts_admin_config_path)
+    if os.path.exists(dlts_admin_config_path):
+        with open(dlts_admin_config_path) as f:
+            admin_name = yaml.safe_load(f)["admin_name"]
+    else:
+        admin_name = args.admin
+        assert admin_name is not None and admin_name, "specify admin_name by"\
+        "--admin or in ~/.dlts-admin.yaml"
+    now = datetime.datetime.now(pytz.timezone("UTC"))
+    timestr = now.strftime("%Y/%m/%d %H:%M:%S %Z")
+    node = args.nargs[0]
+    note = " ".join(args.nargs[1:])
+    annotation = "cordoned by {} at {}, {}".format(admin_name, timestr, note)
+    k8s_cmd = "annotate node {} --overwrite cordon-note='{}'".format(
+        node, annotation)
+    run_kubectl(config, args, [k8s_cmd])
+    run_kubectl(config, args, ["cordon {}".format(node)])
+
+
+def uncordon(config, args):
+    node = args.nargs[0]
+    query_cmd = "get nodes {} -o=jsonpath=\'{{.metadata.annotations.cordon-note}}\'".format(node)
+    output = run_kubectl(config, args, [query_cmd], need_output=True)
+    if output and not args.force:
+        print("node annotated, if you are sure that you want to uncordon it, "\
+            "please specify --force or use `{} kubectl cordon <node>` to"\
+            " cordon".format(__file__))
+    else:
+        run_kubectl(config, args, ["uncordon {}".format(node)])
+
+
 def run_command(args, command):
     config = load_config_4_ctl(args, command)
     if command == "restorefromdir":
@@ -294,6 +395,12 @@ def run_command(args, command):
         if nargs[0] == "push":
             check_buildable_images(args.nargs[1], config)
             push_docker_images(args, config)
+    elif command == "db":
+        maintain_db(config, args)
+    elif command == "cordon":
+        cordon(config, args)
+    elif command == "uncordon":
+        uncordon(config, args)
     else:
         print("invalid command, please read the doc")
 
@@ -316,9 +423,9 @@ if __name__ == '__main__':
     '''))
     parser.add_argument('-cnf', '--config', action='append', default=[], help='Specify the config files you want to load, later ones \
         would overwrite former ones, e.g., -cnf config.yaml -cnf status.yaml')
-    parser.add_argument('-i', '--in', action='append',
+    parser.add_argument('-i', '--input', action='append',
                         default=[], help='Files to take as input')
-    parser.add_argument('-o', '--out', help='File to dump to as output')
+    parser.add_argument('-o', '--output', default='', help='File to dump to as output')
     parser.add_argument("-v", "--verbose",
                         help="verbose print", action="store_true")
     parser.add_argument('-r', '--roles_or_machine', action='append', default=[], help='Specify the roles of machines that you want to copy file \
@@ -330,10 +437,14 @@ if __name__ == '__main__':
     parser.add_argument("--nocache",
                         help="Build docker without cache",
                         action="store_true")
+    parser.add_argument("--admin",
+                        help="Name of admin that execute this script")
     parser.add_argument("command",
                         help="See above for the list of valid command")
     parser.add_argument('nargs', nargs=argparse.REMAINDER,
                         help="Additional command argument")
+    parser.add_argument(
+        '-d', '--dryrun', help='Dry run -- no actual execution', action="store_true")
     args = parser.parse_args()
     command = args.command
     nargs = args.nargs

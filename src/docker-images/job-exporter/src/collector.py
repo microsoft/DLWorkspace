@@ -35,6 +35,7 @@ import docker_inspect
 import docker_stats
 import nvidia
 import ps
+import dcgm
 
 logger = logging.getLogger(__name__)
 
@@ -54,37 +55,37 @@ def gen_docker_daemon_counter():
 def gen_gpu_util_gauge():
     return GaugeMetricFamily("nvidiasmi_utilization_gpu",
                              "gpu core utilization of card",
-                             labels=["minor_number"])
+                             labels=["minor_number", "uuid"])
 
 
 def gen_gpu_mem_util_gauge():
     return GaugeMetricFamily("nvidiasmi_utilization_memory",
                              "gpu memory utilization of card",
-                             labels=["minor_number"])
+                             labels=["minor_number", "uuid"])
 
 
 def gen_gpu_temperature_gauge():
     return GaugeMetricFamily("nvidiasmi_temperature",
                              "gpu temperature of card",
-                             labels=["minor_number"])
+                             labels=["minor_number", "uuid"])
 
 
 def gen_gpu_ecc_counter():
     return GaugeMetricFamily("nvidiasmi_ecc_error_count",
                              "count of nvidia ecc error",
-                             labels=["minor_number", "type"])
+                             labels=["minor_number", "uuid", "type"])
 
 
 def gen_gpu_retired_page_count():
     return GaugeMetricFamily("nvidiasmi_retired_page_count",
                              "count of nvidia ecc retired page",
-                             labels=["minor_number", "type"])
+                             labels=["minor_number", "uuid", "type"])
 
 
 def gen_gpu_memory_leak_counter():
     return GaugeMetricFamily("nvidiasmi_memory_leak_count",
                              "count of nvidia memory leak",
-                             labels=["minor_number"])
+                             labels=["minor_number", "uuid"])
 
 
 def gen_zombie_process_counter():
@@ -127,6 +128,7 @@ class ResourceGauges(object):
 
         self.task_labels_gpu = copy.deepcopy(self.task_labels)
         self.task_labels_gpu.append("minor_number")
+        self.task_labels_gpu.append("uuid")
 
         self.gauges = {}
 
@@ -160,6 +162,20 @@ class ResourceGauges(object):
 
         self.add_gauge(name_tmpl.format("service"), desc_tmpl.format("service"),
                        self.service_labels)
+
+    def add_dcgm_metric(self, dcgm_metrics, labels):
+        for metric_name in dcgm_metrics._fields:
+            if metric_name == "uuid":
+                continue
+            val = dcgm_metrics.__getattribute__(metric_name)
+            if val == "N/A":
+                continue
+
+            key_name = "task_dcgm_" + metric_name
+            if key_name not in self.gauges:
+                self.gauges[key_name] = GaugeMetricFamily(
+                    key_name, "dcgm metric %s", labels=self.task_labels_gpu)
+            self.add_value(key_name, labels, val)
 
     def add_gauge(self, name, desc, labels):
         self.gauges[name] = GaugeMetricFamily(name, desc, labels=labels)
@@ -337,7 +353,7 @@ class GpuCollector(Collector):
                                        64.0, 128.0, 256.0, 512.0, 1024.0,
                                        float("inf")))
 
-    cmd_timeout = 60 # 99th latency is 0.97s
+    cmd_timeout = 600
 
     def __init__(self, name, sleep_time, atomic_ref, iteration_counter,
                  gpu_info_ref, zombie_info_ref, mem_leak_thrashold):
@@ -394,26 +410,28 @@ class GpuCollector(Collector):
             if not minor.isdigit():
                 continue # ignore UUID
 
-            core_utils.add_metric([minor], info.gpu_util)
-            mem_utils.add_metric([minor], info.gpu_mem_util)
+            uuid = info.uuid
+
+            core_utils.add_metric([minor, uuid], info.gpu_util)
+            mem_utils.add_metric([minor, uuid], info.gpu_mem_util)
             if info.temperature is not None:
-                gpu_temp.add_metric([minor], info.temperature)
-            ecc_errors.add_metric([minor, "volatile_single"],
+                gpu_temp.add_metric([minor, uuid], info.temperature)
+            ecc_errors.add_metric([minor, uuid, "volatile_single"],
                                   info.ecc_errors.volatile_single)
-            ecc_errors.add_metric([minor, "volatile_double"],
+            ecc_errors.add_metric([minor, uuid, "volatile_double"],
                                   info.ecc_errors.volatile_double)
-            ecc_errors.add_metric([minor, "aggregated_single"],
+            ecc_errors.add_metric([minor, uuid, "aggregated_single"],
                                   info.ecc_errors.aggregated_single)
-            ecc_errors.add_metric([minor, "aggregated_double"],
+            ecc_errors.add_metric([minor, uuid, "aggregated_double"],
                                   info.ecc_errors.aggregated_double)
 
-            retired_page.add_metric([minor, "single"],
+            retired_page.add_metric([minor, uuid, "single"],
                                     info.ecc_errors.single_retirement)
-            retired_page.add_metric([minor, "double"],
+            retired_page.add_metric([minor, uuid, "double"],
                                     info.ecc_errors.double_retirement)
             if info.gpu_mem_util > mem_leak_thrashold and len(info.pids) == 0:
                 # we found memory leak less than 20M can be mitigated automatically
-                mem_leak.add_metric([minor], 1)
+                mem_leak.add_metric([minor, uuid], 1)
 
             if len(info.pids) > 0:
                 pids_use_gpu[minor] = info.pids
@@ -533,7 +551,7 @@ class ContainerCollector(Collector):
             ]))
 
     def __init__(self, name, sleep_time, atomic_ref, iteration_counter,
-                 gpu_info_ref, stats_info_ref, interface):
+                 gpu_info_ref, stats_info_ref, interface, dcgm_info_ref):
         Collector.__init__(self, name, sleep_time, atomic_ref,
                            iteration_counter)
         self.gpu_info_ref = gpu_info_ref
@@ -543,6 +561,7 @@ class ContainerCollector(Collector):
         logger.info(
             "found %s as potential network interface to listen network traffic",
             self.network_interface)
+        self.dcgm_info_ref = dcgm_info_ref
 
         # k8s will prepend "k8s_" to pod name. There will also be a container name
         # prepend with "k8s_POD_" which is a docker container used to construct
@@ -560,12 +579,15 @@ class ContainerCollector(Collector):
         now = datetime.datetime.now()
         gpu_infos = self.gpu_info_ref.get(now)
         self.stats_info_ref.set(stats_obj, now)
+        dcgm_infos = self.dcgm_info_ref.get(now)
 
         logger.debug("all_conns is %s", all_conns)
         logger.debug("gpu_info is %s", gpu_infos)
         logger.debug("stats_obj is %s", stats_obj)
+        logger.debug("dcgm_infos is %s", dcgm_infos)
 
-        return self.collect_container_metrics(stats_obj, gpu_infos, all_conns)
+        return self.collect_container_metrics(stats_obj, gpu_infos, all_conns,
+                                              dcgm_infos)
 
     @staticmethod
     def parse_from_labels(inspect_info, gpu_infos):
@@ -622,7 +644,7 @@ class ContainerCollector(Collector):
         return None
 
     def process_one_container(self, container_id, stats, gpu_infos, all_conns,
-                              gauges):
+                              gauges, dcgm_infos):
         container_name = utils.walk_json_field_safe(stats, "name")
         pai_service_name = ContainerCollector.infer_service_name(container_name)
 
@@ -662,13 +684,26 @@ class ContainerCollector(Collector):
                         continue
 
                     nvidia_gpu_status = gpu_infos[id]
+                    uuid = nvidia_gpu_status.uuid
                     labels = copy.deepcopy(container_labels)
                     labels["minor_number"] = id
+                    labels["uuid"] = uuid
 
                     gauges.add_value("task_gpu_percent", labels,
                                      nvidia_gpu_status.gpu_util)
                     gauges.add_value("task_gpu_mem_percent", labels,
                                      nvidia_gpu_status.gpu_mem_util)
+
+            if dcgm_infos:
+                for id in gpu_ids:
+                    if dcgm_infos.get(id) is None:
+                        contine
+                    dcgm_metric = dcgm_infos[id] # will be type of DCGMMetrics
+                    uuid = dcgm_metric.uuid
+                    labels = copy.deepcopy(container_labels)
+                    labels["minor_number"] = id
+                    labels["uuid"] = uuid
+                    gauges.add_dcgm_metric(dcgm_metric, labels)
 
             gauges.add_value("task_cpu_percent", container_labels,
                              stats["CPUPerc"])
@@ -700,7 +735,8 @@ class ContainerCollector(Collector):
             gauges.add_value("service_block_out_byte", labels,
                              stats["BlockIO"]["out"])
 
-    def collect_container_metrics(self, stats_obj, gpu_infos, all_conns):
+    def collect_container_metrics(self, stats_obj, gpu_infos, all_conns,
+                                  dcgm_infos):
         if stats_obj is None:
             logger.warning("docker stats returns None")
             return None
@@ -710,7 +746,7 @@ class ContainerCollector(Collector):
         for container_id, stats in stats_obj.items():
             try:
                 self.process_one_container(container_id, stats, gpu_infos,
-                                           all_conns, gauges)
+                                           all_conns, gauges, dcgm_infos)
             except Exception:
                 logger.exception(
                     "error when trying to process container %s with name %s",
@@ -911,3 +947,29 @@ class ProcessCollector(Collector):
             return [zombie_metrics, process_mem_metrics]
 
         return None
+
+
+class DCGMCollector(Collector):
+    cmd_histogram = Histogram("cmd_dcgmi_latency_seconds",
+                              "Command call latency for nvidia-smi (seconds)",
+                              buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0,
+                                       64.0, 128.0, 256.0, 512.0, 1024.0,
+                                       float("inf")))
+
+    cmd_timeout = 600
+
+    def __init__(self, name, sleep_time, atomic_ref, iteration_counter,
+                 dcgm_info_ref):
+        Collector.__init__(self, name, sleep_time, atomic_ref,
+                           iteration_counter)
+        self.dcgm_gauge_ref = AtomicRef(datetime.timedelta(seconds=60))
+        self.dcgm_handler = dcgm.DCGMHandler(10, self.dcgm_gauge_ref,
+                                             dcgm_info_ref,
+                                             DCGMCollector.cmd_histogram,
+                                             DCGMCollector.cmd_timeout)
+        self.dcgm_handler.start()
+
+    def collect_impl(self):
+        gauges = self.dcgm_gauge_ref.get(datetime.datetime.now())
+        if gauges is not None:
+            return list(gauges.values())

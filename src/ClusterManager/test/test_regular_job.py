@@ -645,6 +645,10 @@ def test_ssh_multi_gpu_job_cuda_visible_devices(args):
 
 @utils.case()
 def test_fault_tolerance(args):
+    # Job is only retried when launcher is controller.
+    if utils.get_launcher(args.config) == "python":
+        return
+
     job_spec = utils.gen_default_job_description("regular", args.email,
                                                  args.uid, args.vc)
 
@@ -703,7 +707,6 @@ def test_fault_tolerance(args):
         assert output == "dummy\n", "output is %s" % (output)
 
 
-@utils.case()
 def test_no_resource_info(args):
     expected = "Insufficient nvidia.com/gpu"
 
@@ -729,3 +732,29 @@ def test_no_resource_info(args):
 
             time.sleep(0.5)
         assert expected in message, "unexpected detail " + details
+
+
+@utils.case()
+def test_regular_job_mountpoints(args):
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = job.block_until_state_not_in({"unapproved", "queued"})
+        assert state in ["scheduling", "running"]
+
+        pod = utils.kube_get_pods(args.config, "default",
+                                  "jobId=%s" % job.jid)[0]
+
+        mps = utils.load_cluster_nfs_mountpoints(args, job.jid)
+        mps.extend(utils.load_system_mountpoints(args))
+
+        for mp in mps:
+            assert utils.mountpoint_in_pod(mp, pod), \
+                "mountpoint %s not in regular job %s" % (mp, job.jid)
+
+        # Regular job should not have IB mounted
+        ib_mps = utils.load_infiniband_mounts(args)
+        for mp in ib_mps:
+            assert not utils.mountpoint_in_pod(mp, pod), \
+                "infiniband mountpoint %s in regular job %s" % (mp, job.jid)
