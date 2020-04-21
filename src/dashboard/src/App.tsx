@@ -132,8 +132,13 @@ const Layout: React.FC<RouteComponentProps> = ({ location, history }) => {
 
               <Route path="/cluster-status" component={ClusterStatus}/>
 
+              {/* Backward Compatibility Routes */}
+              <Route strict exact path="/jobs-v2:rest(.*)"
+                render={({ match }) => <Redirect to={`/jobs${match.params['rest']}`}/>}
+              />
               <Redirect path="/job/:team/:clusterId/:jobId" to="/jobs/:clusterId/:jobId"/>
 
+              {/* 404 */}
               <Redirect to="/"/>
             </Switch>
           </React.Suspense>
