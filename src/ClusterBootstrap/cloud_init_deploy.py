@@ -458,7 +458,7 @@ def gen_mounting_yaml(config):
             else:
                 lnk_root = config["dltsdata-storage-mount-path"] if "vc" in v else config["storage-mount-path"]
             # process leaves
-            if not "client_links" in v or len(v["client_links"]) == 0:
+            if "client_links" not in v or len(v["client_links"]) == 0:
                 v["client_links"] = [{"src": fldr, "dst": fldr} for fldr in config["default-storage-folders"]]
             file_share_item = {"server_path": server_path, "client_mount_root": mnt_root, "client_links": []}
             for link_pair in v["client_links"]:
@@ -601,8 +601,6 @@ def render_nfs_node_specific(config, args):
 def render_lustre_node_specific(config, args):
     assert config["priority"] in ["regular", "low"]
     config = escaped_etcd_end_point_and_k8s_api_server(config)
-    with open("./deploy/storage/auto_share/mounting.yaml", 'r') as mf:
-        mounting = yaml.safe_load(mf)
     config["file_modules_2_copy"] = ["lustre_server"]
     config["mdt_id"] = 0
     lustre_disk_id = 1

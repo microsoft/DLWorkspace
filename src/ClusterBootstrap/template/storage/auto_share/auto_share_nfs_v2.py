@@ -150,7 +150,7 @@ def link_fileshare(verbose=True):
     for mnt_itm in config.values():
         # to make the code backward compatible
         client_mount_key = "client_mount_root" if "fileshare_system" in mnt_itm else "remote_mount_path"
-        local_path_key = "storage_local_path" if "fileshare_system" in mnt_itm else "nfs_local_path"
+        local_path_key = "server_path" if "fileshare_system" in mnt_itm else "nfs_local_path"
         for triplet in mnt_itm["fileshares"]:
             if output.find(triplet[client_mount_key]) < 0:
                 logging.debug("!!!Warning!!! {} has not been mounted at {} ".format(
