@@ -86,7 +86,7 @@ def get_monthly_idleness(prometheus_url):
     step_seconds = STEP_MINUTE * 60
 
     now = datetime.datetime.now()
-    one_day_ago = int(
+    seven_day_ago = int(
         datetime.datetime.timestamp(now - datetime.timedelta(days=1)))
     fourteen_days_ago = int(
         datetime.datetime.timestamp(now - datetime.timedelta(days=14)))
@@ -121,7 +121,7 @@ def get_monthly_idleness(prometheus_url):
 
     # the first level is vc, the second level is user
     vc_levels = [
-        ("1d", one_day_ago,
+        ("7d", seven_day_ago,
          collections.defaultdict(lambda: collections.defaultdict(default))),
         ("14d", fourteen_days_ago,
          collections.defaultdict(lambda: collections.defaultdict(default))),
@@ -131,7 +131,7 @@ def get_monthly_idleness(prometheus_url):
 
     # the first level is vc, the second level is user, the third level is job
     user_levels = [
-        ("1d", one_day_ago,
+        ("7d", seven_day_ago,
          collections.defaultdict(lambda: collections.defaultdict(
              lambda: collections.defaultdict(default)))),
         ("14d", fourteen_days_ago,
@@ -190,7 +190,7 @@ def get_monthly_idleness(prometheus_url):
                 nonidle_util_sum = user_val["nonidle_util_sum"]
 
                 if nonidle_time == 0:
-                    user_val["nonidle_util"] = 100.0
+                    user_val["nonidle_util"] = 0.0
                 else:
                     user_val["nonidle_util"] = nonidle_util_sum / nonidle_time
                 user_val.pop("nonidle_util_sum")
@@ -203,7 +203,7 @@ def get_monthly_idleness(prometheus_url):
                     nonidle_util_sum = job_val["nonidle_util_sum"]
 
                     if nonidle_time == 0:
-                        job_val["nonidle_util"] = 100.0
+                        job_val["nonidle_util"] = 0.0
                     else:
                         job_val[
                             "nonidle_util"] = nonidle_util_sum / nonidle_time
