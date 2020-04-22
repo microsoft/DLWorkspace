@@ -14,6 +14,7 @@ groups:
       - record: federate:cluster:dcgm_retired_pages_pending:count
         expr: count(dcgm_retired_pages_pending > 0)
     - name: federate.vc
+      rules:
       - record: federate:vc:k8s_vc_gpu_total:avg
         expr: avg(k8s_vc_gpu_total) by (vc_name)
       - record: federate:vc:k8s_vc_gpu_unschedulable:avg
@@ -25,6 +26,7 @@ groups:
       - record: federate:vc:active_task_dcgm_gpu_util:avg
         expr: avg(task_dcgm_gpu_util > 0) by (vc_name)
     - name: federate.user
+      rules:
       - record: federate:user:assigned_task_dcgm_gpu_util:count
         expr: count(task_dcgm_gpu_util) by (vc_name, username)
       - record: federate:user:active_task_dcgm_gpu_util:count
@@ -38,6 +40,7 @@ groups:
       - record: federate:user:user_assigned_utils:avg
         expr: avg(user_assigned_utils) by (vc, user, since)
     - name: federate.job
+      rules:
       - record: federate:job:assigned_task_gpu_percent:count
         expr: count(task_gpu_percent) by (vc_name, username, job_name)
       - record: federate:job:assigned_task_gpu_percent:avg
