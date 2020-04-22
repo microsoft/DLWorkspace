@@ -12,3 +12,9 @@ groups:
         for: 30m
         annotations:
           summary: "gpu retired page from {{$labels.instance}} {{$labels.minor_number}} exceed threshold, may need to replace this gpu"
+
+      - alert: NvsmUnhealthy
+        expr: nvsm_health_total_count - nvsm_health_good_count > 0
+        for: 10m
+        annotations:
+            summary: "nvsm unhealthy in {{$labels.instance}} need to fire ticket to https://npncommunity.force.com/ESPCommunity/s/create-case for replacement"
