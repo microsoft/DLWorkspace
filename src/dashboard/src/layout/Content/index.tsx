@@ -1,54 +1,47 @@
 import React, {
   FunctionComponent
 } from 'react';
-import clsx from 'clsx';
 
 import {
   Box,
   Toolbar,
-  Typography
-} from '@material-ui/core';
-import {
-  Theme,
+  Typography,
   createStyles,
   makeStyles
-} from '@material-ui/core/styles';
+} from '@material-ui/core';
 
 import Loading from '../../components/Loading';
 import TeamContext from '../../contexts/Teams';
 
-import DrawerContext from '../Drawer/Context';
+import DrawerContext, { WIDTH } from '../Drawer/Context';
 
-const WIDTH = 240;
-const useStyles = makeStyles((theme: Theme) =>
-  createStyles({
-    content: {
-      flexGrow: 1,
-      maxWidth: '100%',
-      paddingLeft: theme.spacing(30),
-      paddingTop: theme.spacing(3),
-      paddingBottom: theme.spacing(3),
-      transition: theme.transitions.create('margin', {
-        easing: theme.transitions.easing.sharp,
-        duration: theme.transitions.duration.leavingScreen
-      }),
-      marginLeft: -WIDTH
-    },
-    contentShift: {
-      transition: theme.transitions.create('margin', {
-        easing: theme.transitions.easing.easeOut,
-        duration: theme.transitions.duration.enteringScreen
-      }),
-      marginLeft: 0
-    }
-  })
-);
+const useStyles = makeStyles(theme => createStyles<
+  'root',
+  { open: boolean }
+>({
+  root: {
+    flexGrow: 1,
+    maxWidth: '100%',
+    paddingLeft: theme.spacing(30),
+    paddingTop: theme.spacing(3),
+    paddingBottom: theme.spacing(3),
+    transition: ({ open }) => theme.transitions.create('margin', {
+      easing: open
+        ? theme.transitions.easing.easeOut
+        : theme.transitions.easing.sharp,
+      duration: open
+        ? theme.transitions.duration.enteringScreen
+        : theme.transitions.duration.leavingScreen
+    }),
+    marginLeft: ({ open }) => open ? 0 : -WIDTH
+  }
+}));
 
 const Content: FunctionComponent = ({ children }) => {
   const { open } = React.useContext(DrawerContext);
   const { teams } = React.useContext(TeamContext);
 
-  const classes = useStyles();
+  const classes = useStyles({ open });
 
   if (teams === undefined) {
     return (
@@ -66,7 +59,7 @@ const Content: FunctionComponent = ({ children }) => {
   }
 
   return (
-    <Box className={clsx(classes.content, { [classes.contentShift]: open })}>
+    <Box className={classes.root}>
       <Toolbar />
       {children}
     </Box>
