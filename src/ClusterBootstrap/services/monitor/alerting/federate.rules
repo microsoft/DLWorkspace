@@ -1,0 +1,58 @@
+groups:
+    - name: federate.cluster
+      rules:
+      - record: federate:cluster:k8s_node_gpu_total:sum
+        expr: sum(k8s_node_gpu_total)
+      - record: federate:cluster:k8s_node_gpu_allocatable:sum
+        expr: sum(k8s_node_gpu_allocatable)
+      - record: federate:cluster:k8s_node_gpu_available:sum
+        expr: sum(k8s_node_gpu_available)
+      - record: federate:cluster:assigned_task_dcgm_gpu_util:avg
+        expr: avg(task_dcgm_gpu_util)
+      - record: federate:cluster:active_task_dcgm_gpu_util:avg
+        expr: avg(task_dcgm_gpu_util > 0)
+      - record: federate:cluster:dcgm_retired_pages_pending:count
+        expr: count(dcgm_retired_pages_pending > 0)
+    - name: federate.vc
+      - record: federate:vc:k8s_vc_gpu_total:avg
+        expr: avg(k8s_vc_gpu_total) by (vc_name)
+      - record: federate:vc:k8s_vc_gpu_unschedulable:avg
+        expr: avg(k8s_vc_gpu_unschedulable) by (vc_name)
+      - record: federate:vc:k8s_vc_gpu_available:avg
+        expr: avg(k8s_vc_gpu_available) by (vc_name)
+      - record: federate:vc:assigned_task_dcgm_gpu_util:avg
+        expr: avg(task_dcgm_gpu_util) by (vc_name)
+      - record: federate:vc:active_task_dcgm_gpu_util:avg
+        expr: avg(task_dcgm_gpu_util > 0) by (vc_name)
+    - name: federate.user
+      - record: federate:user:assigned_task_dcgm_gpu_util:count
+        expr: count(task_dcgm_gpu_util) by (vc_name, username)
+      - record: federate:user:active_task_dcgm_gpu_util:count
+        expr: count(task_dcgm_gpu_util > 0) by (vc_name, username)
+      - record: federate:user:assigned_task_dcgm_gpu_util:avg
+        expr: avg(task_dcgm_gpu_util) by (vc_name, username)
+      - record: federate:user:active_task_dcgm_gpu_util:avg
+        expr: avg(task_dcgm_gpu_util > 0) by (vc_name, username)
+      - record: federate:user:user_non_idle_utils:avg
+        expr: avg(user_non_idle_utils) by (vc, user, since)
+      - record: federate:user:user_assigned_utils:avg
+        expr: avg(user_assigned_utils) by (vc, user, since)
+    - name: federate.job
+      - record: federate:job:assigned_task_gpu_percent:count
+        expr: count(task_gpu_percent) by (vc_name, username, job_name)
+      - record: federate:job:assigned_task_gpu_percent:avg
+        expr: avg(task_gpu_percent) by (vc_name, username, job_name)
+      - record: federate:job:active_task_gpu_percent:avg
+        expr: avg(task_gpu_percent > 0) by (vc_name, username, job_name)
+      - record: federate:job:assigned_task_dcgm_gpu_util:avg
+        expr: avg(task_dcgm_gpu_util) by (vc_name, username, job_name)
+      - record: federate:job:active_task_dcgm_gpu_util:avg
+        expr: avg(task_dcgm_gpu_util > 0) by (vc_name, username, job_name)
+      - record: federate:job:job_booked_gpu_second:avg
+        expr: avg(job_booked_gpu_second) by (vc, user, job_id, since)
+      - record: federate:job:job_idle_gpu_second:avg
+        expr: avg(job_idle_gpu_second) by (vc, user, job_id, since)
+      - record: federate:job:job_non_idle_utils:avg
+        expr: avg(job_non_idle_utils) by (vc, user, job_id, since)
+      - record: federate:job:job_assigned_utils:avg
+        expr: avg(job_assigned_utils) by (vc, user, job_id, since)

@@ -117,7 +117,8 @@ def get_monthly_idleness(prometheus_url):
 
     metrics = walk_json_field_safe(obj, "data", "result")
 
-    default = lambda: {"booked": 0, "idle": 0, "nonidle_util_sum": 0.0}
+    default = lambda: {
+        "booked": 0, "idle": 0, "nonidle_util_sum": 0.0, "assigned_util": 0.0}
 
     # the first level is vc, the second level is user
     vc_levels = [
@@ -191,8 +192,11 @@ def get_monthly_idleness(prometheus_url):
 
                 if nonidle_time == 0:
                     user_val["nonidle_util"] = 0.0
+                    user_val["assigned_util"] = 0.0
                 else:
                     user_val["nonidle_util"] = nonidle_util_sum / nonidle_time
+                    user_val["assigned_util"] = \
+                        nonidle_util_sum / user_val["booked"]
                 user_val.pop("nonidle_util_sum")
 
     for _, _, user_level in user_levels:
@@ -204,9 +208,12 @@ def get_monthly_idleness(prometheus_url):
 
                     if nonidle_time == 0:
                         job_val["nonidle_util"] = 0.0
+                        job_val["assigned_util"] = 0.0
                     else:
-                        job_val[
-                            "nonidle_util"] = nonidle_util_sum / nonidle_time
+                        job_val["nonidle_util"] = \
+                            nonidle_util_sum / nonidle_time
+                        job_val["assigned_util"] = \
+                            nonidle_util_sum / job_val["booked"]
                     job_val.pop("nonidle_util_sum")
 
     result_vc_levels = {}
@@ -251,9 +258,19 @@ class CustomCollector(object):
             "non idle gpu avg utils per job",
             labels=["vc", "user", "job_id", "since"])
 
+        job_assigned_utils = GaugeMetricFamily(
+            "job_assigned_utils",
+            "assigned gpu avg utils per job",
+            labels=["vc", "user", "job_id", "since"])
+
         user_non_idle_utils = GaugeMetricFamily(
             "user_non_idle_utils",
             "non idle gpu avg utils per user",
+            labels=["vc", "user", "since"])
+
+        user_assigned_utils = GaugeMetricFamily(
+            "user_assigned_utils",
+            "assigned gpu avg utils per user",
             labels=["vc", "user", "since"])
 
         result = self.atomic_ref.get()
@@ -274,17 +291,24 @@ class CustomCollector(object):
                         job_non_idle_utils.add_metric(
                             [vc_name, username, job_id, ago],
                             job_val["nonidle_util"])
+                        job_assigned_utils.add_metric(
+                            [vc_name, username, job_id, ago],
+                            job_val["assigned_util"])
 
         for ago, vc_level in result["vc_level"].items():
             for vc_name, vc_values in vc_level.items():
                 for username, user_val in vc_values.items():
                     user_non_idle_utils.add_metric([vc_name, username, ago],
                                                    user_val["nonidle_util"])
+                    user_assigned_utils.add_metric([vc_name, username, ago],
+                                                   user_val["assigned_util"])
 
         yield job_booked
         yield job_idle
         yield job_non_idle_utils
+        yield job_assigned_utils
         yield user_non_idle_utils
+        yield user_assigned_utils
 
 
 def serve(prometheus_url, port):
