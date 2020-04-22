@@ -39,7 +39,6 @@ import TeamsContext from "../../contexts/Teams";
 import theme, { Provider as MonospacedThemeProvider } from "../../contexts/MonospacedTheme";
 import {BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList} from "recharts";
 import Paper, { PaperProps } from '@material-ui/core/Paper';
-import Draggable from 'react-draggable'
 import {TransitionProps} from "@material-ui/core/transitions";
 import Slide from "@material-ui/core/Slide";
 import {green, grey, red} from "@material-ui/core/colors";
