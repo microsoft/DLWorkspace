@@ -70,18 +70,18 @@ const NavigationList: React.FC = () => {
       <LinkListItem to="/jobs">
         <ListItemText>View and Manage Jobs</ListItemText>
       </LinkListItem>
-      <LinkListItem to="/jobs-v2">
-        <ListItemText>View and Manage Jobs V2</ListItemText>
-      </LinkListItem>
-      <LinkListItem to="/cluster-status">
-        <ListItemText>Cluster Status</ListItemText>
+      <LinkListItem to="/jobs-legacy">
+        <ListItemText secondary="(legacy)">View and Manage Jobs</ListItemText>
       </LinkListItem>
       <LinkListItem to="/clusters">
-        <ListItemText>Cluster Status V2</ListItemText>
+        <ListItemText>Cluster Status</ListItemText>
+      </LinkListItem>
+      <LinkListItem to="/cluster-status">
+        <ListItemText secondary="(legacy)">Cluster Status</ListItemText>
       </LinkListItem>
       <ListItem button>
         <ListItemText>
-          <a href={wiki} target="_blank" style={{ textDecoration:'none' }}>DLTS Wiki</a>
+          <a href={wiki} target="_blank" rel="noopener noreferrer" style={{ textDecoration:'none' }}>DLTS Wiki</a>
         </ListItemText>
       </ListItem>
     </List>
