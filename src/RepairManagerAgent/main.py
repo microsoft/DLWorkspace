@@ -19,7 +19,8 @@ def Run():
     etcd_server = os.environ["ETCD_SERVER"]
     etcd_port = os.environ["ETCD_PORT"]
     node_name = os.environ["NODE_NAME"]
-    etcd_url = f'http://{etcd_server}:{etcd_port}/v2/keys/{node_name}/reboot'
+    key = f'{node_name}/reboot'
+    etcd_url = f'http://{etcd_server}:{etcd_port}/v2/keys/{key}'
     logger.debug(etcd_url)
 
     while True:
@@ -30,13 +31,13 @@ def Run():
             if r_json is not None:
                 logger.debug(r_json)
 
-                if 'node' in r_json and 'key' in r_json['node']:
-                    value = r_json['node']['value']
-                    if value == 'True':
-                        requests.put(etcd_url, data={'value':'False'})
-
-                        logger.warning("Attempting to reboot the node!")
-                        reboot_node()
+                if 'node' in r_json and \
+                r_json['node']['key'] == f'/{key}' and \
+                r_json['node']['value'] == 'True':
+                    # delete the key before attempting to reboot
+                    requests.delete(etcd_url)
+                    logger.warning("!!!Attempting to reboot the node!!!")
+                    reboot_node()
         except:
             logger.exception(f'Error retrieving data from {etcd_url}')
 
