@@ -192,11 +192,10 @@ def get_monthly_idleness(prometheus_url):
 
                 if nonidle_time == 0:
                     user_val["nonidle_util"] = 0.0
-                    user_val["assigned_util"] = 0.0
                 else:
                     user_val["nonidle_util"] = nonidle_util_sum / nonidle_time
-                    user_val["assigned_util"] = \
-                        nonidle_util_sum / user_val["booked"]
+                user_val["assigned_util"] = \
+                    nonidle_util_sum / user_val["booked"]
                 user_val.pop("nonidle_util_sum")
 
     for _, _, user_level in user_levels:
@@ -208,12 +207,11 @@ def get_monthly_idleness(prometheus_url):
 
                     if nonidle_time == 0:
                         job_val["nonidle_util"] = 0.0
-                        job_val["assigned_util"] = 0.0
                     else:
                         job_val["nonidle_util"] = \
                             nonidle_util_sum / nonidle_time
-                        job_val["assigned_util"] = \
-                            nonidle_util_sum / job_val["booked"]
+                    job_val["assigned_util"] = \
+                        nonidle_util_sum / job_val["booked"]
                     job_val.pop("nonidle_util_sum")
 
     result_vc_levels = {}
