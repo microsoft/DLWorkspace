@@ -113,6 +113,16 @@ def gen_process_mem_usage_gauge():
         labels=["pid", "cmd"])
 
 
+def gen_nvsm_good_gauge():
+    return GaugeMetricFamily("nvsm_health_good_count",
+                             "healthy metric count from nvsm show health")
+
+
+def gen_nvsm_total_gauge():
+    return GaugeMetricFamily("nvsm_health_total_count",
+                             "total metric count from nvsm show health")
+
+
 class ResourceGauges(object):
     def __init__(self):
         self.task_labels = [
@@ -951,7 +961,7 @@ class ProcessCollector(Collector):
 
 class DCGMCollector(Collector):
     cmd_histogram = Histogram("cmd_dcgmi_latency_seconds",
-                              "Command call latency for nvidia-smi (seconds)",
+                              "Command call latency for dcgm (seconds)",
                               buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0,
                                        64.0, 128.0, 256.0, 512.0, 1024.0,
                                        float("inf")))
@@ -973,3 +983,65 @@ class DCGMCollector(Collector):
         gauges = self.dcgm_gauge_ref.get(datetime.datetime.now())
         if gauges is not None:
             return list(gauges.values())
+
+
+class NVSMCollector(Collector):
+    cmd_histogram = Histogram("cmd_nvsm_latency_seconds",
+                              "Command call latency for nvsm (seconds)",
+                              buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0,
+                                       64.0, 128.0, 256.0, 512.0, 1024.0,
+                                       float("inf")))
+
+    cmd_timeout = 300 # usually take around 200s
+
+    def __init__(self, name, sleep_time, atomic_ref, iteration_counter):
+        Collector.__init__(self, name, sleep_time, atomic_ref,
+                           iteration_counter)
+
+    def collect_impl(self):
+        good_gauge = gen_nvsm_good_gauge()
+
+        total_gauge = gen_nvsm_total_gauge()
+
+        try:
+            output = self.call_nvsm()
+            values = self.parse_nvsm_output(output)
+            if values is not None:
+                good_gauge.add_metric([], values[0])
+                total_gauge.add_metric([], values[1])
+                return good_gauge, total_gauge
+            else:
+                return None
+        except FileNotFoundError:
+            logger.info("seems no nvsm installed, reset sleep_time")
+            self.sleep_time = 86400 # this is not DGX-2, sleep for 1 day to try again
+        except Exception:
+            logger.exception("collect nvsm metric failed")
+
+        return None
+
+    def parse_nvsm_output(self, output):
+        pattern = re.compile(u"([0-9]+) out of ([0-9]+) checks are [hH]ealthy")
+
+        for line in output.split("\n"):
+            line = line.strip()
+            match = re.search(pattern, line)
+            if match:
+                good, total = match.groups()
+                return int(good), int(total)
+        logger.warning("failed to parse nvsm output %s", output)
+        return None
+
+    def call_nvsm(self):
+        try:
+            return utils.exec_cmd(
+                ["nvsm", "show", "health"],
+                histogram=NVSMCollector.cmd_histogram,
+                stderr=subprocess.STDOUT, # also capture stderr output
+                timeout=NVSMCollector.cmd_timeout)
+        except subprocess.TimeoutExpired as e:
+            logger.warning("nvsm timeout")
+        except subprocess.CalledProcessError as e:
+            logger.warning("nvsm returns %d, output %s", e.returncode, e.output)
+
+        return ""
