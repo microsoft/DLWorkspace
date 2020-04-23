@@ -67,7 +67,7 @@ const useStyles = makeStyles((theme: Theme) =>
 
   })
 );
-const Transition = React.forwardRef<unknown, TransitionProps>(function Transition(props, ref) {
+const Transition = React.forwardRef<unknown, TransitionProps & { children?: React.ReactElement }>(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
 const OpenDrawerButton: React.FC = () => {

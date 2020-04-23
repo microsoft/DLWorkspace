@@ -5,7 +5,7 @@ import { BrowserRouter, Redirect, Route, RouteComponentProps, Switch } from "rea
 import 'typeface-roboto';
 import 'typeface-roboto-mono';
 
-import Helmet from 'react-helmet';
+import { Helmet } from 'react-helmet';
 import { Typography } from '@material-ui/core';
 import { Box, CssBaseline, createMuiTheme } from '@material-ui/core';
 import { ThemeProvider } from "@material-ui/styles";

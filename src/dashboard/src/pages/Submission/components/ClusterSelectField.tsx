@@ -28,7 +28,7 @@ const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps>
     return response;
   }
   const onChange = React.useCallback(
-    (event: React.ChangeEvent<HTMLSelectElement>) => {
+    (event: React.ChangeEvent<HTMLInputElement>) => {
       saveSelectedCluster(event.target.value);
     },
     [saveSelectedCluster]

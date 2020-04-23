@@ -35,7 +35,7 @@ const useDashboardDrawerStyles = makeStyles({
   }
 });
 
-export const ListLink = React.forwardRef<Link, LinkProps>(
+export const ListLink = React.forwardRef<HTMLAnchorElement, LinkProps>(
   ({ to, ...props }, ref) => <Link ref={ref} to={to} {...props}/>
 );
 

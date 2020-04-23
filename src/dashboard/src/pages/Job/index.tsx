@@ -6,7 +6,7 @@ import React, {
 } from 'react';
 import { capitalize } from 'lodash';
 import { usePrevious } from 'react-use';
-import Helmet from 'react-helmet';
+import { Helmet } from 'react-helmet';
 import {
   Container,
 } from '@material-ui/core';

@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useState
 } from 'react';
-import Helmet from 'react-helmet';
+import { Helmet } from 'react-helmet';
 import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
 import { reduce } from 'lodash';
