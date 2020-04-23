@@ -218,7 +218,11 @@ def ssh_exec(params):
     ssh_command = \
         """ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """ % \
         (identity_file, user, host, command)
-    output = subprocess.check_output(ssh_command, shell=True)
+    output = b""
+    try:
+        output = subprocess.check_output(ssh_command, shell=True)
+    except subprocess.CalledProcessError as exc:
+        output = exc.output
     return output.decode()
 
 
@@ -244,19 +248,29 @@ def ssh_exec_hostname(config_path, nodes):
 
 
 def get_ib(config_path):
-    cmd = "ibstatus; ifconfig ib0"
+    cmd = "ibstatus && ifconfig ib0"
     nodes = get_k8s_gpu_nodes(config_path)
+    nodes = [get_hostname(node) for node in nodes]
     results = parallel_ssh(config_path, nodes, cmd)
-    bad_ib_nodes = []
+    nodes_without_ib = []
+    nodes_with_bad_ipoib = []
     for i, node in enumerate(nodes):
-        if "4: ACTIVE" in results[i] and "mtu 2044" in results[i]:
-            continue
-        logger.info("[%s] %s", node, results[i])
-        bad_ib_nodes.append(node)
-    if len(bad_ib_nodes) > 0:
-        logger.info("bad ib nodes: %s", ",".join(bad_ib_nodes))
+        if "4: ACTIVE" not in results[i]:
+            nodes_without_ib.append(node)
+            logger.info("[%s] %s", node, results[i])
+        elif "mtu 2044" not in results[i]:
+            nodes_with_bad_ipoib.append(node)
+            logger.info("[%s] %s", node, results[i])
+
+    if len(nodes_without_ib) > 0:
+        logger.info("nodes without ib: %s", ",".join(nodes_without_ib))
     else:
-        logger.info("no bad ib nodes")
+        logger.info("all nodes have ib")
+
+    if len(nodes_with_bad_ipoib) > 0:
+        logger.info("nodes with bad ipoib: %s", ",".join(nodes_with_bad_ipoib))
+    else:
+        logger.info("all nodes have good ipoib")
 
 
 def restart_kubelet(config_path, nodes):
