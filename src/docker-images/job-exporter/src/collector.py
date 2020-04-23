@@ -1012,9 +1012,6 @@ class NVSMCollector(Collector):
                 return good_gauge, total_gauge
             else:
                 return None
-        except FileNotFoundError:
-            logger.info("seems no nvsm installed, reset sleep_time")
-            self.sleep_time = 86400 # this is not DGX-2, sleep for 1 day to try again
         except Exception:
             logger.exception("collect nvsm metric failed")
 
@@ -1035,13 +1032,21 @@ class NVSMCollector(Collector):
     def call_nvsm(self):
         try:
             return utils.exec_cmd(
-                ["nvsm", "show", "health"],
+                ["chroot", "/host-fs", "nvsm", "show", "health"],
                 histogram=NVSMCollector.cmd_histogram,
                 stderr=subprocess.STDOUT, # also capture stderr output
                 timeout=NVSMCollector.cmd_timeout)
         except subprocess.TimeoutExpired as e:
             logger.warning("nvsm timeout")
         except subprocess.CalledProcessError as e:
-            logger.warning("nvsm returns %d, output %s", e.returncode, e.output)
+            if e.returncode == 127:
+                self.sleep_time = 86400 # this is not DGX-2, sleep for 1 day to try again
+                logger.info("seems no nvsm installed, reset sleep_time to %s",
+                            self.sleep_time)
+            else:
+                logger.warning("nvsm returns %d, output %s", e.returncode,
+                               e.output)
+        except Exception:
+            logger.exception("call nvsm failed")
 
         return ""
