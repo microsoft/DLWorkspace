@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+
+import argparse
+import base64
+import logging
+import os
+import json
+import yaml
+import mysql.connector
+
+from kubernetes import client as k8s_client
+from kubernetes.client import Configuration, ApiClient
+
+
+logger = logging.getLogger(__name__)
+
+
+def find_infra_node_name(machines):
+    for hostname, val in machines.items():
+        role_val = val.get("role")
+        if type(role_val) == str and role_val == "infrastructure":
+            return hostname
+        elif type(role_val) == list:
+            for role in role_val:
+                if role == "infra":
+                    return hostname
+
+
+def get_config(config_path):
+    config_path = os.path.join(config_path, "config.yaml")
+    with open(config_path) as f:
+        config = yaml.full_load(f)
+    return config
+
+
+def get_cluster_id(config_path):
+    with open(os.path.join(config_path, "clusterID", "clusterID.yml")) as f:
+        cluster_id = yaml.safe_load(f)["clusterId"]
+    return cluster_id
+
+
+def get_conn(config_path):
+    config = get_config(config_path)
+    cluster_id = get_cluster_id(config_path)
+    conn = mysql.connector.connect(
+        user=config["mysql_username"],
+        password=config["mysql_password"],
+        host=config["mysql_node"],
+        database="DLWSCluster-%s" % cluster_id)
+    return conn
+
+
+def get_expected_capacity(config_path):
+    try:
+        conn = get_conn(config_path)
+        cursor = conn.cursor()
+        query = "SELECT `resourceMetadata` FROM `vc` LIMIT 1"
+        ret = None
+        cursor.execute(query)
+        for resource_metadata in cursor:
+            data = json.loads(resource_metadata[0])
+            for sku, meta in data["gpu"].items():
+                ret = int(meta["per_node"])
+        conn.commit()
+    except Exception:
+        logger.exception("Failed to get expected capacity")
+    finally:
+        if conn is not None:
+            conn.close()
+    return ret
+
+
+def build_k8s_config(config_path):
+    cluster_path = os.path.join(config_path, "cluster.yaml")
+    if not os.path.isfile(cluster_path):
+        cluster_path = os.path.join(config_path, "status.yaml")
+
+    with open(cluster_path) as f:
+        cluster_config = yaml.full_load(f)
+
+    config = Configuration()
+
+    infra_host = find_infra_node_name(cluster_config["machines"])
+
+    if os.path.isfile(cluster_path):
+        config.host = "https://%s.%s:1443" % (
+            infra_host, cluster_config["network"]["domain"])
+        basic_auth = cluster_config["basic_auth"]
+    else:
+        config.host = cluster_config["machines"][infra_host]["fqdns"]
+        with open(os.path.join(config_path, "clusterID",
+                               "k8s_basic_auth.yml")) as auf:
+            basic_auth = yaml.safe_load(auf)["basic_auth"]
+
+    config.username = basic_auth.split(",")[1]
+    config.password = basic_auth.split(",")[0]
+    bearer = "%s:%s" % (config.username, config.password)
+    encoded = base64.b64encode(bearer.encode("utf-8")).decode("utf-8")
+    config.api_key["authorization"] = "Basic " + encoded
+
+    config.ssl_ca_cert = os.path.join(config_path, "ssl/apiserver/ca.pem")
+    return config
+
+
+def get_k8s_nodes(config_path):
+    config = build_k8s_config(config_path)
+    api_client = ApiClient(configuration=config)
+    k8s_core_api = k8s_client.CoreV1Api(api_client)
+    resp = k8s_core_api.list_node()
+    return resp.items
+
+
+def get_k8s_gpu_nodes(config_path):
+    nodes = get_k8s_nodes(config_path)
+    gpu_nodes = []
+    for node in nodes:
+        if node.status is not None \
+            and node.status.capacity is not None \
+            and "nvidia.com/gpu" in node.status.capacity:
+            gpu_nodes.append(node)
+    return gpu_nodes
+
+
+def main(args):
+    expected = get_expected_capacity(args.config)
+    assert expected is not None, "expected capacity cannot be None"
+    nodes = get_k8s_gpu_nodes(args.config)
+    for node in nodes:
+        hostname = None
+        for address in node.status.addresses:
+            if address.type == 'Hostname':
+                hostname = address.address
+        unschedulable = node.spec.unschedulable is True
+        capacity = int(node.status.capacity["nvidia.com/gpu"])
+        allocatable = int(node.status.allocatable["nvidia.com/gpu"])
+        if expected != capacity or capacity != allocatable:
+            logger.info("%s. expected %s, capacity %s, allocatable %s", 
+                        hostname, expected, capacity, allocatable)
+
+
+if __name__ == '__main__':
+    logging.basicConfig(
+        format=
+        "%(asctime)s: %(levelname)s - %(filename)s:%(lineno)d@%(process)d: %(message)s",
+        level=logging.INFO)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config",
+                        "-c",
+                        required=True,
+                        help="path to config dir")
+    args = parser.parse_args()
+
+    main(args)
