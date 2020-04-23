@@ -154,6 +154,7 @@ def main(args):
         ("process_collector", interval, decay_time, collector.ProcessCollector),
         ("dcgm_collector", interval, decay_time, collector.DCGMCollector,
          dcgm_info_ref),
+        ("nvsm_collector", interval, decay_time, collector.NVSMCollector),
     ]
 
     refs = list(map(lambda x: collector.make_collector(*x), collector_args))
