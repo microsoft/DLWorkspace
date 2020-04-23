@@ -167,6 +167,7 @@ class TestEccRebootNodeRule(unittest.TestCase):
         self.assertTrue("node1" in ecc_reboot_node_rule_instance.nodes_ready_for_action)
         self.assertEqual(0, len(ecc_reboot_node_rule_instance.jobs_ready_for_migration))
 
+    @mock.patch('rules.ecc_detect_error_rule.k8s_util.uncordon_node')
     @mock.patch('utils.k8s_util.list_namespaced_pod')
     @mock.patch('requests.get')
     @mock.patch('rules.ecc_reboot_node_rule.EccRebootNodeRule.load_etcd_config')
@@ -179,7 +180,8 @@ class TestEccRebootNodeRule(unittest.TestCase):
             mock_load_ecc_config,
             mock_load_etcd_config,
             mock_request_get,
-            mock_pod_list):
+            mock_pod_list,
+            mock_uncordon_node):
 
         rule_config = test_util.mock_rule_config()
         mock_load_rule_config.return_value = rule_config

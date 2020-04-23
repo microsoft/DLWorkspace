@@ -9,6 +9,7 @@ import time
 from actions.migrate_job_action import MigrateJobAction
 from actions.send_alert_action import SendAlertAction
 from actions.reboot_node_action import RebootNodeAction
+from actions.uncordon_action import UncordonAction
 from datetime import datetime, timedelta, timezone
 from rules_abc import Rule
 from utils import prometheus_util, k8s_util
@@ -66,10 +67,12 @@ class EccRebootNodeRule(Rule):
 
     def check_if_nodes_have_rebooted(self):
         # if node has been rebooted since ecc error initially detected,
-        # remove from rule_cache and mark as resolved
+        # uncordon, remove from rule_cache, and mark as resolved
         url = f"http://{self.config['prometheus']['ip']}:{self.config['prometheus']['port']}"
         query = self.config['prometheus']['node_boot_time_query']
         reboot_times_url = prometheus_util.format_url_query(url, query)
+        dry_run = not self.ecc_config["enable_reboot"]
+        uncordon_action = UncordonAction()
 
         try:
             response = requests.get(reboot_times_url, timeout=10)
@@ -83,6 +86,7 @@ class EccRebootNodeRule(Rule):
                 time_found_datetime = datetime.strptime(time_found_string, self.config['date_time_format'])
                 last_reboot_time = reboot_times[instance]
                 if last_reboot_time > time_found_datetime:
+                    uncordon_action.execute(node, dry_run)
                     self.alert.remove_from_rule_cache(self.rule, node)
                     activity_log.info({"action":"marked as resolved from incorrectable ecc error","node":node})
         except:
