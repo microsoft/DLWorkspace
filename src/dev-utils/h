@@ -200,14 +200,15 @@ def get_unschedulable(config_path):
         hostname = get_hostname(node)
         unschedulable = node.spec.unschedulable is True
         ready = get_ready(node)
-        if unschedulable is not True or ready is not True:
+        if unschedulable is True or ready is not True:
             logger.info("%s. unschedulable %s, ready %s",
                         hostname, unschedulable, ready)
             unschedulable_nodes.append(hostname)
     logger.info("unschedulable nodes: %s", ",".join(unschedulable_nodes))
 
 
-def ssh_exec(identity_file, user, host, command):
+def ssh_exec(params):
+    identity_file, user, host, command = params
     ssh_command = \
         """ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """ % \
         (identity_file, user, host, command)
