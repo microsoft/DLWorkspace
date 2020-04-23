@@ -2,6 +2,7 @@
 
 import argparse
 import base64
+import collections
 import logging
 import os
 import json
@@ -11,6 +12,7 @@ import multiprocessing
 import subprocess
 
 from kubernetes import client as k8s_client
+from kubernetes.client.rest import ApiException
 from kubernetes.client import Configuration, ApiClient
 
 
@@ -141,12 +143,85 @@ def build_k8s_config(config_path):
     return config
 
 
+def cordon_k8s_nodes(config_path, nodes):
+    config = build_k8s_config(config_path)
+    api_client = ApiClient(configuration=config)
+    k8s_core_api = k8s_client.CoreV1Api(api_client)
+    for node in nodes:
+        try:
+            api_call_body = k8s_client.V1Node(
+                spec=k8s_client.V1NodeSpec(unschedulable=True))
+            k8s_core_api.patch_node(node, api_call_body)
+            logger.info("node %s cordoned", node)
+        except ApiException:
+            logger.exception("Exception when calling CoreV1Api->patch_node")
+
+
+def uncordon_k8s_nodes(config_path, nodes):
+    config = build_k8s_config(config_path)
+    api_client = ApiClient(configuration=config)
+    k8s_core_api = k8s_client.CoreV1Api(api_client)
+    for node in nodes:
+        try:
+            api_call_body = k8s_client.V1Node(
+                spec=k8s_client.V1NodeSpec(unschedulable=False))
+            k8s_core_api.patch_node(node, api_call_body)
+            logger.info("node %s uncordoned", node)
+        except ApiException:
+            logger.exception("Exception when calling CoreV1Api->patch_node")
+
+
 def get_k8s_nodes(config_path):
     config = build_k8s_config(config_path)
     api_client = ApiClient(configuration=config)
     k8s_core_api = k8s_client.CoreV1Api(api_client)
-    resp = k8s_core_api.list_node()
-    return resp.items
+    ret = []
+    try:
+        resp = k8s_core_api.list_node()
+        ret = resp.items
+    except ApiException:
+        logger.exception("Exception when calling CoreV1Api->list_node")
+    return ret
+
+
+def get_k8s_pods(config_path):
+    config = build_k8s_config(config_path)
+    api_client = ApiClient(configuration=config)
+    k8s_core_api = k8s_client.CoreV1Api(api_client)
+    ret = []
+    try:
+        resp = k8s_core_api.list_namespaced_pod(namespace="default")
+        ret = resp.items
+    except ApiException:
+        logger.exception("Exception when calling CoreV1Api->list_namespaced_pod")
+    return ret
+
+
+def get_jobs_on_nodes(config_path, nodes):
+    pods = get_k8s_pods(config_path)
+    jobs = collections.defaultdict(lambda: list())
+    for pod in pods:
+        if pod.metadata is None or pod.metadata.labels is None:
+            continue
+
+        if pod.spec is None or pod.spec.node_name is None:
+            continue
+
+        labels = pod.metadata.labels
+        node_name = pod.spec.node_name
+        if "jobId" in labels and "userName" in labels and \
+                "vcName" in labels and node_name in nodes:
+            job_id = labels["jobId"]
+            username = labels["userName"]
+            vc_name = labels["vcName"]
+
+            jobs[node_name].append({
+                "job_id": job_id,
+                "username": username,
+                "vc_name": vc_name
+            })
+
+    return jobs
 
 
 def get_k8s_gpu_nodes(config_path):
@@ -296,6 +371,15 @@ def main(args):
         get_unschedulable(config)
     elif action == "ib":
         get_ib(config)
+    elif action == "cordon":
+        assert nodes is not None
+        cordon_k8s_nodes(config, nodes)
+    elif action == "uncordon":
+        assert nodes is not None
+        uncordon_k8s_nodes(config, nodes)
+    elif action == "jobs":
+        assert nodes is not None
+        get_jobs_on_nodes(config, nodes)
     elif action == "hostname":
         assert nodes is not None
         ssh_exec_hostname(config, nodes)
