@@ -450,6 +450,7 @@ if __name__ == '__main__':
         "  hostname        exec hostname on all gpu nodes",
         "  kubelet         'sudo systemctl restart kubelet' on nodes from --nodes/-n",
         "  walinuxagent    'sudo systemctl restart walinuxagent' on nodes from --nodes/-n",
+        "  reboot          'sudo reboot' on nodes from --nodes/-n",
     ]
     parser.add_argument("--action",
                         "-a",
