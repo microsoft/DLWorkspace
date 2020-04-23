@@ -31,22 +31,71 @@ def find_infra_node_name(machines):
                     return hostname
 
 
-def get_config(config_path):
-    config_path = os.path.join(config_path, "config.yaml")
-    with open(config_path) as f:
-        config = yaml.full_load(f)
+def get_config_file(config_dir, filename):
+    config = {}
+    config_path = os.path.join(config_dir, filename)
+    if os.path.isfile(config_path):
+        with open(config_dir) as f:
+            config = yaml.full_load(f)
     return config
 
 
-def get_cluster_id(config_path):
-    with open(os.path.join(config_path, "clusterID", "clusterID.yml")) as f:
+def get_config_yaml(config_dir):
+    return get_config_file(config_dir, "config.yaml")
+
+
+def get_cluster_yaml(config_dir):
+    return get_config_file(config_dir, "cluster.yaml")
+
+
+def get_status_yaml(config_dir):
+    return get_config_file(config_dir, "status.yaml")
+
+
+def get_cluster_id(config_dir):
+    with open(os.path.join(config_dir, "clusterID", "clusterID.yml")) as f:
         cluster_id = yaml.safe_load(f)["clusterId"]
     return cluster_id
 
 
-def get_conn(config_path):
-    config = get_config(config_path)
-    cluster_id = get_cluster_id(config_path)
+def get_basic_auth(config_dir):
+    config_yaml = get_config_yaml(config_dir)
+    basic_auth = config_yaml.get("basic_auth")
+
+    if basic_auth is None:
+        cluster_yaml = get_cluster_yaml(config_dir)
+        basic_auth = cluster_yaml.get("basic_auth")
+
+    if basic_auth is None:
+        k8s_basic_auth_path = os.path.join(config_dir, "clusterID",
+                                           "k8s_basic_auth.yml")
+        with open(k8s_basic_auth_path) as f:
+            basic_auth = yaml.safe_load(f).get("basic_auth")
+
+    return basic_auth
+
+
+def get_machine_list(config_dir):
+    config_yaml = get_config_yaml(config_dir)
+    machines = config_yaml.get("machines")
+
+    if machines is None:
+        cluster_yaml = get_cluster_yaml(config_dir)
+        machines = cluster_yaml.get("machines")
+
+    if machines is None:
+        status_yaml = get_status_yaml(config_dir)
+        machines = status_yaml.get("machines")
+
+    if machines is None:
+        machines = []
+
+    return machines
+
+
+def get_db_conn(config_dir):
+    config = get_config_yaml(config_dir)
+    cluster_id = get_cluster_id(config_dir)
     conn = mysql.connector.connect(
         user=config["mysql_username"],
         password=config["mysql_password"],
@@ -55,12 +104,12 @@ def get_conn(config_path):
     return conn
 
 
-def get_expected_capacity(config_path):
+def get_expected_capacity(config_dir):
     conn = None
     cursor = None
     ret = None
     try:
-        conn = get_conn(config_path)
+        conn = get_db_conn(config_dir)
         cursor = conn.cursor()
         query = "SELECT `resourceMetadata` FROM `vc` LIMIT 1"
         cursor.execute(query)
@@ -80,80 +129,63 @@ def get_expected_capacity(config_path):
     return ret
 
 
-def get_user(config_path):
-    cluster_path = os.path.join(config_path, "cluster.yaml")
-    if os.path.isfile(cluster_path):
-        with open(cluster_path) as f:
-            cluster_config = yaml.full_load(f)
-        return cluster_config["admin_username"]
+def get_user(config_dir):
+    config_yaml = get_config_yaml(config_dir)
+    user = config_yaml.get("admin_username")
 
-    status_path = os.path.join(config_path, "status.yaml")
-    with open(status_path) as f:
-        status_config = yaml.full_load(f)
-        for machine, machine_info in status_config["machines"].items():
+    if user is None:
+        cluster_yaml = get_cluster_yaml(config_dir)
+        user = cluster_yaml.get("admin_username")
+
+    if user is None:
+        status_yaml = get_status_yaml(config_dir)
+        for machine, machine_info in status_yaml.get("machines", {}).items():
             if "infra" in machine_info["role"]:
-                return machine_info["admin_username"]
-    return None
+                user = machine_info.get("admin_username")
+
+    return user
 
 
-def get_domain(config_path):
-    config = get_config(config_path)
-    domain = config.get("network", {}).get("domain", {})
-    if domain is not None:
-        return domain
+def get_domain(config_dir):
+    config_yaml = get_config_yaml(config_dir)
+    domain = config_yaml.get("network", {}).get("domain")
 
-    cluster_path = os.path.join(config_path, "cluster.yaml")
-    if os.path.isfile(cluster_path):
-        with open(cluster_path) as f:
-            cluster_config = yaml.full_load(f)
-        return cluster_config["network"]["domain"]
+    if domain is None:
+        cluster_yaml = get_cluster_yaml(config_dir)
+        domain = cluster_yaml.get("network", {}).get("domain")
 
-    status_path = os.path.join(config_path, "status.yaml")
-    with open(status_path) as f:
-        status_config = yaml.full_load(f)
-        for machine, machine_info in status_config["machines"].items():
+    if domain is None:
+        status_yaml = get_status_yaml(config_dir)
+        for machine, machine_info in status_yaml.get("machines", {}).items():
             if "infra" in machine_info["role"]:
                 fqdns = machine_info["fqdns"]
-                return fqdns[(fqdns.find(".") + 1):]
-    return None
+                domain = fqdns[(fqdns.find(".") + 1):]
+                break
+
+    return domain
 
 
-def build_k8s_config(config_path):
-    config = get_config(config_path)
-    cluster_path = os.path.join(config_path, "cluster.yaml")
-    if not os.path.isfile(cluster_path):
-        cluster_path = os.path.join(config_path, "status.yaml")
-
-    with open(cluster_path) as f:
-        cluster_config = yaml.full_load(f)
+def build_k8s_config(config_dir):
+    machines = get_machine_list(config_dir)
+    infra_host = find_infra_node_name(machines)
+    domain = get_domain(config_dir)
+    basic_auth = get_basic_auth(config_dir)
 
     config = Configuration()
 
-    infra_host = find_infra_node_name(cluster_config["machines"])
-
-    if "cluster.yaml" in cluster_path:
-        config.host = "https://%s.%s:1443" % (
-            infra_host, cluster_config["network"]["domain"])
-        basic_auth = cluster_config["basic_auth"]
-    else:
-        config.host = "https://%s:1443" % (
-            cluster_config["machines"][infra_host]["fqdns"])
-        with open(os.path.join(config_path, "clusterID",
-                               "k8s_basic_auth.yml")) as auf:
-            basic_auth = yaml.safe_load(auf)["basic_auth"]
-
+    config.host = "https://%s.%s:1443" % (infra_host, domain)
     config.username = basic_auth.split(",")[1]
     config.password = basic_auth.split(",")[0]
     bearer = "%s:%s" % (config.username, config.password)
     encoded = base64.b64encode(bearer.encode("utf-8")).decode("utf-8")
     config.api_key["authorization"] = "Basic " + encoded
 
-    config.ssl_ca_cert = os.path.join(config_path, "ssl/apiserver/ca.pem")
+    config.ssl_ca_cert = os.path.join(config_dir, "ssl/apiserver/ca.pem")
     return config
 
 
-def cordon_k8s_nodes(config_path, nodes):
-    config = build_k8s_config(config_path)
+def cordon_k8s_nodes(config_dir, nodes):
+    config = build_k8s_config(config_dir)
     api_client = ApiClient(configuration=config)
     k8s_core_api = k8s_client.CoreV1Api(api_client)
     for node in nodes:
@@ -166,8 +198,8 @@ def cordon_k8s_nodes(config_path, nodes):
             logger.exception("Exception when calling CoreV1Api->patch_node")
 
 
-def uncordon_k8s_nodes(config_path, nodes):
-    config = build_k8s_config(config_path)
+def uncordon_k8s_nodes(config_dir, nodes):
+    config = build_k8s_config(config_dir)
     api_client = ApiClient(configuration=config)
     k8s_core_api = k8s_client.CoreV1Api(api_client)
     for node in nodes:
@@ -180,8 +212,8 @@ def uncordon_k8s_nodes(config_path, nodes):
             logger.exception("Exception when calling CoreV1Api->patch_node")
 
 
-def get_k8s_nodes(config_path):
-    config = build_k8s_config(config_path)
+def get_k8s_nodes(config_dir):
+    config = build_k8s_config(config_dir)
     api_client = ApiClient(configuration=config)
     k8s_core_api = k8s_client.CoreV1Api(api_client)
     ret = []
@@ -193,8 +225,8 @@ def get_k8s_nodes(config_path):
     return ret
 
 
-def get_k8s_pods(config_path):
-    config = build_k8s_config(config_path)
+def get_k8s_pods(config_dir):
+    config = build_k8s_config(config_dir)
     api_client = ApiClient(configuration=config)
     k8s_core_api = k8s_client.CoreV1Api(api_client)
     ret = []
@@ -206,8 +238,8 @@ def get_k8s_pods(config_path):
     return ret
 
 
-def get_jobs_on_nodes(config_path, nodes):
-    pods = get_k8s_pods(config_path)
+def get_jobs_on_nodes(config_dir, nodes):
+    pods = get_k8s_pods(config_dir)
     jobs = collections.defaultdict(lambda: list())
     for pod in pods:
         if pod.metadata is None or pod.metadata.labels is None:
@@ -259,8 +291,8 @@ def get_jobs_on_nodes(config_path, nodes):
     return jobs
 
 
-def get_k8s_gpu_nodes(config_path):
-    nodes = get_k8s_nodes(config_path)
+def get_k8s_gpu_nodes(config_dir):
+    nodes = get_k8s_nodes(config_dir)
     gpu_nodes = []
     for node in nodes:
         if node.status is not None and node.status.capacity is not None \
@@ -277,13 +309,13 @@ def get_hostname(node):
     return hostname
 
 
-def get_gpu_count(config_path):
-    expected = get_expected_capacity(config_path)
+def get_gpu_count(config_dir):
+    expected = get_expected_capacity(config_dir)
     if expected is None:
         logger.info("Expected GPU capacity is None, skipping.")
         return
 
-    nodes = get_k8s_gpu_nodes(config_path)
+    nodes = get_k8s_gpu_nodes(config_dir)
     miscount_nodes = []
     for node in nodes:
         hostname = get_hostname(node)
@@ -309,8 +341,8 @@ def get_ready(node):
     return ready
 
 
-def get_unschedulable(config_path):
-    nodes = get_k8s_gpu_nodes(config_path)
+def get_unschedulable(config_dir):
+    nodes = get_k8s_gpu_nodes(config_dir)
     unschedulable_nodes = []
     for node in nodes:
         hostname = get_hostname(node)
@@ -339,10 +371,16 @@ def ssh_exec(params):
     return output.decode()
 
 
-def parallel_ssh(config_path, nodes, command):
-    identity_file = os.path.join(config_path, "sshkey", "id_rsa")
-    user = get_user(config_path)
-    domain = get_domain(config_path)
+def parallel_ssh(config_dir, nodes, command):
+    identity_file = os.path.join(config_dir, "sshkey", "id_rsa")
+    assert os.path.isfile(identity_file), "sshkey/id_rsa must exist!"
+
+    user = get_user(config_dir)
+    assert user is not None, "admin_username cannot be None, check config files"
+
+    domain = get_domain(config_dir)
+    assert domain is not None, "domain cannot be None, check config files"
+
     arg_lists = []
     for node in nodes:
         host = "%s.%s" % (node, domain)
@@ -353,18 +391,18 @@ def parallel_ssh(config_path, nodes, command):
     return results
 
 
-def ssh_exec_hostname(config_path, nodes):
+def ssh_exec_hostname(config_dir, nodes):
     cmd = "hostname"
-    results = parallel_ssh(config_path, nodes, cmd)
+    results = parallel_ssh(config_dir, nodes, cmd)
     for i, node in enumerate(nodes):
         logger.info("[%s] %s", node, results[i])
 
 
-def get_ib(config_path):
+def get_ib(config_dir):
     cmd = "ibstatus && ifconfig ib0"
-    nodes = get_k8s_gpu_nodes(config_path)
+    nodes = get_k8s_gpu_nodes(config_dir)
     nodes = [get_hostname(node) for node in nodes]
-    results = parallel_ssh(config_path, nodes, cmd)
+    results = parallel_ssh(config_dir, nodes, cmd)
     nodes_without_ib = []
     nodes_with_bad_ipoib = []
     for i, node in enumerate(nodes):
@@ -386,19 +424,19 @@ def get_ib(config_path):
         logger.info("all nodes have good ipoib")
 
 
-def restart_kubelet(config_path, nodes):
+def restart_kubelet(config_dir, nodes):
     cmd = "sudo systemctl restart kubelet"
-    _ = parallel_ssh(config_path, nodes, cmd)
+    _ = parallel_ssh(config_dir, nodes, cmd)
 
 
-def restart_walinuxagent(config_path, nodes):
+def restart_walinuxagent(config_dir, nodes):
     cmd = "sudo systemctl restart walinuxagent"
-    _ = parallel_ssh(config_path, nodes, cmd)
+    _ = parallel_ssh(config_dir, nodes, cmd)
 
 
-def reboot(config_path, nodes):
+def reboot(config_dir, nodes):
     cmd = "sudo reboot"
-    _ = parallel_ssh(config_path, nodes, cmd)
+    _ = parallel_ssh(config_dir, nodes, cmd)
 
 
 def main(args):
