@@ -66,8 +66,9 @@ def get_expected_capacity(config_path):
         cursor.execute(query)
         for resource_metadata in cursor:
             data = json.loads(resource_metadata[0])
-            for sku, meta in data["gpu"].items():
-                ret = int(meta["per_node"])
+            if "gpu" in data:
+                for sku, meta in data["gpu"].items():
+                    ret = int(meta["per_node"])
         conn.commit()
     except Exception:
         logger.exception("Failed to get expected capacity")
@@ -96,6 +97,11 @@ def get_user(config_path):
 
 
 def get_domain(config_path):
+    config = get_config(config_path)
+    domain = config.get("network", {}).get("domain", {})
+    if domain is not None:
+        return domain
+
     cluster_path = os.path.join(config_path, "cluster.yaml")
     if os.path.isfile(cluster_path):
         with open(cluster_path) as f:
@@ -113,6 +119,7 @@ def get_domain(config_path):
 
 
 def build_k8s_config(config_path):
+    config = get_config(config_path)
     cluster_path = os.path.join(config_path, "cluster.yaml")
     if not os.path.isfile(cluster_path):
         cluster_path = os.path.join(config_path, "status.yaml")
@@ -129,7 +136,8 @@ def build_k8s_config(config_path):
             infra_host, cluster_config["network"]["domain"])
         basic_auth = cluster_config["basic_auth"]
     else:
-        config.host = cluster_config["machines"][infra_host]["fqdns"]
+        config.host = "https://%s:1443" % (
+            cluster_config["machines"][infra_host]["fqdns"])
         with open(os.path.join(config_path, "clusterID",
                                "k8s_basic_auth.yml")) as auf:
             basic_auth = yaml.safe_load(auf)["basic_auth"]
@@ -271,7 +279,10 @@ def get_hostname(node):
 
 def get_gpu_count(config_path):
     expected = get_expected_capacity(config_path)
-    assert expected is not None, "expected capacity cannot be None"
+    if expected is None:
+        logger.info("Expected GPU capacity is None, skipping.")
+        return
+
     nodes = get_k8s_gpu_nodes(config_path)
     miscount_nodes = []
     for node in nodes:
