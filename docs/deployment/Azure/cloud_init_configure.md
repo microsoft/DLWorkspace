@@ -52,10 +52,58 @@ azure_cluster:
         - monitor
         - dashboard
         - user-synchronizer
+        - logging
       number_of_instance: 1
 
-    - vm_size: Standard_B2s
-      vm_image: Canonical:UbuntuServer:18.04-LTS:18.04.201912180
+    - number_of_instance: 1
+      name: lustclean-lustre-mdt
+      vm_size : Standard_B2s
+      vm_image: OpenLogic:CentOS-CI:7-CI:7.7.20190920
+      role: 
+        - lustre
+        - mdt
+      managed_disks:
+        - sku: Premium_LRS
+          is_os: True
+          size_gb: 64
+          disk_num: 1
+        - sku: Premium_LRS
+          size_gb: 64
+          disk_num: 1
+      fileshares:
+      - server_path: /lustrefs
+        client_mount_root: /mntdlws/lustre
+        # if exist, dsts join(linkroot, vc, leaf)
+        client_link_root: /dlwslustre
+        client_links:
+          - src: jobfiles
+            dst: jobfiles
+          - src: storage
+            dst: storage
+          - src: work
+            dst: work
+      data_disk_mnt_path: /lustre
+      private_ip: 192.168.249.1
+
+    - number_of_instance: 2
+      vm_size : Standard_B2s
+      vm_image: OpenLogic:CentOS-CI:7-CI:7.7.20190920
+      role: 
+        - lustre
+        - oss
+      managed_disks:
+        - sku: Premium_LRS
+          is_os: True
+          size_gb: 64
+          disk_num: 1
+        - sku: Premium_LRS
+          size_gb: 128
+          disk_num: 3
+
+    - number_of_instance: 1  
+      name: lustclean-nfs-storage
+      vm_size : Standard_B2s
+      vm_image: Canonical:UbuntuServer:18.04-LTS:18.04.202001210
       role: 
         - nfs
       managed_disks:
@@ -64,32 +112,39 @@ azure_cluster:
           size_gb: 64
           disk_num: 1
         - sku: Premium_LRS
-          size_gb: 128
-          disk_num: 1
+          size_gb: 64
+          disk_num: 2
       data_disk_mnt_path: /data
-      private_ip: 192.168.0.9
+      private_ip: 192.168.254.1
       fileshares:
-        - nfs_local_path: /data/share/ads/jobfiles
-          remote_mount_path: /mntdlws/nfs/ads/jobfiles
-          remote_link_path: /dlwsdata/ads/jobfiles
-        - nfs_local_path: /data/share/ads_not_expected_before/jobfiles
-          remote_mount_path: /mntdlws/nfs/ads1/jobfiles
-          remote_link_path: /dlwsdata/ads1/jobfiles
-        - nfs_local_path_root: /data/share/
-          remote_mount_path_root: /mntdlws/nfs
-          remote_link_path_root: /dlwsdata
-          leaves:
-            - nfs_local_path: jobfiles
-              remote_mount_path: jobfiles
-              remote_link_path: jobfiles
-            - nfs_local_path: storage
-              remote_mount_path: storage
-              remote_link_path: storage
-            - nfs_local_path: work
-              remote_mount_path: work
-              remote_link_path: work  
-          # vc: Ads
-      number_of_instance: 1
+        - server_path: /data/share
+          client_mount_root: /mntdlws/nfs
+          # if exist, dsts join(linkroot, vc, leaf)
+          client_link_root: /dlwsdata
+          client_links:
+            - src: jobfiles
+              dst: jobfiles
+            - src: storage
+              dst: storage
+            - src: work
+              dst: work
+      storage_manager:
+        rest_url: http://192.168.255.1:5000
+        scan_points:
+          - path: /data/share/work
+            alias: /home
+          - path: /data/share/storage
+            alias: /data
+          - path: /data/share/storage/aether
+            alias: /data/aether
+            expired_rule: True
+            expired_to_delete_rule: True
+            days_to_delete_after_expiry: 1
+          - path: /data/share/storage/local
+            alias: /data/local
+            expired_rule: True
+            expired_to_delete_rule: True
+            days_to_delete_after_expiry: 1
       
     - vm_size: Standard_B2s
       vm_image: Canonical:UbuntuServer:18.04-LTS:18.04.201912180
@@ -249,6 +304,8 @@ integration-test:
 
 ```
 
+# Azure general configuration
+
 Each item in `cnf["azure_cluster"]["virtual_machines"]` means spec for a set of machines, the properties of which are explained as follows: 
 
 * `vm_size`: vm_size that azure requires when specifying what type of node is to be used
@@ -263,7 +320,6 @@ az vm list-sizes --location <location, e.g. westus2>
 * `number_of_instance`: number of machine instances with the current spec.
 * `data_disk_mnt_path`: the path that all data disks are mounted to.
 * `private_ip`: use to bind certain private IP to a machine. If this parameter is specified, number_of_instance should be 1.
-* `fileshares`: mounting paths for NFS service. `nfs_local_path` on NFS machines are mounted to `remote_mount_path`, then soft-linked to `remote_link_path`. NFS service might fail. We use the soft-link trick because it guarantees that when NFS service fails, operations would also fail, and we could know. Before we fix it, attempted operations would fail, but no vital damage would be caused. To allow less user effort, we also support stem-leaves mode, where users specify "stem" of paths, (such as `nfs_local_path_root`), and probably `vc` if the NFS machine is for dedicated storage, then several sub paths under `leaves`, and then a joined path would be generated.
 
 Some other properties that worth mentioning:
 
@@ -275,6 +331,20 @@ Please use the following to find all available azure locations.
 az account list-locations
 ```
 
-* `nfs_client_CIDR`: specifies a list of IP ranges that can access NFS servers. Private IPs are allowed.
 * `cloud_config_nsg_rules`: specifies the Azure network security group rules, `dev_network` defines the IP ranges that have access (including ssh etc.) to the cluster, `nfs_share` defines IP ranges that can communicate with storage nodes, and `nfs_ssh` defines the IP ranges from where we can ssh to the storage nodes, and the IPs should be public IPs.
 * `registry_credential`: defines access to private docker registries.
+
+# Storage Related configuration (mount and link, Lustre)
+lustclean-nfs-storage example above would setup up mounting as: 
+
+mount `192.168.254.1`(the storage server IP):`/data/share` to `/mntdlws/nfs` on client,
+link `/mntdlws/nfs/jobfiles` to `/dlwsdata/jobfiles` (link source and destination both on client)
+link `/mntdlws/nfs/work` to `/dlwsdata/work`
+link `/mntdlws/nfs/storage` to `/dlwsdata/storage`
+
+* `fileshares`: mounting paths for NFS service. `server_path` on NFS machines are mounted to `client_mount_root`. Each link `src` under `client_links` would be soft-linked to corresponding `dst`. If `src` is a relative path, if would be prepended with `client_link_root`. If `vc` is specified for dedicated storage, vc name might be inserted to the paths. 
+
+NFS service might fail. We use the soft-link trick because it guarantees that when NFS service fails, operations would also fail, and we could know. Before we fix it, attempted operations would fail, but no vital damage would be caused. 
+* `nfs_client_CIDR`: specifies a list of IP ranges that can access NFS servers. Private IPs are allowed.
+
+Currently, if Lustre support is desired, the only supported lustre server vm image is `OpenLogic:CentOS-CI:7-CI:7.7.20190920`, and the only supported client image is `Canonical:UbuntuServer:18.04-LTS:18.04.201912180`
