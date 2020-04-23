@@ -229,6 +229,13 @@ def parallel_ssh(config_path, nodes, command):
     return results
 
 
+def ssh_exec_hostname(config_path, nodes):
+    cmd = "hostname"
+    results = parallel_ssh(config_path, nodes, cmd)
+    for i, node in enumerate(nodes):
+        logger.info("[%s] %s", node, results[i])
+
+
 def get_ib(config, nodes):
     cmd = "ibstatus; ifconfig ib0"
     pass
@@ -258,8 +265,9 @@ def main(args):
     elif action == "ib":
         assert nodes is not None
         get_ib(config, nodes)
-    elif action == "ssh":
+    elif action == "hostname":
         assert nodes is not None
+        ssh_exec_hostname(config, nodes)
     elif action == "kubelet":
         assert nodes is not None
         restart_kubelet(config, nodes)
