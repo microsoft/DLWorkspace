@@ -35,7 +35,7 @@ def get_config_file(config_dir, filename):
     config = {}
     config_path = os.path.join(config_dir, filename)
     if os.path.isfile(config_path):
-        with open(config_dir) as f:
+        with open(config_path) as f:
             config = yaml.full_load(f)
     return config
 
@@ -344,6 +344,7 @@ def get_ready(node):
 def get_unschedulable(config_dir):
     nodes = get_k8s_gpu_nodes(config_dir)
     unschedulable_nodes = []
+    notready_nodes = []
     for node in nodes:
         hostname = get_hostname(node)
         unschedulable = node.spec.unschedulable is True
@@ -351,11 +352,18 @@ def get_unschedulable(config_dir):
         if unschedulable is True or ready is not True:
             logger.info("%s. unschedulable %s, ready %s",
                         hostname, unschedulable, ready)
+        if unschedulable is True:
             unschedulable_nodes.append(hostname)
+        if ready is not True:
+            notready_nodes.append(hostname)
     if len(unschedulable_nodes) > 0:
         logger.info("unschedulable nodes: %s", ",".join(unschedulable_nodes))
     else:
-        logger.info("no unschedulable nodes")
+        logger.info("all nodes are schedulable")
+    if len(notready_nodes) > 0:
+        logger.info("notready nodes     : %s", ",".join(notready_nodes))
+    else:
+        logger.info("all nodes are ready")
 
 
 def ssh_exec(params):
