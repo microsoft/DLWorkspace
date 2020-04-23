@@ -7,6 +7,8 @@ import os
 import json
 import yaml
 import mysql.connector
+import multiprocessing
+import subprocess
 
 from kubernetes import client as k8s_client
 from kubernetes.client import Configuration, ApiClient
@@ -51,11 +53,13 @@ def get_conn(config_path):
 
 
 def get_expected_capacity(config_path):
+    conn = None
+    cursor = None
+    ret = None
     try:
         conn = get_conn(config_path)
         cursor = conn.cursor()
         query = "SELECT `resourceMetadata` FROM `vc` LIMIT 1"
-        ret = None
         cursor.execute(query)
         for resource_metadata in cursor:
             data = json.loads(resource_metadata[0])
@@ -65,9 +69,44 @@ def get_expected_capacity(config_path):
     except Exception:
         logger.exception("Failed to get expected capacity")
     finally:
+        if cursor is not None:
+            cursor.close()
         if conn is not None:
             conn.close()
     return ret
+
+
+def get_user(config_path):
+    cluster_path = os.path.join(config_path, "cluster.yaml")
+    if os.path.isfile(cluster_path):
+        with open(cluster_path) as f:
+            cluster_config = yaml.full_load(f)
+        return cluster_config["admin_username"]
+
+    status_path = os.path.join(config_path, "status.yaml")
+    with open(status_path) as f:
+        status_config = yaml.full_load(f)
+        for machine, machine_info in status_config["machines"].items():
+            if "infra" in machine_info["role"]:
+                return machine_info["admin_username"]
+    return None
+
+
+def get_domain(config_path):
+    cluster_path = os.path.join(config_path, "cluster.yaml")
+    if os.path.isfile(cluster_path):
+        with open(cluster_path) as f:
+            cluster_config = yaml.full_load(f)
+        return cluster_config["network"]["domain"]
+
+    status_path = os.path.join(config_path, "status.yaml")
+    with open(status_path) as f:
+        status_config = yaml.full_load(f)
+        for machine, machine_info in status_config["machines"].items():
+            if "infra" in machine_info["role"]:
+                fqdns = machine_info["fqdns"]
+                return fqdns[(fqdns.find(".") + 1):]
+    return None
 
 
 def build_k8s_config(config_path):
@@ -82,7 +121,7 @@ def build_k8s_config(config_path):
 
     infra_host = find_infra_node_name(cluster_config["machines"])
 
-    if os.path.isfile(cluster_path):
+    if "cluster.yaml" in cluster_path:
         config.host = "https://%s.%s:1443" % (
             infra_host, cluster_config["network"]["domain"])
         basic_auth = cluster_config["basic_auth"]
@@ -114,28 +153,121 @@ def get_k8s_gpu_nodes(config_path):
     nodes = get_k8s_nodes(config_path)
     gpu_nodes = []
     for node in nodes:
-        if node.status is not None \
-            and node.status.capacity is not None \
-            and "nvidia.com/gpu" in node.status.capacity:
+        if node.status is not None and node.status.capacity is not None \
+                and "nvidia.com/gpu" in node.status.capacity:
             gpu_nodes.append(node)
     return gpu_nodes
 
 
-def main(args):
-    expected = get_expected_capacity(args.config)
+def get_hostname(node):
+    hostname = None
+    for address in node.status.addresses:
+        if address.type == 'Hostname':
+            hostname = address.address
+    return hostname
+
+
+def get_gpu_count(config_path):
+    expected = get_expected_capacity(config_path)
     assert expected is not None, "expected capacity cannot be None"
-    nodes = get_k8s_gpu_nodes(args.config)
+    nodes = get_k8s_gpu_nodes(config_path)
+    miscount_nodes = []
     for node in nodes:
-        hostname = None
-        for address in node.status.addresses:
-            if address.type == 'Hostname':
-                hostname = address.address
-        unschedulable = node.spec.unschedulable is True
+        hostname = get_hostname(node)
         capacity = int(node.status.capacity["nvidia.com/gpu"])
         allocatable = int(node.status.allocatable["nvidia.com/gpu"])
         if expected != capacity or capacity != allocatable:
             logger.info("%s. expected %s, capacity %s, allocatable %s", 
                         hostname, expected, capacity, allocatable)
+            miscount_nodes.append(hostname)
+    logger.info("miscount nodes: %s", ",".join(miscount_nodes))
+
+
+def get_ready(node):
+    ready = False
+    if node.status is not None and node.status.conditions is not None:
+        for condition in node.status.conditions:
+            if condition.type == "Ready" and condition.status == "True":
+                ready = True
+                break
+    return ready
+
+
+def get_unschedulable(config_path):
+    nodes = get_k8s_gpu_nodes(config_path)
+    unschedulable_nodes = []
+    for node in nodes:
+        hostname = get_hostname(node)
+        unschedulable = node.spec.unschedulable is True
+        ready = get_ready(node)
+        if unschedulable is not True or ready is not True:
+            logger.info("%s. unschedulable %s, ready %s",
+                        hostname, unschedulable, ready)
+            unschedulable_nodes.append(hostname)
+    logger.info("unschedulable nodes: %s", ",".join(unschedulable_nodes))
+
+
+def ssh_exec(identity_file, user, host, command):
+    ssh_command = \
+        """ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """ % \
+        (identity_file, user, host, command)
+    output = subprocess.check_output(ssh_command, shell=True)
+    return output.decode()
+
+
+def parallel_ssh(config_path, nodes, command):
+    identity_file = os.path.join(config_path, "sshkey", "id_rsa")
+    user = get_user(config_path)
+    domain = get_domain(config_path)
+    arg_lists = []
+    for node in nodes:
+        host = "%s.%s" % (node, domain)
+        arg_lists.append((identity_file, user, host, command))
+
+    with multiprocessing.Pool(len(nodes)) as pool:
+        results = pool.map(ssh_exec, arg_lists)
+    return results
+
+
+def get_ib(config, nodes):
+    cmd = "ibstatus; ifconfig ib0"
+    pass
+
+
+def restart_kubelet(config, nodes):
+    cmd = "sudo systemctl restart kubelet"
+    pass
+
+
+def restart_walinuxagent(config, nodes):
+    cmd = "sudo systemctl restart walinuxagent"
+    pass
+
+
+def main(args):
+    config = args.config
+    action = args.action
+    nodes = args.nodes
+    if nodes is not None:
+        nodes = nodes.split(",")
+
+    if action == "gpu-count":
+        get_gpu_count(config)
+    elif action == "unschedulable":
+        get_unschedulable(config)
+    elif action == "ib":
+        assert nodes is not None
+        get_ib(config, nodes)
+    elif action == "ssh":
+        assert nodes is not None
+    elif action == "kubelet":
+        assert nodes is not None
+        restart_kubelet(config, nodes)
+    elif action == "walinuxagent":
+        assert nodes is not None
+        restart_walinuxagent(config, nodes)
+    else:
+        logger.exception("Unrecognized action")
 
 
 if __name__ == '__main__':
@@ -148,6 +280,15 @@ if __name__ == '__main__':
                         "-c",
                         required=True,
                         help="path to config dir")
+    parser.add_argument("--action",
+                        "-a",
+                        required=True,
+                        help="action to take")
+    parser.add_argument("--nodes",
+                        "-n",
+                        required=False,
+                        default=None,
+                        help="comma separated list of nodes")
     args = parser.parse_args()
 
     main(args)
