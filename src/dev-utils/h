@@ -180,7 +180,10 @@ def get_gpu_count(config_path):
             logger.info("%s. expected %s, capacity %s, allocatable %s", 
                         hostname, expected, capacity, allocatable)
             miscount_nodes.append(hostname)
-    logger.info("miscount nodes: %s", ",".join(miscount_nodes))
+    if len(miscount_nodes) > 0:
+        logger.info("miscount nodes: %s", ",".join(miscount_nodes))
+    else:
+        logger.info("no miscount nodes")
 
 
 def get_ready(node):
@@ -204,7 +207,10 @@ def get_unschedulable(config_path):
             logger.info("%s. unschedulable %s, ready %s",
                         hostname, unschedulable, ready)
             unschedulable_nodes.append(hostname)
-    logger.info("unschedulable nodes: %s", ",".join(unschedulable_nodes))
+    if len(unschedulable_nodes) > 0:
+        logger.info("unschedulable nodes: %s", ",".join(unschedulable_nodes))
+    else:
+        logger.info("no unschedulable nodes")
 
 
 def ssh_exec(params):
@@ -237,19 +243,30 @@ def ssh_exec_hostname(config_path, nodes):
         logger.info("[%s] %s", node, results[i])
 
 
-def get_ib(config, nodes):
+def get_ib(config_path):
     cmd = "ibstatus; ifconfig ib0"
-    pass
+    nodes = get_k8s_gpu_nodes(config_path)
+    results = parallel_ssh(config_path, nodes, cmd)
+    bad_ib_nodes = []
+    for i, node in enumerate(nodes):
+        if "4: ACTIVE" in results[i] and "mtu 2044" in results[i]:
+            continue
+        logger.info("[%s] %s", node, results[i])
+        bad_ib_nodes.append(node)
+    if len(bad_ib_nodes) > 0:
+        logger.info("bad ib nodes: %s", ",".join(bad_ib_nodes))
+    else:
+        logger.info("no bad ib nodes")
 
 
-def restart_kubelet(config, nodes):
+def restart_kubelet(config_path, nodes):
     cmd = "sudo systemctl restart kubelet"
-    pass
+    _ = parallel_ssh(config_path, nodes, cmd)
 
 
-def restart_walinuxagent(config, nodes):
+def restart_walinuxagent(config_path, nodes):
     cmd = "sudo systemctl restart walinuxagent"
-    pass
+    _ = parallel_ssh(config_path, nodes, cmd)
 
 
 def main(args):
@@ -264,8 +281,7 @@ def main(args):
     elif action == "unschedulable":
         get_unschedulable(config)
     elif action == "ib":
-        assert nodes is not None
-        get_ib(config, nodes)
+        get_ib(config)
     elif action == "hostname":
         assert nodes is not None
         ssh_exec_hostname(config, nodes)
