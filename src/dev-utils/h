@@ -11,6 +11,7 @@ import mysql.connector
 import multiprocessing
 import subprocess
 
+from argparse import RawTextHelpFormatter
 from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
 from kubernetes.client import Configuration, ApiClient
@@ -215,11 +216,37 @@ def get_jobs_on_nodes(config_path, nodes):
             username = labels["userName"]
             vc_name = labels["vcName"]
 
-            jobs[node_name].append({
+            job = {
                 "job_id": job_id,
                 "username": username,
                 "vc_name": vc_name
-            })
+            }
+
+            jobs[node_name].append(job)
+            logger.info("node %s job %s", node_name, job)
+
+    nodes_with_jobs = []
+    user_list = []
+    job_list = []
+    nodes_without_jobs = []
+    for node in nodes:
+        if node not in jobs:
+            nodes_without_jobs.append(node)
+        else:
+            nodes_with_jobs.append(node)
+            for job in jobs[node]:
+                job_id = job["job_id"]
+                username = job["username"]
+                vc_name = job["vc_name"]
+                user_list.append(username)
+                job_list.append((job_id, username, vc_name))
+
+    logger.info("nodes without jobs: %s", ",".join(nodes_without_jobs))
+    logger.info("nodes with jobs   : %s", ",".join(nodes_with_jobs))
+    logger.info("users to email    : %s", ";".join(user_list))
+    logger.info("jobs affected     :\n%s", 
+                "\n".join(["%s %s %s" % (job[0], job[1], job[2]) 
+                           for job in job_list]))
 
     return jobs
 
@@ -358,6 +385,11 @@ def restart_walinuxagent(config_path, nodes):
     _ = parallel_ssh(config_path, nodes, cmd)
 
 
+def reboot(config_path, nodes):
+    cmd = "sudo reboot"
+    _ = parallel_ssh(config_path, nodes, cmd)
+
+
 def main(args):
     config = args.config
     action = args.action
@@ -389,6 +421,11 @@ def main(args):
     elif action == "walinuxagent":
         assert nodes is not None
         restart_walinuxagent(config, nodes)
+    elif action == "reboot":
+        assert nodes is not None
+        response = input("!!!WARNING!!! Confirm node reboot[Y/N]: ")
+        if response == "Y":
+            reboot(config, nodes)
     else:
         logger.exception("Unrecognized action")
 
@@ -398,15 +435,26 @@ if __name__ == '__main__':
         format=
         "%(asctime)s: %(levelname)s - %(filename)s:%(lineno)d@%(process)d: %(message)s",
         level=logging.INFO)
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument("--config",
                         "-c",
                         required=True,
                         help="path to config dir")
+    action_desc = [
+        "  gpu-count       get nodes with gpu miscount",
+        "  unschedulable   get Unschedulable/NotReady gpu nodes",
+        "  ib              get gpu nodes with bad ib or ipoib",
+        "  cordon          uncordon a list of nodes from --nodes/-n",
+        "  uncordon        cordon a list of nodes from --nodes/-n",
+        "  jobs            get jobs on a list of nodes from --nodes/-n",
+        "  hostname        exec hostname on all gpu nodes",
+        "  kubelet         'sudo systemctl restart kubelet' on nodes from --nodes/-n",
+        "  walinuxagent    'sudo systemctl restart walinuxagent' on nodes from --nodes/-n",
+    ]
     parser.add_argument("--action",
                         "-a",
                         required=True,
-                        help="action to take")
+                        help="action to take:\n%s" % "\n".join(action_desc))
     parser.add_argument("--nodes",
                         "-n",
                         required=False,
