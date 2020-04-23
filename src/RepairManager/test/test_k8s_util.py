@@ -33,7 +33,7 @@ def _mock_v1_pod(jobId, userName, vcName, nodeName):
 class TestK8sUtil(unittest.TestCase):
 
     @mock.patch('utils.k8s_util.list_namespaced_pod')
-    def test_get_job_info_from_nodes(self, mock_list_namespaced_pod):
+    def test_get_job_info_indexed_by_job_id(self, mock_list_namespaced_pod):
         pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
         pod_two = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node1")
         pod_three = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node2")
@@ -41,7 +41,7 @@ class TestK8sUtil(unittest.TestCase):
         mock_pod_list = V1PodList(items=[pod_one, pod_two, pod_three, pod_four])
         mock_list_namespaced_pod.return_value = mock_pod_list
 
-        job_response = k8s_util.get_job_info_from_nodes(
+        job_response = k8s_util.get_job_info_indexed_by_job_id(
             ["node1", "node2"], "dlts.domain.com", "cluster1")
 
         self.assertTrue("87654321-wxyz" in job_response)
@@ -56,6 +56,43 @@ class TestK8sUtil(unittest.TestCase):
         self.assertTrue("node2" in job_response["12345678-abcd"]["node_names"])
         self.assertEqual("https://dlts.domain.com/job/vc2/cluster1/12345678-abcd", 
         job_response["12345678-abcd"]["job_link"])
+
+
+    @mock.patch('utils.k8s_util.list_namespaced_pod')
+    def test_get_job_info_indexed_by_node(self, mock_list_namespaced_pod):
+        pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
+        pod_two = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node1")
+        pod_three = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node2")
+        pod_four = _mock_v1_pod("99999999-efgh", "user3", "vc3", "node3")
+        mock_pod_list = V1PodList(items=[pod_one, pod_two, pod_three, pod_four])
+        mock_list_namespaced_pod.return_value = mock_pod_list
+
+        job_response = k8s_util.get_job_info_indexed_by_node(
+            ["node1", "node2"], "dlts.domain.com", "cluster1")
+
+        self.assertEqual(2, len(job_response))
+
+        self.assertTrue("node1" in job_response)
+        self.assertEqual(2, len(job_response["node1"]))
+        self.assertTrue("87654321-wxyz" in job_response["node1"][0]["job_id"])
+        self.assertTrue("user1" in job_response["node1"][0]["user_name"])
+        self.assertTrue("vc1" in job_response["node1"][0]["vc_name"])
+        self.assertEqual("https://dlts.domain.com/job/vc1/cluster1/87654321-wxyz",
+        job_response["node1"][0]["job_link"])
+
+        self.assertTrue("12345678-abcd" in job_response["node1"][1]["job_id"])
+        self.assertTrue("user2" in job_response["node1"][1]["user_name"])
+        self.assertTrue("vc2" in job_response["node1"][1]["vc_name"])
+        self.assertEqual("https://dlts.domain.com/job/vc2/cluster1/12345678-abcd",
+        job_response["node1"][1]["job_link"])
+
+        self.assertTrue("node2" in job_response)
+        self.assertEqual(1, len(job_response["node2"]))
+        self.assertTrue("12345678-abcd" in job_response["node2"][0]["job_id"])
+        self.assertTrue("user2" in job_response["node2"][0]["user_name"])
+        self.assertTrue("vc2" in job_response["node2"][0]["vc_name"])
+        self.assertEqual("https://dlts.domain.com/job/vc2/cluster1/12345678-abcd",
+        job_response["node2"][0]["job_link"])
 
 
     @mock.patch('utils.k8s_util.list_node')

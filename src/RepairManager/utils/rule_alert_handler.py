@@ -23,6 +23,23 @@ class RuleAlertHandler():
         self.email_handler.send(message)
 
 
+    # check if a key exists in a specified rule dict
+    def check_rule_cache(self, rule, cache_key):
+        if rule in self.rule_cache:
+            if cache_key in self.rule_cache[rule]:
+                return True
+        return False
+
+
+    # retrieve the value for a key in specified a rule dict
+    def get_rule_cache(self, rule, cache_key):
+        if rule in self.rule_cache:
+            if cache_key in self.rule_cache[rule]:
+                return self.rule_cache[rule][cache_key]
+        return None
+
+
+    # add or update key/values for a specified rule dict
     def update_rule_cache(self, rule, cache_key, cache_value):
         if rule not in self.rule_cache:
             self.rule_cache[rule] = {}
@@ -32,7 +49,7 @@ class RuleAlertHandler():
         if 'rule_cache_dump' in self.config:
             self.dump_rule_cache()
 
-
+    # remove key/values for a specified rule dict
     def remove_from_rule_cache(self, rule, cache_key):
         if rule in self.rule_cache:
             if cache_key in self.rule_cache[rule]:
@@ -42,25 +59,20 @@ class RuleAlertHandler():
                     self.dump_rule_cache()
 
 
-    def get_rule_cache(self, rule, cache_key):
+    # retrieve the entire key set for a specified rule dict
+    def get_rule_cache_keys(self, rule):
         if rule in self.rule_cache:
-            if cache_key in self.rule_cache[rule]:
-                return self.rule_cache[rule][cache_key]
-        return None
+            return self.rule_cache[rule].keys()
+        else:
+            return {}
 
 
-    def check_rule_cache(self, rule, cache_key):
-        if rule in self.rule_cache:
-            if cache_key in self.rule_cache[rule]:
-                return True
-        return False
-
-
+    # dump the entire rule cache into a file
     def dump_rule_cache(self):
         with open(self.config['rule_cache_dump'], 'w') as fp:
             json.dump(self.rule_cache, fp)
 
-
+    # load rule cache from a file
     def load_rule_cache(self):
         rule_cache = {}
         if self.config['restore_from_rule_cache_dump']:
