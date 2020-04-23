@@ -20,7 +20,8 @@ import {
   MenuItem,
   Select,
   Tooltip,
-  Typography
+  Typography,
+  makeStyles
 } from '@material-ui/core';
 import MaterialTable, {
   Column,
@@ -40,8 +41,16 @@ interface Props {
   onSearchPods: (query: string) => void;
 }
 
+const useLinkStyles = makeStyles({
+  button: {
+    textAlign: 'left'
+  }
+});
+
 const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, onSearchPods }) => {
   const { selectedTeam } = useContext(TeamsContext);
+
+  const linkStyles = useLinkStyles();
 
   const [filterType, setFilterType] = useState<string>('__all__');
 
@@ -87,20 +96,25 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, o
   const columns = useMemo(() => {
     const columns: Column<any>[] = [{
       field: 'id',
-      render: ({ id, healthy }) => {
+      render: ({ id, ip, healthy }) => {
         if (typeof healthy === 'boolean') {
           return (
-            <Tooltip title={`Show Pods on ${id}`}>
-              <Link
-                component="button"
-                variant="subtitle2"
-                style={{ textAlign: 'left' }}
-                color={healthy ? 'inherit' : 'error'}
-                onClick={handleWorkerClick(id)}
-              >
-                {id}
-              </Link>
-            </Tooltip>
+            <>
+              <Tooltip title={`Show Pods on ${id}`}>
+                <Link
+                  component="button"
+                  variant="subtitle2"
+                  classes={linkStyles}
+                  color={healthy ? 'inherit' : 'error'}
+                  onClick={handleWorkerClick(id)}
+                >
+                  {id}
+                </Link>
+              </Tooltip>
+              <Typography variant="caption">
+                {ip}
+              </Typography>
+            </>
           );
         } else {
           return <Typography variant="subtitle2">{id}</Typography>;
