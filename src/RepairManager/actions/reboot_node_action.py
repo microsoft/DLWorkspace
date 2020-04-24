@@ -11,7 +11,7 @@ class RebootNodeAction(Action):
         self.action_logger = logging.getLogger('activity')
 
     def execute(self, node_name, etcd_config, dry_run=False):
-        etcd_url = etcd_config["advertise-client-urls"]
+        etcd_url = etcd_url = f'{etcd_config["advertise-client-urls"]}/v2/keys'
         key = f'{node_name}/reboot'
         success = False
         try:

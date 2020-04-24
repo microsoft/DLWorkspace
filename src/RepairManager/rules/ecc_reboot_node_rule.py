@@ -65,13 +65,12 @@ class EccRebootNodeRule(Rule):
         with open('/etc/RepairManager/config/etcd.conf.yaml', 'r') as file:
             return yaml.safe_load(file)
 
-    def check_if_nodes_have_rebooted(self):
+    def check_for_rebooted_nodes_and_uncordon(self, dry_run):
         # if node has been rebooted since ecc error initially detected,
         # uncordon, remove from rule_cache, and mark as resolved
         url = f"http://{self.config['prometheus']['ip']}:{self.config['prometheus']['port']}"
         query = self.config['prometheus']['node_boot_time_query']
         reboot_times_url = prometheus_util.format_url_query(url, query)
-        dry_run = not self.ecc_config["enable_reboot"]
         uncordon_action = UncordonAction()
 
         try:
@@ -135,11 +134,10 @@ class EccRebootNodeRule(Rule):
                 else:
                     self.jobs_ready_for_migration[job_id]["node_names"].append(node)
 
-    def migrate_jobs_and_alert_job_owners(self):
+    def migrate_jobs_and_alert_job_owners(self, dry_run):
         alert_action = SendAlertAction(self.alert)
         max_attempts = self.ecc_config.get("attempts_for_pause_resume_jobs", 5)
         wait_time = self.ecc_config.get("time_sleep_after_pausing", 30)
-        dry_run = not self.ecc_config["enable_reboot"]
 
         for job_id in self.jobs_ready_for_migration:
             job = self.jobs_ready_for_migration[job_id]
@@ -172,10 +170,10 @@ class EccRebootNodeRule(Rule):
                 for node in node_names:
                     self.nodes_ready_for_action.remove(node)
 
-    def reboot_bad_nodes(self):
+    def reboot_bad_nodes(self, dry_run):
         reboot_action = RebootNodeAction()
         for node in self.nodes_ready_for_action:
-           success = reboot_action.execute(node, self.etcd_config)
+           success = reboot_action.execute(node, self.etcd_config, dry_run)
            if success:
                 # update reboot status so action is not taken again
                 cache_value = self.alert.get_rule_cache(self.rule, node)
@@ -183,12 +181,16 @@ class EccRebootNodeRule(Rule):
                 self.alert.update_rule_cache(self.rule, node, cache_value)
 
     def check_status(self):
-        self.check_if_nodes_have_rebooted()
+        dry_run = not self.ecc_config["enable_reboot"]
+
+        self.check_for_rebooted_nodes_and_uncordon(dry_run)
         self.check_for_nodes_with_no_jobs()
         self.check_if_nodes_are_due_for_reboot()
         return len(self.nodes_ready_for_action) > 0
 
 
     def take_action(self):
-        self.migrate_jobs_and_alert_job_owners()
-        self.reboot_bad_nodes()
+        dry_run = not self.ecc_config["enable_reboot"]
+
+        self.migrate_jobs_and_alert_job_owners(dry_run)
+        self.reboot_bad_nodes(dry_run)
