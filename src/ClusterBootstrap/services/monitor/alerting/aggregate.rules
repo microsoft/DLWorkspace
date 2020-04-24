@@ -41,12 +41,10 @@ groups:
         expr: avg(user_assigned_utils) by (vc, user, since)
     - name: aggregate.job
       rules:
-      - record: aggregate:job:assigned_task_gpu_percent:count
-        expr: count(task_gpu_percent) by (vc_name, username, job_name)
-      - record: aggregate:job:assigned_task_gpu_percent:avg
-        expr: avg(task_gpu_percent) by (vc_name, username, job_name)
-      - record: aggregate:job:active_task_gpu_percent:avg
-        expr: avg(task_gpu_percent > 0) by (vc_name, username, job_name)
+      - record: aggregate:job:assigned_task_dcgm_gpu_util:count
+        expr: count(task_dcgm_gpu_util) by (vc_name, username, job_name)
+      - record: aggregate:job:active_task_dcgm_gpu_util:count
+        expr: count(task_dcgm_gpu_util > 0) by (vc_name, username, job_name)
       - record: aggregate:job:assigned_task_dcgm_gpu_util:avg
         expr: avg(task_dcgm_gpu_util) by (vc_name, username, job_name)
       - record: aggregate:job:active_task_dcgm_gpu_util:avg
