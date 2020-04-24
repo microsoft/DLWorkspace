@@ -988,15 +988,15 @@ class DCGMCollector(Collector):
 class NVSMCollector(Collector):
     cmd_histogram = Histogram("cmd_nvsm_latency_seconds",
                               "Command call latency for nvsm (seconds)",
-                              buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0,
-                                       64.0, 128.0, 256.0, 512.0, 1024.0,
-                                       float("inf")))
+                              buckets=(32.0, 64.0, 128.0, 256.0, 512.0, 1024.0,
+                                       2048.0, 4096.0, float("inf")))
 
-    cmd_timeout = 300 # usually take around 200s
+    cmd_timeout = 1200
 
     def __init__(self, name, sleep_time, atomic_ref, iteration_counter):
         Collector.__init__(self, name, sleep_time, atomic_ref,
                            iteration_counter)
+        os.environ["TERM"] = "xterm" # nvsm requires
 
     def collect_impl(self):
         good_gauge = gen_nvsm_good_gauge()
