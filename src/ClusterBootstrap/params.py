@@ -696,12 +696,11 @@ default_config_parameters = {
     "cloud_config_nsg_rules": {
         "vnet_range": "192.168.0.0/16",
         "default_admin_username": "core",
-        "tcp_port_for_pods": "30000-49999",
         "tcp_port_ranges": "80 443 30000-49999 25826 3000 22222 9091 9092",
         # There is no udp port requirement for now
         #"udp_port_ranges": "25826",
         "inter_connect": {
-            "tcp_port_ranges": "22 1443 2379 2382 3306 5000 8086 9092 9114 9200 9300 10250",
+            "tcp_port_ranges": "22 1443 2379 2382 3306 5000 8086 9092 9114 9200 9300 10250 30000-49999",
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         },
