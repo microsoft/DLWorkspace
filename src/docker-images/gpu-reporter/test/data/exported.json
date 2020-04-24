@@ -1,0 +1,117 @@
+{
+  "31d": {
+    "booked": 900,
+    "idle": 300,
+    "nonidle_util": 60,
+    "assigned_util": 40,
+    "next": {
+      "platform": {
+        "booked": 300,
+        "idle": 0,
+        "nonidle_util": 20,
+        "assigned_util": 20,
+        "next": {
+          "bbb": {
+            "booked": 300,
+            "idle": 0,
+            "nonidle_util": 20,
+            "assigned_util": 20,
+            "next": {
+              "89ba301e-58d0-4ce5-ba6b-5781a7926f63": {
+                "booked": 300,
+                "idle": 0,
+                "nonidle_util": 20,
+                "assigned_util": 20,
+                "next": {}
+              }
+            }
+          }
+        }
+      },
+      "vvv": {
+        "booked": 600,
+        "idle": 300,
+        "nonidle_util": 100,
+        "assigned_util": 50,
+        "next": {
+          "aaa": {
+            "booked": 600,
+            "idle": 300,
+            "nonidle_util": 100,
+            "assigned_util": 50,
+            "next": {
+              "f29f07ab-8510-4ad9-ac24-363bd7271571": {
+                "booked": 600,
+                "idle": 300,
+                "nonidle_util": 100,
+                "assigned_util": 50,
+                "next": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "14d": {
+    "booked": 900,
+    "idle": 300,
+    "nonidle_util": 60,
+    "assigned_util": 40,
+    "next": {
+      "platform": {
+        "booked": 300,
+        "idle": 0,
+        "nonidle_util": 20,
+        "assigned_util": 20,
+        "next": {
+          "bbb": {
+            "booked": 300,
+            "idle": 0,
+            "nonidle_util": 20,
+            "assigned_util": 20,
+            "next": {
+              "89ba301e-58d0-4ce5-ba6b-5781a7926f63": {
+                "booked": 300,
+                "idle": 0,
+                "nonidle_util": 20,
+                "assigned_util": 20,
+                "next": {}
+              }
+            }
+          }
+        }
+      },
+      "vvv": {
+        "booked": 600,
+        "idle": 300,
+        "nonidle_util": 100,
+        "assigned_util": 50,
+        "next": {
+          "aaa": {
+            "booked": 600,
+            "idle": 300,
+            "nonidle_util": 100,
+            "assigned_util": 50,
+            "next": {
+              "f29f07ab-8510-4ad9-ac24-363bd7271571": {
+                "booked": 600,
+                "idle": 300,
+                "nonidle_util": 100,
+                "assigned_util": 50,
+                "next": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "7d": {
+    "booked": 0,
+    "idle": 0,
+    "nonidle_util": 0,
+    "assigned_util": 0,
+    "next": {}
+  }
+}
