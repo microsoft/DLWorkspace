@@ -64,6 +64,6 @@ matrix:
     before_install:
       - cd src/docker-images/gpu-reporter/test
     install:
-      - pip install requests flask prometheus_client flask-cors
+      - pip install pyyaml requests flask prometheus_client flask-cors
     script:
       - python -m unittest discover .
