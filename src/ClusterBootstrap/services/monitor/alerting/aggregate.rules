@@ -13,6 +13,14 @@ groups:
         expr: avg(task_dcgm_gpu_util > 0)
       - record: aggregate:cluster:dcgm_retired_pages_pending:count
         expr: count(dcgm_retired_pages_pending > 0)
+      - record: aggregate:cluster:cluster_booked_gpu_second:avg
+        expr: avg(cluster_booked_gpu_second) by (since)
+      - record: aggregate:cluster:cluster_idle_gpu_second:avg
+        expr: avg(cluster_idle_gpu_second) by (since)
+      - record: aggregate:cluster:cluster_non_idle_utils:avg
+        expr: avg(cluster_non_idle_utils) by (since)
+      - record: aggregate:cluster:cluster_assigned_utils:avg
+        expr: avg(cluster_assigned_utils) by (since)
     - name: aggregate.vc
       rules:
       - record: aggregate:vc:k8s_vc_gpu_total:avg
@@ -25,6 +33,14 @@ groups:
         expr: avg(task_dcgm_gpu_util) by (vc_name)
       - record: aggregate:vc:active_task_dcgm_gpu_util:avg
         expr: avg(task_dcgm_gpu_util > 0) by (vc_name)
+      - record: aggregate:vc:vc_booked_gpu_second:avg
+        expr: avg(vc_booked_gpu_second) by (vc, since)
+      - record: aggregate:vc:vc_idle_gpu_second:avg
+        expr: avg(vc_idle_gpu_second) by (vc, since)
+      - record: aggregate:vc:vc_non_idle_utils:avg
+        expr: avg(vc_non_idle_utils) by (vc, since)
+      - record: aggregate:vc:vc_assigned_utils:avg
+        expr: avg(vc_assigned_utils) by (vc, since)
     - name: aggregate.user
       rules:
       - record: aggregate:user:assigned_task_dcgm_gpu_util:count
@@ -35,6 +51,10 @@ groups:
         expr: avg(task_dcgm_gpu_util) by (vc_name, username)
       - record: aggregate:user:active_task_dcgm_gpu_util:avg
         expr: avg(task_dcgm_gpu_util > 0) by (vc_name, username)
+      - record: aggregate:user:user_booked_gpu_second:avg
+        expr: avg(user_booked_gpu_second) by (vc, user, since)
+      - record: aggregate:user:user_idle_gpu_second:avg
+        expr: avg(user_idle_gpu_second) by (vc, user, since)
       - record: aggregate:user:user_non_idle_utils:avg
         expr: avg(user_non_idle_utils) by (vc, user, since)
       - record: aggregate:user:user_assigned_utils:avg
