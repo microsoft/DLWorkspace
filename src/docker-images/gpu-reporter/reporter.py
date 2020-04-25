@@ -114,19 +114,19 @@ def copy_without_next(m):
 
 
 class Register(object):
-    def __init__(self):
+    def __init__(self, parent):
+        self.parent = parent
         self.booked = 0
         self.idle = 0
         self.nonidle_util_sum = 0.0
-        self.next = collections.defaultdict(lambda: Register()) # chained
+        self.next = collections.defaultdict(lambda: Register(self)) # chained
 
-    def add(self, step_seconds, idleness_threshold, actual_util):
-        self.booked += step_seconds
-
-        if actual_util <= idleness_threshold:
-            self.idle += step_seconds
-        else:
-            self.nonidle_util_sum += actual_util * step_seconds
+    def add(self, booked, idle, nonidle_util):
+        self.booked += booked
+        self.idle += idle
+        self.nonidle_util_sum += nonidle_util
+        if self.parent is not None:
+            self.parent.add(booked, idle, nonidle_util)
 
     def export(self):
         nonidle_time = self.booked - self.idle
@@ -157,50 +157,55 @@ class IdlenessCalculator(object):
         self.idleness_threshold = idleness_threshold
         self.now = now
 
-        self.seven_day_ago = int(
+        self.seven_days_ago = int(
             datetime.datetime.timestamp(now - datetime.timedelta(days=7)))
         self.fourteen_days_ago = int(
             datetime.datetime.timestamp(now - datetime.timedelta(days=14)))
         self.one_month_ago = int(
             datetime.datetime.timestamp(now - datetime.timedelta(days=31)))
 
-        self.since_one_month = Register()
-        self.since_fourteen_day = Register()
-        self.since_seven_day = Register()
+        self.since_one_month = Register(None)
+        self.since_fourteen_days = Register(None)
+        self.since_seven_days = Register(None)
 
-    def add_to_register(self, register, vc, user, job_id, util):
-        register.add(self.step_seconds, self.idleness_threshold, util)
+    def calculate_increment(self, util):
+        booked = self.step_seconds
+        idle = 0
+        nonidle_util = 0.0
 
-        vc_reg = register.next[vc]
-        vc_reg.add(self.step_seconds, self.idleness_threshold, util)
-
-        user_reg = vc_reg.next[user]
-        user_reg.add(self.step_seconds, self.idleness_threshold, util)
-
-        job_reg = user_reg.next[job_id]
-        job_reg.add(self.step_seconds, self.idleness_threshold, util)
+        if util <= self.idleness_threshold:
+            idle = self.step_seconds
+        else:
+            nonidle_util = util * self.step_seconds
+        return booked, idle, nonidle_util
 
     def observe(self, vc, user, job_id, time, util):
         if time < self.one_month_ago:
             return
 
-        self.add_to_register(self.since_one_month, vc, user, job_id, util)
+        booked, idle, nonidle_util = self.calculate_increment(util)
+
+        # do not implment __getitem__ here. That's slow
+        self.since_one_month.next[vc].next[user].next[job_id].add(
+            booked, idle, nonidle_util)
 
         if time < self.fourteen_days_ago:
             return
 
-        self.add_to_register(self.since_fourteen_day, vc, user, job_id, util)
+        self.since_fourteen_days.next[vc].next[user].next[job_id].add(
+            booked, idle, nonidle_util)
 
-        if time < self.seven_day_ago:
+        if time < self.seven_days_ago:
             return
 
-        self.add_to_register(self.since_seven_day, vc, user, job_id, util)
+        self.since_seven_days.next[vc].next[user].next[job_id].add(
+            booked, idle, nonidle_util)
 
     def export(self):
         return {
             "31d": self.since_one_month.export(),
-            "14d": self.since_fourteen_day.export(),
-            "7d": self.since_seven_day.export(),
+            "14d": self.since_fourteen_days.export(),
+            "7d": self.since_seven_days.export(),
         }
 
 

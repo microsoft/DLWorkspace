@@ -34,7 +34,6 @@ loggers:
         handler: [console]
         propagate: no
 
-
 root:
     level: DEBUG
     handlers: [console]
