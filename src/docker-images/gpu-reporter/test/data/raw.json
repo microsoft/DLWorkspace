@@ -1,0 +1,59 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "matrix",
+    "result": [
+      {
+        "metric": {
+          "__name__": "task_gpu_percent",
+          "exporter_name": "job-exporter",
+          "instance": "192.168.0.4:9102",
+          "job": "serivce_exporter",
+          "job_name": "89ba301e-58d0-4ce5-ba6b-5781a7926f63",
+          "minor_number": "3",
+          "pod_name": "89ba301e58d04ce5ba6b5781a7926f63-master-0",
+          "role_name": "master",
+          "scraped_from": "job-exporter-gkshs",
+          "task_index": "0",
+          "user_email": "bbb@microsoft.com",
+          "username": "bbb",
+          "uuid": "GPU-1b1967bf-6125-d744-338b-4e22d3370bc0",
+          "vc_name": "platform"
+        },
+        "values": [
+          [
+            1586991515,
+            "20"
+          ]
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "task_gpu_percent",
+          "exporter_name": "job-exporter",
+          "instance": "192.168.0.7:9102",
+          "job": "serivce_exporter",
+          "job_name": "f29f07ab-8510-4ad9-ac24-363bd7271571",
+          "minor_number": "3",
+          "pod_name": "f29f07ab85104ad9ac24363bd7271571-master-0",
+          "role_name": "master",
+          "scraped_from": "job-exporter-8rjwb",
+          "task_index": "0",
+          "user_email": "aaa@microsoft.com",
+          "username": "aaa",
+          "vc_name": "vvv"
+        },
+        "values": [
+          [
+            1586654915,
+            "0"
+          ],
+          [
+            1586655215,
+            "100"
+          ]
+        ]
+      }
+    ]
+  }
+}

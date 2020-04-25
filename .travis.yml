@@ -59,3 +59,11 @@ matrix:
       - pip install requests
     script:
       - python -m unittest discover .
+  - language: python
+    python: 3.6
+    before_install:
+      - cd src/docker-images/gpu-reporter/test
+    install:
+      - pip install pyyaml requests flask prometheus_client flask-cors
+    script:
+      - python -m unittest discover .
