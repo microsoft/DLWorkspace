@@ -158,7 +158,7 @@ class IdlenessCalculator(object):
         self.now = now
 
         self.seven_day_ago = int(
-            datetime.datetime.timestamp(now - datetime.timedelta(days=1)))
+            datetime.datetime.timestamp(now - datetime.timedelta(days=7)))
         self.fourteen_days_ago = int(
             datetime.datetime.timestamp(now - datetime.timedelta(days=14)))
         self.one_month_ago = int(
@@ -362,7 +362,7 @@ def serve(prometheus_url, port):
 
         if user_name is None:
             result = atomic_ref.get()
-            vc_result = walk_json_field_safe(result, "31d", "next", vc_name,
+            vc_result = walk_json_field_safe(result, since, "next", vc_name,
                                              "next") or {}
             result = {}
             for username, user_val in vc_result.items():
@@ -371,7 +371,7 @@ def serve(prometheus_url, port):
             return flask.jsonify(result)
         else:
             result = atomic_ref.get()
-            user_result = walk_json_field_safe(result, "31d", "next", vc_name,
+            user_result = walk_json_field_safe(result, since, "next", vc_name,
                                                "next", user_name, "next") or {}
             result = {}
             for job_id, job_val in user_result.items():
