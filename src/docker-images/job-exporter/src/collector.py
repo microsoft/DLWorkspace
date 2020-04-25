@@ -558,6 +558,7 @@ class ContainerCollector(Collector):
                 "kubedns",
                 "repairmanager",
                 "redis",
+                "repairmanageragent",
             ]))
 
     def __init__(self, name, sleep_time, atomic_ref, iteration_counter,
