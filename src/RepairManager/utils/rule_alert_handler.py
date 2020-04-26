@@ -62,9 +62,9 @@ class RuleAlertHandler():
     # retrieve the entire key set for a specified rule dict
     def get_rule_cache_keys(self, rule):
         if rule in self.rule_cache:
-            return self.rule_cache[rule].keys()
+            return list(self.rule_cache[rule].keys())
         else:
-            return {}
+            return []
 
 
     # dump the entire rule cache into a file
