@@ -48,13 +48,6 @@ describe('GET /teams/:teamId/clusters/:clusterId', function () {
           userMemory: { [TYPE_NAME]: 21 }
         }],
 
-        gpu_idle: {
-          [USER_NAME]: {
-            booked: 22,
-            idle: 23
-          }
-        },
-
         node_status: [{
           name: WORKER_NAME,
           labels: { worker: 'active' },
@@ -122,9 +115,6 @@ describe('GET /teams/:teamId/clusters/:clusterId', function () {
     response.data.should.have.propertyByPath('users', USER_NAME, 'types', TYPE_NAME, 'cpu', 'preemptable').equal(19)
     response.data.should.have.propertyByPath('users', USER_NAME, 'types', TYPE_NAME, 'gpu', 'preemptable').equal(20)
     response.data.should.have.propertyByPath('users', USER_NAME, 'types', TYPE_NAME, 'memory', 'preemptable').equal(21)
-
-    response.data.should.have.propertyByPath('users', USER_NAME, 'gpu', 'booked').equal(22)
-    response.data.should.have.propertyByPath('users', USER_NAME, 'gpu', 'idle').equal(23)
 
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'healthy').equal(true)
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'ip').equal('0.0.0.0')
