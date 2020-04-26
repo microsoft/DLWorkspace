@@ -72,8 +72,6 @@ enable_custom_registry_secrets: {{cnf["enable_custom_registry_secrets"]}}
 master_token: {{cnf["master_token"]}}
 vc_node_hard_assignment: {{cnf["vc_node_hard_assignment"]}}
 
-gpu_reporter: 'http://{{cnf["prometheus"]["host"]}}:{{cnf["prometheus"]["reporter"]["port"]}}'
-
 elasticsearch:
   {% for elasticsearch_node in cnf["elasticsearch_node"] %}
   - 'http://{{elasticsearch_node}}:{{cnf["elasticsearch"]["port"]["http"]}}'

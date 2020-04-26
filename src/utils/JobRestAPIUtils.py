@@ -894,19 +894,6 @@ def ListVCs(userName):
     return ret
 
 
-def get_gpu_idle(vc_name):
-    ret = None
-    try:
-        gpu_idle_url = config["gpu_reporter"] + '/gpu_idle'
-        gpu_idle_params = {"vc": vc_name}
-        gpu_idle_response = requests.get(gpu_idle_url, params=gpu_idle_params)
-        gpu_idle_json = gpu_idle_response.json()
-        ret = gpu_idle_json
-    except Exception:
-        logger.exception("Failed to fetch gpu_idle from " "gpu-exporter")
-    return ret
-
-
 def get_vc(username, vc_name):
     ret = None
     try:
@@ -929,9 +916,6 @@ def get_vc(username, vc_name):
                 # TODO: deprecate typo "AvaliableJobNum" in legacy code
                 ret["AvaliableJobNum"] = ret["available_job_num"]
 
-                gpu_idle = get_gpu_idle(vc_name)
-                if gpu_idle is not None:
-                    ret["gpu_idle"] = gpu_idle
                 break
     except:
         logger.exception("Exception in getting VC %s for user %s", vc_name,
