@@ -42,7 +42,7 @@ spec:
           mountPath: /etc/alertmanager/template
       {% if cnf["alert-manager"]["reaper"] %}
       - name: reaper
-        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}reaper:{{cnf["dockertag"]}}
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/reaper:{{cnf["dockertag"]}}
         command:
           - 'python'
           - '/reaper/main.py'
@@ -56,6 +56,10 @@ spec:
         ports:
         - name: alert-manager
           containerPort: {{ cnf["alert-manager"]["reaper"]["port"] }}
+      {% endif %}
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
       {% endif %}
       volumes:
       - name: config-volume

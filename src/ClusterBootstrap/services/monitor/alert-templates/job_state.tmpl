@@ -49,7 +49,7 @@ SOFTWARE.
                 <tr>
                   <td style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 0 0 20px;" valign="top">
 Your job
-<a href="http://dltshub.redmond.corp.microsoft.com/Home/JobDetail/?cluster={{.Labels.cluster}}&jobId={{.Labels.job_name}}">
+<a href="http://dltshub.redmond.corp.microsoft.com/jobs-v2/{{.Labels.cluster}}/{{.Labels.job_name}}">
 <strong>{{.Labels.job_name}}</strong>
 </a> from cluster '{{.Labels.cluster}}' has changed to state of {{.Labels.job_state}}.
                   </td>

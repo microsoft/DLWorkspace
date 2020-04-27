@@ -1,3 +1,12 @@
+setuptools
+wheel
+mysql-connector-python
+flask
+flask-restful
+requests
+tzlocal
+DBUtils
+mysqlclient
 marshmallow==2.19.5
 kubernetes==10.0.0
 PyYAML>=5.1.1
@@ -5,3 +14,6 @@ prometheus-client==0.7.1
 twisted==19.7.0
 cachetools==3.1.1
 redis==3.2.1
+elasticsearch>=6.0.0,<7.0.0
+jinja2==2.11.1
+azure==4.0.0

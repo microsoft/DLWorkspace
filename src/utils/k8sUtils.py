@@ -1,64 +1,36 @@
+#!/usr/bin/env python3
+
 import json
 import os
-import time
-import argparse
-import uuid
-import subprocess32
 import sys
 from datetime import datetime
+import logging
+import yaml
+import subprocess
+
+from kubernetes import client, config as k8s_config
+from kubernetes.client.rest import ApiException
+
 from tzlocal import get_localzone
 import pytz
 
-import logging
-
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
-
-from jobs_tensorboard import GenTensorboardMeta
-
-import yaml
-from jinja2 import Environment, FileSystemLoader, Template
-from config import config, GetStoragePath
-import base64
-
-import re
-
-import thread
-import threading
-import random
-import pycurl
-from StringIO import StringIO
+from config import config
 
 logger = logging.getLogger(__name__)
+
 
 def localize_time(date):
     if type(date) == str:
         date = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ")
     return pytz.utc.localize(date).isoformat()
 
-def curl_get(url):
-    curl = pycurl.Curl()
-    curl.setopt(pycurl.URL, url)
-    curl.setopt(pycurl.SSL_VERIFYPEER, 1)
-    curl.setopt(pycurl.SSL_VERIFYHOST, 0)
-    curl.setopt(pycurl.CAINFO, config["certificate-authority"])
-    curl.setopt(pycurl.SSLKEYTYPE, "PEM")
-    curl.setopt(pycurl.SSLKEY, config["client-key"])
-    curl.setopt(pycurl.SSLCERTTYPE, "PEM")
-    curl.setopt(pycurl.SSLCERT, config["client-certificate"])
-    curl.setopt(curl.FOLLOWLOCATION, True)
-    buff = StringIO()
-    curl.setopt(pycurl.WRITEFUNCTION, buff.write)
-    curl.perform()
-    responseStr = buff.getvalue()
-    curl.close()
-    return responseStr
-
 
 def kubectl_create(jobfile, EXEC=True):
     if EXEC:
         try:
-            output = subprocess32.check_output(["bash", "-c", config["kubelet-path"] + " create -f " + jobfile])
+            output = subprocess.check_output([
+                "bash", "-c", config["kubelet-path"] + " create -f " + jobfile
+            ]).decode("utf-8")
         except Exception as e:
             logger.exception("kubectl create")
             output = ""
@@ -70,7 +42,8 @@ def kubectl_create(jobfile, EXEC=True):
 def kubectl_delete(jobfile, EXEC=True):
     if EXEC:
         try:
-            cmd = "bash -c '" + config["kubelet-path"] + " delete -f " + jobfile + "'"
+            cmd = "bash -c '" + \
+                config["kubelet-path"] + " delete -f " + jobfile + "'"
             logger.info("executing %s", cmd)
             output = os.system(cmd)
         except Exception as e:
@@ -80,6 +53,7 @@ def kubectl_delete(jobfile, EXEC=True):
         output = -1
     return output
 
+
 # timeout=0 means never timeout
 
 
@@ -88,7 +62,9 @@ def kubectl_exec(params, timeout=None):
     try:
         #print ("bash -c %s %s" % (config["kubelet-path"], params))
         # TODO set the timeout
-        output = subprocess32.check_output(["bash", "-c", config["kubelet-path"] + " " + params], timeout=timeout)
+        output = subprocess.check_output(
+            ["bash", "-c", config["kubelet-path"] + " " + params],
+            timeout=timeout).decode("utf-8")
     except Exception as e:
         logger.exception("kubectl exec")
         output = ""
@@ -110,7 +86,7 @@ def GetServiceAddress(jobId):
     #print "output=\n" + output
     #svcs = output.split("\n\n\n")
     outputYaml = kubectl_exec("  get svc -l run={0} -o=yaml".format(jobId))
-    output = yaml.load(outputYaml)
+    output = yaml.load(outputYaml, Loader=yaml.FullLoader)
     svcs = output["items"]
 
     for svc in svcs:
@@ -158,8 +134,10 @@ def GetServiceAddress(jobId):
             svcMapping["containerPort"] = containerPort
             svcMapping["hostPort"] = hostPort
 
-            if "." not in hostName and "domain" in config and (not config["domain"] is None) and len(config["domain"].strip()) > 0:
-                hostName += "."+config["domain"]
+            if "." not in hostName and "domain" in config and (
+                    not config["domain"] is None) and len(
+                        config["domain"].strip()) > 0:
+                hostName += "." + config["domain"]
 
             svcMapping["hostIP"] = hostIP
             svcMapping["hostName"] = hostName
@@ -171,7 +149,7 @@ def GetPod(selector):
     podInfo = {}
     try:
         output = kubectl_exec(" get pod -o yaml -l " + selector)
-        podInfo = yaml.load(output)
+        podInfo = yaml.load(output, Loader=yaml.FullLoader)
     except Exception as e:
         logger.exception("kubectl get pod")
         podInfo = None
@@ -191,13 +169,18 @@ def GetLog(jobId, tail=None):
             if "metadata" in item and "name" in item["metadata"]:
                 log["podName"] = item["metadata"]["name"]
                 log["podMetadata"] = item["metadata"]
-                if "status" in item and "containerStatuses" in item["status"] and "containerID" in item["status"]["containerStatuses"][0]:
-                    containerID = item["status"]["containerStatuses"][0]["containerID"].replace("docker://", "")
+                if "status" in item and "containerStatuses" in item[
+                        "status"] and "containerID" in item["status"][
+                            "containerStatuses"][0]:
+                    containerID = item["status"]["containerStatuses"][0][
+                        "containerID"].replace("docker://", "")
                     log["containerID"] = containerID
                     if tail is not None:
-                        log["containerLog"] = kubectl_exec(" logs %s --tail=%s" % (log["podName"], str(tail)))
+                        log["containerLog"] = kubectl_exec(
+                            " logs %s --tail=%s" % (log["podName"], str(tail)))
                     else:
-                        log["containerLog"] = kubectl_exec(" logs " + log["podName"])
+                        log["containerLog"] = kubectl_exec(" logs " +
+                                                           log["podName"])
                     logs.append(log)
     return logs
 
@@ -218,7 +201,7 @@ def check_pod_status(pod):
 
     try:
         if pod["status"]["phase"] == "Unknown":
-            return "Unknown"  # host is dead/cannot be reached.
+            return "Unknown" # host is dead/cannot be reached.
     except Exception as e:
         pass
 
@@ -235,7 +218,9 @@ def check_pod_status(pod):
         pass
 
     try:
-        if pod["status"]["phase"] == "Running" and all("ready" in item and item["ready"] for item in pod["status"]["containerStatuses"]):
+        if pod["status"]["phase"] == "Running" and all(
+                "ready" in item and item["ready"]
+                for item in pod["status"]["containerStatuses"]):
             return "Running"
     except Exception as e:
         return "Pending"
@@ -243,21 +228,16 @@ def check_pod_status(pod):
     return "Unknown"
 
 
-def get_pod_events(pod):
-    description = kubectl_exec("describe pod %s" % pod["metadata"]["name"])
-    ret = []
-    for line in description.split("\n"):
-        if "fit failure summary on nodes" in line:
-             ret += [item.strip() for item in line.replace("fit failure summary on nodes : ", "").replace("(.*)", "").strip().split(",")]
-    return ret
-
-
 def get_pod_pending_detail(pod):
     description = kubectl_exec("describe pod %s" % pod["metadata"]["name"])
     ret = []
     for line in description.split("\n"):
         if "fit failure summary on nodes" in line:
-             ret += [item.strip() for item in line.replace("fit failure summary on nodes : ", "").replace("(.*)", "").strip().split(",")]
+            ret += [
+                item.strip()
+                for item in line.replace("fit failure summary on nodes : ", "").
+                replace("(.*)", "").strip().split(",")
+            ]
     return ret
 
 
@@ -266,20 +246,21 @@ def check_pending_reason(pod, reason):
     return any([reason in item for item in reasons])
 
 
-def get_pod_events(podname):
-    url = "%s/api/v1/namespaces/default/events?fieldSelector=involvedObject.name=%s" % (config["apiserver"], podname)
-    responseStr = curl_get(url)
-    events = json.loads(responseStr)
-    return events
-
-
 def get_pod_unscheduled_reason(podname):
-    events = get_pod_events(podname)
+    k8s_config.load_kube_config()
+    k8s_core_api = client.CoreV1Api()
+
     ret = ""
-    if "items" in events:
-        for event in events["items"]:
-            if "reason" in event and event["reason"] == "FailedScheduling":
-                ret = event["message"]
+
+    try:
+        resp = k8s_core_api.list_namespaced_event(
+            "default", field_selector="involvedObject.name=%s" % (podname))
+        for event in resp.items:
+            if event.reason == "FailedScheduling":
+                ret = event.message
+    except ApiException as e:
+        logger.exception("get_pod_events failed for %s", podname)
+
     return ret
 
 
@@ -288,9 +269,12 @@ def get_pod_status(pod):
     if "status" in pod and "conditions" in pod["status"]:
         for condition in pod["status"]["conditions"]:
             try:
-                if condition["type"] == "PodScheduled" and condition["status"] == "False" and "reason" in condition:
-                    unscheduledReason = get_pod_unscheduled_reason(pod["metadata"]["name"])
-                    podstatus["message"] = condition["reason"] + ":" + unscheduledReason
+                if condition["type"] == "PodScheduled" and condition[
+                        "status"] == "False" and "reason" in condition:
+                    unscheduledReason = get_pod_unscheduled_reason(
+                        pod["metadata"]["name"])
+                    podstatus["message"] = condition["reason"] + \
+                        ":" + unscheduledReason
             except Exception as e:
                 pass
 
@@ -304,22 +288,33 @@ def get_pod_status(pod):
             if "message" in containerStatus["state"]["waiting"]:
                 ret += ":\n" + containerStatus["state"]["waiting"]["message"]
             podstatus["message"] = ret
-        elif "state" in containerStatus and "terminated" in containerStatus["state"]:
+        elif "state" in containerStatus and "terminated" in containerStatus[
+                "state"]:
             ret = ""
             if "reason" in containerStatus["state"]["terminated"]:
                 ret += containerStatus["state"]["terminated"]["reason"]
             if "message" in containerStatus["state"]["terminated"]:
-                ret += ":\n" + containerStatus["state"]["terminated"]["message"]
+                ret += ":\n" + \
+                    containerStatus["state"]["terminated"]["message"]
             podstatus["message"] = ret
-            if "finishedAt" in containerStatus["state"]["terminated"] and containerStatus["state"]["terminated"]["finishedAt"] is not None:
-                podstatus["finishedAt"] = localize_time(containerStatus["state"]["terminated"]["finishedAt"])
+            if "finishedAt" in containerStatus["state"][
+                    "terminated"] and containerStatus["state"]["terminated"][
+                        "finishedAt"] is not None:
+                podstatus["finishedAt"] = localize_time(
+                    containerStatus["state"]["terminated"]["finishedAt"])
 
-            if "startedAt" in containerStatus["state"]["terminated"] and containerStatus["state"]["terminated"]["startedAt"] is not None:
-                podstatus["startedAt"] = localize_time(containerStatus["state"]["terminated"]["startedAt"])
-        elif "state" in containerStatus and "running" in containerStatus["state"] and "startedAt" in containerStatus["state"]["running"]:
-            podstatus["message"] = "started at: " + localize_time(containerStatus["state"]["running"]["startedAt"])
+            if "startedAt" in containerStatus["state"][
+                    "terminated"] and containerStatus["state"]["terminated"][
+                        "startedAt"] is not None:
+                podstatus["startedAt"] = localize_time(
+                    containerStatus["state"]["terminated"]["startedAt"])
+        elif "state" in containerStatus and "running" in containerStatus[
+                "state"] and "startedAt" in containerStatus["state"]["running"]:
+            podstatus["message"] = "started at: " + \
+                localize_time(containerStatus["state"]["running"]["startedAt"])
             if "startedAt" in containerStatus["state"]["running"]:
-                podstatus["startedAt"] = localize_time(containerStatus["state"]["running"]["startedAt"])
+                podstatus["startedAt"] = localize_time(
+                    containerStatus["state"]["running"]["startedAt"])
 
         if "finishedAt" not in podstatus:
             podstatus["finishedAt"] = datetime.now(get_localzone()).isoformat()
@@ -341,7 +336,7 @@ def GetJobStatus(jobId):
         podStatus = [check_pod_status(pod) for pod in podInfo["items"]]
         #detail = "=====================\n=====================\n=====================\n".join([yaml.dump(pod["status"], default_flow_style=False) for pod in podInfo["items"] if "status" in podInfo["items"]])
 
-        ######!!!!!!!!!!!!!!!!CAUTION!!!!!! since "any and all are used here, the order of if cause is IMPORTANT!!!!!, we need to deail with Faild,Error first, and then "Unknown" then "Pending", at last " Successed and Running"
+        # !!!!!!!!!!!!!!!!CAUTION!!!!!! since "any and all are used here, the order of if cause is IMPORTANT!!!!!, we need to deail with Faild,Error first, and then "Unknown" then "Pending", at last " Successed and Running"
         if len(podStatus) == 0:
             output = "Pending"
         elif any([status == "Error" for status in podStatus]):
@@ -351,14 +346,18 @@ def GetJobStatus(jobId):
         elif any([status == "Unknown" for status in podStatus]):
             output = "Unknown"
         elif any([status == "Pending" for status in podStatus]):
-            if any([check_pending_reason(pod, "PodFitsHostPorts") for pod in podInfo["items"]]):
+            if any([
+                    check_pending_reason(pod, "PodFitsHostPorts")
+                    for pod in podInfo["items"]
+            ]):
                 output = "PendingHostPort"
             else:
                 output = "Pending"
         # there is a bug: if podStatus is empty, all (**) will be trigered.
         elif all([status == "Succeeded" for status in podStatus]):
             output = "Succeeded"
-        elif any([status == "Running" for status in podStatus]):   # as long as there are no "Unknown", "Pending" nor "Error" pods, once we see a running pod, the job should be in running status.
+        # as long as there are no "Unknown", "Pending" nor "Error" pods, once we see a running pod, the job should be in running status.
+        elif any([status == "Running" for status in podStatus]):
             output = "Running"
 
         detail = [get_pod_status(pod) for i, pod in enumerate(podInfo["items"])]
@@ -367,24 +366,37 @@ def GetJobStatus(jobId):
 
 
 def get_node_labels(key):
-    url = "%s/api/v1/nodes" % (config["apiserver"])
-    responseStr = curl_get(url)
-    nodes = json.loads(responseStr)
-    ret = []
+    k8s_config.load_kube_config()
+    k8s_core_api = client.CoreV1Api()
 
-    if "items" in nodes:
-        for node in nodes["items"]:
-            if "metadata" in node and "labels" in node["metadata"]:
-                if key in node["metadata"]["labels"]:
-                    v = node["metadata"]["labels"][key]
-                    if not v in ret:
-                        ret.append(v)
-    return ret
+    ret = set()
+
+    try:
+        nodes = k8s_core_api.list_node()
+        for node in nodes.items:
+            if node.metadata.labels.get(key) is not None:
+                ret.add(node.metadata.labels.get(key))
+    except ApiException as e:
+        logger.exception("list node from k8s failed")
+    return list(ret)
+
+
+def get_pod(namespace, name):
+    k8s_config.load_kube_config()
+    k8s_core_api = client.CoreV1Api()
+
+    try:
+        return k8s_core_api.read_namespaced_pod(name, namespace)
+    except ApiException as e:
+        if e.status == 404:
+            return None
+        else:
+            raise e
 
 
 if __name__ == '__main__':
 
-    #Run()
-    print get_node_labels("rack")
+    # Run()
+    print(get_node_labels("rack"))
 
     pass

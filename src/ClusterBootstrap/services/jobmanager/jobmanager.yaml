@@ -25,12 +25,12 @@ spec:
         jobmanager: active
       containers:
       - name: jobmanager
-        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}{{cnf["restfulapi"]}}:{{cnf["dockertag"]}}
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["restfulapi"]}}:{{cnf["dockertag"]}}
         command: ["/runScheduler.sh"]
         imagePullPolicy: Always
         env:
         - name: INIT_CONTAINER_IMAGE
-          value: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}init-container:{{cnf["dockertag"]}}
+          value: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/init-container:{{cnf["dockertag"]}}
         volumeMounts:
         - mountPath: /etc/kubernetes/ssl
           name: certs
@@ -67,10 +67,6 @@ spec:
           hostPort: 9203
           name: joblog-mgr
           protocol: TCP
-        - containerPort: 9204
-          hostPort: 9204
-          name: cmd-mgr
-          protocol: TCP
         - containerPort: 9205
           hostPort: 9205
           name: endpoint-mgr
@@ -86,6 +82,10 @@ spec:
         - containerPort: 9208
           hostPort: 9208
           name: job-mgr4
+          protocol: TCP
+        - containerPort: 9209
+          hostPort: 9209
+          name: db-mgr
           protocol: TCP
         readinessProbe:
           failureThreshold: 3
@@ -103,6 +103,11 @@ spec:
           hostPort: 9300
           name: prom-ign-redis
           protocol: TCP
+      
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
       volumes:
       - name: certs
         hostPath:

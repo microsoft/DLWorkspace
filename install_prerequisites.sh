@@ -1,7 +1,7 @@
 #!/bin/bash 
 
 sudo apt-get update 
-sudo apt-get update && sudo apt-get install -y --no-install-recommends \
+sudo apt-get update && sudo apt-get --no-install-recommends install -y \
         apt-utils \
         software-properties-common \
         build-essential \
@@ -37,7 +37,7 @@ sudo apt-key fingerprint 0EBFCD88
 # Install docker
 echo "Docker Installation .... "
 sudo apt-get update
-sudo apt-get install docker-ce
+sudo apt-get --no-install-recommends install -y docker-ce
 
 echo "PIP installation .... "
 sudo pip install --upgrade pip
@@ -48,8 +48,8 @@ echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ wheezy ma
      sudo tee /etc/apt/sources.list.d/azure-cli.list
 
 sudo apt-key adv --keyserver packages.microsoft.com --recv-keys 417A0893
-sudo apt-get install apt-transport-https
-sudo apt-get update && sudo apt-get install azure-cli
+sudo apt-get --no-install-recommends install -y apt-transport-https
+sudo apt-get update && sudo apt-get --no-install-recommends install -y azure-cli
 
 # Disable Network manager. 
 if [ -f /etc/NetworkManager/NetworkManager.conf ]; then

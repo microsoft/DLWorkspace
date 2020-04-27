@@ -1,65 +1,52 @@
-#! /bin/bash
+#!/bin/bash
 set -ex
+
+CWD=$(dirname $0)
+
+hostname
+whoami
 
 . /dlts-runtime/env/init.env
 sh -x /dlts-runtime/install.sh
 
-SCRIPT_DIR=/pod/scripts
+echo bootstrap starts at `date`
 
-echo bootstrap starts at `date` &>> ${LOG_DIR}/bootstrap.log
-
-if [ "$DLWS_ROLE_NAME" != "inferenceworker" ];
-then
-	# Dir for saving running status
-	export PROC_DIR=/pod/running
-	rm -rf ${PROC_DIR}
-	mkdir -p ${PROC_DIR}
-
-	# Dir for logs
-	export LOG_DIR=/pod/logs
-	rm -rf ${LOG_DIR}
-	mkdir -p ${LOG_DIR}
-
-	# Save the pid.
-	PID_FILE=${PROC_DIR}/pid
-	echo $$ > $PID_FILE
+# https://stackoverflow.com/a/26759734/845762
+if ! [ -x "$(command -v sudo)" ] ; then
+    time apt-get update && time apt-get --no-install-recommends install -y sudo
 fi
 
-# Setup container
-bash ${SCRIPT_DIR}/init_user.sh &>> ${LOG_DIR}/bootstrap.log
-
-if [ "$DLWS_ROLE_NAME" != "inferenceworker" ];
-then
-	touch ${PROC_DIR}/CONTAINER_READY
+# Reorder GPU with NVLink (Allow failure) for jobs requesting more than 1 GPU
+set +e
+if [[ -x "$(command -v nvidia-smi)" ]] && [[ "${DLTS_NUM_GPU_PER_WORKER}" -gt 1 ]]; then
+    GPU_TOPO=/dlts-runtime/gpu_topo
+    TOPO_FILE=/tmp/topo
+    CWD=$(dirname $0)
+    nvidia-smi topo -p2p n | head -n $((${DLTS_NUM_GPU_PER_WORKER} + 1)) | tail -n ${DLTS_NUM_GPU_PER_WORKER} | awk '{$1=""; print $0}' | sed 's/ //' | tee ${TOPO_FILE}
+    export CUDA_VISIBLE_DEVICES=$(${GPU_TOPO} ${TOPO_FILE} | sed 's/ //g')
 fi
+set -e
 
-# Setup roles
-bash ${SCRIPT_DIR}/setup_sshd.sh &>> ${LOG_DIR}/bootstrap.log
+bash ${CWD}/init_user.sh
+bash ${CWD}/setup_ssh_config.sh
 
-if [ "$DLWS_ROLE_NAME" != "inferenceworker" ];
-then
-    bash ${SCRIPT_DIR}/setup_ssh_config.sh &>> ${LOG_DIR}/bootstrap.log
-	touch ${PROC_DIR}/ROLE_READY
+echo bootstrap ends at `date`
 
-	# Setup job
-	# TODO
-	touch ${PROC_DIR}/JOB_READY
-fi
-
-echo bootstrap ends at `date` &>> ${LOG_DIR}/bootstrap.log
+mkdir -p /dlts-runtime/status
+touch /dlts-runtime/status/READY
 
 set +e
 # Execute user's command for the job
-if [ "$DLWS_ROLE_NAME" = "worker" ];
+if [ "$DLTS_ROLE_NAME" = "worker" ];
 then
-    runuser -l ${DLWS_USER_NAME} -c "sleep infinity"
+    runuser -l ${DLTS_USER_NAME} -c "sleep infinity"
 else
-    printenv DLWS_LAUNCH_CMD > /pod/job_command.sh
-    chmod +x /pod/job_command.sh
-    runuser -l ${DLWS_USER_NAME} -c /pod/job_command.sh
+    printenv DLTS_LAUNCH_CMD > /dlts-runtime/status/job_command.sh
+    chmod +x /dlts-runtime/status/job_command.sh
+    runuser -s /bin/bash -l ${DLTS_USER_NAME} -c /dlts-runtime/status/job_command.sh
     # Save exit code
     EXIT_CODE=$?
-    echo  `date` ": ${EXIT_CODE}"  > ${PROC_DIR}/EXIT_CODE
+    echo  `date` ": ${EXIT_CODE}"
 fi
 
 # exit

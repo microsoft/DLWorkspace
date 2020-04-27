@@ -6,4 +6,4 @@ def mkdirsAsUser(path, userId):
     if not os.path.exists(pdir):
         mkdirsAsUser(pdir, userId)
     if not os.path.exists(path):
-        os.system("mkdir %s ; chown -R %s %s" % (path,userId, path))
+        os.system("mkdir %s ; chown -R %s %s" % (path, userId, path))

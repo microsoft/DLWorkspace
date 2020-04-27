@@ -16,7 +16,7 @@ sudo mount {{cnf["path"]}}
 
 # setup NFS service
 sudo apt-get update
-sudo apt-get install -y nfs-kernel-server
+sudo apt-get --no-install-recommends install -y nfs-kernel-server
 
 {% for fileshare in cnf["fileshares"] %}
 sudo mkdir -p {{ fileshare }}

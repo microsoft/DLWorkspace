@@ -20,8 +20,8 @@ const updateTemplateParams = new URLSearchParams({
   templateName: userParams.templateName
 })
 
-describe('PUT /teams/:teamId/templates/:templateName', () => {
-  it('should return 204 if template updated successfully', async () => {
+describe('PUT /teams/:teamId/templates/:templateName', function () {
+  it('should return 204 if template updated successfully', async function () {
     for (let key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .post('/templates?' + updateTemplateParams)
@@ -38,7 +38,7 @@ describe('PUT /teams/:teamId/templates/:templateName', () => {
     response.status.should.equal(204)
   })
 
-  it('should return 502 if template updating failed', async () => {
+  it('should return 502 if template updating failed', async function () {
     for (let key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .post('/templates?' + updateTemplateParams)

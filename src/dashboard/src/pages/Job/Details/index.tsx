@@ -88,7 +88,7 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job, team }) => {
             { refresh ? cluster && <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Monitor/></Container> : <CircularProgress/>}
           </DLTSTabPanel>
           <DLTSTabPanel value={value} index={2} dir={theme.direction}>
-            { job['log'] && <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Log/></Container> }
+            <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Log/></Container>
           </DLTSTabPanel>
         </SwipeableViews>
 
@@ -113,7 +113,7 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job, team }) => {
             { showIframe ? cluster && <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Monitor/></Container> :  <CircularProgress/>}
           </DLTSTabPanel>
           <DLTSTabPanel value={value} index={3} dir={theme.direction}>
-            { job['log'] && <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Log/></Container> }
+            <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Log/></Container>
           </DLTSTabPanel>
         </SwipeableViews>
         <DLTSSnackbar message={"Copied"}

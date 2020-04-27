@@ -1,6 +1,8 @@
 {% if cnf["storage_manager"] and cnf["cur_nfs_node"] %}
 {% set nfs_cur_node = cnf["cur_nfs_node"] %}
 storage_manager: {{cnf["storage_manager"][nfs_cur_node]}}
+{% elif cnf["storage_manager"] %}
+storage_manager: {{cnf["storage_manager"]}}
 {% endif %}
 cluster_name_friendly: {{cnf["cluster_name_friendly"]}}
 smtp: {{cnf["smtp"]}}

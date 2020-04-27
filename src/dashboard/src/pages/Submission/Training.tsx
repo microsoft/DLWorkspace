@@ -466,7 +466,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const onTemplateChange = React.useCallback(
     (event: React.ChangeEvent<{ value: unknown }>) => {
       setJson(event.target.value as string)
-      if (event.target.value == -1) {
+      if (event.target.value === '-1') {
         setName("");
         setType("RegularJob");
         setGpus(0);
@@ -618,7 +618,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       enabledatapath: enableDataPath,
       jobPath: jobPath || '',
       enablejobpath: enableJobPath,
-      env: environmentVariables,
+      envs: environmentVariables,
       hostNetwork : type === 'PSDistJob',
       isPrivileged : type === 'PSDistJob',
       plugins: plugins,
@@ -836,7 +836,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   value={json}
                   onChange={onTemplateChange}
                 >
-                  <MenuItem value={-1} divider>None (Apply a Template)</MenuItem>
+                  <MenuItem value="-1" divider>None (Apply a Template)</MenuItem>
                   {Array.isArray(templates) && templates.sort((a,b)=>a.name.localeCompare(b.name)).map(({ name, json }: any, index: number) => (
                     <MenuItem key={index} value={json}>{name}</MenuItem>
                   ))}
@@ -849,6 +849,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   fullWidth
                   variant="filled"
                   value={type}
+                  disabled={json!=='-1'}
                   onChange={onTypeChange}
                 >
                   <MenuItem value="RegularJob">Regular Job</MenuItem>

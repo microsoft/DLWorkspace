@@ -97,9 +97,13 @@ spec:
         - name: prometheus-data
           mountPath: /prometheus-data
         command: ["chmod", "777", "/prometheus-data"] # newly create dir have permission 755, which makes prometheus container unable to write
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
       containers:
       - name: prometheus
-        image: prom/prometheus:v2.1.0
+        image: prom/prometheus:v2.16.0
         resources:
           limits:
             memory: "10Gi"
@@ -111,7 +115,7 @@ spec:
           - '--web.external-url=http://localhost:{{cnf["prometheus"]["port"]}}/prometheus/'
           - '--web.route-prefix=prometheus'
           - '--storage.tsdb.path=/prometheus-data'
-          - '--storage.tsdb.retention=31d'
+          - '--storage.tsdb.retention=365d'
         ports:
         - name: web
           containerPort: {{cnf["prometheus"]["port"]}}
@@ -123,7 +127,7 @@ spec:
         - name: prometheus-data
           mountPath: /prometheus-data
       - name: gpu-reporter
-        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}gpu-reporter:{{cnf["dockertag"]}}
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/gpu-reporter:{{cnf["dockertag"]}}
         args:
           - 'python'
           - '/gpu-reporter/reporter.py'

@@ -1,0 +1,8 @@
+enable_cordon: {{cnf['repair-manager']['ecc_rule']['enable_cordon']}}
+enable_reboot: {{cnf['repair-manager']['ecc_rule']['enable_reboot']}}
+enable_alert_job_owners: {{cnf['repair-manager']['ecc_rule']['enable_alert_job_owners']}}
+
+time_sleep_after_pausing: {{cnf['repair-manager']['ecc_rule']['time_sleep_after_pausing']}}
+attempts_for_pause_resume_jobs: {{cnf['repair-manager']['ecc_rule']['attempts_for_pause_resume_jobs']}}
+
+days_until_node_reboot: {{cnf['repair-manager']['ecc_rule']['days_until_node_reboot']}}

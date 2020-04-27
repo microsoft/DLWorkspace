@@ -1,21 +1,33 @@
-import React from 'react';
+import React, {
+  FunctionComponent
+} from 'react';
 import clsx from 'clsx';
+
 import {
-  makeStyles,
-  useTheme,
+  Box,
+  Toolbar,
+  Typography
+} from '@material-ui/core';
+import {
   Theme,
-  createStyles
+  createStyles,
+  makeStyles
 } from '@material-ui/core/styles';
-import {Box, CircularProgress, Toolbar} from '@material-ui/core';
-import DrawerContext from '../Drawer/Context';
+
+import Loading from '../../components/Loading';
 import TeamContext from '../../contexts/Teams';
+
+import DrawerContext from '../Drawer/Context';
+
 const WIDTH = 240;
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     content: {
       flexGrow: 1,
+      maxWidth: '100%',
       paddingLeft: theme.spacing(30),
       paddingTop: theme.spacing(3),
+      paddingBottom: theme.spacing(3),
       transition: theme.transitions.create('margin', {
         easing: theme.transitions.easing.sharp,
         duration: theme.transitions.duration.leavingScreen
@@ -31,30 +43,34 @@ const useStyles = makeStyles((theme: Theme) =>
     }
   })
 );
-const Loading = (
-  <Box flex={1} display="flex" alignItems="center" justifyContent="center">
-    <CircularProgress/>
-  </Box>
-);
-const Content: React.FC = ({ children }) => {
+
+const Content: FunctionComponent = ({ children }) => {
   const { open } = React.useContext(DrawerContext);
   const { teams } = React.useContext(TeamContext);
+
   const classes = useStyles();
+
   if (teams === undefined) {
-    return Loading;
-  } else {
     return (
       <Box
-        className={clsx(classes.content, {
-          [classes.contentShift]: open
-        })}
+        flex={1}
+        display="flex"
+        flexDirection="column"
+        justifyContent="center"
+        alignItems="center"
       >
-        <Toolbar />
-        {children}
+        <Loading/>
+        <Typography component="p" variant="subtitle1">Fetching Teams</Typography>
       </Box>
-    )
+    );
   }
 
+  return (
+    <Box className={clsx(classes.content, { [classes.contentShift]: open })}>
+      <Toolbar />
+      {children}
+    </Box>
+  );
 };
 
 export default Content;

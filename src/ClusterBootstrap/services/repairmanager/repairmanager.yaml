@@ -13,19 +13,16 @@ spec:
       labels:
         repairmanager-node: pod
         app: repairmanager
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/path: "/metrics"
     spec:
-      {% if cnf["dnsPolicy"] %}    
+      {% if cnf["dnsPolicy"] %}
       dnsPolicy: {{cnf["dnsPolicy"]}}
       {% endif %}
-      hostNetwork: true    
+      hostNetwork: true
       nodeSelector:
         repairmanager: active
       containers:
       - name: repairmanager
-        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}{{cnf["repairmanager"]}}:{{cnf["dockertag"]}}
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["repairmanager"]}}:{{cnf["dockertag"]}}
         command: ["/run.sh"]
         imagePullPolicy: Always
         env:
@@ -39,7 +36,7 @@ spec:
         - mountPath: {{cnf["storage-mount-path"]}}/work
           name: dlwsdatawork
         - mountPath: {{cnf["storage-mount-path"]}}/storage
-          name: dlwsdatadata 
+          name: dlwsdatadata
         - mountPath: {{cnf["storage-mount-path"]}}/jobfiles
           name: dlwsdatajobfiles
         - mountPath: {{cnf["dltsdata-storage-mount-path"]}}
@@ -48,14 +45,19 @@ spec:
           name: folderautoshare
         - mountPath: /var/log/dlworkspace
           name: log
-        readinessProbe:
-          failureThreshold: 3
-          initialDelaySeconds: 3
-          periodSeconds: 30
-          successThreshold: 1
-          tcpSocket:
-            port: 9200
-          timeoutSeconds: 10
+        - mountPath: /etc/RepairManager
+          name: repairmanagerdata
+      - name: etcd
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["repairmanageretcd"]}}:{{cnf["dockertag"]}}
+        command: ["/run.sh"]
+        imagePullPolicy: Always
+        volumeMounts:
+        - mountPath: /etc/RepairManager
+          name: repairmanagerdata
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
       volumes:
       - name: certs
         hostPath:
@@ -65,13 +67,13 @@ spec:
           path: /etc/kubernetes/restapi-kubeconfig.yaml
       - name: dlwsdatawork
         hostPath:
-          path: {{cnf["storage-mount-path"]}}/work 
+          path: {{cnf["storage-mount-path"]}}/work
       - name: dlwsdatadata
         hostPath:
           path: {{cnf["storage-mount-path"]}}/storage
       - name: dlwsdatajobfiles
         hostPath:
-          path: {{cnf["storage-mount-path"]}}/jobfiles           
+          path: {{cnf["storage-mount-path"]}}/jobfiles
       - name: dltsdata
         hostPath:
           path: {{cnf["dltsdata-storage-mount-path"]}}
@@ -80,9 +82,12 @@ spec:
           path: {{cnf["folder_auto_share"]}}
       - name: log
         hostPath:
-          path: /var/log/clustermanager   
+          path: /var/log/clustermanager
+      - name: repairmanagerdata
+        hostPath:
+          path: /etc/RepairManager
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists
       - key: node-role.kubernetes.io/master
-        effect: NoSchedule           
+        effect: NoSchedule

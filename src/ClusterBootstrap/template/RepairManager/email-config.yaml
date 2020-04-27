@@ -1,0 +1,5 @@
+smtp_url: {{cnf['smtp']['smtp_url']}}
+login: {{cnf['smtp']['smtp_auth_username']}}
+password: {{cnf['smtp']['smtp_auth_password']}}
+sender: {{cnf['smtp']['smtp_from']}}
+default_recepient: {{cnf['smtp']['default_recipients']}}

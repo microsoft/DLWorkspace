@@ -184,6 +184,7 @@
     },
     "timezone": "browser",
     "title": "Per VC Gpu statistic",
-    "version": 0
+    "version": 0,
+    "uid": "per-vc-gpu-statistic"
   }
 }

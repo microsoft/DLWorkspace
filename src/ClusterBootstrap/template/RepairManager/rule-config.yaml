@@ -1,0 +1,33 @@
+---  
+rules:
+  ecc_detect_error_rule:
+    module_name: rules.ecc_detect_error_rule
+    class_name: EccDetectErrorRule
+  ecc_reboot_node_rule:
+    module_name: rules.ecc_reboot_node_rule
+    class_name: EccRebootNodeRule
+#  nvidia_smi_latency_rule :
+#    module_name: rules.nvidia_smi_latency_rule 
+#    class_name: NvidiaSmiLatencyRule
+
+rule_wait_time: 30 # time to sleep between rule execution (seconds)
+
+cluster_name: {{cnf['cluster_name_friendly']}}
+
+portal_url: {{cnf['repair-manager']['portal_url']}}
+
+job_owner_email_domain: {{cnf['repair-manager']['job_owner_email_domain']}}
+
+restore_from_rule_cache_dump: {{cnf['repair-manager']['restore_from_rule_cache_dump']}}
+rule_cache_dump: {{cnf['repair-manager']['rule_cache_dump']}}
+
+date_time_format: "%Y-%m-%d %H:%M:%S.%f"
+
+prometheus:
+  ip: {{cnf['repair-manager']['prometheus-ip']}}
+  port: {{cnf['repair-manager']['prometheus-port']}}
+  ecc_error_query: 'nvidiasmi_ecc_error_count{type="volatile_double"}>0'
+  node_boot_time_query: 'node_boot_time_seconds'
+  large_latency_query: 'histogram_quantile(0.95, sum(rate(cmd_nvidia_smi_latency_seconds_bucket[5m])) BY (le, instance)) > 40'
+
+rest_url: {{cnf['repair-manager']['rest_url']}}

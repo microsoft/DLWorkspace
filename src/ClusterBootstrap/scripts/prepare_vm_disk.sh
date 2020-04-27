@@ -16,8 +16,13 @@ sudo rm -r /var/log.bak
 sudo mkdir -p /data/lib/docker
 sudo mkdir -p /data/lib/mysql
 sudo mkdir -p /data/lib/influxdb
-if [ ! -L /var/lib/docker ]; then
-   sudo ln -s /data/lib/docker /var/lib/docker
+if [ -d /var/lib/docker ]; then
+    sudo systemctl stop docker
+    sudo mv /var/lib/docker /data/lib
+    sudo ln -s /data/lib/docker /var/lib/docker
+    sudo systemctl start docker
+elif [ ! -L /var/lib/docker ]; then
+    sudo ln -s /data/lib/docker /var/lib/docker
 fi
 if [ ! -L /var/lib/mysql ]; then
     # It is a symlink!

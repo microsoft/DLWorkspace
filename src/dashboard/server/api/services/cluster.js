@@ -10,16 +10,16 @@ const clustersConfig = config.get('clusters')
  * @property {import('./user')} user
  */
 
-/**
- * @extends {Service<State>}
- */
 class Cluster extends Service {
   /**
-   * @param {import('koa').Context<State>} context
+   * @param {import('koa').ParameterizedContext<State>} context
    * @param {string} id
    */
   constructor (context, id) {
     super(context)
+    if (id === '.default') {
+      id = Object.keys(clustersConfig)[0]
+    }
     this.id = id
     this.config = clustersConfig[id]
     context.assert(this.config != null, 404, 'Cluster is not found')
@@ -88,21 +88,25 @@ class Cluster extends Service {
 
   /**
    * @param {object} job
-   * @return {Promise<string>}
+   * @return {Promise<{ status: string, message?: string }>}
    */
   async getJobStatus (jobId) {
     const params = new URLSearchParams({ jobId })
     const response = await this.fetch('/GetJobStatus?' + params)
     this.context.assert(response.ok, 502)
     const data = await response.json()
-    this.context.assert(data['errorMsg'] == null, 404, data['errorMsg'])
+    this.context.assert(data != null, 404)
     this.context.log.debug({ data }, 'Got job status')
-    return data['jobStatus']
+    const status = { status: data['jobStatus'] }
+    if (data['errorMsg']) {
+      status.message = data['errorMsg']
+    }
+    return status
   }
 
   /**
    * @param {string} jobId
-   * @param {'approved'|'killing'} status
+   * @param {'approved'|'killing'|'pausing'|'queued'} status
    * @return {Promise<string>}
    */
   async setJobStatus (jobId, status) {
@@ -133,6 +137,46 @@ class Cluster extends Service {
       const response = await this.fetch('/ResumeJob?' + params)
       const text = await response.text()
       this.context.log.debug({ text }, 'Resume job response')
+      this.context.assert(response.ok, response.status, response.statusText)
+      return text
+    } else {
+      this.context.throw(400, 'Invalid status')
+    }
+  }
+
+  /**
+   * @param {string[]} jobIds
+   * @param {'approved'|'killing'|'pausing'|'queued'} status
+   * @return {Promise<string>}
+   */
+  async setJobsStatus (jobIds, status) {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      jobIds: jobIds.join(','),
+      userName: user.email
+    })
+    if (status === 'approved') {
+      const response = await this.fetch('/ApproveJobs?' + params)
+      const text = await response.text()
+      this.context.log.debug({ text }, 'Approve jobs response')
+      this.context.assert(response.ok, response.status, response.statusText)
+      return text
+    } else if (status === 'killing') {
+      const response = await this.fetch('/KillJobs?' + params)
+      const text = await response.text()
+      this.context.log.debug({ text }, 'Kill jobs response')
+      this.context.assert(response.ok, response.status, response.statusText)
+      return text
+    } else if (status === 'pausing') {
+      const response = await this.fetch('/PauseJobs?' + params)
+      const text = await response.text()
+      this.context.log.debug({ text }, 'Pause jobs response')
+      this.context.assert(response.ok, response.status, response.statusText)
+      return text
+    } else if (status === 'queued') { // resume
+      const response = await this.fetch('/ResumeJobs?' + params)
+      const text = await response.text()
+      this.context.log.debug({ text }, 'Resume jobs response')
       this.context.assert(response.ok, response.status, response.statusText)
       return text
     } else {

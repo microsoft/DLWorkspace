@@ -1,104 +1,140 @@
 import React, {
+  ComponentPropsWithoutRef,
   FunctionComponent,
   useCallback,
   useContext,
-  useState,
   useEffect,
-  useMemo
+  useMemo,
+  useState
 } from 'react';
-import MaterialTable, { Column, Options } from 'material-table';
+import Helmet from 'react-helmet';
 import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
+import { reduce } from 'lodash';
 
 import TeamsContext from '../../contexts/Teams';
-import Loading from '../../components/Loading';
 import useActions from '../../hooks/useActions';
+import useBatchActions from '../../hooks/useBatchActions';
 
 import ClusterContext from './ClusterContext';
-import { renderId, renderGPU, sortGPU, renderDate, sortDate, renderStatus } from './tableUtils';
-import PriorityField from './PriorityField';
+import JobsTable from './JobsTable';
+import {
+  user,
+  status,
+  type,
+  gpu,
+  preemptible,
+  priority,
+  submitted,
+  finished,
 
-const renderUser = (job: any) => job['userName'].split('@', 1)[0];
+  useNameId,
+} from './JobsTable/columns';
+import { groupByActiveStatus } from './utils';
 
-const getSubmittedDate = (job: any) => new Date(job['jobTime']);
-const getStartedDate = (job: any) => new Date(job['jobStatusDetail'] && job['jobStatusDetail'][0]['startedAt']);
-const getFinishedDate = (job: any) => new Date(job['jobStatusDetail'] && job['jobStatusDetail'][0]['finishedAt']);
+type JobsTablePropsWithoutColumnsActions = Omit<ComponentPropsWithoutRef<typeof JobsTable>, 'columns' | 'actions'>
 
-interface JobsTableProps {
-  title: string;
-  jobs: any[];
-}
-
-const JobsTable: FunctionComponent<JobsTableProps> = ({ title, jobs }) => {
+const ActiveJobsTable: FunctionComponent<JobsTablePropsWithoutColumnsActions> = (props) => {
   const { cluster } = useContext(ClusterContext);
-  const [pageSize, setPageSize] = useState(5);
-  const onChangeRowsPerPage = useCallback((pageSize: number) => {
-    setPageSize(pageSize);
-  }, [setPageSize]);
+  const { support, approve, pause, resume, kill } = useActions(cluster.id);
+  const { batchApprove, batchPause, batchResume, batchKill } = useBatchActions(cluster.id);
+  const nameId = useNameId();
+  const columns = useMemo(() => [
+    nameId,
+    user(),
+    status(),
+    type(),
+    gpu(),
+    preemptible(),
+    priority(),
+    submitted(),
+  ], [nameId]);
 
-  const renderPrioirty = useCallback((job: any) => (
-    <PriorityField job={job}/>
-  ), [])
-
-  const columns = useMemo<Array<Column<any>>>(() => [
-    { title: 'Id', type: 'string', field: 'jobId',
-      render: renderId, disableClick: true },
-    { title: 'Name', type: 'string', field: 'jobName' },
-    { title: 'Status', type: 'string', field: 'jobStatus', render: renderStatus },
-    { title: 'GPU', type: 'numeric',
-      render: renderGPU, customSort: sortGPU },
-    { title: 'User', type: 'string', render: renderUser},
-    { title: 'Preemptible', type: 'boolean', field: 'jobParams.preemptionAllowed'},
-    { title: 'Priority', type: 'numeric',
-      render: renderPrioirty, disableClick: true },
-    { title: 'Submitted', type: 'datetime',
-      render: renderDate(getSubmittedDate), customSort: sortDate(getSubmittedDate) },
-    { title: 'Started', type: 'datetime',
-      render: renderDate(getStartedDate), customSort: sortDate(getStartedDate) },
-    { title: 'Finished', type: 'datetime',
-      render: renderDate(getFinishedDate), customSort: sortDate(getFinishedDate) },
-  ], [renderPrioirty]);
-  const options = useMemo<Options>(() => ({
-    actionsColumnIndex: -1,
-    pageSize,
-    padding: 'dense'
-  }), [pageSize]);
-  const { support, approve, kill, pause, resume } = useActions(cluster.id);
-  const actions = [support, approve, pause, resume, kill];
-
+  const actions = useMemo(() => {
+    if (cluster.admin) {
+      return [
+        support, approve, pause, resume, kill,
+        batchApprove, batchPause, batchResume, batchKill
+      ];
+    } else {
+      return [support];
+    }
+  }, [
+    cluster.admin,
+    support, approve, pause, resume, kill,
+    batchApprove, batchPause, batchResume, batchKill
+  ]);
   return (
-    <MaterialTable
-      title={title}
+    <JobsTable
       columns={columns}
-      data={jobs}
-      options={options}
       actions={actions}
-      onChangeRowsPerPage={onChangeRowsPerPage}
+      {...props}
     />
   );
-}
+};
+
+const InactiveJobsTable: FunctionComponent<JobsTablePropsWithoutColumnsActions> = (props) => {
+  const { cluster } = useContext(ClusterContext);
+  const { support } = useActions(cluster.id);
+  const nameId = useNameId();
+  const columns = useMemo(() => [
+    nameId,
+    user(),
+    status(),
+    type(),
+    gpu(),
+    preemptible(),
+    priority(),
+    finished(),
+  ], [nameId]);
+  const actions = useMemo(() => [support], [support]);
+  return (
+    <JobsTable
+      columns={columns}
+      actions={actions}
+      {...props}
+    />
+  );
+};
 
 const AllJobs: FunctionComponent = () => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { cluster } = useContext(ClusterContext);
   const { selectedTeam } = useContext(TeamsContext);
-  const { error, data, get } = useFetch(
-    `/api/v2/clusters/${cluster.id}/teams/${selectedTeam}/jobs?user=all&limit=100`,
-    [cluster.id, selectedTeam]
+
+  const [limit, setLimit] = useState(30);
+
+  const { data, loading, error, get, abort } = useFetch(
+    `/api/v2/clusters/${cluster.id}/teams/${selectedTeam}/jobs?user=all&limit=${limit}`,
+    undefined,
+    [cluster.id, selectedTeam, limit]
   );
-  const [jobs, setJobs] = useState<any[]>();
+
+  const { Inactive: inactiveJobs=[], ...activeStatusesJobs } = useMemo(() => {
+    if (data === undefined) return {};
+    return groupByActiveStatus(data);
+  }, [data]);
+
+  const handleLastPage = useCallback((pageSize: number) => {
+    abort();
+    setLimit((limit) => Math.ceil((limit + pageSize) / pageSize) * pageSize);
+  }, [abort, setLimit]);
+
+  const title = useMemo(() => {
+    if (data === undefined) return cluster.id;
+    const length = reduce(activeStatusesJobs, (length, jobs) => length + jobs.length, 0)
+    return `(${length}) ${cluster.id}`;
+  }, [data, activeStatusesJobs, cluster]);
+
   useEffect(() => {
-    setJobs(undefined);
-  }, [cluster.id]);
-  useEffect(() => {
-    if (data !== undefined) {
-      setJobs(data);
+    if (loading === false) {
       const timeout = setTimeout(get, 3000);
       return () => {
         clearTimeout(timeout);
       }
     }
-  }, [data, get]);
+  }, [loading, get]);
+
   useEffect(() => {
     if (error !== undefined) {
       const key = enqueueSnackbar(`Failed to fetch jobs from cluster: ${cluster.id}`, {
@@ -111,43 +147,29 @@ const AllJobs: FunctionComponent = () => {
     }
   }, [error, enqueueSnackbar, closeSnackbar, cluster.id]);
 
-  const runningJobs = useMemo(() => {
-    if (jobs === undefined) return undefined;
-    const runningJobs = jobs.filter((job: any) => job['jobStatus'] === 'running');
-    if (runningJobs.length === 0) return undefined;
-    return runningJobs;
-  }, [jobs]);
-  const queuingJobs = useMemo(() => {
-    if (jobs === undefined) return undefined;
-    const queuingJobs = jobs.filter((job: any) => job['jobStatus'] === 'queued' || job['jobStatus'] === 'scheduling' );
-    if (queuingJobs.length === 0) return undefined;
-    return queuingJobs
-  }, [jobs]);
-  const unapprovedJobs = useMemo(() => {
-    if (jobs === undefined) return undefined;
-    const unapprovedJobs = jobs.filter((job: any)=>job['jobStatus'] === 'unapproved');
-    if (unapprovedJobs.length === 0) return undefined;
-    return unapprovedJobs
-  }, [jobs]);
-  const pausedJobs = useMemo(() => {
-    if (jobs === undefined) return undefined;
-    const pausedJobs = jobs.filter((job: any) => job['jobStatus'] === 'paused' || job['jobStatus'] === 'pausing' );
-    if (pausedJobs.length === 0) return undefined;
-    return pausedJobs
-  }, [jobs]);
-
-  if (jobs !== undefined) return (
+  return (
     <>
-      {runningJobs && <JobsTable title="Running Jobs" jobs={runningJobs}/>}
-      {queuingJobs && <JobsTable title="Queuing Jobs" jobs={queuingJobs}/>}
-      {unapprovedJobs && <JobsTable title="Unapproved Jobs" jobs={unapprovedJobs}/>}
-      {pausedJobs && <JobsTable title="Pauses Jobs" jobs={pausedJobs}/>}
-      {jobs.length === 0 && <JobsTable title="All Jobs" jobs={jobs} />}
+      { title && <Helmet title={title}/> }
+      { [ 'Running', 'Pending', 'Unapproved', 'Paused' ].map(
+        status => activeStatusesJobs[status] && (
+          <ActiveJobsTable
+            key={status}
+            title={`${status} Jobs`}
+            jobs={activeStatusesJobs[status]}
+            defaultPageSize={5}
+            selection
+          />
+        )
+      ) }
+      <InactiveJobsTable
+        title="Inactive Jobs"
+        jobs={inactiveJobs}
+        isLoading={data === undefined}
+        defaultPageSize={10}
+        onLastPage={handleLastPage}
+      />
     </>
   );
-  if (error !== undefined) return null;
-
-  return <Loading/>;
 };
 
 export default AllJobs;

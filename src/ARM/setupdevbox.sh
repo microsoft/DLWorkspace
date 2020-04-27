@@ -1,7 +1,7 @@
 #!/bin/bash 
 
 sudo apt-get update 
-sudo apt-get install -y --no-install-recommends \
+sudo apt-get --no-install-recommends install -y \
         apt-utils \
         software-properties-common \
         git \
@@ -30,7 +30,7 @@ shift
 
 sudo usermod -aG docker $username
 
-sudo apt-get install -y --no-install-recommends python-yaml python-jinja2 python-setuptools python-tzlocal python-pycurl
+sudo apt-get --no-install-recommends install -y python-yaml python-jinja2 python-setuptools python-tzlocal python-pycurl
 
 git clone http://github.com/Microsoft/DLWorkspace /home/$username/dlworkspace
 cd /home/$username/dlworkspace

@@ -32,6 +32,7 @@ import watchdog
 
 log = logging.getLogger(__name__)
 
+
 class TestWatchdog(unittest.TestCase):
     """
     Test watchdog.py
@@ -65,10 +66,10 @@ class TestWatchdog(unittest.TestCase):
 
         pod_gauge = watchdog.gen_pai_pod_gauge()
         container_gauge = watchdog.gen_pai_container_gauge()
-        pod_info = collections.defaultdict(lambda : [])
+        pod_info = collections.defaultdict(lambda: [])
 
-        watchdog.process_pods_status(obj, pod_gauge, container_gauge, pod_info, [],
-                watchdog.VcUsage())
+        watchdog.process_pods_status(obj, pod_gauge, container_gauge, pod_info,
+                                     [], watchdog.VcUsage())
 
         self.assertTrue(len(pod_gauge.samples) > 0)
         self.assertTrue(len(container_gauge.samples) > 0)
@@ -76,7 +77,8 @@ class TestWatchdog(unittest.TestCase):
     def test_process_nodes_status(self):
         obj = json.loads(self.get_data_test_input("data/nodes_list.json"))
 
-        gauges = watchdog.process_nodes_status(obj, {}, watchdog.ClusterGPUInfo())
+        gauges = watchdog.process_nodes_status(obj, {},
+                                               watchdog.ClusterGPUInfo())
 
         self.assertEqual(5, len(gauges))
 
@@ -88,10 +90,10 @@ class TestWatchdog(unittest.TestCase):
 
         pod_gauge = watchdog.gen_pai_pod_gauge()
         container_gauge = watchdog.gen_pai_container_gauge()
-        pod_info = collections.defaultdict(lambda : [])
+        pod_info = collections.defaultdict(lambda: [])
 
-        watchdog.process_pods_status(obj, pod_gauge, container_gauge, pod_info, [],
-                watchdog.VcUsage())
+        watchdog.process_pods_status(obj, pod_gauge, container_gauge, pod_info,
+                                     [], watchdog.VcUsage())
 
         self.assertTrue(len(pod_gauge.samples) > 0)
         self.assertEqual(0, len(container_gauge.samples))
@@ -103,11 +105,10 @@ class TestWatchdog(unittest.TestCase):
             def collect(self):
                 pod_gauge = watchdog.gen_pai_pod_gauge()
                 container_gauge = watchdog.gen_pai_container_gauge()
-                pod_info = collections.defaultdict(lambda : [])
+                pod_info = collections.defaultdict(lambda: [])
 
-                watchdog.process_pods_status(obj,
-                        pod_gauge, container_gauge, pod_info, [],
-                        watchdog.VcUsage())
+                watchdog.process_pods_status(obj, pod_gauge, container_gauge,
+                                             pod_info, [], watchdog.VcUsage())
 
                 yield pod_gauge
                 yield container_gauge
@@ -120,9 +121,10 @@ class TestWatchdog(unittest.TestCase):
     def test_process_dlws_nodes_status(self):
         obj = json.loads(self.get_data_test_input("data/dlws_nodes_list.json"))
 
-        pod_info = collections.defaultdict(lambda : [])
+        pod_info = collections.defaultdict(lambda: [])
         pod_info["192.168.255.1"].append(watchdog.PodInfo("job1", False, 2))
-        gauges = watchdog.process_nodes_status(obj, pod_info, watchdog.ClusterGPUInfo())
+        gauges = watchdog.process_nodes_status(obj, pod_info,
+                                               watchdog.ClusterGPUInfo())
 
         self.assertEqual(5, len(gauges))
 
@@ -143,14 +145,18 @@ class TestWatchdog(unittest.TestCase):
             self.assertTrue(len(gauge.samples) > 0)
 
         for gauge in gauges[1:]:
-            self.assertEqual("192.168.255.1", gauge.samples[0].labels["host_ip"])
+            self.assertEqual("192.168.255.1",
+                             gauge.samples[0].labels["host_ip"])
 
     def test_process_dlws_nodes_status_with_unscheduable(self):
-        obj = json.loads(self.get_data_test_input("data/dlws_nodes_list_with_unschedulable.json"))
+        obj = json.loads(
+            self.get_data_test_input(
+                "data/dlws_nodes_list_with_unschedulable.json"))
 
-        pod_info = collections.defaultdict(lambda : [])
+        pod_info = collections.defaultdict(lambda: [])
         pod_info["192.168.255.1"].append(watchdog.PodInfo("job1", False, 2))
-        gauges = watchdog.process_nodes_status(obj, pod_info, watchdog.ClusterGPUInfo())
+        gauges = watchdog.process_nodes_status(obj, pod_info,
+                                               watchdog.ClusterGPUInfo())
 
         self.assertEqual(5, len(gauges))
 
@@ -174,29 +180,48 @@ class TestWatchdog(unittest.TestCase):
             self.assertTrue(len(gauge.samples) > 0)
 
         for gauge in gauges[1:]:
-            self.assertEqual("192.168.255.1", gauge.samples[0].labels["host_ip"])
+            self.assertEqual("192.168.255.1",
+                             gauge.samples[0].labels["host_ip"])
 
     def test_process_vc_quota(self):
         obj = json.loads(self.get_data_test_input("data/vc_quota.json"))
         quota_info = watchdog.process_vc_quota(obj)
 
         target = {
-                "platform": {"P40": 20},
-                "vc1": {"P40": 6},
-                "bert": {"P40": 0},
-                "multimedia": {"P40": 0},
-                "quantus": {"P40": 0},
-                "relevance": {"P40": 0}
-                }
+            "platform": {
+                "P40": 20
+            },
+            "vc1": {
+                "P40": 6
+            },
+            "bert": {
+                "P40": 0
+            },
+            "multimedia": {
+                "P40": 0
+            },
+            "quantus": {
+                "P40": 0
+            },
+            "relevance": {
+                "P40": 0
+            }
+        }
 
         self.assertEqual(target, quota_info)
 
     def test_process_vc_info_real_case(self):
         vc_info = {
-                "quantus": {"P40": 150},
-                "relevance2": {"P40": 234},
-                "relevance2-inf": {"P40": 40}
-                }
+            "quantus": {
+                "P40": 150
+            },
+            "relevance2": {
+                "P40": 234
+            },
+            "relevance2-inf": {
+                "P40": 40
+            }
+        }
 
         vc_usage = watchdog.VcUsage()
 
@@ -218,49 +243,75 @@ class TestWatchdog(unittest.TestCase):
             self.assertEqual(vc_info[vc_name][gpu_type], sample.value)
 
         target_vc_avail = {
-                "quantus": {"P40": 25},
-                "relevance2": {"P40": 2},
-                "relevance2-inf": {"P40": 40}
-                }
+            "quantus": {
+                "P40": 25
+            },
+            "relevance2": {
+                "P40": 2
+            },
+            "relevance2-inf": {
+                "P40": 40
+            }
+        }
 
         self.assertEqual(3, len(vc_avail.samples))
         for sample in vc_avail.samples:
             vc_name = sample.labels["vc_name"]
             gpu_type = sample.labels["gpu_type"]
-            self.assertEqual(target_vc_avail[vc_name][gpu_type],
-                    sample.value, "vc " + vc_name + ", gpu " + gpu_type)
+            self.assertEqual(target_vc_avail[vc_name][gpu_type], sample.value,
+                             "vc " + vc_name + ", gpu " + gpu_type)
 
         target_vc_preemptive_avail = {
-                "quantus": {"P40": 68},
-                "relevance2": {"P40": 68},
-                "relevance2-inf": {"P40": 68}
-                }
+            "quantus": {
+                "P40": 68
+            },
+            "relevance2": {
+                "P40": 68
+            },
+            "relevance2-inf": {
+                "P40": 68
+            }
+        }
 
         self.assertEqual(3, len(vc_preemptive_avail.samples))
         for sample in vc_preemptive_avail.samples:
             vc_name = sample.labels["vc_name"]
             gpu_type = sample.labels["gpu_type"]
             self.assertEqual(target_vc_preemptive_avail[vc_name][gpu_type],
-                    sample.value, "vc " + vc_name)
+                             sample.value, "vc " + vc_name)
 
         target_vc_unschedulable = {
-                "quantus": {"P40": 0},
-                "relevance2": {"P40": 1},
-                "relevance2-inf": {"P40": 0}
-                }
+            "quantus": {
+                "P40": 0
+            },
+            "relevance2": {
+                "P40": 1
+            },
+            "relevance2-inf": {
+                "P40": 0
+            }
+        }
         self.assertEqual(3, len(vc_unschedulable_gauge.samples))
         for sample in vc_unschedulable_gauge.samples:
             vc_name = sample.labels["vc_name"]
             gpu_type = sample.labels["gpu_type"]
             self.assertEqual(target_vc_unschedulable[vc_name][gpu_type],
-                    sample.value, "vc " + vc_name + ", gpu " + gpu_type)
+                             sample.value,
+                             "vc " + vc_name + ", gpu " + gpu_type)
 
     def test_process_vc_info(self):
         vc_info = {
-                "default": {"P40": 10, "P80": 10},
-                "platform": {"P40": 10},
-                "relevance": {"P80": 4}
-                }
+            "default": {
+                "P40": 10,
+                "P80": 10
+            },
+            "platform": {
+                "P40": 10
+            },
+            "relevance": {
+                "P80": 4
+            }
+        }
 
         vc_usage = watchdog.VcUsage()
 
@@ -284,48 +335,66 @@ class TestWatchdog(unittest.TestCase):
             self.assertEqual(vc_info[vc_name][gpu_type], sample.value)
 
         target_vc_avail = {
-                "default": {"P40": 8, "P80": 10},
-                "platform": {"P40": 7},
-                "relevance": {"P80": 4}
-                }
+            "default": {
+                "P40": 8,
+                "P80": 10
+            },
+            "platform": {
+                "P40": 7
+            },
+            "relevance": {
+                "P80": 4
+            }
+        }
 
         self.assertEqual(4, len(vc_avail.samples))
         for sample in vc_avail.samples:
             vc_name = sample.labels["vc_name"]
             gpu_type = sample.labels["gpu_type"]
-            self.assertEqual(target_vc_avail[vc_name][gpu_type],
-                    sample.value, "vc " + vc_name + ", gpu " + gpu_type)
+            self.assertEqual(target_vc_avail[vc_name][gpu_type], sample.value,
+                             "vc " + vc_name + ", gpu " + gpu_type)
 
         target_vc_preemptive_avail = {
-                "default": {"P40": 29, "P80": 29},
-                "platform": {"P40": 29},
-                "relevance": {"P80": 29}
-                }
+            "default": {
+                "P40": 29,
+                "P80": 29
+            },
+            "platform": {
+                "P40": 29
+            },
+            "relevance": {
+                "P80": 29
+            }
+        }
 
         self.assertEqual(4, len(vc_preemptive_avail.samples))
         for sample in vc_preemptive_avail.samples:
             vc_name = sample.labels["vc_name"]
             gpu_type = sample.labels["gpu_type"]
             self.assertEqual(target_vc_preemptive_avail[vc_name][gpu_type],
-                    sample.value, "vc " + vc_name)
+                             sample.value, "vc " + vc_name)
 
         target_vc_unschedulable = {
-                "default": {"P40": 0, "P80": 0},
-                "platform": {"P40": 0},
-                "relevance": {"P80": 0}
-                }
+            "default": {
+                "P40": 0,
+                "P80": 0
+            },
+            "platform": {
+                "P40": 0
+            },
+            "relevance": {
+                "P80": 0
+            }
+        }
         for sample in vc_unschedulable_gauge.samples:
             vc_name = sample.labels["vc_name"]
             gpu_type = sample.labels["gpu_type"]
             self.assertEqual(target_vc_unschedulable[vc_name][gpu_type],
-                    sample.value, "vc " + vc_name + ", gpu " + gpu_type)
+                             sample.value,
+                             "vc " + vc_name + ", gpu " + gpu_type)
 
     def test_gpu_accounting(self):
-        vc_info = {
-                "A": {"P40": 40},
-                "B": {"P40": 40},
-                "C": {"P40": 40}
-                }
+        vc_info = {"A": {"P40": 40}, "B": {"P40": 40}, "C": {"P40": 40}}
 
         vc_usage = watchdog.VcUsage()
 
@@ -346,64 +415,74 @@ class TestWatchdog(unittest.TestCase):
             gpu_type = sample.labels["gpu_type"]
             self.assertEqual(vc_info[vc_name][gpu_type], sample.value)
 
-        target_vc_avail = {
-                "A": {"P40": 0},
-                "B": {"P40": 1},
-                "C": {"P40": 27}
-                }
+        target_vc_avail = {"A": {"P40": 0}, "B": {"P40": 1}, "C": {"P40": 27}}
 
         self.assertEqual(3, len(vc_avail.samples))
         for sample in vc_avail.samples:
             vc_name = sample.labels["vc_name"]
             gpu_type = sample.labels["gpu_type"]
-            self.assertEqual(target_vc_avail[vc_name][gpu_type],
-                    sample.value, "vc " + vc_name + ", gpu " + gpu_type)
+            self.assertEqual(target_vc_avail[vc_name][gpu_type], sample.value,
+                             "vc " + vc_name + ", gpu " + gpu_type)
 
         target_vc_preemptive_avail = {
-                "A": {"P40": 29},
-                "B": {"P40": 29},
-                "C": {"P40": 29}
-                }
+            "A": {
+                "P40": 29
+            },
+            "B": {
+                "P40": 29
+            },
+            "C": {
+                "P40": 29
+            }
+        }
 
         self.assertEqual(3, len(vc_preemptive_avail.samples))
         for sample in vc_preemptive_avail.samples:
             vc_name = sample.labels["vc_name"]
             gpu_type = sample.labels["gpu_type"]
             self.assertEqual(target_vc_preemptive_avail[vc_name][gpu_type],
-                    sample.value, "vc " + vc_name)
+                             sample.value, "vc " + vc_name)
 
         target_vc_unschedulable = {
-                "A": {"P40": 0},
-                "B": {"P40": 8},
-                "C": {"P40": 13}
-                }
+            "A": {
+                "P40": 0
+            },
+            "B": {
+                "P40": 8
+            },
+            "C": {
+                "P40": 13
+            }
+        }
         self.assertEqual(3, len(vc_unschedulable_gauge.samples))
         for sample in vc_unschedulable_gauge.samples:
             vc_name = sample.labels["vc_name"]
             gpu_type = sample.labels["gpu_type"]
             self.assertEqual(target_vc_unschedulable[vc_name][gpu_type],
-                    sample.value, "vc " + vc_name)
+                             sample.value, "vc " + vc_name)
 
     def test_process_pods_with_vc_usage(self):
-        obj = json.loads(self.get_data_test_input("data/dlts_non_preemptable_pod.json"))
+        obj = json.loads(
+            self.get_data_test_input("data/dlts_non_preemptable_pod.json"))
 
         pod_gauge = watchdog.gen_pai_pod_gauge()
         container_gauge = watchdog.gen_pai_container_gauge()
-        pod_info = collections.defaultdict(lambda : [])
+        pod_info = collections.defaultdict(lambda: [])
 
         vc_usage = watchdog.VcUsage()
 
         watchdog.parse_pod_item(obj, pod_gauge, container_gauge, pod_info, [],
-                vc_usage)
+                                vc_usage)
 
         self.assertEqual(1, len(vc_usage.map))
         self.assertEqual(1, len(vc_usage.map["some_vc_name"]))
         self.assertEqual(1, vc_usage.map["some_vc_name"]["P40"][0])
         self.assertEqual(1, vc_usage.map["some_vc_name"]["P40"][1])
 
-        obj = json.loads(self.get_data_test_input("data/dlts_preemptable_pod.json"))
+        obj = json.loads(
+            self.get_data_test_input("data/dlts_preemptable_pod.json"))
         watchdog.parse_pod_item(obj, pod_gauge, container_gauge, pod_info, [],
-                vc_usage)
+                                vc_usage)
 
         self.assertEqual(1, len(vc_usage.map))
         self.assertEqual(2, len(vc_usage.map["some_vc_name"]))
@@ -414,18 +493,32 @@ class TestWatchdog(unittest.TestCase):
         self.assertEqual(1, vc_usage.map["some_vc_name"]["P80"][0])
         self.assertEqual(0, vc_usage.map["some_vc_name"]["P80"][1])
 
+        objs = json.loads(
+            self.get_data_test_input("data/dlts_unscheduled_pods.json"))
+        for obj in objs:
+            watchdog.parse_pod_item(obj, pod_gauge, container_gauge, pod_info,
+                                    [], vc_usage)
+
+        self.assertEqual(1, len(vc_usage.map))
+        self.assertEqual(2, len(vc_usage.map["some_vc_name"]))
+        self.assertEqual(3, vc_usage.map["some_vc_name"]["P40"][0])
+        self.assertEqual(2, vc_usage.map["some_vc_name"]["P40"][1])
+
     def test_parse_monitor_response_time(self):
-        obj = json.loads(self.get_data_test_input("data/pods_with_response_time_monitor.json"))
+        obj = json.loads(
+            self.get_data_test_input(
+                "data/pods_with_response_time_monitor.json"))
 
         pod_gauge = watchdog.gen_pai_pod_gauge()
         container_gauge = watchdog.gen_pai_container_gauge()
-        pod_info = collections.defaultdict(lambda : [])
+        pod_info = collections.defaultdict(lambda: [])
 
         endpoints = []
 
         vc_usage = watchdog.VcUsage()
 
-        watchdog.process_pods_status(obj, pod_gauge, container_gauge, pod_info, endpoints, vc_usage)
+        watchdog.process_pods_status(obj, pod_gauge, container_gauge, pod_info,
+                                     endpoints, vc_usage)
 
         self.assertEqual(2, len(endpoints))
         endpoint0 = endpoints[0]
@@ -445,6 +538,33 @@ class TestWatchdog(unittest.TestCase):
 
         self.assertEqual(10, endpoint0.timeout)
         self.assertEqual(10, endpoint1.timeout)
+
+    def test_process_unscheduled_pods(self):
+        objs = json.loads(
+            self.get_data_test_input("data/dlts_unscheduled_pods.json"))
+
+        pod_gauge = watchdog.gen_pai_pod_gauge()
+        container_gauge = watchdog.gen_pai_container_gauge()
+        pods_info = collections.defaultdict(lambda: [])
+
+        vc_usage = watchdog.VcUsage()
+
+        for obj in objs:
+            watchdog.parse_pod_item(obj, pod_gauge, container_gauge, pods_info,
+                                    [], vc_usage)
+
+        self.assertEqual(1, len(pods_info))
+        self.assertEqual(2, len(pods_info["unscheduled"]))
+
+        cluster_gpu_info = watchdog.ClusterGPUInfo()
+        cluster_gpu_info.available = 10
+        cluster_gpu_info.preemptable_available = 10
+
+        watchdog.process_unscheduled_pods(pods_info, cluster_gpu_info)
+
+        self.assertEqual(9, cluster_gpu_info.available)
+        self.assertEqual(8, cluster_gpu_info.preemptable_available)
+
 
 if __name__ == '__main__':
     unittest.main()

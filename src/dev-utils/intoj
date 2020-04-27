@@ -1,0 +1,12 @@
+#!/bin/sh
+
+if [ $# != 1 ] ; then
+    echo Usage: $0 cluster_name. Exec into jobmanager of cluster $cluster_name
+    exit 1
+fi
+
+cmd=`dlts_get_cmd $1`
+
+pod_name=`$cmd kubectl get pod -l app=jobmanager -o jsonpath='{.items[0].metadata.name}'`
+
+$cmd kubectl exec -it $pod_name -c jobmanager bash

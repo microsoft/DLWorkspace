@@ -29,13 +29,15 @@ mountpoints : {{cnf["mountpoints"]}}
 mounthomefolder : {{cnf["mounthomefolder"]}}
 deploymounts : {{cnf["deploymounts"]}}
 default-storage-folders : {{cnf["default-storage-folders"]}}
-webportal_node: {{cnf["webportal_node"]}}
 datasource : {{cnf["datasource"]}}
 kube_custom_scheduler: {{cnf["kube_custom_scheduler"]}}
 WinbindServers: {{cnf["WinbindServers"]}}
-gpu_count_per_node: {{cnf["gpu_count_per_node"]}}
-worker_node_num: {{cnf["worker_node_num"]}}
-gpu_type: {{cnf["gpu_type"]}}
+{% if "worker_sku_cnt" in cnf %}
+worker_sku_cnt: {{ cnf["worker_sku_cnt"] }}
+{% endif %}
+{% if "sku_mapping" in cnf %}
+sku_mapping: {{ cnf["sku_mapping"] }}
+{% endif %}
 defalt_virtual_cluster_name: {{cnf["defalt_virtual_cluster_name"]}}
 {% if cnf["job-manager"] %}
 job-manager:
@@ -48,27 +50,71 @@ job-manager:
     alert-manager-url: {{ cnf["job-manager"]["notifier"]["alert-manager-url"] }}
     {% endif %}
   {% endif %}
+  {% if cnf["job-manager"]["launcher"] %}
+  launcher: {{ cnf["job-manager"]["launcher"] }}
+  {% else %}
+  launcher: python
+  {% endif %}
 {% endif %}
 
+# Volume mounts
+cluster_nfs: {{cnf["cluster_nfs"]}}
+system_mountpoints: {{cnf["system_mountpoints"]}}
+enable_blobfuse: {{cnf["enable_blobfuse"]}}
+local_fast_storage: {{cnf["local_fast_storage"]}}
 infiniband_mounts: {{cnf["infiniband_mounts"]}}
-custom_mounts: {{cnf["custom_mounts"]}}
+vc_without_shared_storage: {{cnf["vc_without_shared_storage"]}}
 
+# Environment variables
+system_envs: {{cnf["system_envs"]}}
+
+# TODO: Remove special cpuworker configuration
 enable_cpuworker: {{cnf["enable_cpuworker"]}}
-default_cpurequest: {{cnf["default_cpurequest"]}}
-default_cpulimit: {{cnf["default_cpulimit"]}}
-default_memoryrequest: {{cnf["default_memoryrequest"]}}
-default_memorylimit: {{cnf["default_memorylimit"]}}
 default_cpu_sku: {{cnf["default_cpu_sku"]}}
 sku_meta: {{cnf["sku_meta"]}}
 
-enable_blobfuse: {{cnf["enable_blobfuse"]}}
-
-local_fast_storage: {{cnf["local_fast_storage"]}}
 enable_custom_registry_secrets: {{cnf["enable_custom_registry_secrets"]}}
 master_token: {{cnf["master_token"]}}
-nccl_ib_disable: {{cnf["nccl_ib_disable"]}}
 vc_node_hard_assignment: {{cnf["vc_node_hard_assignment"]}}
 
 gpu_reporter: 'http://{{cnf["prometheus"]["host"]}}:{{cnf["prometheus"]["reporter"]["port"]}}'
 
-vc_without_shared_storage: {{cnf["vc_without_shared_storage"]}}
+elasticsearch:
+  {% for elasticsearch_node in cnf["elasticsearch_node"] %}
+  - 'http://{{elasticsearch_node}}:{{cnf["elasticsearch"]["port"]["http"]}}'
+  {% endfor %}
+{% if cnf["__extract_job_log_legacy"] %}
+__extract_job_log_legacy: True
+{% endif %}
+{% if cnf["__get_job_log_legacy"] %}
+__get_job_log_legacy: True
+{% endif %}
+{% if cnf["__get_job_log_fallback"] %}
+__get_job_log_fallback: True
+{% endif %}
+
+{% if cnf["job_resource_policy"] %}
+job_resource_policy: {{cnf["job_resource_policy"]}}
+{% endif %}
+{% if cnf["default_cpurequest"] %}
+default_cpurequest: {{cnf["default_cpurequest"]}}
+{% endif %}
+{% if cnf["default_cpulimit"] %}
+default_cpulimit: {{cnf["default_cpulimit"]}}
+{% endif %}
+{% if cnf["default_memoryrequest"] %}
+default_memoryrequest: {{cnf["default_memoryrequest"]}}
+{% endif %}
+{% if cnf["default_memorylimit"] %}
+default_memorylimit: {{cnf["default_memorylimit"]}}
+{% endif %}
+
+{% if cnf["azure_blob_log"]["enabled"] %}
+logging: azure_blob
+{% elif cnf["elasticsearch"]["enabled"] %}
+logging: elasticsearch
+{% endif %}
+
+azure_blob_log:
+  connection_string: {{cnf["azure_blob_log"]["connection_string"]}}
+  container_name: {{cnf["azure_blob_log"]["container_name"]}}

@@ -10,6 +10,7 @@ activeDirectory:
 clusters:
   Universe:
     restfulapi: http://universe
+    grafana: http://grafana.universe
   Targaryen:
     restfulapi: http://targaryen
 

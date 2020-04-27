@@ -1,23 +1,10 @@
-{% if job["distRole"] %}
-{% set jobRole = job["distRole"] %}
-{% else %}
-{% set jobRole = "worker" %} # treat regular job's pod as worker role
-{% endif %}
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ job["jobId"] }}-deployment
   labels:
     run: {{ job["jobId"] }}
-    podName: {{ job["podName"] }}-deployment
-    jobName: {{ job["jobNameLabel"] }}-deployment
     jobId: {{ job["jobId"] }}
-    jobRole: {{ jobRole }}
-    userName: {{ job["user"] }}
-    vcName: {{ job["vcName"] }}
-    type: job
-    'gpu-request': '{{ job["gpuLimit"]|int }}'
 spec:
   replicas: {{ job["deployment_replicas"] }}
   selector:
@@ -29,6 +16,10 @@ spec:
       labels:
         jobId: {{ job["jobId"] }}
         worker: active
+        jobRole: worker
+        userName: {{ job["user"] }}
+        vcName: {{ job["vcName"] }}
+        type: job
     affinity:
       podAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:
@@ -43,10 +34,10 @@ spec:
             topologyKey: kubernetes.io/hostname
     spec:
       containers:
-      - name: {{ job["podName"] }}-deployment
+      - name: main
         image: {{ job["image"] }}
         imagePullPolicy: Always
-        command: {{ job["LaunchCMD"] }}
+        command: ["sh", "-c", "printenv DLTS_LAUNCH_CMD > /pod/job_command.sh ; bash -x /pod/job_command.sh"]
         securityContext:
           runAsUser: {{ job["containerUserId"] }}
           capabilities:
@@ -55,17 +46,17 @@ spec:
             - SYS_ADMIN
         resources:
           limits:
-            nvidia.com/gpu: {{ job["gpu_per_pod"] }}
+            nvidia.com/gpu: 1
         {% if not job["cpurequest"] %}
           requests:
             cpu: 1.0
         {% else %}
           requests:
-            cpu: job["cpurequest"]
+            cpu: {{ job["cpurequest"] }}
         {% endif %}
         {% if job["memoryrequest"] %}
           requests:
-            memory: job["memoryrequest"]
+            memory: {{ job["memoryrequest"] }}
         {% endif %}
         volumeMounts:
         - name: "dlws-scripts"
@@ -73,24 +64,18 @@ spec:
           readOnly: true
         - name: ssh-volume
           mountPath: /home/{{ job["user"] }}/.ssh
-        - name: id-rsa-volume
-          mountPath: /home/{{ job["user"] }}/.ssh/id_rsa
-          readOnly: true
-        - name: id-rsa-pub-volume
-          mountPath: /home/{{ job["user"] }}/.ssh/id_rsa.pub
-          readOnly: true
-        - name: authorized-keys-volume
-          mountPath: /home/{{ job["user"] }}/.ssh/authorized_keys
-          readOnly: true
         {% if not job["dnsPolicy"] %}
         - mountPath: /etc/resolv.conf
           name: resolv
         {% endif %}
         {% for mp in job["mountpoints"] %}
-        {% if mp.enabled %}
-        - mountPath: {{ mp.containerPath }}
-          name: {{ mp.name }}
-          {% if mp.readOnly %}
+        {% if mp["enabled"] %}
+        - name: {{ mp["name"] }}
+          mountPath: {{ mp["mountPath"] }}
+          {% if mp["subPath"] %}
+          subPath: {{ mp["subPath"] }}
+          {% endif %}
+          {% if mp["readOnly"] %}
           readOnly: true
           {% endif %}
         {% endif %}
@@ -99,45 +84,49 @@ spec:
         env:
         - name: FAMILY_TOKEN
           value: {{ job["familyToken"] }}
-        - name: DLWS_REST_API
-          value: {{ job["rest-api"] }}
+        - name: DLWS_ROLE_NAME
+          value: worker
+        - name: DLTS_ROLE_NAME
+          value: worker
         - name: DLWS_JOB_ID
           value: {{ job["jobId"] }}
-        - name: DLWS_NUM_PS
-          value: "{{ job["numps"] }}"
-        - name: DLWS_NUM_WORKER
-          value: "{{ job["numworker"] }}"
-        {% if job["gpuLimit"]|int < 1  %}
-        - name: NVIDIA_VISIBLE_DEVICES
-          value: ""
-        {% endif %}
-        {% if job["usefreeflow"] %}
-        - name: VNET_PREFIX
-          value: {{ job["pod_ip_range"] }}
-        - name: LD_PRELOAD
-          value: "/freeflow/libfsocket.so"
-        {% endif %}
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
+        - name: DLTS_JOB_ID
+          value: {{ job["jobId"] }}
+        - name: DLWS_NUM_GPU_PER_WORKER
+          value: "1"
+        - name: DLTS_NUM_GPU_PER_WORKER
+          value: "1"
         - name: POD_IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
         - name: DLWS_GID
           value: "{{ job["gid"] }}"
+        - name: DLTS_GID
+          value: "{{ job["gid"] }}"
         - name: DLWS_UID
+          value: "{{ job["uid"] }}"
+        - name: DLTS_UID
           value: "{{ job["uid"] }}"
         - name: DLWS_USER_NAME
           value: "{{ job["user"] }}"
+        - name: DLTS_USER_NAME
+          value: "{{ job["user"] }}"
         - name: DLWS_USER_EMAIL
           value: "{{ job["user_email"] }}"
+        - name: DLTS_USER_EMAIL
+          value: "{{ job["user_email"] }}"
         - name: DLWS_VC_NAME
+          value: {{ job["vcName"] }}
+        - name: DLTS_VC_NAME
           value: {{ job["vcName"] }}
         {% for env in job["envs"] %}
         - name: {{env.name}}
           value: "{{env.value}}"
+        {% endfor %}
+        {% for key_value in job["ssh_public_keys"] %}
+        - name: DLTS_PUBLIC_SSH_KEY_{{loop.index}}
+          value: "{{key_value}}"
         {% endfor %}
 
       imagePullSecrets:
@@ -150,34 +139,45 @@ spec:
           name: "dlws-scripts"
       - name: ssh-volume
         emptyDir: {}
-      - name: id-rsa-volume
-        hostPath:
-          path: {{ job["homeFolderHostpath"] }}/.ssh/id_rsa
-      - name: id-rsa-pub-volume
-        hostPath:
-          path: {{ job["homeFolderHostpath"] }}/.ssh/id_rsa.pub
-      - name: authorized-keys-volume
-        hostPath:
-          path: {{ job["homeFolderHostpath"] }}/.ssh/authorized_keys
       {% if not job["dnsPolicy"] %}
       - name: resolv
         hostPath:
           path: /etc/resolv.conf
       {% endif %}
-      {% for mp in job["mountpoints"] %}
-      {% if mp.enabled %}
-      - name: {{ mp.name }}
-        {% if mp.emptydir %}
-        emptyDir: {}
-        {% else %}
-        hostPath:
-          path: {{ mp.hostPath }}
-          {% if mp.type %}
-          type: {{ mp.type }}
-          {% endif %}
-        {% endif %}
-      {% endif %}
-      {% endfor %}
       - name: dshm
         emptyDir:
           medium: Memory
+      {% if job["mountpoints"] %}
+      {% for mp in job["mountpoints"] %}
+      {% if mp["enabled"] %}
+      - name: {{ mp["name"] }}
+      {% if mp["emptydir"] %}
+        emptyDir: {}
+      {% elif mp["mountType"] == "hostPath" %}
+        hostPath:
+          path: {{ mp["hostPath"] }}
+          {% if mp["type"] %}
+          type: {{ mp["type"] }}
+          {% endif %}
+      {% elif mp["mountType"] == "nfs" %}
+        nfs:
+          server: {{ mp["server"] }}
+          path: {{ mp["path"] }}
+      {% elif mp["mountType"] == "blobfuse" %}
+        flexVolume:
+          driver: "azure/blobfuse"
+          readOnly: false
+          secretRef:
+            name: {{ mp["secreds"] }}
+          options:
+            container: {{ mp["containerName"] }}
+            {% if mp["rootTmppath"] and mp["tmppath"] %}
+            tmppath: {{ mp["rootTmppath"] }}/{{ job["jobId"] }}/{{ job["podName"] }}/{{ mp["tmppath"] }}
+            {% endif %}
+            {% if mp["mountOptions"] %}
+            mountoptions: {{ mp["mountOptions"] }}
+            {% endif %}
+      {% endif %}
+      {% endif %}
+      {% endfor %}
+      {% endif %}

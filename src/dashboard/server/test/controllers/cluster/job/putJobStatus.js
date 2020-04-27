@@ -13,8 +13,8 @@ const setStatusParams = new URLSearchParams({
   userName: userParams.email
 })
 
-describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
-  it('[P-01] should return OK if status approved set successfully', async () => {
+describe('PUT /clusters/:clusterId/jobs/:jobId/status', function () {
+  it('[P-01] should return OK if status approved set successfully', async function () {
     nock('http://universe')
       .get('/ApproveJob?' + setStatusParams)
       .reply(200, {
@@ -28,7 +28,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
     response.data.should.have.property('message', 'status approved set successfully')
   })
 
-  it('[P-02] should return OK if status killing set successfully', async () => {
+  it('[P-02] should return OK if status killing set successfully', async function () {
     nock('http://universe')
       .get('/KillJob?' + setStatusParams)
       .reply(200, {
@@ -42,7 +42,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
     response.data.should.have.property('message', 'status killing set successfully')
   })
 
-  it('[P-03] should return OK if status pausing set successfully', async () => {
+  it('[P-03] should return OK if status pausing set successfully', async function () {
     nock('http://universe')
       .get('/PauseJob?' + setStatusParams)
       .reply(200, {
@@ -57,7 +57,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
   })
 
   // resume job
-  it('[P-04] should return OK if status queued set successfully', async () => {
+  it('[P-04] should return OK if status queued set successfully', async function () {
     nock('http://universe')
       .get('/ResumeJob?' + setStatusParams)
       .reply(200, {
@@ -71,7 +71,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
     response.data.should.have.property('message', 'status queued set successfully')
   })
 
-  it('[N-01] should return response status if approved set failed', async () => {
+  it('[N-01] should return response status if approved set failed', async function () {
     nock('http://universe')
       .get('/ApproveJob?' + setStatusParams)
       .reply(500)
@@ -82,7 +82,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
     response.status.should.equal(500)
   })
 
-  it('[N-02] should return response status if killing set failed', async () => {
+  it('[N-02] should return response status if killing set failed', async function () {
     nock('http://universe')
       .get('/KillJob?' + setStatusParams)
       .reply(500)
@@ -93,7 +93,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
     response.status.should.equal(500)
   })
 
-  it('[N-03] should return response status if pausing set failed', async () => {
+  it('[N-03] should return response status if pausing set failed', async function () {
     nock('http://universe')
       .get('/PauseJob?' + setStatusParams)
       .reply(500)
@@ -104,7 +104,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
     response.status.should.equal(500)
   })
 
-  it('[N-04] should return response status if queued set failed', async () => {
+  it('[N-04] should return response status if queued set failed', async function () {
     nock('http://universe')
       .get('/ResumeJob?' + setStatusParams)
       .reply(500)
@@ -115,7 +115,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
     response.status.should.equal(500)
   })
 
-  it('[N-05] should return 400 Invalid status when status is invalid', async () => {
+  it('[N-05] should return 400 Invalid status when status is invalid', async function () {
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
       { status: 'invalid' }, { params: userParams })
 

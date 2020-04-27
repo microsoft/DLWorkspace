@@ -1,6 +1,0 @@
-<configuration>
-  <property>
-    <name>fs.defaultFS</name>
-    <value>hdfs://{{cnf["hdfsconfig"]["namenode"]["namenode1"]}}</value>
-  </property>
-</configuration>

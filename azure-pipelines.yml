@@ -3,7 +3,7 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 trigger:
-- dltsdev
+- citest
 
 pool:
   name: 'DLTS-Platform'
@@ -24,12 +24,12 @@ steps:
     echo $CONFIG_TYPE
     ./set_config.sh $CONFIG_TYPE
     cd ..
-    ./step_by_step.sh azure
+    ./deploy.sh
   displayName: 'Deploy DLWorkspace'
 
 - script: |
     cd src/ClusterBootstrap/
-    USER=$(grep -B3 admin_username cluster.yaml | awk '{print $2}')
+    USER=$(grep -B3 admin_username az_complementary.yaml | awk '{print $2}')
     CONFIG_TYPE="${CONFIG_TYPE:-cpu}"
     WAITMIN="${WAITMIN:-5}"
     POLLSEC="${POLLSEC:-30}"

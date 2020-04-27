@@ -10,5 +10,5 @@ module.exports = async context => {
 
   const status = await cluster.getJobStatus(jobId)
 
-  context.body = { status }
+  context.body = status
 }

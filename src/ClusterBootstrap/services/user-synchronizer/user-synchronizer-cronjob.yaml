@@ -12,6 +12,7 @@ spec:
       labels:
         app: user-synchronizer
     spec:
+      activeDeadlineSeconds: 3600
       template:
         metadata:
           name: user-synchronizer-pod
@@ -20,7 +21,7 @@ spec:
         spec:
           containers:
           - name: user-synchronizer
-            image: '{{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}user-synchronizer:{{cnf["dockertag"]}}'
+            image: '{{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/user-synchronizer:{{cnf["dockertag"]}}'
             imagePullPolicy: Always
             env:
             - name: TENANT_ID
@@ -36,6 +37,10 @@ spec:
             volumeMounts:
             - name: domain-offset
               mountPath: /etc/domain-offset
+          {% if cnf["private_docker_registry_username"] %}
+          imagePullSecrets:
+          - name: svccred
+          {% endif %}
           volumes:
           - name: domain-offset
             configMap:

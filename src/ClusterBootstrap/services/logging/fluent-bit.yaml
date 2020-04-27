@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluent-bit
+  namespace: kube-system
+  labels:
+    app: fluent-bit
+    version: v1
+    kubernetes.io/cluster-service: "true"
+spec:
+  selector:
+    matchLabels:
+      app: fluent-bit
+  template:
+    metadata:
+      labels:
+        app: fluent-bit
+        version: v1
+        kubernetes.io/cluster-service: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{cnf["fluent_bit"]["port"]}}"
+        prometheus.io/path: /api/v1/metrics/prometheus
+    spec:
+      containers:
+      - name: fluent-bit
+        image: fluent/fluent-bit:1.4.1
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: 100m
+            memory: 4Gi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        ports:
+        - containerPort: {{cnf["fluent_bit"]["port"]}}
+        env:
+        - name: HOST
+          value: '0.0.0.0'
+        - name: PORT
+          value: '{{cnf["fluent_bit"]["port"]}}'
+        {% if cnf["elasticsearch"]["enabled"] -%}
+        - name: FLUENT_ELASTICSEARCH_HOST
+          value: "$(ELASTICSEARCH_SERVICE_HOST)"
+        - name: FLUENT_ELASTICSEARCH_PORT
+          value: "$(ELASTICSEARCH_SERVICE_PORT)"
+        {%- endif %}
+        {% if cnf["azure_blob_log"]["enabled"] -%}
+        - name: FLUENT_AZURE_BLOB_ADAPTER_PORT
+          value: "{{cnf["azure_blob_log"]["port"]["adapter"]}}"
+        {%- endif %}
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+        - name: datalibdockercontainers
+          mountPath: /data/lib/docker/containers
+          readOnly: true
+        - name: fluent-bit-config
+          mountPath: /fluent-bit/etc/
+        livenessProbe:
+          httpGet:
+            host: '127.0.0.1'
+            port: {{cnf["fluent_bit"]["port"]}}
+            path: /healthz
+      {% if cnf["azure_blob_log"]["enabled"] -%}
+      - name: azure-blob-adapter
+        image: '{{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/azure-blob-adapter:{{cnf["dockertag"]}}'
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 100m
+            memory: 64Mi
+        ports:
+        - containerPort: {{cnf["azure_blob_log"]["port"]["adapter"]}}
+        env:
+        - name: AZURE_STORAGE_CONNECTION_STRING
+          value: '{{cnf["azure_blob_log"]["connection_string"]}}'
+        - name: AZURE_STORAGE_CONTAINER_NAME
+          value: '{{cnf["azure_blob_log"]["container_name"]}}'
+        - name: UWSGI_HTTP
+          value: 127.0.0.1:{{cnf["azure_blob_log"]["port"]["adapter"]}}
+        livenessProbe:
+          httpGet:
+            host: '127.0.0.1'
+            port: {{cnf["azure_blob_log"]["port"]["adapter"]}}
+            path: /healthz
+      {%- endif %}
+      hostNetwork: true
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+      - name: datalibdockercontainers
+        hostPath:
+          path: /data/lib/docker/containers
+      - name: fluent-bit-config
+        configMap:
+          name: fluent-bit-config
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - operator: "Exists"
+        effect: "NoExecute"
+      - operator: "Exists"
+        effect: "NoSchedule"

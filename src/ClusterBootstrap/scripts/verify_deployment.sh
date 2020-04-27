@@ -7,14 +7,15 @@ waitmin=$3
 pollsec=$4
 echo $USER
 echo $CONFIG_TYPE
-
-./timed_check.sh $waitmin $pollsec ./pscp_role.sh worker check_machine.sh /home/${USER}
-./timed_check.sh $waitmin $pollsec ./pssh_role.sh worker \"bash check_machine.sh $CONFIG_TYPE\"
-./timed_check.sh $waitmin $pollsec ./check_node_ready.sh infra
-./timed_check.sh $waitmin $pollsec ./pscp_role.sh infra check_docker_ready.sh /home/${USER}
-./timed_check.sh $waitmin $pollsec ./pssh_role.sh infra \"bash ./check_docker_ready.sh infra\"
-./timed_check.sh $waitmin $pollsec ./check_node_ready.sh worker
-./timed_check.sh $waitmin $pollsec ./pscp_role.sh worker check_docker_ready.sh /home/${USER}
-./timed_check.sh $waitmin $pollsec ./pssh_role.sh worker \"bash ./check_docker_ready.sh worker\"
-./timed_check.sh $waitmin $pollsec ./pssh_role.sh worker \"bash ./check_docker_ready.sh postlbl\"
-./timed_check.sh $waitmin $pollsec ./pssh_role.sh infra \"bash check_docker_ready.sh services\"
+# check docker and nvidia driver on worker
+# cd ..
+./scripts/timed_check.sh $waitmin $pollsec "./ctl.py -v -r worker copy2 ./scripts/check_machine.sh /home/${USER}"
+./scripts/timed_check.sh $waitmin $pollsec "./ctl.py -v -r worker runcmd \"bash check_machine.sh $CONFIG_TYPE\""
+./scripts/timed_check.sh $waitmin $pollsec "./ctl.py -v -r infra copy2 ./scripts/check_docker_ready.sh /home/${USER}"
+./scripts//timed_check.sh $waitmin $pollsec "./ctl.py -v -r infra runcmd \"bash check_docker_ready.sh $CONFIG_TYPE\""
+./scripts/timed_check.sh $waitmin $pollsec "./ctl.py -v -r worker copy2 ./scripts/check_docker_ready.sh /home/${USER}"
+./scripts/timed_check.sh $waitmin $pollsec "./ctl.py -v -r worker runcmd \"bash check_docker_ready.sh $CONFIG_TYPE\""
+./scripts/timed_check.sh $waitmin $pollsec "./ctl.py -v -r worker runcmd \"bash check_docker_ready.sh postlbl\""
+./scripts/timed_check.sh $waitmin $pollsec "./ctl.py -v -r infra runcmd \"bash check_docker_ready.sh services\""
+# verify all nodes ready
+./scripts/timed_check.sh $waitmin $pollsec "./ctl.py verifyallnodes"

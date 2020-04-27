@@ -45,6 +45,10 @@ spec:
           mountPath: /var/lib/mysql
         - name: mysql-log
           mountPath: /var/log/mysql          
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
       volumes:
       - name: mysql-storage
         hostPath:

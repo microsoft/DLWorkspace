@@ -5,11 +5,12 @@ import logging
 import logging.config
 import importlib
 import traceback
+from pathlib import Path
 from utils import rule_alert_handler
 
 import rules
 
-with open('./config/logging.yaml', 'r') as log_file:
+with open('./logging.yaml', 'r') as log_file:
     log_config = yaml.safe_load(log_file)
 
 logging.config.dictConfig(log_config)
@@ -17,11 +18,10 @@ logger = logging.getLogger(__name__)
 
 alert = rule_alert_handler.RuleAlertHandler()
 
-
 def Run():
     try:        
         while True:
-            with open('./config/rule-config.yaml', 'r') as config_file:
+            with open('/etc/RepairManager/config/rule-config.yaml', 'r') as config_file:
                 config = yaml.safe_load(config_file)
 
             # execute all rules listed in config
@@ -42,10 +42,10 @@ def Run():
 
                     time.sleep(config['rule_wait_time'])
 
-                except Exception as e:
+                except Exception:
                     logger.exception(f'Error executing {class_name} from module {module_name}\n')
 
-    except Exception as e:
+    except Exception:
          logger.exception('Repair manager has stopped due to an unhandled exception.')
 
 if __name__ == '__main__':

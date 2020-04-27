@@ -23,7 +23,7 @@ ENV DEBIAN_FRONTEND noninteractive
 ENV KIBANA_VERSION 4.6.1
 
 RUN apt-get update \
-    && apt-get install -y curl \
+    && apt-get --no-install-recommends install -y curl \
     && apt-get clean
 
 RUN set -x \

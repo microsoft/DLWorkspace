@@ -12,8 +12,8 @@ const setPriorityParams = new URLSearchParams({
   userName: userParams.email
 })
 
-describe('PUT /clusters/:clusterId/jobs/:jobId/priority', () => {
-  it('should return OK if priority set successfully', async () => {
+describe('PUT /clusters/:clusterId/jobs/:jobId/priority', function () {
+  it('should return OK if priority set successfully', async function () {
     nock('http://universe')
       .post('/jobs/priorities?' + setPriorityParams, { 'testjob': /[0-9]+/ })
       .reply(200, {
@@ -27,7 +27,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/priority', () => {
     response.data.should.have.property('message', 'priority set successfully')
   })
 
-  it('should return 502 Bad Gateway error if priority setting failed', async () => {
+  it('should return 502 Bad Gateway error if priority setting failed', async function () {
     nock('http://universe')
       .post('/jobs/priorities?' + setPriorityParams, { 'testjob': /[0-9]+/ })
       .reply(500)

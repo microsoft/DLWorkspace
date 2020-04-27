@@ -31,13 +31,13 @@ spec:
       dnsPolicy: {{cnf["dnsPolicy"]}}
       {% endif %}
       nodeSelector:
-        webportal: active
+        dashboard: active
       {% if true %}  
       hostNetwork: true
       {% endif %}
       containers:
       - name: dashboard
-        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}dashboard:{{cnf["dockertag"]}}
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/dashboard:{{cnf["dockertag"]}}
         imagePullPolicy: Always
         {% if false %}
         ports:
@@ -50,6 +50,10 @@ spec:
           name: dashboardconfig
         - mountPath: /var/log/dashboard
           name: dashboardlog
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
       volumes:
       - name: dashboardconfig
         hostPath:

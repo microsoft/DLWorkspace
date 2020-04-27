@@ -1,7 +1,7 @@
 FROM ubuntu:14.04
 
 RUN apt-get -y update && \
-    apt-get -y install \
+    apt-get --no-install-recommends install -y \
       vim \
       wget \
       curl \
@@ -12,7 +12,7 @@ RUN apt-get -y update && \
       rsync 
 
 RUN apt-get update -y && \
-    apt-get -y install tftpd-hpa inetutils-inetd syslinux isc-dhcp-server apache2
+    apt-get --no-install-recommends install -y tftpd-hpa inetutils-inetd syslinux isc-dhcp-server apache2
 
 COPY tftpd-hpa /etc/default/tftpd-hpa
 COPY dhcpd.conf /etc/dhcp/

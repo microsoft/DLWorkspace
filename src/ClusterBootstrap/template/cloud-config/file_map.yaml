@@ -1,0 +1,135 @@
+kubernetes_common:
+  - dst: /opt/bin/kubelet
+    src: ./deploy/bin/kubelet
+  - dst: /opt/cni/bin/macvlan
+    src: ./deploy/bin/macvlan
+  - dst: /opt/cni/bin/dhcp
+    src: ./deploy/bin/dhcp
+  - dst: /opt/cni/bin/loopback
+    src: ./deploy/bin/loopback
+  - dst: /opt/cni/bin/ptp
+    src: ./deploy/bin/ptp
+  - dst: /opt/cni/bin/ipvlan
+    src: ./deploy/bin/ipvlan
+  - dst: /opt/cni/bin/bridge
+    src: ./deploy/bin/bridge
+  - dst: /opt/cni/bin/tuning
+    src: ./deploy/bin/tuning
+  - dst: /opt/cni/bin/host-local
+    src: ./deploy/bin/host-local
+  - dst: /opt/cni/bin/flannel
+    src: ./deploy/bin/flannel
+  - dst: /opt/cni/bin/host-device
+    src: ./deploy/bin/host-device
+  - dst: /opt/cni/bin/portmap
+    src: ./deploy/bin/portmap
+  - dst: /opt/cni/bin/sample
+    src: ./deploy/bin/sample
+  - dst: /opt/cni/bin/vlan
+    src: ./deploy/bin/vlan
+  - dst: /etc/cni/net.d/10-weave.conf
+    src: ./deploy/kubelet/10-weave.conf
+                      
+kubernetes_infra:
+  - dst: /etc/kubernetes/ssl
+    src: ./deploy/ssl/apiserver
+  - dst: /etc/kubernetes/pki/ca.crt
+    src: ./deploy/ssl/aggregator/ca.crt
+  - dst: /etc/kubernetes/pki/ca.key
+    src: ./deploy/ssl/aggregator/ca.key
+  - dst: /etc/kubernetes/pki/proxy-client.crt
+    src: ./deploy/ssl/aggregator/proxy-client.crt
+  - dst: /etc/kubernetes/pki/proxy-client.key
+    src: ./deploy/ssl/aggregator/proxy-client.key
+  - dst: /etc/kubernetes/basicauth
+    src: ./deploy/master/basicauth
+  - dst: /etc/kubernetes/worker-kubeconfig.yaml
+    src: ./deploy/master/worker-kubeconfig.yaml
+  - dst: /etc/kubernetes/manifests/kube-apiserver.yaml
+    src: ./deploy/master/kube-apiserver.yaml
+  - dst: /etc/kubernetes/manifests/kube-controller-manager.yaml
+    src: ./deploy/master/kube-controller-manager.yaml
+  - dst: /etc/kubernetes/manifests/kube-scheduler.yaml
+    src: ./deploy/master/kube-scheduler.yaml
+  - dst: /opt/bin/kubectl
+    src: ./deploy/bin/kubectl
+  - dst: /opt/addons/kube-addons
+    src: ./deploy/kube-addons
+  - dst: /etc/kubernetes/dns-kubeconfig.yaml
+    src: ./deploy/master/dns-kubeconfig.yaml
+  - dst: /etc/kubernetes/clusterroles/clusterrolebindings.yaml
+    src: ./deploy/services/clusterroles/clusterrolebindings.yaml
+  - dst: /etc/kubernetes/clusterroles/clusterroles.yaml
+    src: ./deploy/services/clusterroles/clusterroles.yaml
+  - dst: /etc/kubernetes/restapi-kubeconfig.yaml
+    src: ./deploy/master/restapi-kubeconfig.yaml
+
+kubelet_worker:
+  - dst: /etc/flannel/options.env
+    src: ./deploy/kubelet/options.env.template
+  - dst: /etc/kubernetes/worker-kubeconfig.yaml
+    src: ./deploy/kubelet/worker-kubeconfig.yaml.template
+  - dst: /etc/kubernetes/dns-kubeconfig.yaml
+    src: ./deploy/kubelet/dns-kubeconfig.yaml
+  - dst: /opt/kubelet.sh
+    src: ./deploy/kubelet/kubelet.sh
+  - dst: /opt/bin/kubelet
+    src: ./deploy/bin/kubelet
+  - dst: /etc/kubernetes/ssl/ca.pem
+    src: ./deploy/ssl/ca/ca.pem
+  - dst: /etc/kubernetes/ssl/worker.pem
+    src: ./deploy/ssl/kubelet/apiserver.pem
+  - dst: /etc/kubernetes/ssl/worker-key.pem
+    src: ./deploy/ssl/kubelet/apiserver-key.pem
+  - dst: /opt/report.sh
+    src: ./deploy/kubelet/report.sh
+  - dst: /etc/systemd/system/reportcluster.service
+    src: ./deploy/kubelet/reportcluster.service
+gpu_docker_daemon:
+  - dst: /etc/docker/daemon.json
+    src: ./deploy/kubelet/gpu_daemon.json 
+etcd:
+  - dst: /etc/etcd/ssl/ca.pem
+    src: ./deploy/ssl/etcd/ca.pem
+  - dst: /etc/etcd/ssl/etcd.pem
+    src: ./deploy/ssl/etcd/etcd.pem
+  - dst: /etc/etcd/ssl/etcd-key.pem
+    src: ./deploy/ssl/etcd/etcd-key.pem
+  - dst: /etc/systemd/system/etcd3.service
+    src: ./deploy/etcd/etcd3.service
+  - dst: /opt/etcd_ssl.sh
+    src: ./deploy/etcd/etcd_ssl.sh
+  - dst: /opt/etcd_service.sh
+    src: ./deploy/etcd/etcd_service.sh
+# used by infra node to get its own private ip
+ip_resolve:
+  - dst: /opt/resolve_ip.sh
+    src: ./scripts/resolve_ip.sh
+restfulapi:
+  - dst: /etc/RestfulAPI/config.yaml
+    src: ./deploy/RestfulAPI/config.yaml
+dashboard:
+  - dst: /etc/dashboard/production.yaml
+    src: ./deploy/dashboard/production.yaml
+nfs_client:
+  - dst: /etc/systemd/system/auto_share.timer
+    src: ./deploy/storage/auto_share/auto_share.timer
+  - dst: /etc/systemd/system/auto_share.target
+    src: ./deploy/storage/auto_share/auto_share.target
+  - dst: /etc/systemd/system/auto_share.service
+    src: ./deploy/storage/auto_share/auto_share.service
+  - dst: {{cnf["folder_auto_share"]}}/logging.yaml
+    src: ./deploy/storage/auto_share/logging.yaml
+  - dst: {{cnf["folder_auto_share"]}}/auto_share.py
+    src: ./deploy/storage/auto_share/auto_share_nfs_v2.py
+  - dst: {{cnf["folder_auto_share"]}}/mounting.yaml
+    src: ./deploy/storage/auto_share/mounting.yaml
+repairmanager:
+  - dst: /etc/RepairManager/config/email-config.yaml
+    src: ./deploy/RepairManager/email-config.yaml
+  - dst: /etc/RepairManager/config/rule-config.yaml
+    src: ./deploy/RepairManager/rule-config.yaml
+  - dst: /etc/RepairManager/config/ecc-config.yaml
+    src: ./deploy/RepairManager/ecc-config.yaml
+  - dst: /etc/RepairManager/config/etcd.conf.yaml
+    src: ./deploy/RepairManager/etcd.conf.yaml

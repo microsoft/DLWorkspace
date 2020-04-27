@@ -7,5 +7,6 @@ validator.addSchema(require('./endpoints.schema'), 'endpoints')
 validator.addSchema(require('./job.schema'), 'job')
 validator.addSchema(require('./template.schema'), 'template')
 validator.addSchema(require('./priority.schema'), 'priority')
+validator.addSchema(require('./batch-status.schema'), 'batch-status')
 
 module.exports = validator

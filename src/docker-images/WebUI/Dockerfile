@@ -14,7 +14,7 @@ RUN echo "deb http://download.mono-project.com/repo/debian wheezy-apache24-compa
 
 RUN apt-get update --fix-missing
 
-RUN apt-get install -y apt-transport-https
+RUN apt-get --no-install-recommends install -y apt-transport-https
 
 
 
@@ -22,19 +22,19 @@ RUN sh -c 'echo "deb [arch=amd64] https://apt-mo.trafficmanager.net/repos/dotnet
 
 RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 417A0893
 
-RUN apt-get install -y apt-transport-https
+RUN apt-get --no-install-recommends install -y apt-transport-https
 
 RUN apt-get update
 
-RUN apt-get install -y dotnet-dev-1.0.0-preview2.1-003177 --allow-unauthenticated
+RUN apt-get --no-install-recommends install -y dotnet-dev-1.0.0-preview2.1-003177 --allow-unauthenticated
 
-RUN apt-get install -y dotnet-dev-1.0.0-preview2-003156 --allow-unauthenticated
-
-
+RUN apt-get --no-install-recommends install -y dotnet-dev-1.0.0-preview2-003156 --allow-unauthenticated
 
 
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+
+
+RUN apt-get update && apt-get --no-install-recommends install -y \
 
         build-essential \
 
@@ -60,7 +60,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 
 
-RUN apt-get install -y bison curl nfs-common
+RUN apt-get --no-install-recommends install -y bison curl nfs-common
 
 RUN pip install --upgrade pip; 
 
@@ -82,7 +82,7 @@ RUN pip install flask.restful
 
 #this ssh key is used to download DLWorkspace from github. It has read-only access to github repo. 
 
-RUN apt-get install -y --no-install-recommends ssh
+RUN apt-get --no-install-recommends install -y ssh
 
 
 

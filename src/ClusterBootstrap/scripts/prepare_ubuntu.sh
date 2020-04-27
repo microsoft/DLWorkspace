@@ -12,7 +12,7 @@ sudo dpkg --configure -a
 # Install python on CoreOS base image
 # Docker environment for development of DL workspace
 sudo apt-get update -y
-yes | sudo apt-get install -y --no-install-recommends \
+yes | sudo apt-get --no-install-recommends install -y \
         apt-utils \
         software-properties-common \
         build-essential \
@@ -34,7 +34,7 @@ yes | sudo apt-get install -y --no-install-recommends \
         dos2unix
         
 
-yes | sudo apt-get install -y bison curl parted
+yes | sudo apt-get --no-install-recommends install -y bison curl parted
 
 # Install docker
 which docker
@@ -50,7 +50,7 @@ sudo add-apt-repository \
    $(lsb_release -cs) \
    stable"
 sudo apt-get update
-yes | sudo apt-get install -y docker-ce
+yes | sudo apt-get --no-install-recommends install -y docker-ce
 fi
 
 yes | sudo pip install --upgrade pip
@@ -117,9 +117,9 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
 
     sudo apt-get purge -y nvidia*
     sudo apt-get update
-    yes | sudo apt-get install -y nvidia-driver-430
+    yes | sudo apt-get --no-install-recommends install -y nvidia-driver-440
 
-        yes | sudo apt install -y nvidia-modprobe
+        yes | sudo apt-get --no-install-recommends install -y nvidia-modprobe
 
         sudo rm -r /opt/nvidia-driver || true
 
@@ -133,7 +133,7 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
         curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
         sudo apt-get update
 
-        yes | sudo apt-get install -y nvidia-docker2
+        yes | sudo apt-get --no-install-recommends install -y nvidia-docker2
         sudo pkill -SIGHUP dockerd
 
         # Test nvidia-smi
@@ -145,6 +145,11 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
         NVIDIA_VERSION=`/usr/bin/nvidia-smi -x -q | grep driver_version | sed -e 's/\t//' | sed -e 's/\ //' | sed -e 's/<driver_version>//' | sed -e 's/<\/driver_version>//'`
         NV_DRIVER=/opt/nvidia-driver/$NVIDIA_VERSION
         sudo ln -s $NV_DRIVER /opt/nvidia-driver/current
+
+        # Enable NVIDIA Persistence Daemon
+        sudo sed -i 's/--no-persistence-mode/--persistence-mode/g' /lib/systemd/system/nvidia-persistenced.service
+        sudo systemctl daemon-reload
+        sudo systemctl restart nvidia-persistenced
 fi
 
 # https://github.com/kubernetes/kubeadm/issues/610
@@ -155,5 +160,5 @@ sudo rm -f packages-microsoft-prod.deb
 wget https://packages.microsoft.com/config/ubuntu/16.04/packages-microsoft-prod.deb
 sudo dpkg -i packages-microsoft-prod.deb
 sudo apt-get update
-sudo apt-get install -y blobfuse fuse jq
+sudo apt-get --no-install-recommends install -y blobfuse fuse jq
 sudo rm -f packages-microsoft-prod.deb

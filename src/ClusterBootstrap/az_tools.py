@@ -1,37 +1,28 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
+
 import json
 import os
-import time
-import datetime
 import argparse
 import uuid
-import subprocess
-import sys
 import textwrap
 import re
-import math
-import distutils.dir_util
-import distutils.file_util
-import shutil
 import random
-import glob
-import copy
-import numbers
 import string
-
-from os.path import expanduser
-
 import yaml
-from jinja2 import Environment, FileSystemLoader, Template
-import base64
-import tempfile
 
-from shutil import copyfile, copytree
-import urllib
-import socket
 import utils
 from az_params import *
 from params import *
+from az_utils import \
+    add_nsg_rule_whitelist, \
+    remove_nsg_rule_whitelist, \
+    delete_nsg_rule_whitelist, \
+    create_nsg_rules_with_service_tags, \
+    delete_nsg_rules_with_service_tags, \
+    create_logging_storage_account, \
+    create_logging_container, \
+    delete_logging_storage_account, \
+    get_connection_string_for_logging_storage_account
 
 verbose = False
 no_execution = False
@@ -41,9 +32,9 @@ no_execution = False
 
 def init_config():
     config = {}
-    for k, v in default_config_parameters.iteritems():
+    for k, v in default_config_parameters.items():
         config[k] = v
-    for k, v in default_az_parameters.iteritems():
+    for k, v in default_az_parameters.items():
         config[k] = v
     return config
 
@@ -66,8 +57,8 @@ def merge_config(config1, config2, verbose):
 
 
 def update_config(config, genSSH=True):
-    if "resource_group_name" not in config["azure_cluster"]:
-        config["azure_cluster"]["resource_group_name"] = config[
+    if "resource_group" not in config["azure_cluster"]:
+        config["azure_cluster"]["resource_group"] = config[
             "azure_cluster"]["cluster_name"] + "ResGrp"
 
     config["azure_cluster"]["vnet_name"] = config[
@@ -113,7 +104,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
     else:
         auth = """--generate-ssh-keys --authentication-type ssh --ssh-key-value '%s' """ % config["azure_cluster"]["sshkey"]
 
-    priv_IP = "--private-ip-address %s " % vm_ip if not role in ["worker", "mysqlserver", "nfs"] else ""
+    priv_IP = "--private-ip-address %s " % vm_ip if not role in ["worker", "mysqlserver", "elasticsearch", "nfs"] else ""
     nsg = "nfs_nsg_name" if role == "nfs" else "nsg_name"
 
     availability_set = ""
@@ -125,7 +116,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
         assert os.path.exists(config["cloud_init_%s" % role])
         cloud_init = "--custom-data {}".format(config["cloud_init_%s" % role])
 
-    if role in ["infra", "worker", "mysqlserver"]:
+    if role in ["infra", "worker", "mysqlserver", "elasticsearch"]:
         storage = "--storage-sku {} --data-disk-sizes-gb {} ".format(config["azure_cluster"]["vm_local_storage_sku"],
                 config["azure_cluster"]["%s_local_storage_sz" % role])
         # corner case: NFS on infra
@@ -158,7 +149,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
                  %s \
                  %s \
 
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                vmname,
                config["azure_cluster"]["vm_image"],
                priv_IP,
@@ -167,7 +158,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
                vm_size,
                config["azure_cluster"]["vnet_name"],
                config["azure_cluster"][nsg],
-               config["cloud_config"]["default_admin_username"],
+               config["cloud_config_nsg_rules"]["default_admin_username"],
                cloud_init,
                storage,
                auth,
@@ -183,7 +174,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
 def create_group():
     cmd = """
         az group create --name %s --location %s
-        """ % (config["azure_cluster"]["resource_group_name"], config["azure_cluster"]["azure_location"])
+        """ % (config["azure_cluster"]["resource_group"], config["azure_cluster"]["azure_location"])
     if verbose:
         print(cmd)
     if not no_execution:
@@ -198,7 +189,7 @@ def create_sql():
                  --name %s \
                  -u %s \
                  -p %s
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["azure_location"],
                config["azure_cluster"]["sql_server_name"],
                config["azure_cluster"]["sql_admin_name"],
@@ -215,7 +206,7 @@ def create_sql():
                  --name All \
                  --start-ip-address 0.0.0.0 \
                  --end-ip-address 255.255.255.255
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["sql_server_name"])
     if verbose:
         print(cmd)
@@ -233,7 +224,7 @@ def create_storage_account():
             --location %s
         """ % (config["azure_cluster"]["storage_account_name"],
                config["azure_cluster"]["vm_local_storage_sku"],
-               config["azure_cluster"]["resource_group_name"],
+               config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["azure_location"])
     if verbose:
         print(cmd)
@@ -249,7 +240,7 @@ def create_file_share():
             -g %s \
             --query 'connectionString' \
             -o tsv
-        """ % (config["azure_cluster"]["storage_account_name"], config["azure_cluster"]["resource_group_name"])
+        """ % (config["azure_cluster"]["storage_account_name"], config["azure_cluster"]["resource_group"])
     if not no_execution:
         output = utils.exec_cmd_local(cmd)
         print(output)
@@ -275,10 +266,10 @@ def create_vnet():
             --address-prefix %s \
             --subnet-name mySubnet \
             --subnet-prefix %s
-        """ % ( config["azure_cluster"]["resource_group_name"],
+        """ % ( config["azure_cluster"]["resource_group"],
                 config["azure_cluster"]["vnet_name"],
-                config["cloud_config"]["vnet_range"],
-                config["cloud_config"]["vnet_range"])
+                config["cloud_config_nsg_rules"]["vnet_range"],
+                config["cloud_config_nsg_rules"]["vnet_range"])
     if verbose:
         print(cmd)
     if not no_execution:
@@ -287,18 +278,18 @@ def create_vnet():
 
 
 def create_nsg():
-    if "source_addresses_prefixes" in config["cloud_config"]["dev_network"]:
-        source_addresses_prefixes = config["cloud_config"][
+    if "source_addresses_prefixes" in config["cloud_config_nsg_rules"]["dev_network"]:
+        source_addresses_prefixes = config["cloud_config_nsg_rules"][
             "dev_network"]["source_addresses_prefixes"]
         if isinstance(source_addresses_prefixes, list):
             source_addresses_prefixes = " ".join(list(set(source_addresses_prefixes)))
     else:
-        print "Please setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed"
+        print("Please setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed")
         exit()
 
     restricted_source_address_prefixes = "'*'"
-    if "restricted_source_address_prefixes" in config["cloud_config"]:
-        restricted_source_address_prefixes = config["cloud_config"]["restricted_source_address_prefixes"]
+    if "restricted_source_address_prefixes" in config["cloud_config_nsg_rules"]:
+        restricted_source_address_prefixes = config["cloud_config_nsg_rules"]["restricted_source_address_prefixes"]
         if isinstance(restricted_source_address_prefixes, list):
             restricted_source_address_prefixes = " ".join(list(set(restricted_source_address_prefixes)))
 
@@ -306,7 +297,7 @@ def create_nsg():
         az network nsg create \
             --resource-group %s \
             --name %s
-        """ % ( config["azure_cluster"]["resource_group_name"],
+        """ % ( config["azure_cluster"]["resource_group"],
                 config["azure_cluster"]["nsg_name"])
     if verbose:
         print(cmd)
@@ -314,7 +305,9 @@ def create_nsg():
         output = utils.exec_cmd_local(cmd)
         print(output)
 
-    if "tcp_port_ranges" in config["cloud_config"]:
+    create_nsg_rules_with_service_tags(config, args)
+
+    if "tcp_port_ranges" in config["cloud_config_nsg_rules"]:
         cmd = """
             az network nsg rule create \
                 --resource-group %s \
@@ -325,16 +318,16 @@ def create_nsg():
                 --destination-port-ranges %s \
                 --source-address-prefixes %s \
                 --access allow
-            """ % ( config["azure_cluster"]["resource_group_name"],
+            """ % ( config["azure_cluster"]["resource_group"],
                     config["azure_cluster"]["nsg_name"],
-                    config["cloud_config"]["tcp_port_ranges"],
+                    config["cloud_config_nsg_rules"]["tcp_port_ranges"],
                     restricted_source_address_prefixes
                     )
         if not no_execution:
             output = utils.exec_cmd_local(cmd)
             print(output)
 
-    if "udp_port_ranges" in config["cloud_config"]:
+    if "udp_port_ranges" in config["cloud_config_nsg_rules"]:
         cmd = """
             az network nsg rule create \
                 --resource-group %s \
@@ -345,9 +338,9 @@ def create_nsg():
                 --destination-port-ranges %s \
                 --source-address-prefixes %s \
                 --access allow
-            """ % ( config["azure_cluster"]["resource_group_name"],
+            """ % ( config["azure_cluster"]["resource_group"],
                     config["azure_cluster"]["nsg_name"],
-                    config["cloud_config"]["udp_port_ranges"],
+                    config["cloud_config_nsg_rules"]["udp_port_ranges"],
                     restricted_source_address_prefixes
                     )
         if not no_execution:
@@ -364,9 +357,9 @@ def create_nsg():
             --destination-port-ranges %s \
             --source-address-prefixes %s \
             --access allow
-        """ % ( config["azure_cluster"]["resource_group_name"],
+        """ % ( config["azure_cluster"]["resource_group"],
                 config["azure_cluster"]["nsg_name"],
-                config["cloud_config"]["dev_network"]["tcp_port_ranges"],
+                config["cloud_config_nsg_rules"]["dev_network"]["tcp_port_ranges"],
                 source_addresses_prefixes
                 )
     if not no_execution:
@@ -374,18 +367,18 @@ def create_nsg():
         print(output)
 
 def create_nfs_nsg():
-    if "source_addresses_prefixes" in config["cloud_config"]["dev_network"]:
-        source_addresses_prefixes = config["cloud_config"][
+    if "source_addresses_prefixes" in config["cloud_config_nsg_rules"]["dev_network"]:
+        source_addresses_prefixes = config["cloud_config_nsg_rules"][
             "dev_network"]["source_addresses_prefixes"]
     else:
-        print "Please setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed"
+        print("Please setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed")
         exit()
     if int(config["azure_cluster"]["nfs_node_num"]) > 0:
         cmd = """
             az network nsg create \
                 --resource-group %s \
                 --name %s
-            """ % ( config["azure_cluster"]["resource_group_name"],
+            """ % ( config["azure_cluster"]["resource_group"],
                     config["azure_cluster"]["nfs_nsg_name"])
         if verbose:
             print(cmd)
@@ -393,8 +386,8 @@ def create_nfs_nsg():
             output = utils.exec_cmd_local(cmd)
             print(output)
 
-    print type(config["cloud_config"]["nfs_ssh"]["source_ips"]), config["cloud_config"]["nfs_ssh"]["source_ips"],type(source_addresses_prefixes), source_addresses_prefixes
-    merged_ip = utils.keep_widest_subnet(config["cloud_config"]["nfs_ssh"]["source_ips"] + source_addresses_prefixes)
+    print(type(config["cloud_config_nsg_rules"]["nfs_ssh"]["source_ips"]), config["cloud_config_nsg_rules"]["nfs_ssh"]["source_ips"],type(source_addresses_prefixes), source_addresses_prefixes)
+    merged_ip = utils.keep_widest_subnet(config["cloud_config_nsg_rules"]["nfs_ssh"]["source_ips"] + source_addresses_prefixes)
     cmd = """
         az network nsg rule create \
             --resource-group %s \
@@ -404,9 +397,9 @@ def create_nfs_nsg():
             --destination-port-ranges %s \
             --source-address-prefixes %s \
             --access allow
-        """ % ( config["azure_cluster"]["resource_group_name"],
+        """ % ( config["azure_cluster"]["resource_group"],
                 config["azure_cluster"]["nfs_nsg_name"],
-                config["cloud_config"]["nfs_ssh"]["port"],
+                config["cloud_config_nsg_rules"]["nfs_ssh"]["port"],
                 " ".join(merged_ip),
                 )
     if verbose:
@@ -424,9 +417,9 @@ def create_nfs_nsg():
             --source-address-prefixes %s \
             --destination-port-ranges \'*\' \
             --access allow
-        """ % ( config["azure_cluster"]["resource_group_name"],
+        """ % ( config["azure_cluster"]["resource_group"],
                 config["azure_cluster"]["nfs_nsg_name"],
-                " ".join(config["cloud_config"]["nfs_share"]["source_ips"]),
+                " ".join(config["cloud_config_nsg_rules"]["nfs_share"]["source_ips"]),
                 )
     if not no_execution:
         output = utils.exec_cmd_local(cmd)
@@ -436,7 +429,7 @@ def create_nfs_nsg():
 def delete_group():
     cmd = """
         az group delete -y --name %s
-        """ % (config["azure_cluster"]["resource_group_name"])
+        """ % (config["azure_cluster"]["resource_group"])
     if verbose:
         print(cmd)
     if not no_execution:
@@ -446,7 +439,7 @@ def delete_group():
 
 def get_vm_ip(i, role):
     """the ip generated for worker / nfs not used for vm creation TODO delete?"""
-    vnet_range = config["cloud_config"]["vnet_range"]
+    vnet_range = config["cloud_config_nsg_rules"]["vnet_range"]
     vnet_ip = vnet_range.split("/")[0]
     vnet_ips = vnet_ip.split(".")
     if role in ["worker", "nfs"]:
@@ -462,21 +455,21 @@ def create_cluster(arm_vm_password=None, parallelism=1):
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
     assert int(config["azure_cluster"]["nfs_node_num"]) >= len(config["azure_cluster"]["nfs_vm"])
     assert "mysql_password" in config
-    print "creating resource group..."
+    print("creating resource group...")
     create_group()
     if not bSQLOnly:
         if "file_share" in config["azure_cluster"]:
-            print "creating storage account..."
+            print("creating storage account...")
             create_storage_account()
-            print "creating file share..."
+            print("creating file share...")
             create_file_share()
-        print "creating vnet..."
+        print("creating vnet...")
         create_vnet()
-        print "creating network security group..."
+        print("creating network security group...")
         create_nsg()
         create_nfs_nsg()
     if useSqlAzure():
-        print "creating sql server and database..."
+        print("creating sql server and database...")
         create_sql()
 
     if arm_vm_password is not None:
@@ -493,6 +486,11 @@ def create_cluster(arm_vm_password=None, parallelism=1):
     for i in range(int(config["azure_cluster"]["mysqlserver_node_num"])):
         create_vm_param(i, "mysqlserver", config["azure_cluster"]["mysqlserver_vm_size"],
                         arm_vm_password is not None, arm_vm_password)
+
+    # create elasticsearch server if specified.
+    for i in range(int(config["azure_cluster"]["elasticsearch_node_num"])):
+            create_vm_param(i, "elasticsearch", config["azure_cluster"]["elasticsearch_vm_size"],
+                            arm_vm_password is not None, arm_vm_password)
 
     # create nfs server if specified.
     for i in range(int(config["azure_cluster"]["nfs_node_num"])):
@@ -532,10 +530,13 @@ def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None, vmcnf =
                                    ["cluster_name"], i + 1)
     elif role == "mysqlserver":
         vmname = "%s-mysqlserver%02d" % (config["azure_cluster"]["cluster_name"], i + 1)
+    elif role == "elasticsearch":
+        vmname = "%s-elasticsearch%02d" % (config["azure_cluster"]
+                                           ["cluster_name"], i + 1)
     elif role == "dev":
         vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"])
 
-    print "creating VM %s..." % vmname
+    print("creating VM %s..." % vmname)
     vm_ip = get_vm_ip(i, role)
     create_vm(vmname, vm_ip, role, vm_size, arm_vm_password, vmcnf)
     return vmname
@@ -543,7 +544,7 @@ def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None, vmcnf =
 def create_vm_role_suffix(i, role, vm_size, suffix, arm_vm_password=None, vmcnf = None):
     assert role in config["allroles"] and "invalid machine role, please select from {}".format(' '.join(config["allroles"]))
 
-    print "creating VM %s..." % vmname
+    print("creating VM %s..." % vmname)
     vm_ip = get_vm_ip(i, role)
     create_vm(vmname, vm_ip, role, vm_size, arm_vm_password, vmcnf)
     return vmname
@@ -566,7 +567,7 @@ def scale_up_vm(groupName, delta):
     with open("deploy/scaler.yaml") as f:
         scaler_config = yaml.load(f)
 
-    for vmSize, nodeGroup in scaler_config["node_groups"].items():
+    for vmSize, nodeGroup in list(scaler_config["node_groups"].items()):
         if vmSize == groupName:
             # Only checkpoint newly scaled up nodes.
             nodeGroup["last_scaled_up_nodes"] = []
@@ -582,7 +583,7 @@ def scale_up_vm(groupName, delta):
 def list_vm(bShow=True):
     cmd = """
         az vm list --resource-group %s
-        """ % (config["azure_cluster"]["resource_group_name"] )
+        """ % (config["azure_cluster"]["resource_group"] )
     if verbose:
         print(cmd)
     output = utils.exec_cmd_local(cmd)
@@ -590,22 +591,25 @@ def list_vm(bShow=True):
     vminfo = {}
     for onevm in allvm:
         vmname = onevm["name"]
-        print "VM ... %s" % vmname
+        print("VM ... %s" % vmname)
         cmd1 = """ az vm show -d -g %s -n %s""" % (
-            config["azure_cluster"]["resource_group_name"], vmname)
+            config["azure_cluster"]["resource_group"], vmname)
         output1 = utils.exec_cmd_local(cmd1)
         json1 = json.loads(output1)
         vminfo[vmname] = json1
         if bShow:
-            print json1
+            print(json1)
     return vminfo
 
 
 def vm_interconnects():
     vminfo = list_vm(False)
     ports = []
-    for name, onevm in vminfo.iteritems():
+    infra_ip_list = []
+    for name, onevm in vminfo.items():
         ports.append(onevm["publicIps"] + "/32")
+        if 'infra' in name:
+            infra_ip_list.append(onevm["publicIps"] + "/32")
     portinfo = " ".join(ports)
     cmd = """
         az network nsg rule create \
@@ -617,21 +621,43 @@ def vm_interconnects():
             --destination-port-ranges %s \
             --source-address-prefixes %s \
             --access allow
-        """ % ( config["azure_cluster"]["resource_group_name"],
+        """ % ( config["azure_cluster"]["resource_group"],
                 config["azure_cluster"]["nsg_name"],
-                config["cloud_config"]["inter_connect"]["tcp_port_ranges"],
+                config["cloud_config_nsg_rules"]["inter_connect"]["tcp_port_ranges"],
                 portinfo
                 )
     if verbose:
-        print cmd
+        print(cmd)
     output = utils.exec_cmd_local(cmd)
     print(output)
+
+    restricted_source_address_prefixes = "'*'"
+    if "restricted_source_address_prefixes" in config["cloud_config_nsg_rules"]:
+        restricted_source_address_prefixes = config["cloud_config_nsg_rules"]["restricted_source_address_prefixes"]
+        if isinstance(restricted_source_address_prefixes, list):
+            restricted_source_address_prefixes = " ".join(
+                utils.keep_widest_subnet(infra_ip_list + list(set(restricted_source_address_prefixes))))
+
+    cmd = """
+        ; az network nsg rule update \
+            --resource-group %s \
+            --nsg-name %s \
+            --name allowalltcp \
+            --source-address-prefixes %s \
+            --access allow
+        """ % (config["azure_cluster"]["resource_group_name"],
+               config["azure_cluster"]["nsg_name"],
+               restricted_source_address_prefixes
+               )
+    output = utils.exec_cmd_local(cmd)
+    print(output)
+
 
 
 def nfs_allow_master():
     vminfo = list_vm(False)
     source_address_prefixes = []
-    for name, onevm in vminfo.iteritems():
+    for name, onevm in vminfo.items():
         if "-infra" in name:
             source_address_prefixes.append(onevm["publicIps"] + "/32")
     source_address_prefixes = " ".join(source_address_prefixes)
@@ -653,12 +679,12 @@ def nfs_allow_master():
                     --destination-port-ranges %s \
                     --source-address-prefixes %s \
                     --access allow
-                """ % (config["azure_cluster"]["resource_group_name"],
+                """ % (config["azure_cluster"]["resource_group"],
                        nsg_name,
-                       config["cloud_config"]["nfs_allow_master"]["tcp_port_ranges"],
+                       config["cloud_config_nsg_rules"]["nfs_allow_master"]["tcp_port_ranges"],
                        source_address_prefixes)
         if verbose:
-            print cmd
+            print(cmd)
         output = utils.exec_cmd_local(cmd)
         print(output)
 
@@ -668,7 +694,7 @@ def delete_vm(vmname):
         az vm delete --resource-group %s \
                  --name %s \
                  --yes
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                vmname)
 
     if verbose:
@@ -681,7 +707,7 @@ def delete_nic(nicname):
     cmd = """
         az network nic delete --resource-group %s \
                 --name %s \
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                nicname)
     if verbose:
         print(cmd)
@@ -693,7 +719,7 @@ def delete_public_ip(ip):
     cmd = """
         az network public-ip delete --resource-group %s \
                  --name %s \
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                ip)
 
     if verbose:
@@ -707,7 +733,7 @@ def delete_disk(diskID):
         az disk delete --resource-group %s \
                  --name %s \
                  --yes \
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                diskID)
 
     if verbose:
@@ -719,7 +745,7 @@ def delete_disk(diskID):
 def get_disk_from_vm(vmname):
     cmd = """
         az vm show -g %s -n %s --query "storageProfile.osDisk.managedDisk.id" -o tsv \
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                vmname)
 
     if verbose:
@@ -732,7 +758,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     if config["priority"] == "low":
         utils.render_template("./template/dns/cname_and_private_ips.sh.template", "scripts/cname_and_ips.sh", config)
         utils.exec_cmd_local("chmod +x scripts/cname_and_ips.sh; bash scripts/cname_and_ips.sh")
-        print "\nPlease copy the commands in dns_add_commands and register the DNS records \n"
+        print("\nPlease copy the commands in dns_add_commands and register the DNS records \n")
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
     if useAzureFileshare() and not no_az:
         # theoretically it could be supported, but would require storage account to be created first in nested template and then
@@ -746,7 +772,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                 -g %s \
                 --query 'connectionString' \
                 -o tsv
-            """ % (config["azure_cluster"]["storage_account_name"], config["azure_cluster"]["resource_group_name"])
+            """ % (config["azure_cluster"]["storage_account_name"], config["azure_cluster"]["resource_group"])
         output = utils.exec_cmd_local(cmd)
         reoutput = re.search('AccountKey\=.*$', output)
         file_share_key = None
@@ -771,7 +797,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
         cc["sqlserver-password"] = config["azure_cluster"]["sql_admin_password"]
         cc["sqlserver-database"] = config["azure_cluster"]["sql_database_name"]
     if not bSQLOnly:
-        cc["admin_username"] = config["cloud_config"]["default_admin_username"]
+        cc["admin_username"] = config["cloud_config_nsg_rules"]["default_admin_username"]
         if useAzureFileshare():
             cc["workFolderAccessPoint"] = "file://%s.file.core.windows.net/%s/work/" % (
                 config["azure_cluster"]["storage_account_name"], config["azure_cluster"]["file_share_name"])
@@ -815,8 +841,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             for l in rf:
                 worker_machines += l.split()[0],
         for vmname in worker_machines:
-            cc["machines"][vmname.lower()] = {"role": "worker","node-group": config["azure_cluster"]["worker_vm_size"],
-                                        "gpu-type":sku_mapping[config["azure_cluster"]["worker_vm_size"]]["gpu-type"]}
+            cc["machines"][vmname.lower()] = {"role": "worker","node-group": config["azure_cluster"]["worker_vm_size"]}
     elif config["priority"] == "regular":
         for vm in vm_list:
             vmname = vm["name"]
@@ -826,12 +851,10 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             vmname = vm["name"]
             if isNewlyScaledMachine(vmname):
                 cc["machines"][vmname.lower()] = {
-                    "role": "worker", "scaled": True,
-                    "node-group": vm["vmSize"],"gpu-type":sku_mapping.get(vm["vmSize"],sku_mapping["default"])["gpu-type"]}
+                    "role": "worker", "scaled": True, "node-group": vm["vmSize"]}
             else:
                 cc["machines"][vmname.lower()] = {
-                    "role": "worker",
-                    "node-group": vm["vmSize"],"gpu-type":sku_mapping.get(vm["vmSize"],sku_mapping["default"])["gpu-type"]}
+                    "role": "worker", "node-group": vm["vmSize"]}
 
     # Add mysqlserver nodes
     for vm in vm_list:
@@ -839,6 +862,14 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
         if "-mysqlserver" in vmname:
             cc["machines"][vmname.lower()] = {
                 "role": "mysqlserver",
+                "node-group": vm["vmSize"]}
+
+    # Add elasticsearch nodes
+    for vm in vm_list:
+        vmname = vm["name"]
+        if "-elasticsearch" in vmname:
+            cc["machines"][vmname.lower()] = {
+                "role": "elasticsearch",
                 "node-group": vm["vmSize"]}
 
     nfs_nodes = []
@@ -857,7 +888,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     if not bSQLOnly:
         cc["nfs_disk_mnt"] = {}
         suffixed_name_2path = {"{}-nfs-{}".format(config["cluster_name"], vm["suffix"]):vm["data_disk_mnt_path"] for vm in config["azure_cluster"]["nfs_vm"] if "suffix" in vm}
-        for svr_name, svr_ip in nfs_names2ip.items():
+        for svr_name, svr_ip in list(nfs_names2ip.items()):
             pth = suffixed_name_2path.get(svr_name, config["azure_cluster"]["nfs_data_disk_path"])
             role = "nfs" if "-nfs" in svr_name else "infra"
             cc["nfs_disk_mnt"][svr_name] = {"path": pth, "role": role, "ip": svr_ip, "fileshares":[]}
@@ -890,7 +921,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                 nfs_names2ip[nfs_vm] = nfs_vm_ip
 
             # unused, either node without name suffix or those with suffix but not specified in any nfs_svr_setup item
-            unused_nfs = sorted([s for s in nfs_names2ip.keys() if s not in suffix2used_nfs.values() and s not in fullynamed_nfs])
+            unused_nfs = sorted([s for s in list(nfs_names2ip.keys()) if s not in list(suffix2used_nfs.values()) and s not in fullynamed_nfs])
             unused_ID_cnt = 0
             for nfs_cnf in config["nfs_mnt_setup"]:
                 if "server_name" in nfs_cnf:
@@ -904,9 +935,9 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                     unused_ID_cnt += 1
                     mnt_parent_path = config["azure_cluster"]["nfs_data_disk_path"]
                 server_ip = nfs_names2ip[server_name]
-                for mntname, mntcnf in nfs_cnf["mnt_point"].items():
+                for mntname, mntcnf in list(nfs_cnf["mnt_point"].items()):
                     if not (mnt_parent_path is None or mntcnf["filesharename"].startswith(mnt_parent_path)):
-                        print "Error: Wrong filesharename {}! Mount path is {} !".format(mntcnf["filesharename"], mnt_parent_path)
+                        print("Error: Wrong filesharename {}! Mount path is {} !".format(mntcnf["filesharename"], mnt_parent_path))
                         raise ValueError
                     if mntname in cc["mountpoints"]:
                         print("Warning, duplicated mountpoints item name {}, skipping".format(mntname))
@@ -919,8 +950,21 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                     cc["mountpoints"][mntname]["server"] = server_ip
                     cc["mountpoints"][mntname]["servername"] = server_name
 
+    cntr = {}
+    for mc in worker_machines:
+        vm_sz = mc["vmSize"]
+        cntr[vm_sz] = cntr.get(vm_sz, 0) + 1
+    cc["worker_sku_cnt"] = cntr
+
+    if "sku_mapping" in config:
+        cc["sku_mapping"] = config["sku_mapping"]
+        for sku in cc["worker_sku_cnt"]:
+            # this means that the cluster deployed with this pipeline cannot be heterogeneous
+            cc["gpu_type"] = cc["sku_mapping"].get(sku, {}).get('gpu-type', "None")
+            break
+
     if output_file:
-        print yaml.dump(cc, default_flow_style=False)
+        print(yaml.dump(cc, default_flow_style=False))
         with open(output_file_name, 'w') as outfile:
             yaml.dump(cc, outfile, default_flow_style=False)
 
@@ -930,7 +974,7 @@ def isNewlyScaledMachine(vmname):
     scaler_config_file = os.path.join(dirpath, "deploy/scaler.yaml")
     if os.path.exists(scaler_config_file):
         scaler_config = yaml.load(open(scaler_config_file))
-        for vmSize, nodeGroup in scaler_config["node_groups"].items():
+        for vmSize, nodeGroup in list(scaler_config["node_groups"].items()):
             for nodeName in nodeGroup["last_scaled_up_nodes"]:
                 if nodeName == vmname:
                     return True
@@ -942,7 +986,7 @@ def get_vm_list_by_grp():
     cmd = """
         az vm list --output json -g %s --query '[].{name:name, vmSize:hardwareProfile.vmSize}'
 
-        """ % (config["azure_cluster"]["resource_group_name"])
+        """ % (config["azure_cluster"]["resource_group"])
 
     if verbose:
         print(cmd)
@@ -956,7 +1000,7 @@ def get_vm_private_ip():
     cmd = """
         az vm list-ip-addresses -g %s --output json --query '[].{name:virtualMachine.name, privateIP:virtualMachine.network.privateIpAddresses}'
 
-        """ % (config["azure_cluster"]["resource_group_name"])
+        """ % (config["azure_cluster"]["resource_group"])
     if verbose:
         print(cmd)
     output = utils.exec_cmd_local(cmd)
@@ -978,21 +1022,24 @@ def random_str(length):
 
 
 def delete_cluster():
-    print "!!! WARNING !!! Resource group {0} will be deleted".format(config["azure_cluster"]["resource_group_name"])
-    response = raw_input(
+    print("!!! WARNING !!! Resource group {0} will be deleted".format(config["azure_cluster"]["resource_group"]))
+    response = input(
         "!!! WARNING !!! You are performing a dangerous operation that will permanently delete the entire Azure DL Workspace cluster. Please type (DELETE) in ALL CAPITALS to confirm the operation ---> ")
     if response == "DELETE":
         delete_group()
 
 def check_subscription():
     chkcmd ="az account list | grep -A5 -B5 '\"isDefault\": true'"
-    output = utils.exec_cmd_local(chkcmd).decode()
+    output = utils.exec_cmd_local(chkcmd)
+    if isinstance(output, bytes):
+        output = output.decode()
     if not config["azure_cluster"]["subscription"] in output:
         setcmd = "az account set --subscription \"{}\"".format(config["azure_cluster"]["subscription"])
         setout = utils.exec_cmd_local(setcmd)
-        print "Set your subscription to {}, please login.\nIf you want to specify another subscription, please configure azure_cluster.subscription".format(config["azure_cluster"]["subscription"])
-        utils.exec_cmd_local("az login")
-    assert config["azure_cluster"]["subscription"] in utils.exec_cmd_local(chkcmd).decode()
+    output = utils.exec_cmd_local(chkcmd)
+    if isinstance(output, bytes):
+        output = output.decode()
+    assert config["azure_cluster"]["subscription"] in output
 
 def run_command(args, command, nargs, parser):
     if command == "genconfig":
@@ -1021,10 +1068,10 @@ def run_command(args, command, nargs, parser):
         with open("deploy/scaler.yaml") as f:
             scaler_config = yaml.load(f)
 
-        print scaler_config
+        print(scaler_config)
 
         groupName = nargs[0]
-        for vmSize, nodeGroup in scaler_config["node_groups"].items():
+        for vmSize, nodeGroup in list(scaler_config["node_groups"].items()):
             if vmSize == groupName:
                 # The newly scaled up nodes should be empty.
                 nodeGroup["last_scaled_up_nodes"] = []
@@ -1046,6 +1093,35 @@ def run_command(args, command, nargs, parser):
 
     elif command == "nfsallowmaster":
         nfs_allow_master()
+
+    elif command == "whitelist":
+        if nargs[0] == "add":
+            ips = None if len(nargs) == 1 else nargs[1]
+            add_nsg_rule_whitelist(config, args, ips)
+        elif nargs[0] == "remove":
+            ips = None if len(nargs) == 1 else nargs[1]
+            remove_nsg_rule_whitelist(config, args, ips)
+        elif nargs[0] == "delete":
+            delete_nsg_rule_whitelist(config, args)
+
+    elif command == "service_tag_rules":
+        if nargs[0] == "create":
+            create_nsg_rules_with_service_tags(config, args)
+        elif nargs[0] == "delete":
+            delete_nsg_rules_with_service_tags(config, args)
+
+    elif command == "logging_storage":
+        if nargs[0] == "create":
+            create_logging_storage_account(config, args)
+            create_logging_container(config, args)
+        elif nargs[0] == "delete":
+            response = input(
+                "Delete logging storage? (Please type YES to confirm)")
+            if response == "YES":
+                delete_logging_storage_account(config, args)
+        elif nargs[0] == "connection_string":
+            get_connection_string_for_logging_storage_account(config, args)
+
 
 if __name__ == '__main__':
     # the program always run at the current directory.
@@ -1112,13 +1188,13 @@ Command:
 
     parser.add_argument("--vnet_range",
                         help="Specify the azure virtual network range, default = " +
-                        config["cloud_config"]["vnet_range"],
+                        config["cloud_config_nsg_rules"]["vnet_range"],
                         action="store",
                         default=None)
 
     parser.add_argument("--default_admin_username",
                         help="Specify the default admin username of azure virtual machine, default = " +
-                        config["cloud_config"]["default_admin_username"],
+                        config["cloud_config_nsg_rules"]["default_admin_username"],
                         action="store",
                         default=None)
 
@@ -1149,6 +1225,12 @@ Command:
                         help="Number of processes to create worker VMs. Default is 1.",
                         type=int,
                         default=1)
+    parser.add_argument("--output", "-o",
+                        default="",
+                        help='Specify the output file path')
+    parser.add_argument("--dryrun", "-d",
+                        help="Dry run -- no actual execution",
+                        action="store_true")
 
     parser.add_argument("command",
                         help="See above for the list of valid command")
@@ -1161,14 +1243,9 @@ Command:
 
     if args.verbose:
         verbose = args.verbose
-        print "{0}".format(args)
+        print("{0}".format(args))
 
     # Cluster Config
-    config_cluster = os.path.join(dirpath, "azure_cluster_config.yaml")
-    if os.path.exists(config_cluster):
-        tmpconfig = yaml.load(open(config_cluster))
-        if tmpconfig is not None:
-            merge_config(config, tmpconfig, verbose)
 
     config_file = os.path.join(dirpath, "config.yaml")
     if os.path.exists(config_file):
@@ -1198,15 +1275,12 @@ Command:
     if (args.vnet_range is not None):
         config["azure_cluster"]["vnet_range"] = args.vnet_range
     if (args.default_admin_username is not None):
-        config["cloud_config"][
+        config["cloud_config_nsg_rules"][
             "default_admin_username"] = args.default_admin_username
     if (args.file_share_name is not None):
         config["azure_cluster"]["file_share_name"] = args.file_share_name
 
     config = update_config(config)
-
-    with open(config_cluster, 'w') as outfile:
-        yaml.dump(config, outfile, default_flow_style=False)
 
     if "cluster_name" not in config["azure_cluster"] or config["azure_cluster"]["cluster_name"] is None:
         print("Cluster Name cannot be empty")

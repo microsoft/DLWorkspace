@@ -1,0 +1,16 @@
+curl -fsSL https://get.docker.com | bash
+sudo usermod -aG docker {{cnf["worker_user"]}}
+sudo setfacl -m user:{{cnf["worker_user"]}}:rw /var/run/docker.sock
+{% if "private_docker_registry" in cnf and "cloudinit" in cnf["private_docker_registry"] %}
+{% set cldinit_regname = cnf["private_docker_registry"]["cloudinit"] %}
+docker login {{cldinit_regname}} -u {{cnf["private_docker_credential"][cldinit_regname]["username"]}} -p {{cnf["private_docker_credential"][cldinit_regname]["password"]}}
+{% else %}
+{% set cldinit_regname = cnf["dockerregistry"] %}
+{% endif %}
+docker pull {{cldinit_regname}}/{{cnf["cluster_name"].lower()}}/cloudinit
+docker logout {{cldinit_regname}}
+docker create -ti --name bootpack {{cldinit_regname}}/{{cnf["cluster_name"].lower()}}/cloudinit bash
+docker cp bootpack:/usr/cloudinit.tar ./
+tar -xvf cloudinit.tar
+cd cloudinit
+./cloud_init_worker.sh

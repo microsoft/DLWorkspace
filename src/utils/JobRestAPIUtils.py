@@ -1,50 +1,81 @@
+#!/usr/bin/env python3
+
 import json
 import os
 import time
 import argparse
 import uuid
-import subprocess
 import sys
 import collections
 import copy
+import requests
+import itertools
 
-from jobs_tensorboard import GenTensorboardMeta
-
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
-
-import yaml
-from jinja2 import Environment, FileSystemLoader, Template
-from config import config
-from DataHandler import DataHandler,DataManager
 import base64
 import re
-import requests
-
-from config import global_vars
-from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager, ACLManager
-import authorization
-from cache import CacheManager
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../ClusterManager"))
-from ResourceInfo import ResourceInfo
-import quota
-
-import copy
 import logging
 from cachetools import cached, TTLCache
 from threading import Lock
 
+import requests
+
+from config import config
+from DataHandler import DataHandler, DataManager
+from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager, ACLManager
+import authorization
+from job_op import KillOp, PauseOp, ResumeOp, ApproveOp
+
+sys.path.append(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                 "../ClusterManager"))
+
+from job_params_util import make_job_params
+from JobLogUtils import GetJobLog as UtilsGetJobLog
 
 DEFAULT_JOB_PRIORITY = 100
 USER_JOB_PRIORITY_RANGE = (100, 200)
 ADMIN_JOB_PRIORITY_RANGE = (1, 1000)
 
-
 logger = logging.getLogger(__name__)
 
-pendingStatus = "running,queued,scheduling,unapproved,pausing,paused"
+ACTIVE_STATUS = {
+    "unapproved",
+    "queued",
+    "scheduling",
+    "running",
+    "pausing",
+    "paused",
+}
+has_access = AuthorizationManager.HasAccess
+VC = ResourceType.VC
+ADMIN = Permission.Admin
+COLLABORATOR = Permission.Collaborator
+USER = Permission.User
 DEFAULT_EXPIRATION = 24 * 30 * 60
 vc_cache = TTLCache(maxsize=10240, ttl=DEFAULT_EXPIRATION)
 vc_cache_lock = Lock()
+
+
+def walk_json_field_safe(obj, *fields):
+    """ for example a=[{"a": {"b": 2}}]
+    walk_json_field_safe(a, 0, "a", "b") will get 2
+    walk_json_field_safe(a, 0, "not_exist") will get None
+    """
+    try:
+        for f in fields:
+            obj = obj[f]
+        return obj
+    except:
+        return None
+
+
+def base64encode(str_val):
+    return base64.b64encode(str_val.encode("utf-8")).decode("utf-8")
+
+
+def base64decode(str_val):
+    return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
+
 
 def adjust_job_priority(priority, permission):
     priority_range = (DEFAULT_JOB_PRIORITY, DEFAULT_JOB_PRIORITY)
@@ -66,7 +97,7 @@ def LoadJobParams(jobParamsJsonStr):
 
 
 def ToBool(value):
-    if isinstance(value, basestring):
+    if isinstance(value, str):
         value = str(value)
         if str.isdigit(value):
             ret = int(value)
@@ -90,6 +121,45 @@ def ToBool(value):
         return value
 
 
+def populate_job_resource(params):
+    try:
+        # Populate sku with one from vc info in DB
+        vc_name = params["vcName"]
+        vc_lists = getClusterVCs()
+        vc_info = None
+        for vc in vc_lists:
+            if vc["vcName"] == vc_name:
+                vc_info = vc
+                break
+
+        if vc_info is None:
+            logger.warning("vc info for %s is None", vc_name)
+            return
+
+        try:
+            quota = json.loads(vc_info["resourceQuota"])
+            metadata = json.loads(vc_info["resourceMetadata"])
+        except:
+            logger.exception("Failed to parse resource quota and metadata")
+            return
+
+        is_admin = has_access(params["userName"], VC, vc_name, ADMIN)
+        job_params = make_job_params(params, quota, metadata, config, is_admin)
+        if job_params.is_valid():
+            logger.info("job_params %s is valid. Populating.", job_params)
+            params["sku"] = job_params.sku
+            params["resourcegpu"] = job_params.gpu_limit
+            params["cpurequest"] = job_params.cpu_request
+            params["cpulimit"] = job_params.cpu_limit
+            params["memoryrequest"] = job_params.memory_request
+            params["memorylimit"] = job_params.memory_limit
+        else:
+            logger.warning("job_params %s is invalid. Not populating.",
+                           job_params)
+    except:
+        logger.exception("Failed to populate job resource", exc_info=True)
+
+
 def SubmitJob(jobParamsJsonStr):
     ret = {}
 
@@ -101,6 +171,17 @@ def SubmitJob(jobParamsJsonStr):
     if "vcName" not in jobParams or len(jobParams["vcName"].strip()) == 0:
         ret["error"] = "ERROR: VC name cannot be empty"
         return ret
+    if jobParams.get("jobtrainingtype") == "PSDistJob":
+        num_workers = None
+        try:
+            num_workers = int(jobParams.get("numpsworker"))
+        except:
+            logger.exception("Parsing numpsworker in %s failed", jobParams)
+
+        if num_workers is None or num_workers == 0:
+            ret["error"] = "ERROR: Invalid numpsworker value"
+            return ret
+
     if "userId" not in jobParams or len(jobParams["userId"].strip()) == 0:
         jobParams["userId"] = GetUser(jobParams["userName"])["uid"]
 
@@ -119,11 +200,13 @@ def SubmitJob(jobParamsJsonStr):
     if "resourcegpu" not in jobParams:
         jobParams["resourcegpu"] = 0
 
-    if isinstance(jobParams["resourcegpu"], basestring):
+    if isinstance(jobParams["resourcegpu"], str):
         if len(jobParams["resourcegpu"].strip()) == 0:
             jobParams["resourcegpu"] = 0
         else:
             jobParams["resourcegpu"] = int(jobParams["resourcegpu"])
+
+    populate_job_resource(jobParams)
 
     if "familyToken" not in jobParams or jobParams["familyToken"].isspace():
         jobParams["familyToken"] = uniqId
@@ -132,7 +215,9 @@ def SubmitJob(jobParamsJsonStr):
 
     userName = getAlias(jobParams["userName"])
 
-    if not AuthorizationManager.HasAccess(jobParams["userName"], ResourceType.VC, jobParams["vcName"].strip(), Permission.User):
+    if not AuthorizationManager.HasAccess(
+            jobParams["userName"], ResourceType.VC, jobParams["vcName"].strip(),
+            Permission.User):
         ret["error"] = "Access Denied!"
         return ret
 
@@ -149,19 +234,21 @@ def SubmitJob(jobParamsJsonStr):
             ret["error"] = "ERROR: invalided job directory"
             return ret
 
-        if jobParams["jobPath"].startswith("/") or jobParams["jobPath"].startswith("\\"):
+        if jobParams["jobPath"].startswith(
+                "/") or jobParams["jobPath"].startswith("\\"):
             ret["error"] = "ERROR: job directory should not start with '/' or '\\' "
             return ret
 
         if not jobParams["jobPath"].startswith(userName):
-            jobParams["jobPath"] = os.path.join(userName,jobParams["jobPath"])
+            jobParams["jobPath"] = os.path.join(userName, jobParams["jobPath"])
 
     else:
-        jobPath = userName+"/"+ "jobs/"+time.strftime("%y%m%d")+"/"+jobParams["jobId"]
+        jobPath = userName+"/" + "jobs/" + \
+            time.strftime("%y%m%d")+"/"+jobParams["jobId"]
         jobParams["jobPath"] = jobPath
 
     if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0:
-       jobParams["workPath"] = "."
+        jobParams["workPath"] = "."
 
     if ".." in jobParams["workPath"]:
         ret["error"] = "ERROR: '..' cannot be used in work directory"
@@ -171,12 +258,13 @@ def SubmitJob(jobParamsJsonStr):
         ret["error"] = "ERROR: invalided work directory"
         return ret
 
-    if jobParams["workPath"].startswith("/") or jobParams["workPath"].startswith("\\"):
+    if jobParams["workPath"].startswith(
+            "/") or jobParams["workPath"].startswith("\\"):
         ret["error"] = "ERROR: work directory should not start with '/' or '\\' "
         return ret
 
     if not jobParams["workPath"].startswith(userName):
-        jobParams["workPath"] = os.path.join(userName,jobParams["workPath"])
+        jobParams["workPath"] = os.path.join(userName, jobParams["workPath"])
 
     if "dataPath" not in jobParams or len(jobParams["dataPath"].strip()) == 0:
         jobParams["dataPath"] = "."
@@ -193,12 +281,15 @@ def SubmitJob(jobParamsJsonStr):
         ret["error"] = "ERROR: data directory should not start with '/' or '\\' "
         return ret
 
-    jobParams["dataPath"] = jobParams["dataPath"].replace("\\","/")
-    jobParams["workPath"] = jobParams["workPath"].replace("\\","/")
-    jobParams["jobPath"] = jobParams["jobPath"].replace("\\","/")
-    jobParams["dataPath"] = os.path.realpath(os.path.join("/",jobParams["dataPath"]))[1:]
-    jobParams["workPath"] = os.path.realpath(os.path.join("/",jobParams["workPath"]))[1:]
-    jobParams["jobPath"] = os.path.realpath(os.path.join("/",jobParams["jobPath"]))[1:]
+    jobParams["dataPath"] = jobParams["dataPath"].replace("\\", "/")
+    jobParams["workPath"] = jobParams["workPath"].replace("\\", "/")
+    jobParams["jobPath"] = jobParams["jobPath"].replace("\\", "/")
+    jobParams["dataPath"] = os.path.realpath(
+        os.path.join("/", jobParams["dataPath"]))[1:]
+    jobParams["workPath"] = os.path.realpath(
+        os.path.join("/", jobParams["workPath"]))[1:]
+    jobParams["jobPath"] = os.path.realpath(
+        os.path.join("/", jobParams["jobPath"]))[1:]
 
     dataHandler = DataHandler()
     if "logDir" in jobParams and len(jobParams["logDir"].strip()) > 0:
@@ -215,19 +306,19 @@ def SubmitJob(jobParamsJsonStr):
                 if match2 is None:
                     tensorboardParams["logDir"] = newDir
             #match = re.match('(.*--logdir\s+.*)(/.*--.*)', tensorboardParams["cmd"])
-            #if not match is None:
+            # if not match is None:
             #    tensorboardParams["cmd"] = match.group(1) + "/worker0" + match.group(2)
 
         tensorboardParams["jobId"] = uniqId
-        tensorboardParams["jobName"] = "tensorboard-"+jobParams["jobName"]
+        tensorboardParams["jobName"] = "tensorboard-" + jobParams["jobName"]
         tensorboardParams["jobPath"] = jobPath
         tensorboardParams["jobType"] = "visualization"
-        tensorboardParams["cmd"] = "tensorboard --logdir " + tensorboardParams["logDir"] + " --host 0.0.0.0"
+        tensorboardParams["cmd"] = "tensorboard --logdir " + \
+            tensorboardParams["logDir"] + " --host 0.0.0.0"
         tensorboardParams["image"] = jobParams["image"]
         tensorboardParams["resourcegpu"] = 0
 
         tensorboardParams["interactivePort"] = "6006"
-
 
         if "error" not in ret:
             if not dataHandler.AddJob(tensorboardParams):
@@ -244,7 +335,10 @@ def SubmitJob(jobParamsJsonStr):
                     pass
 
                 permission = Permission.User
-                if AuthorizationManager.HasAccess(jobParams["userName"], ResourceType.VC, jobParams["vcName"].strip(), Permission.Admin):
+                if AuthorizationManager.HasAccess(jobParams["userName"],
+                                                  ResourceType.VC,
+                                                  jobParams["vcName"].strip(),
+                                                  Permission.Admin):
                     permission = Permission.Admin
 
                 priority = adjust_job_priority(priority, permission)
@@ -258,29 +352,44 @@ def SubmitJob(jobParamsJsonStr):
     return ret
 
 
-def GetJobList(userName, vcName, jobOwner, num=None):
+def get_job_list(username, vc_name, job_owner, num=20):
     try:
-        dataHandler = DataHandler()
+        with DataHandler() as data_handler:
+            if job_owner == "all" and \
+                    has_access(username, VC, vc_name, COLLABORATOR):
+                jobs = data_handler.get_union_job_list("all", vc_name, num,
+                                                       ACTIVE_STATUS)
+            else:
+                jobs = data_handler.get_union_job_list(username, vc_name, num,
+                                                       ACTIVE_STATUS)
+            for job in jobs:
+                job.pop('jobMeta', None)
+    except:
+        logger.exception("Exception in getting job list for username %s",
+                         username,
+                         exc_info=True)
         jobs = []
-        hasAccessOnAllJobs = False
 
-        if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Collaborator):
-            hasAccessOnAllJobs = True
+    return jobs
 
-        if jobOwner != "all" or not hasAccessOnAllJobs:
-            jobs = jobs + GetUserPendingJobs(userName, vcName)
-            jobs = jobs + dataHandler.GetJobList(userName,vcName,num, "running,queued,scheduling,unapproved,pausing,paused", ("<>","and"))
-        else:
-            jobs = GetUserPendingJobs(jobOwner, vcName)
 
-        for job in jobs:
-            job.pop('jobMeta', None)
-        dataHandler.Close()
-        return jobs
-    except Exception as e:
-        logger.error('Exception: %s', str(e))
-        logger.warn("Fail to get job list for user %s, return empty list", userName)
-        return []
+def get_job_list_v2(username, vc_name, job_owner, num=None):
+    try:
+        with DataHandler() as data_handler:
+            if job_owner == "all" and \
+                    has_access(username, VC, vc_name, COLLABORATOR):
+                jobs = data_handler.get_union_job_list_v2(
+                    "all", vc_name, num, ACTIVE_STATUS)
+            else:
+                jobs = data_handler.get_union_job_list_v2(
+                    username, vc_name, num, ACTIVE_STATUS)
+    except:
+        logger.exception("Exception in getting job list v2 for username %s",
+                         username,
+                         exc_info=True)
+        jobs = {}
+
+    return jobs
 
 def GetJobListV2(userName, vcName, jobOwner, num=None):
     jobs = {}
@@ -318,113 +427,234 @@ def GetCommands(userName, jobId):
     dataHandler = DataHandler()
     job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName"])
     if job is not None:
-        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Collaborator):
+        if job["userName"] == userName or AuthorizationManager.HasAccess(
+                userName, ResourceType.VC, job["vcName"],
+                Permission.Collaborator):
             commands = dataHandler.GetCommands(jobId=jobId)
     dataHandler.Close()
     return commands
 
 
-def KillJob(userName, jobId):
+def get_access_to_job(username, job):
+    is_owner = job["userName"].lower() == username.lower()
+    is_admin = has_access(username, VC, job["vcName"], ADMIN)
+    allowed = is_owner or is_admin
+
+    role = "unauthorized"
+    if is_owner:
+        role = "owner"
+    elif is_admin:
+        role = "admin"
+    return allowed, role
+
+
+def op_job(username, job_id, op):
+    op_name = op.name
+    op_past_tense = op.past_tense
+    from_states = op.from_states
+    to_state = op.to_state
+
     ret = False
-    dataHandler = DataHandler()
-    job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName", "jobStatus", "isParent", "familyToken"])
-    if job is not None and job["jobStatus"] in pendingStatus.split(","):
-        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
-            dataFields = {"jobStatus": "killing"}
-            conditionFields = {"jobId": jobId}
-            if job["isParent"] == 1:
-                conditionFields = {"familyToken": job["familyToken"]}
-            ret = dataHandler.UpdateJobTextFields(conditionFields, dataFields)
-    dataHandler.Close()
+    with DataHandler() as data_handler:
+        job = data_handler.GetJobTextFields(job_id,
+                                            ["userName", "vcName", "jobStatus"])
+
+        if job is None:
+            return ret
+
+        allowed, role = get_access_to_job(username, job)
+
+        if not allowed:
+            logger.info("%s (%s) attempted to %s job %s", username, role,
+                        op_name, job_id)
+            return ret
+
+        job_status = job["jobStatus"]
+        if job_status not in from_states:
+            logger.info("%s (%s) attempted to %s a(n) \"%s\" job %s", username,
+                        role, op_name, job_status, job_id)
+            return ret
+
+        data_fields = {"jobStatus": to_state}
+        cond_fields = {"jobId": job_id}
+        ret = data_handler.UpdateJobTextFields(cond_fields, data_fields)
+        if ret is True:
+            logger.info("%s (%s) successfully %s job %s", username, role,
+                        op_past_tense, job_id)
+        else:
+            logger.info("%s (%s) failed to %s job %s", username, role, op_name,
+                        job_id)
     return ret
 
 
-def AddCommand(userName, jobId,command):
+def kill_job(username, job_id):
+    return op_job(username, job_id, KillOp())
+
+
+def pause_job(username, job_id):
+    return op_job(username, job_id, PauseOp())
+
+
+def resume_job(username, job_id):
+    return op_job(username, job_id, ResumeOp())
+
+
+def approve_job(username, job_id):
+    return op_job(username, job_id, ApproveOp())
+
+
+def _op_jobs_in_one_batch(username, job_ids, op, data_handler):
+    op_name = op.name
+    op_past_tense = op.past_tense
+    from_states = op.from_states
+    to_state = op.to_state
+
+    # Get all jobs to op
+    fields = [
+        "jobId",
+        "userName",
+        "vcName",
+        "jobStatus",
+    ]
+    jobs = data_handler.get_fields_for_jobs(job_ids, fields)
+
+    result = {}
+
+    if jobs is None:
+        return result
+
+    job_ids_to_op = []
+    roles_for_jobs = []
+    for job in jobs:
+        job_id = job["jobId"]
+        job_status = job["jobStatus"]
+
+        allowed, role = get_access_to_job(username, job)
+
+        if not allowed:
+            result[job_id] = "unauthorized to %s" % op_name
+            logger.info("%s (%s) attempted to %s job %s", username, role,
+                        op_name, job_id)
+            continue
+
+        if job_status not in from_states:
+            result[job_id] = "cannot %s a(n) \"%s\" job" % (op_name, job_status)
+            logger.info("%s (%s) attempted to %s a(n) \"%s\" job %s", username,
+                        role, op_name, job_status, job_id)
+            continue
+
+        job_ids_to_op.append(job_id)
+        roles_for_jobs.append(role)
+
+    data_fields = {"jobStatus": to_state}
+    success = data_handler.update_text_fields_for_jobs(job_ids_to_op,
+                                                       data_fields)
+
+    msg = "successfully %s" % op_past_tense \
+        if success else "failed to %s" % op_name
+    result.update({job_id: msg for job_id in job_ids_to_op})
+
+    for i, job_id in enumerate(job_ids_to_op):
+        role = roles_for_jobs[i]
+        logger.info("%s (%s) %s job %s", username, role, msg, job_id)
+
+    return result
+
+
+def op_jobs(username, job_ids, op, batch_size=20):
+    if isinstance(job_ids, str):
+        job_ids = job_ids.split(",")
+    elif not isinstance(job_ids, list):
+        t = type(job_ids)
+        err_msg = "Unsupported type %s of job_ids %s" % (t, job_ids)
+        return err_msg
+
+    # Partition jobs into processing batches
+    batch_starts = range(0, len(job_ids), batch_size)
+    job_id_batches = [job_ids[x:x + batch_size] for x in batch_starts]
+
+    result = {}
+    with DataHandler() as data_handler:
+        for job_id_batch in job_id_batches:
+            batch_result = _op_jobs_in_one_batch(username, job_id_batch, op,
+                                                 data_handler)
+            result.update(batch_result)
+    return result
+
+
+def kill_jobs(username, job_ids):
+    return op_jobs(username, job_ids, KillOp())
+
+
+def pause_jobs(username, job_ids):
+    return op_jobs(username, job_ids, PauseOp())
+
+
+def resume_jobs(username, job_ids):
+    return op_jobs(username, job_ids, ResumeOp())
+
+
+def approve_jobs(username, job_ids):
+    return op_jobs(username, job_ids, ApproveOp())
+
+
+def AddCommand(userName, jobId, command):
     dataHandler = DataHandler()
     ret = False
     job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName"])
     if job is not None:
-        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Collaborator):
-            ret = dataHandler.AddCommand(jobId,command)
-    dataHandler.Close()
-    return ret
-
-
-def ApproveJob(userName, jobId):
-    dataHandler = DataHandler()
-    ret = False
-    job = dataHandler.GetJobTextFields(jobId, ["vcName", "jobStatus"])
-    if job is not None and job["jobStatus"] == "unapproved":
-        if AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
-            ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","queued")
-    dataHandler.Close()
-    return ret
-
-
-def ResumeJob(userName, jobId):
-    dataHandler = DataHandler()
-    ret = False
-    job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName", "jobStatus"])
-    if job is not None and job["jobStatus"] == "paused":
-        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Collaborator):
-            ret = dataHandler.UpdateJobTextField(jobId, "jobStatus", "unapproved")
-    dataHandler.Close()
-    return ret
-
-
-def PauseJob(userName, jobId):
-    dataHandler = DataHandler()
-    ret = False
-    job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName", "jobStatus"])
-    if job is not None and job["jobStatus"] in ["unapproved", "queued", "scheduling", "running"]:
-        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
-            ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","pausing")
+        if job["userName"] == userName or AuthorizationManager.HasAccess(
+                userName, ResourceType.VC, job["vcName"],
+                Permission.Collaborator):
+            ret = dataHandler.AddCommand(jobId, command)
     dataHandler.Close()
     return ret
 
 
 def isBase64(s):
     try:
-        if base64.b64encode(base64.b64decode(s)) == s:
+        if base64encode(base64decode(s)) == s:
             return True
     except Exception as e:
         pass
     return False
 
 
+_get_job_log_enabled = config.get('logging') in ['azure_blob', 'elasticsearch']
+_extract_job_log_legacy = config.get('__extract_job_log_legacy',
+                                     not _get_job_log_enabled)
+_get_job_log_legacy = config.get('__get_job_log_legacy',
+                                 _extract_job_log_legacy)
+_get_job_log_fallback = config.get('__get_job_log_fallback', False)
+
+
 def GetJobDetail(userName, jobId):
     job = None
     dataHandler = DataHandler()
-    jobs =  dataHandler.GetJob(jobId=jobId)
+    jobs = dataHandler.GetJob(jobId=jobId)
     if len(jobs) == 1:
-        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(
+                userName, ResourceType.VC, jobs[0]["vcName"],
+                Permission.Collaborator):
             job = jobs[0]
             job["log"] = ""
-            #jobParams = json.loads(base64.b64decode(job["jobMeta"]))
-            #jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
-            #localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-            #logPath = os.path.join(localJobPath,"joblog.txt")
-            #print logPath
-            #if os.path.isfile(logPath):
-            #    with open(logPath, 'r') as f:
-            #        log = f.read()
-            #        job["log"] = log
-            #    f.close()
             if "jobDescription" in job:
-                job.pop("jobDescription",None)
-            try:
-                log = dataHandler.GetJobTextField(jobId,"jobLog")
+                job.pop("jobDescription", None)
+            if _extract_job_log_legacy:
                 try:
-                    if isBase64(log):
-                        log = base64.b64decode(log)
+                    log = dataHandler.GetJobTextField(jobId, "jobLog")
+                    try:
+                        if isBase64(log):
+                            log = base64decode(log)
+                    except Exception:
+                        pass
+                    if log is not None:
+                        job["log"] = log
                 except Exception:
-                    pass
-                if log is not None:
-                    job["log"] = log
-            except:
-                job["log"] = "fail-to-get-logs"
+                    job["log"] = "fail-to-get-logs"
     dataHandler.Close()
     return job
+
 
 def GetJobDetailV2(userName, jobId):
     job = {}
@@ -433,69 +663,96 @@ def GetJobDetailV2(userName, jobId):
         dataHandler = DataHandler()
         jobs = dataHandler.GetJobV2(jobId)
         if len(jobs) == 1:
-            if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+            if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(
+                    userName, ResourceType.VC, jobs[0]["vcName"],
+                    Permission.Collaborator):
                 job = jobs[0]
     except Exception as e:
-        logger.error("get job detail v2 exception for user: %s, jobId: %s, exception: %s", userName, jobId, str(e))
+        logger.error(
+            "get job detail v2 exception for user: %s, jobId: %s, exception: %s",
+            userName, jobId, str(e))
     finally:
         if dataHandler is not None:
             dataHandler.Close()
     return job
 
+
 def GetJobStatus(jobId):
     result = None
     dataHandler = DataHandler()
-    result = dataHandler.GetJobTextFields(jobId, ["jobStatus", "jobTime", "errorMsg"])
+    result = dataHandler.GetJobTextFields(jobId,
+                                          ["jobStatus", "jobTime", "errorMsg"])
     dataHandler.Close()
     return result
 
-def GetJobLog(userName, jobId):
+
+def GetJobLog(userName, jobId, cursor=None, size=100):
     dataHandler = DataHandler()
-    jobs =  dataHandler.GetJob(jobId=jobId)
+    jobs = dataHandler.GetJob(jobId=jobId)
     if len(jobs) == 1:
-        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
-            try:
-                log = dataHandler.GetJobTextField(jobId,"jobLog")
+        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(
+                userName, ResourceType.VC, jobs[0]["vcName"],
+                Permission.Collaborator):
+            if _get_job_log_legacy:
                 try:
-                    if isBase64(log):
-                        log = base64.b64decode(log)
-                except Exception:
+                    log = dataHandler.GetJobTextField(jobId, "jobLog")
+                    try:
+                        if isBase64(log):
+                            log = base64decode(log)
+                    except Exception:
+                        pass
+                    if log is not None:
+                        return {
+                            "log": log,
+                            "cursor": None,
+                        }
+                except:
                     pass
-                if log is not None:
-                    return {
-                        "log": log,
-                        "cursor": None,
-                    }
-            except:
-                pass
+            elif _get_job_log_enabled:
+                (pod_logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
+
+                if _get_job_log_fallback:
+                    if pod_logs is None or len(pod_logs.keys()) == 0:
+                        try:
+                            log = dataHandler.GetJobTextField(jobId, "jobLog")
+                            try:
+                                if isBase64(log):
+                                    log = base64decode(log)
+                            except Exception:
+                                pass
+                            if log is not None:
+                                return {
+                                    "log": log,
+                                    "cursor": None,
+                                }
+                        except:
+                            pass
+
+                return {
+                    "log": pod_logs,
+                    "cursor": cursor,
+                }
+            else:
+                return {
+                    "log": "See your job folder on NFS / Samba",
+                    "cursor": None,
+                }
+
     return {
         "log": {},
         "cursor": None,
     }
 
+
 def GetClusterStatus():
-    cluster_status,last_update_time =  DataManager.GetClusterStatus()
-    return cluster_status,last_update_time
+    cluster_status, last_update_time = DataManager.GetClusterStatus()
+    return cluster_status, last_update_time
 
 
-def AddUser(username,uid,gid,groups):
-    ret = None
-    needToUpdateDB = False
-
-    if uid == authorization.INVALID_ID:
-        info = IdentityManager.GetIdentityInfoFromDB(username)
-        if info["uid"] == authorization.INVALID_ID:
-            needToUpdateDB = True
-            info = IdentityManager.GetIdentityInfoFromAD(username)
-        uid = info["uid"]
-        gid = info["gid"]
-        groups = info["groups"]
-    else:
-        needToUpdateDB = True
-
-    if needToUpdateDB:
-        ret = IdentityManager.UpdateIdentityInfo(username, uid, gid, groups)
-        ret = ret & ACLManager.UpdateAclIdentityId(username,uid)
+def AddUser(username, uid, gid, groups, public_key, private_key):
+    ret = IdentityManager.UpdateIdentityInfo(username, uid, gid, groups,
+                                             public_key, private_key)
+    ret = ret & ACLManager.UpdateAclIdentityId(username, uid)
     return ret
 
 
@@ -505,9 +762,12 @@ def GetUser(username):
 
 def UpdateAce(userName, identityName, resourceType, resourceName, permissions):
     ret = None
-    resourceAclPath = AuthorizationManager.GetResourceAclPath(resourceName, resourceType)
-    if AuthorizationManager.HasAccess(userName, resourceType, resourceName, Permission.Admin):
-        ret =  ACLManager.UpdateAce(identityName, resourceAclPath, permissions, 0)
+    resourceAclPath = AuthorizationManager.GetResourceAclPath(
+        resourceName, resourceType)
+    if AuthorizationManager.HasAccess(userName, resourceType, resourceName,
+                                      Permission.Admin):
+        ret = ACLManager.UpdateAce(identityName, resourceAclPath, permissions,
+                                   0)
     else:
         ret = "Access Denied!"
     return ret
@@ -515,9 +775,11 @@ def UpdateAce(userName, identityName, resourceType, resourceName, permissions):
 
 def DeleteAce(userName, identityName, resourceType, resourceName):
     ret = None
-    resourceAclPath = AuthorizationManager.GetResourceAclPath(resourceName, resourceType)
-    if AuthorizationManager.HasAccess(userName, resourceType, resourceName, Permission.Admin):
-        ret =  ACLManager.DeleteAce(identityName, resourceAclPath)
+    resourceAclPath = AuthorizationManager.GetResourceAclPath(
+        resourceName, resourceType)
+    if AuthorizationManager.HasAccess(userName, resourceType, resourceName,
+                                      Permission.Admin):
+        ret = ACLManager.DeleteAce(identityName, resourceAclPath)
     else:
         ret = "Access Denied!"
     return ret
@@ -527,7 +789,8 @@ def AddStorage(userName, vcName, url, storageType, metadata, defaultMountPath):
     ret = None
     dataHandler = DataHandler()
     if AuthorizationManager.IsClusterAdmin(userName):
-        ret =  dataHandler.AddStorage(vcName, url, storageType, metadata, defaultMountPath)
+        ret = dataHandler.AddStorage(vcName, url, storageType, metadata,
+                                     defaultMountPath)
     else:
         ret = "Access Denied!"
     dataHandler.Close()
@@ -537,7 +800,8 @@ def AddStorage(userName, vcName, url, storageType, metadata, defaultMountPath):
 def ListStorages(userName, vcName):
     ret = []
     dataHandler = DataHandler()
-    if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.User):
+    if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName,
+                                      Permission.User):
         ret = dataHandler.ListStorages(vcName)
     dataHandler.Close()
     return ret
@@ -546,19 +810,23 @@ def ListStorages(userName, vcName):
 def DeleteStorage(userName, vcName, url):
     ret = None
     dataHandler = DataHandler()
-    if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Admin):
-        ret =  dataHandler.DeleteStorage(vcName, url)
+    if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName,
+                                      Permission.Admin):
+        ret = dataHandler.DeleteStorage(vcName, url)
     else:
         ret = "Access Denied!"
     dataHandler.Close()
     return ret
 
 
-def UpdateStorage(userName, vcName, url, storageType, metadata, defaultMountPath):
+def UpdateStorage(userName, vcName, url, storageType, metadata,
+                  defaultMountPath):
     ret = None
     dataHandler = DataHandler()
-    if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Admin):
-        ret =  dataHandler.UpdateStorage(vcName, url, storageType, metadata, defaultMountPath)
+    if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName,
+                                      Permission.Admin):
+        ret = dataHandler.UpdateStorage(vcName, url, storageType, metadata,
+                                        defaultMountPath)
     else:
         ret = "Access Denied!"
     dataHandler.Close()
@@ -569,13 +837,9 @@ def AddVC(userName, vcName, quota, metadata):
     ret = None
     dataHandler = DataHandler()
     if AuthorizationManager.IsClusterAdmin(userName):
-        ret =  dataHandler.AddVC(vcName, quota, metadata)
+        ret = dataHandler.AddVC(vcName, quota, metadata)
         if ret:
-            cacheItem = {
-                "vcName": vcName,
-                "quota": quota,
-                "metadata": metadata
-            }
+            cacheItem = {"vcName": vcName, "quota": quota, "metadata": metadata}
             with vc_cache_lock:
                 vc_cache[vcName] = cacheItem
     else:
@@ -599,117 +863,233 @@ def getClusterVCs():
 
     return vcList
 
+def getClusterVCs():
+    vcList = None
+    try:
+        with vc_cache_lock:
+            vcList = copy.deepcopy(list(vc_cache.values()))
+    except Exception:
+        pass
+
+    if not vcList:
+        vcList = DataManager.ListVCs()
+        with vc_cache_lock:
+            for vc in vcList:
+                vc_cache[vc["vcName"]] = vc
+
+    return vcList
+
+
 def ListVCs(userName):
     ret = []
     vcList = getClusterVCs()
 
     for vc in vcList:
-        if AuthorizationManager.HasAccess(userName, ResourceType.VC, vc["vcName"], Permission.User):
-            vc['admin'] = AuthorizationManager.HasAccess(userName, ResourceType.VC, vc["vcName"], Permission.Admin)
+        if AuthorizationManager.HasAccess(userName, ResourceType.VC,
+                                          vc["vcName"], Permission.User):
+            vc['admin'] = AuthorizationManager.HasAccess(
+                userName, ResourceType.VC, vc["vcName"], Permission.Admin)
             ret.append(vc)
     # web portal (client) can filter out Default VC
     return ret
 
-def GetVC(userName, vcName):
+
+def get_gpu_idle(vc_name):
     ret = None
-
-    data_handler = DataHandler()
-
-    cluster_status, _ = data_handler.GetClusterStatus()
-    cluster_total = cluster_status["gpu_capacity"]
-    cluster_available = cluster_status["gpu_avaliable"]
-    cluster_reserved = cluster_status["gpu_reserved"]
-
-    user_status = collections.defaultdict(lambda : ResourceInfo())
-    user_status_preemptable = collections.defaultdict(lambda : ResourceInfo())
-
-    vc_list = getClusterVCs()
-    vc_info = {}
-    vc_usage = collections.defaultdict(lambda :
-            collections.defaultdict(lambda : 0))
-    vc_preemptable_usage = collections.defaultdict(lambda :
-            collections.defaultdict(lambda : 0))
-
-    for vc in vc_list:
-        vc_info[vc["vcName"]] = json.loads(vc["quota"])
-
-    active_job_list = data_handler.GetActiveJobList()
-    for job in active_job_list:
-        jobParam = json.loads(base64.b64decode(job["jobParams"]))
-        if "gpuType" in jobParam:
-            if not jobParam["preemptionAllowed"]:
-                vc_usage[job["vcName"]][jobParam["gpuType"]] += GetJobTotalGpu(jobParam)
-            else:
-                vc_preemptable_usage[job["vcName"]][jobParam["gpuType"]] += GetJobTotalGpu(jobParam)
-
-    result = quota.calculate_vc_gpu_counts(cluster_total, cluster_available,
-            cluster_reserved, vc_info, vc_usage)
-
-    vc_total, vc_used, vc_available, vc_unschedulable = result
-
-    for vc in vc_list:
-        if vc["vcName"] == vcName and AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.User):
-
-            num_active_jobs = 0
-            for job in active_job_list:
-                if job["vcName"] == vcName and job["jobStatus"] == "running":
-                    num_active_jobs += 1
-                    username = job["userName"]
-                    jobParam = json.loads(base64.b64decode(job["jobParams"]))
-                    if "gpuType" in jobParam:
-                        if not jobParam["preemptionAllowed"]:
-                            if username not in user_status:
-                                user_status[username] = ResourceInfo()
-                            user_status[username].Add(ResourceInfo({jobParam["gpuType"] : GetJobTotalGpu(jobParam)}))
-                        else:
-                            if username not in user_status_preemptable:
-                                user_status_preemptable[username] = ResourceInfo()
-                            user_status_preemptable[username].Add(ResourceInfo({jobParam["gpuType"] : GetJobTotalGpu(jobParam)}))
-
-            vc["gpu_capacity"] = vc_total[vcName]
-            vc["gpu_used"] = vc_used[vcName]
-            vc["gpu_preemptable_used"] = vc_preemptable_usage[vcName]
-            vc["gpu_unschedulable"] = vc_unschedulable[vcName]
-            vc["gpu_avaliable"] = vc_available[vcName]
-            vc["AvaliableJobNum"] = num_active_jobs
-            vc["node_status"] = cluster_status["node_status"]
-            vc["user_status"] = []
-            for user_name, user_gpu in user_status.iteritems():
-                # TODO: job_manager.getAlias should be put in a util file
-                user_name = user_name.split("@")[0].strip()
-                vc["user_status"].append({"userName":user_name, "userGPU":user_gpu.ToSerializable()})
-
-            vc["user_status_preemptable"] = []
-            for user_name, user_gpu in user_status_preemptable.iteritems():
-                user_name = user_name.split("@")[0].strip()
-                vc["user_status_preemptable"].append({"userName": user_name, "userGPU": user_gpu.ToSerializable()})
-
-            try:
-                gpu_idle_url = config["gpu_reporter"] + '/gpu_idle'
-                gpu_idle_params = {"vc": vcName}
-                gpu_idle_response = requests.get(gpu_idle_url, params=gpu_idle_params)
-                gpu_idle_json = gpu_idle_response.json()
-                vc["gpu_idle"] = gpu_idle_json
-            except Exception:
-                logger.exception("Failed to fetch gpu_idle from gpu-exporter")
-
-            ret = vc
-            break
+    try:
+        gpu_idle_url = config["gpu_reporter"] + '/gpu_idle'
+        gpu_idle_params = {"vc": vc_name}
+        gpu_idle_response = requests.get(gpu_idle_url, params=gpu_idle_params)
+        gpu_idle_json = gpu_idle_response.json()
+        ret = gpu_idle_json
+    except Exception:
+        logger.exception("Failed to fetch gpu_idle from " "gpu-exporter")
     return ret
 
 
-def GetJobTotalGpu(jobParams):
-    numWorkers = 1
-    if "numpsworker" in jobParams:
-        numWorkers = int(jobParams["numpsworker"])
-    return int(jobParams["resourcegpu"]) * numWorkers
+def get_vc(username, vc_name):
+    ret = None
+    try:
+        with DataHandler() as data_handler:
+            cluster_status, _ = data_handler.GetClusterStatus()
+
+        vc_statuses = cluster_status.get("vc_statuses", {})
+        vc_list = getClusterVCs()
+
+        for vc in vc_list:
+            if vc["vcName"] == vc_name and \
+                    has_access(username, VC, vc_name, USER):
+                ret = copy.deepcopy(vc)
+                ret.update(vc_statuses.get(vc_name, {}))
+                ret["node_status"] = cluster_status.get("node_status")
+
+                # TODO: deprecate typo "gpu_avaliable" in legacy code
+                ret["gpu_avaliable"] = ret["gpu_available"]
+
+                # TODO: deprecate typo "AvaliableJobNum" in legacy code
+                ret["AvaliableJobNum"] = ret["available_job_num"]
+
+                gpu_idle = get_gpu_idle(vc_name)
+                if gpu_idle is not None:
+                    ret["gpu_idle"] = gpu_idle
+                break
+    except:
+        logger.exception("Exception in getting VC %s for user %s", vc_name,
+                         username)
+
+    return ret
+
+
+def get_node_status_simplified(node_status):
+    if node_status is None:
+        return None
+
+    simplified_node_status = []
+    for node in node_status:
+        # Skip non-workers
+        labels = node.get("labels", {})
+        not_worker = "worker" not in labels
+        if not_worker:
+            continue
+
+        # Only keep worker, sku, and vc node labels
+        worker_labels = {
+            k: v for k, v in labels.items() if k in ["worker", "sku", "vc"]
+        }
+
+        simplified_node = {
+            "name": node.get("name"),
+            "gpu_capacity": node.get("gpu_capacity"),
+            "gpu_allocatable": node.get("gpu_capacity"),
+            "gpu_used": node.get("gpu_used"),
+            "gpu_preemptable_used": node.get("gpu_preemptable_used"),
+            "cpu_capacity": node.get("cpu_capacity"),
+            "cpu_allocatable": node.get("cpu_allocatable"),
+            "cpu_used": node.get("cpu_used"),
+            "cpu_preemptable_used": node.get("cpu_preemptable_used"),
+            "memory_capacity": node.get("memory_capacity"),
+            "memory_allocatable": node.get("memory_allocatable"),
+            "memory_used": node.get("memory_used"),
+            "memory_preemptable_used": node.get("memory_preemptable_used"),
+            "labels": worker_labels,
+            "InternalIP": node.get("InternalIP"),
+            "unschedulable": node.get("unschedulable"),
+            "pods": node.get("pods")
+        }
+        simplified_node_status.append(simplified_node)
+
+    return simplified_node_status
+
+
+def get_pod_status_simplified(pod_status):
+    if pod_status is None:
+        return None
+
+    simplified_pod_status = []
+    for pod in pod_status:
+        simplified_pod = {
+            "name": pod.get("name"),
+            "job_id": pod.get("job_id"),
+            "username": pod.get("username"),
+            "preemption_allowed": pod.get("preemption_allowed"),
+            "node_name": pod.get("node_name"),
+            "gpu": pod.get("gpu"),
+            "cpu": pod.get("cpu"),
+            "memory": pod.get("memory"),
+            "preemptable_gpu": pod.get("preemptable_gpu"),
+            "preemptable_cpu": pod.get("preemptable_cpu"),
+            "preemptable_memory": pod.get("preemptable_memory"),
+            "gpu_usage": pod.get("gpu_usage"),
+        }
+        simplified_pod_status.append(simplified_pod)
+
+    return simplified_pod_status
+
+
+def get_vc_simplified(vc_status):
+    if vc_status is None:
+        return None
+
+    simplified_vc_status = {
+        # VC name
+        "vc_name": vc_status.get("vc_name"),
+
+        # Active job count
+        "available_job_num": vc_status.get("available_job_num"),
+
+        # GPU overview
+        "gpu_capacity": vc_status.get("gpu_capacity"),
+        "gpu_used": vc_status.get("gpu_used"),
+        "gpu_preemptable_used": vc_status.get("gpu_preemptable_used"),
+        "gpu_available": vc_status.get("gpu_available"),
+        "gpu_unschedulable": vc_status.get("gpu_unschedulable"),
+
+        # CPU overview
+        "cpu_capacity": vc_status.get("cpu_capacity"),
+        "cpu_used": vc_status.get("cpu_used"),
+        "cpu_preemptable_used": vc_status.get("cpu_preemptable_used"),
+        "cpu_available": vc_status.get("cpu_available"),
+        "cpu_unschedulable": vc_status.get("cpu_unschedulable"),
+
+        # Memory overview
+        "memory_capacity": vc_status.get("memory_capacity"),
+        "memory_used": vc_status.get("memory_used"),
+        "memory_preemptable_used": vc_status.get("memory_preemptable_used"),
+        "memory_available": vc_status.get("memory_available"),
+        "memory_unschedulable": vc_status.get("memory_unschedulable"),
+
+        # Nodes
+        "node_status": get_node_status_simplified(vc_status.get("node_status")),
+
+        # Pods
+        "pod_status": get_pod_status_simplified(vc_status.get("pod_status")),
+
+        # Users
+        "user_status": vc_status.get("user_status"),
+        "user_status_preemptable": vc_status.get("user_status"),
+
+        # GPU idleness
+        "gpu_idle": vc_status.get("gpu_idle"),
+    }
+
+    return simplified_vc_status
+
+
+def get_vc_v2(username, vc_name):
+    vc_status = None
+    try:
+        with DataHandler() as data_handler:
+            cluster_status, _ = data_handler.GetClusterStatus()
+
+        vc_statuses = cluster_status.get("vc_statuses", {})
+        vc_list = getClusterVCs()
+
+        for vc in vc_list:
+            if vc["vcName"] == vc_name and \
+                    has_access(username, VC, vc_name, USER):
+                vc_status = vc_statuses.get(vc_name, {})
+                vc_status["vc_name"] = vc_name
+                vc_status["node_status"] = cluster_status.get("node_status")
+
+                gpu_idle = get_gpu_idle(vc_name)
+                if gpu_idle is not None:
+                    vc_status["gpu_idle"] = gpu_idle
+                break
+
+        vc_status = get_vc_simplified(vc_status)
+
+    except:
+        logger.exception("Exception in getting VC %s for user %s", vc_name,
+                         username)
+
+    return vc_status
 
 
 def DeleteVC(userName, vcName):
     ret = None
     dataHandler = DataHandler()
     if AuthorizationManager.IsClusterAdmin(userName):
-        ret =  dataHandler.DeleteVC(vcName)
+        ret = dataHandler.DeleteVC(vcName)
         if ret:
             with vc_cache_lock:
                 vc_cache.pop(vcName, None)
@@ -723,13 +1103,9 @@ def UpdateVC(userName, vcName, quota, metadata):
     ret = None
     dataHandler = DataHandler()
     if AuthorizationManager.IsClusterAdmin(userName):
-        ret =  dataHandler.UpdateVC(vcName, quota, metadata)
+        ret = dataHandler.UpdateVC(vcName, quota, metadata)
         if ret:
-            cacheItem = {
-                "vcName": vcName,
-                "quota": quota,
-                "metadata": metadata
-            }
+            cacheItem = {"vcName": vcName, "quota": quota, "metadata": metadata}
             with vc_cache_lock:
                 vc_cache[vcName] = cacheItem
     else:
@@ -926,6 +1302,210 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
 
 
 
+def GetEndpoints(userName, jobId):
+    dataHandler = DataHandler()
+    ret = []
+    try:
+        job = dataHandler.GetJobTextFields(jobId,
+                                           ["userName", "vcName", "endpoints"])
+        if job is not None:
+            if job["userName"] == userName or AuthorizationManager.HasAccess(
+                    userName, ResourceType.VC, job["vcName"], Permission.Admin):
+                endpoints = {}
+                if job["endpoints"] is not None:
+                    endpoints = json.loads(job["endpoints"])
+                for [_, endpoint] in list(endpoints.items()):
+                    epItem = {
+                        "id": endpoint["id"],
+                        "name": endpoint["name"],
+                        "username": endpoint["username"],
+                        "status": endpoint["status"],
+                        "hostNetwork": endpoint["hostNetwork"],
+                        "podName": endpoint["podName"],
+                        "domain": config["domain"],
+                    }
+                    if "podPort" in endpoint:
+                        epItem["podPort"] = endpoint["podPort"]
+                    if endpoint["status"] == "running":
+                        if endpoint["hostNetwork"]:
+                            port = int(endpoint["endpointDescription"]["spec"]
+                                       ["ports"][0]["port"])
+                        else:
+                            port = int(
+                                walk_json_field_safe(endpoint,
+                                    "endpointDescription", "spec", "ports", 0, "nodePort") or \
+                                walk_json_field_safe(endpoint,
+                                    "endpointDescription", "spec", "ports", 0, "node_port")
+                                            )
+                        epItem["port"] = port
+                        if "nodeName" in endpoint:
+                            epItem["nodeName"] = endpoint["nodeName"]
+                    ret.append(epItem)
+    except Exception as e:
+        logger.error("Get endpoint exception, ex: %s", str(e))
+    finally:
+        dataHandler.Close()
+    return ret
+
+
+def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
+    dataHandler = DataHandler()
+    try:
+        job = dataHandler.GetJobTextFields(
+            jobId, ["userName", "vcName", "jobParams", "endpoints"])
+        if job is None:
+            msg = "Job %s cannot be found in database" % jobId
+            logger.error(msg)
+            return msg, 404
+        if job["userName"] != userName and (not AuthorizationManager.HasAccess(
+                userName, ResourceType.VC, job["vcName"], Permission.Admin)):
+            msg = "You are not authorized to enable endpoint for job %s" % jobId
+            logger.error(msg)
+            return msg, 403
+
+        job_params = json.loads(base64decode(job["jobParams"]))
+        job_type = job_params["jobtrainingtype"]
+        job_endpoints = {}
+        if job["endpoints"] is not None:
+            job_endpoints = json.loads(job["endpoints"])
+
+        # get pods
+        pod_names = []
+        if job_type == "RegularJob":
+            pod_names.append(jobId)
+        else:
+            nums = {
+                "ps": int(job_params["numps"]),
+                "worker": int(job_params["numpsworker"])
+            }
+            for role in ["ps", "worker"]:
+                for i in range(nums[role]):
+                    pod_names.append(jobId + "-" + role + str(i))
+
+        # HostNetwork
+        if "hostNetwork" in job_params and job_params["hostNetwork"] == True:
+            host_network = True
+        else:
+            host_network = False
+
+        # username
+        username = getAlias(job["userName"])
+
+        endpoints = job_endpoints
+
+        if "ssh" in requested_endpoints:
+            # setup ssh for each pod
+            for pod_name in pod_names:
+                endpoint_id = "e-" + pod_name + "-ssh"
+
+                if endpoint_id in job_endpoints:
+                    logger.debug("Endpoint %s exists. Skip.", endpoint_id)
+                    continue
+                logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
+
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": jobId,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": "ssh",
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+
+        # Only open Jupyter on the master
+        if 'ipython' in requested_endpoints:
+            if job_type == "RegularJob":
+                pod_name = pod_names[0]
+            else:
+                # For a distributed job, we set up jupyter on first worker node.
+                # PS node does not have GPU access.
+                # TODO: Simplify code logic after removing PS
+                pod_name = pod_names[1]
+
+            endpoint_id = "e-" + jobId + "-ipython"
+
+            if endpoint_id not in job_endpoints:
+                logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": jobId,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": "ipython",
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+            else:
+                logger.debug("Endpoint %s exists. Skip.", endpoint_id)
+
+        # Only open tensorboard on the master
+        if 'tensorboard' in requested_endpoints:
+            if job_type == "RegularJob":
+                pod_name = pod_names[0]
+            else:
+                # For a distributed job, we set up jupyter on first worker node.
+                # PS node does not have GPU access.
+                # TODO: Simplify code logic after removing PS
+                pod_name = pod_names[1]
+
+            endpoint_id = "e-" + jobId + "-tensorboard"
+
+            if endpoint_id not in job_endpoints:
+                logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": jobId,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": "tensorboard",
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+            else:
+                logger.debug("Endpoint %s exists. Skip.", endpoint_id)
+
+        # interactive port
+        for interactive_port in interactive_ports:
+            if job_type == "RegularJob":
+                pod_name = pod_names[0]
+            else:
+                # For a distributed job, we set up jupyter on first worker node.
+                # PS node does not have GPU access.
+                # TODO: Simplify code logic after removing PS
+                pod_name = pod_names[1]
+
+            endpoint_id = "e-" + jobId + "-port-" + \
+                str(interactive_port["podPort"])
+            if endpoint_id not in job_endpoints:
+                logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": jobId,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": interactive_port["name"],
+                    "podPort": interactive_port["podPort"],
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+            else:
+                logger.debug("Endpoint %s exists. Skip.", endpoint_id)
+
+        dataHandler.UpdateJobTextFields({"jobId": jobId},
+                                        {"endpoints": json.dumps(endpoints)})
+        return endpoints, 200
+    except Exception as e:
+        logger.error("Get endpoint exception, ex: %s", str(e))
+    finally:
+        dataHandler.Close()
+    return "server error", 500
+
+
 def get_job(job_id):
     data_handler = None
     try:
@@ -939,12 +1519,6 @@ def get_job(job_id):
         if data_handler is not None:
             data_handler.Close()
     return None
-
-
-def update_job(job_id, field, value):
-    dataHandler = DataHandler()
-    dataHandler.UpdateJobTextField(job_id, field, value)
-    dataHandler.Close()
 
 
 def get_job_priorities():
@@ -964,11 +1538,14 @@ def update_job_priorites(username, job_priorities):
         pendingJobs = {}
         for job_id in job_priorities:
             priority = job_priorities[job_id]
-            job = data_handler.GetJobTextFields(job_id, ["userName", "vcName", "jobStatus"])
+            job = data_handler.GetJobTextFields(
+                job_id, ["userName", "vcName", "jobStatus"])
             if job is None:
                 continue
 
-            vc_admin = AuthorizationManager.HasAccess(username, ResourceType.VC, job["vcName"], Permission.Admin)
+            vc_admin = AuthorizationManager.HasAccess(username, ResourceType.VC,
+                                                      job["vcName"],
+                                                      Permission.Admin)
             if job["userName"] != username and (not vc_admin):
                 return False
 
@@ -976,7 +1553,7 @@ def update_job_priorites(username, job_priorities):
             permission = Permission.Admin if vc_admin else Permission.User
             job_priorities[job_id] = adjust_job_priority(priority, permission)
 
-            if job["jobStatus"] in pendingStatus.split(","):
+            if job["jobStatus"] in ACTIVE_STATUS:
                 pendingJobs[job_id] = job_priorities[job_id]
 
         ret_code = data_handler.update_job_priority(job_priorities)
@@ -997,6 +1574,14 @@ def getAlias(username):
     return username
 
 
+def getAlias(username):
+    if "@" in username:
+        username = username.split("@")[0].strip()
+    if "/" in username:
+        username = username.split("/")[1].strip()
+    return username
+
+
 if __name__ == '__main__':
     TEST_SUB_REG_JOB = False
     TEST_JOB_STATUS = True
@@ -1007,28 +1592,34 @@ if __name__ == '__main__':
 
     if TEST_SUB_REG_JOB:
         parser = argparse.ArgumentParser(description='Launch a kubernetes job')
-        parser.add_argument('-f', '--param-file', required=True, type=str,
-                            help = 'Path of the Parameter File')
-        parser.add_argument('-t', '--template-file', required=True, type=str,
-                            help = 'Path of the Job Template File')
+        parser.add_argument('-f',
+                            '--param-file',
+                            required=True,
+                            type=str,
+                            help='Path of the Parameter File')
+        parser.add_argument('-t',
+                            '--template-file',
+                            required=True,
+                            type=str,
+                            help='Path of the Job Template File')
         args, unknown = parser.parse_known_args()
-        with open(args.param_file,"r") as f:
+        with open(args.param_file, "r") as f:
             jobParamsJsonStr = f.read()
         f.close()
 
-        SubmitRegularJob(jobParamsJsonStr,args.template_file)
+        SubmitRegularJob(jobParamsJsonStr, args.template_file)
 
     if TEST_JOB_STATUS:
-        print GetJobStatus(sys.argv[1])
+        print(GetJobStatus(sys.argv[1]))
 
     if TEST_DEL_JOB:
-        print DeleteJob("tf-dist-1483504085-13")
+        print(DeleteJob("tf-dist-1483504085-13"))
 
     if TEST_GET_TB:
-        print GetTensorboard("tf-resnet18-1483509537-31")
+        print(GetTensorboard("tf-resnet18-1483509537-31"))
 
     if TEST_GET_SVC:
-        print GetServiceAddress("tf-i-1483566214-12")
+        print(GetServiceAddress("tf-i-1483566214-12"))
 
     if TEST_GET_LOG:
-        print GetLog("tf-i-1483566214-12")
+        print(GetLog("tf-i-1483566214-12"))

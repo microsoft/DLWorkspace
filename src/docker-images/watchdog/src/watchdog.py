@@ -45,89 +45,127 @@ from twisted.internet import reactor
 
 logger = logging.getLogger(__name__)
 
-
 ##### watchdog will generate following metrics
 # Document about these metrics is in `prometheus/doc/watchdog-metrics.md`
 
-error_counter = Counter("process_error_log_total", "total count of error log", ["type"])
+error_counter = Counter("process_error_log_total", "total count of error log",
+                        ["type"])
 
-api_healthz_histogram = Histogram("k8s_api_healthz_resp_latency_seconds",
-        "Response latency for requesting k8s api healthz (seconds)")
+api_healthz_histogram = Histogram(
+    "k8s_api_healthz_resp_latency_seconds",
+    "Response latency for requesting k8s api healthz (seconds)")
 
 # use `histogram_quantile(0.95, sum(rate(k8s_api_list_pods_latency_seconds_bucket[5m])) by (le))`
 # to get 95 percentile latency in past 5 miniute.
-list_pods_histogram = Histogram("k8s_api_list_pods_latency_seconds",
-        "Response latency for list pods from k8s api (seconds)")
+list_pods_histogram = Histogram(
+    "k8s_api_list_pods_latency_seconds",
+    "Response latency for list pods from k8s api (seconds)")
 
-list_nodes_histogram = Histogram("k8s_api_list_nodes_latency_seconds",
-        "Response latency for list nodes from k8s api (seconds)")
+list_nodes_histogram = Histogram(
+    "k8s_api_list_nodes_latency_seconds",
+    "Response latency for list nodes from k8s api (seconds)")
 
-list_vc_quota_histogram = Histogram("list_vc_quota_latency_seconds",
-        "Response latency for list vc quota from restful api (seconds)")
+list_vc_quota_histogram = Histogram(
+    "list_vc_quota_latency_seconds",
+    "Response latency for list vc quota from restful api (seconds)")
+
 
 def gen_pai_pod_gauge():
-    return GaugeMetricFamily("pai_pod_count", "count of pai pod",
-            labels=["service_name", "name", "namespace", "phase", "host_ip",
-                "initialized", "pod_scheduled", "ready"])
+    return GaugeMetricFamily("pai_pod_count",
+                             "count of pai pod",
+                             labels=[
+                                 "service_name", "name", "namespace", "phase",
+                                 "host_ip", "initialized", "pod_scheduled",
+                                 "ready"
+                             ])
+
 
 def gen_pai_container_gauge():
-    return GaugeMetricFamily("pai_container_count", "count of container pod",
-            labels=["service_name", "pod_name", "name", "namespace", "state",
-                "host_ip", "ready"])
+    return GaugeMetricFamily("pai_container_count",
+                             "count of container pod",
+                             labels=[
+                                 "service_name", "pod_name", "name",
+                                 "namespace", "state", "host_ip", "ready"
+                             ])
+
 
 def gen_pai_node_gauge():
-    return GaugeMetricFamily("pai_node_count", "count of pai node",
-            labels=["name", "disk_pressure", "memory_pressure", "out_of_disk", "ready", "unschedulable"])
+    return GaugeMetricFamily("pai_node_count",
+                             "count of pai node",
+                             labels=[
+                                 "name", "disk_pressure", "memory_pressure",
+                                 "out_of_disk", "ready", "unschedulable"
+                             ])
+
 
 def gen_k8s_api_gauge():
-    return GaugeMetricFamily("k8s_api_server_count", "count of k8s api server",
-            labels=["error", "host_ip"])
+    return GaugeMetricFamily("k8s_api_server_count",
+                             "count of k8s api server",
+                             labels=["error", "host_ip"])
+
 
 def gen_k8s_node_gpu_total():
-    return GaugeMetricFamily("k8s_node_gpu_total", "gpu capacity on k8s node",
-            labels=["host_ip"])
+    return GaugeMetricFamily("k8s_node_gpu_total",
+                             "gpu capacity on k8s node",
+                             labels=["host_ip"])
+
 
 def gen_k8s_node_gpu_allocatable():
-    return GaugeMetricFamily("k8s_node_gpu_allocatable",
-            "gpu allocatable on k8s node, this include used allocatable",
-            labels=["host_ip"])
+    return GaugeMetricFamily(
+        "k8s_node_gpu_allocatable",
+        "gpu allocatable on k8s node, this include used allocatable",
+        labels=["host_ip"])
+
 
 def gen_k8s_node_gpu_available():
-    return GaugeMetricFamily("k8s_node_gpu_available", "gpu available on k8s node",
-            labels=["host_ip"])
+    return GaugeMetricFamily("k8s_node_gpu_available",
+                             "gpu available on k8s node",
+                             labels=["host_ip"])
+
 
 def gen_k8s_node_preemptable_gpu_available():
     return GaugeMetricFamily("k8s_node_preemptable_gpu_available",
-            "gpu available on k8s node for preemptable job",
-            labels=["host_ip"])
+                             "gpu available on k8s node for preemptable job",
+                             labels=["host_ip"])
 
-service_response_histogram = Histogram("service_response_latency_seconds",
-            "response latency of each service",
-            labelnames=("service_name", "service_ip"),
-            buckets=(.1, .5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 16.0, 32.0, float("inf")))
+
+service_response_histogram = Histogram(
+    "service_response_latency_seconds",
+    "response latency of each service",
+    labelnames=("service_name", "service_ip"),
+    buckets=(.1, .5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 16.0, 32.0, float("inf")))
 
 service_response_counter = Counter("service_response_code",
-        "total count of http return code", ["service_name", "service_ip", "code"])
+                                   "total count of http return code",
+                                   ["service_name", "service_ip", "code"])
+
 
 def gen_k8s_vc_gpu_total():
-    return GaugeMetricFamily("k8s_vc_gpu_total", "gpu total in vc",
-            labels=["vc_name", "gpu_type"])
+    return GaugeMetricFamily("k8s_vc_gpu_total",
+                             "gpu total in vc",
+                             labels=["vc_name", "gpu_type"])
+
 
 def gen_k8s_vc_gpu_unschedulable():
-    return GaugeMetricFamily("k8s_vc_gpu_unschedulable", "gpu unschedulable in vc",
-            labels=["vc_name", "gpu_type"])
+    return GaugeMetricFamily("k8s_vc_gpu_unschedulable",
+                             "gpu unschedulable in vc",
+                             labels=["vc_name", "gpu_type"])
+
 
 def gen_k8s_vc_gpu_available():
     return GaugeMetricFamily("k8s_vc_gpu_available",
-            "gpu available for non preemptable job in vc",
-            labels=["vc_name", "gpu_type"])
+                             "gpu available for non preemptable job in vc",
+                             labels=["vc_name", "gpu_type"])
+
 
 def gen_k8s_vc_gpu_preemptive_available():
     return GaugeMetricFamily("k8s_vc_gpu_preemptive_availabe",
-            "gpu available for preemptable job in vc",
-            labels=["vc_name", "gpu_type"])
+                             "gpu available for preemptable job in vc",
+                             labels=["vc_name", "gpu_type"])
+
 
 ##### watchdog will generate above metrics
+
 
 def walk_json_field_safe(obj, *fields):
     """ for example a=[{"a": {"b": 2}}]
@@ -141,25 +179,26 @@ def walk_json_field_safe(obj, *fields):
     except:
         return None
 
+
 def convert_to_byte(data):
     data = data.lower()
     number = float(re.findall(r"[0-9.]+", data)[0])
     if "t" in data:
-        return number * 10 ** 12
+        return number * 10**12
     elif "g" in data:
-        return number * 10 ** 9
+        return number * 10**9
     elif "m" in data:
-        return number * 10 ** 6
+        return number * 10**6
     elif "k" in data:
-        return number * 10 ** 3
+        return number * 10**3
     elif "ti" in data:
-        return number * 2 ** 40
+        return number * 2**40
     elif "gi" in data:
-        return number * 2 ** 30
+        return number * 2**30
     elif "mi" in data:
-        return number * 2 ** 20
+        return number * 2**20
     elif "ki" in data:
-        return number * 2 ** 10
+        return number * 2**10
     else:
         return number
 
@@ -220,6 +259,7 @@ def catch_exception(fn, msg, default, *args, **kwargs):
         logger.exception(msg)
         return default
 
+
 class PodInfo(object):
     def __init__(self, name, preemptable, gpu):
         self.name = name
@@ -229,7 +269,9 @@ class PodInfo(object):
     def __repr__(self):
         return "%s, %s: %s" % (self.name, self.preemptable, self.gpu)
 
-def process_service_endpoints(service_name, host_ip, annotations, service_endpoints):
+
+def process_service_endpoints(service_name, host_ip, annotations,
+                              service_endpoints):
     annotation_ns = "monitor.watchdog"
     port_key = annotation_ns + "/port"
     path_key = annotation_ns + "/path"
@@ -240,24 +282,25 @@ def process_service_endpoints(service_name, host_ip, annotations, service_endpoi
             port = int(annotations[port_key])
         except ValueError:
             logger.warning("illegal value %s in %s, expect port",
-                    annotations[port_key], port_key)
+                           annotations[port_key], port_key)
             return
 
         path = annotations[path_key]
 
-        timeout = 10 # default
+        timeout = 10  # default
         if annotations.get(timeout_key) is not None:
             try:
                 timeout = int(annotations.get(timeout_key))
             except ValueError:
                 logger.warning("illegal value %s in %s, expect int. Ignore it",
-                        annotations[timeout_key], timeout_key)
+                               annotations[timeout_key], timeout_key)
 
         service_endpoints.append(
-                ServiceEndpoint(service_name, host_ip, port, path, timeout))
+            ServiceEndpoint(service_name, host_ip, port, path, timeout))
 
 
-def parse_pod_item(pod, pai_pod_gauge, pai_container_gauge, pods_info, service_endpoints, vc_usage):
+def parse_pod_item(pod, pai_pod_gauge, pai_container_gauge, pods_info,
+                   service_endpoints, vc_usage):
     """ add metrics to pai_pod_gauge or pai_container_gauge if successfully paesed pod.
     Because we are parsing json outputed by k8s, its format is subjected to change,
     we should test if field exists before accessing it to avoid KeyError """
@@ -265,7 +308,8 @@ def parse_pod_item(pod, pai_pod_gauge, pai_container_gauge, pods_info, service_e
     pod_name = pod["metadata"]["name"]
     namespace = walk_json_field_safe(pod, "metadata", "namespace") or "default"
     host_ip = walk_json_field_safe(pod, "status", "hostIP") or "unscheduled"
-    preemptable_str = walk_json_field_safe(pod, "metadata", "labels", "preemptionAllowed") or False
+    preemptable_str = walk_json_field_safe(pod, "metadata", "labels",
+                                           "preemptionAllowed") or False
     preemptable = preemptable_str == "True" or preemptable_str == "true"
     using_gpu = True
 
@@ -273,10 +317,12 @@ def parse_pod_item(pod, pai_pod_gauge, pai_container_gauge, pods_info, service_e
     containers = walk_json_field_safe(pod, "spec", "containers")
     if containers is not None:
         for container in containers:
-            req_gpu = int(walk_json_field_safe(container, "resources", "requests",
-                    "nvidia.com/gpu") or 0)
-            limit_gpu = int(walk_json_field_safe(container, "resources", "limits",
-                    "nvidia.com/gpu") or 0)
+            req_gpu = int(
+                walk_json_field_safe(container, "resources", "requests",
+                                     "nvidia.com/gpu") or 0)
+            limit_gpu = int(
+                walk_json_field_safe(container, "resources", "limits",
+                                     "nvidia.com/gpu") or 0)
             used_gpu += max(req_gpu, limit_gpu)
             phase = walk_json_field_safe(pod, "status", "phase")
             if phase == "Succeeded" or phase == "Failed":
@@ -290,21 +336,28 @@ def parse_pod_item(pod, pai_pod_gauge, pai_container_gauge, pods_info, service_e
         if gpu_type is None:
             gpu_type = ""
 
-        if preemptable:
-            vc_usage.add_preemptable_used(vc, gpu_type, used_gpu)
-        else:
-            vc_usage.add_used(vc, gpu_type, used_gpu)
+        if used_gpu != 0:
+            if gpu_type == "":
+                logger.warning(
+                    "did not find gpuType labels in pod %s, may cause gpu unavailable",
+                    pod_name)
+
+            if preemptable:
+                vc_usage.add_preemptable_used(vc, gpu_type, used_gpu)
+            else:
+                vc_usage.add_used(vc, gpu_type, used_gpu)
 
     labels = pod["metadata"].get("labels")
     if labels is None or "app" not in labels:
-        logger.info("unknown pod %s", pod["metadata"]["name"])
+        logger.debug("unknown pod %s", pod["metadata"]["name"])
         return None
 
-    service_name = labels["app"] # get pai service name from label
+    service_name = labels["app"]  # get pai service name from label
 
     annotations = walk_json_field_safe(pod, "metadata", "annotations") or {}
     if host_ip != "unscheduled":
-        process_service_endpoints(service_name, host_ip, annotations, service_endpoints)
+        process_service_endpoints(service_name, host_ip, annotations,
+                                  service_endpoints)
 
     status = pod["status"]
 
@@ -318,7 +371,7 @@ def parse_pod_item(pod, pai_pod_gauge, pai_container_gauge, pods_info, service_e
     conditions = status.get("conditions")
     if conditions is not None:
         for cond in conditions:
-            cond_t = cond["type"] # Initialized|Ready|PodScheduled
+            cond_t = cond["type"]  # Initialized|Ready|PodScheduled
             cond_status = cond["status"].lower()
 
             if cond_t == "Initialized":
@@ -329,10 +382,13 @@ def parse_pod_item(pod, pai_pod_gauge, pai_container_gauge, pods_info, service_e
                 ready = cond_status
             else:
                 error_counter.labels(type="unknown_pod_cond").inc()
-                logger.error("unexpected condition %s in pod %s", cond_t, pod_name)
+                logger.debug("unexpected condition %s in pod %s", cond_t,
+                             pod_name)
 
-    pai_pod_gauge.add_metric([service_name, pod_name, namespace, phase, host_ip,
-        initialized, pod_scheduled, ready], 1)
+    pai_pod_gauge.add_metric([
+        service_name, pod_name, namespace, phase, host_ip, initialized,
+        pod_scheduled, ready
+    ], 1)
 
     # generate pai_containers
     if status.get("containerStatuses") is not None:
@@ -350,34 +406,40 @@ def parse_pod_item(pod, pai_pod_gauge, pai_container_gauge, pods_info, service_e
             if container_status.get("state") is not None:
                 state = container_status["state"]
                 if len(state) != 1:
-                    error_counter.labels(type="unexpected_container_state").inc()
+                    error_counter.labels(
+                        type="unexpected_container_state").inc()
                     logger.error("unexpected state %s in container %s",
-                            json.dumps(state), container_name)
+                                 json.dumps(state), container_name)
                 else:
                     container_state = list(state.keys())[0].lower()
 
-            pai_container_gauge.add_metric([service_name, pod_name, container_name,
-                namespace, container_state, host_ip, str(ready).lower()], 1)
+            pai_container_gauge.add_metric([
+                service_name, pod_name, container_name, namespace,
+                container_state, host_ip,
+                str(ready).lower()
+            ], 1)
 
 
 def process_pods_status(pods_object, pai_pod_gauge, pai_container_gauge,
-        pods_info, service_endpoints, vc_usage):
+                        pods_info, service_endpoints, vc_usage):
     def _map_fn(item):
         return catch_exception(parse_pod_item,
-                "catch exception when parsing pod item",
-                None,
-                item,
-                pai_pod_gauge, pai_container_gauge,
-                pods_info, service_endpoints, vc_usage)
+                               "catch exception when parsing pod item", None,
+                               item, pai_pod_gauge, pai_container_gauge,
+                               pods_info, service_endpoints, vc_usage)
 
     list(map(_map_fn, pods_object["items"]))
 
 
-def collect_healthz(gauge, histogram, scheme, address, port, url, ca_path, headers):
+def collect_healthz(gauge, histogram, scheme, address, port, url, ca_path,
+                    headers):
     with histogram.time():
         error = "ok"
         try:
-            error = requests.get("{}://{}:{}{}".format(scheme, address, port, url), headers = headers, verify = ca_path).text
+            error = requests.get("{}://{}:{}{}".format(scheme, address, port,
+                                                       url),
+                                 headers=headers,
+                                 verify=ca_path).text
         except Exception as e:
             error_counter.labels(type="healthz").inc()
             error = str(e)
@@ -386,18 +448,20 @@ def collect_healthz(gauge, histogram, scheme, address, port, url, ca_path, heade
         gauge.add_metric([error, address], 1)
 
 
-def collect_k8s_component(api_server_scheme, api_server_ip, api_server_port, ca_path, headers):
+def collect_k8s_component(api_server_scheme, api_server_ip, api_server_port,
+                          ca_path, headers):
     k8s_gauge = gen_k8s_api_gauge()
 
-    collect_healthz(k8s_gauge, api_healthz_histogram,
-            api_server_scheme, api_server_ip, api_server_port, "/healthz", ca_path, headers)
+    collect_healthz(k8s_gauge, api_healthz_histogram, api_server_scheme,
+                    api_server_ip, api_server_port, "/healthz", ca_path,
+                    headers)
 
     return [k8s_gauge]
 
 
-def parse_node_item(node, pai_node_gauge,
-        node_gpu_avail, node_gpu_preemptable_avail, node_gpu_total,
-        node_gpu_allocatable, pods_info, cluster_gpu_info):
+def parse_node_item(node, pai_node_gauge, node_gpu_avail,
+                    node_gpu_preemptable_avail, node_gpu_total,
+                    node_gpu_allocatable, pods_info, cluster_gpu_info):
 
     ip = None
 
@@ -431,12 +495,18 @@ def parse_node_item(node, pai_node_gauge,
                     ready = node_status
                 else:
                     error_counter.labels(type="unknown_node_cond").inc()
-                    logger.error("unexpected condition %s in node %s", cond_t, ip)
+                    logger.debug("unexpected condition %s in node %s", cond_t,
+                                 ip)
 
         # https://github.com/kubernetes/community/blob/master/contributors/design-proposals/node/node-allocatable.md
         # [Allocatable] = [Node Capacity] - [Kube-Reserved] - [System-Reserved] - [Hard-Eviction-Threshold]
-        gpu_capacity = int(walk_json_field_safe(status, "capacity", "nvidia.com/gpu") or 0)
-        gpu_allocatable = int(walk_json_field_safe(status, "allocatable", "nvidia.com/gpu") or 0)
+        gpu_capacity = int(
+            walk_json_field_safe(status, "capacity", "nvidia.com/gpu") or 0)
+        gpu_allocatable = int(
+            walk_json_field_safe(status, "allocatable", "nvidia.com/gpu") or 0)
+        if gpu_capacity != gpu_allocatable:
+            logger.warning("node %s has inequal gpu cap/allocatable %d/%d", ip,
+                           gpu_capacity, gpu_allocatable)
         node_gpu_total.add_metric([ip], gpu_capacity)
         cluster_gpu_info.capacity += gpu_capacity
 
@@ -452,9 +522,11 @@ def parse_node_item(node, pai_node_gauge,
                 else:
                     used_gpu += pod.gpu
 
-        if walk_json_field_safe(node, "spec", "unschedulable") != True and ready == "true":
+        if walk_json_field_safe(node, "spec",
+                                "unschedulable") != True and ready == "true":
             available = max(0, gpu_allocatable - used_gpu)
-            preemptable_available = max(0, gpu_allocatable - used_gpu - preemptable_used_gpu)
+            preemptable_available = max(
+                0, gpu_allocatable - used_gpu - preemptable_used_gpu)
             node_gpu_avail.add_metric([ip], available)
             node_gpu_preemptable_avail.add_metric([ip], preemptable_available)
             node_gpu_allocatable.add_metric([ip], gpu_allocatable)
@@ -463,11 +535,15 @@ def parse_node_item(node, pai_node_gauge,
             cluster_gpu_info.preemptable_available += preemptable_available
             cluster_gpu_info.allocatable += gpu_allocatable
         else:
+            logger.warning(
+                "node %s is unschedulable or not ready, set allocatable to 0",
+                ip)
             node_gpu_avail.add_metric([ip], 0)
             node_gpu_preemptable_avail.add_metric([ip], 0)
             node_gpu_allocatable.add_metric([ip], 0)
     else:
-        logger.warning("unexpected structure of node %s: %s", ip, json.dumps(node))
+        logger.warning("unexpected structure of node %s: %s", ip,
+                       json.dumps(node))
 
     unschedulable_s = walk_json_field_safe(node, "spec", "unschedulable")
     if unschedulable_s is True:
@@ -475,7 +551,9 @@ def parse_node_item(node, pai_node_gauge,
     else:
         unschedulable = "false"
 
-    pai_node_gauge.add_metric([ip, disk_pressure, memory_pressure, out_of_disk, ready, unschedulable], 1)
+    pai_node_gauge.add_metric([
+        ip, disk_pressure, memory_pressure, out_of_disk, ready, unschedulable
+    ], 1)
 
 
 def process_nodes_status(nodes_object, pods_info, cluster_gpu_info):
@@ -487,22 +565,18 @@ def process_nodes_status(nodes_object, pods_info, cluster_gpu_info):
 
     def _map_fn(item):
         return catch_exception(parse_node_item,
-                "catch exception when parsing node item",
-                None,
-                item,
-                pai_node_gauge,
-                node_gpu_avail,
-                node_gpu_preemptable_avail,
-                node_gpu_total,
-                node_gpu_allocatable,
-                pods_info,
-                cluster_gpu_info)
+                               "catch exception when parsing node item", None,
+                               item, pai_node_gauge, node_gpu_avail,
+                               node_gpu_preemptable_avail, node_gpu_total,
+                               node_gpu_allocatable, pods_info,
+                               cluster_gpu_info)
 
     list(map(_map_fn, nodes_object["items"]))
 
-    return [pai_node_gauge,
-            node_gpu_avail, node_gpu_preemptable_avail,
-            node_gpu_total, node_gpu_allocatable]
+    return [
+        pai_node_gauge, node_gpu_avail, node_gpu_preemptable_avail,
+        node_gpu_total, node_gpu_allocatable
+    ]
 
 
 def process_vc_quota(vc_object):
@@ -511,7 +585,8 @@ def process_vc_quota(vc_object):
     for vc_info in vc_object["result"]:
         name = vc_info["vcName"]
         quota = json.loads(vc_info["quota"])
-        result[name] = quota # quota is a map which key is gpu_type, value is int count
+        result[
+            name] = quota  # quota is a map which key is gpu_type, value is int count
 
     return result
 
@@ -521,7 +596,7 @@ def query_vc_quota_info(vc_quota_url):
         return {}
 
     vc_object = request_with_histogram(vc_quota_url, list_vc_quota_histogram,
-            None, None)
+                                       None, None)
     return process_vc_quota(vc_object)
 
 
@@ -530,8 +605,8 @@ class VcUsage(object):
         # key is vc_name, value is a map with key to be gpu_type and value is an
         # array of two int.
         # The first is total used, the second is those non-preemptable used
-        self.map = collections.defaultdict(lambda :
-                collections.defaultdict(lambda : [0, 0]))
+        self.map = collections.defaultdict(
+            lambda: collections.defaultdict(lambda: [0, 0]))
 
     def add_preemptable_used(self, vc, gpu_type, count):
         self.map[vc][gpu_type][0] += count
@@ -542,6 +617,7 @@ class VcUsage(object):
 
     def __repr__(self):
         return str(self.map)
+
 
 # Let Qi to be quota admin set to each VC, and R to be unschedulable GPU in cluster,
 # Ui to be used GPU in cluster and A to be available GPU in cluster, so to compute
@@ -564,9 +640,10 @@ def process_vc_info(vc_quota_url, vc_usage, cluster_gpu_info):
         logger.exception("failed to query vc info")
         return []
 
+
 def gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info):
-    logger.info("vc_info %s, vc_usage %s, cluster_gpu_info %s",
-            vc_info, vc_usage, cluster_gpu_info)
+    logger.info("vc_info %s, vc_usage %s, cluster_gpu_info %s", vc_info,
+                vc_usage, cluster_gpu_info)
 
     vc_total_gauge = gen_k8s_vc_gpu_total()
     vc_avail_gauge = gen_k8s_vc_gpu_available()
@@ -585,14 +662,15 @@ def gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info):
 
         # key is vc_name, value is a map with key to be gpu_type and value to be real
         # quota
-        ratio = collections.defaultdict(lambda : {})
+        ratio = collections.defaultdict(lambda: {})
 
         for vc_name, gpu_info in vc_info.items():
             for gpu_type, quota in gpu_info.items():
                 if vc_quota_sum == 0:
                     vc_quota = 0
                 else:
-                    vc_quota = quota - int(math.ceil(gpu_unallocatable * quota / vc_quota_sum))
+                    vc_quota = quota - int(
+                        math.ceil(gpu_unallocatable * quota / vc_quota_sum))
                 used = vc_usage.map[vc_name][gpu_type][1]
 
                 ratio[vc_name][gpu_type] = max(vc_quota - used, 0)
@@ -604,26 +682,34 @@ def gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info):
 
         for vc_name, gpu_info in ratio.items():
             for gpu_type, cur_ratio in gpu_info.items():
-                if vc_name not in vc_usage.map or gpu_type not in vc_usage.map[vc_name]:
+                if vc_name not in vc_usage.map or gpu_type not in vc_usage.map[
+                        vc_name]:
                     labels = [vc_name, gpu_type]
                     # no job running in this vc or using this gpu type
                     if ratio_sum == 0:
                         available = 0
                     else:
-                        available = int(math.floor(cluster_gpu_info.available * cur_ratio / ratio_sum))
+                        available = int(
+                            math.floor(cluster_gpu_info.available * cur_ratio /
+                                       ratio_sum))
                     quota = vc_info[vc_name][gpu_type]
                     vc_avail_gauge.add_metric(labels, available)
                     vc_preemptive_avail_gauge.add_metric(labels, available)
-                    vc_unschedulable_gauge.add_metric(labels, max(0, quota - available))
+                    vc_unschedulable_gauge.add_metric(
+                        labels, max(0, quota - available))
 
         for vc_name, vc_usage_info in vc_usage.map.items():
             for gpu_type, vc_used in vc_usage_info.items():
                 if vc_name not in vc_info:
-                    logger.warning("ignore used gpu in %s, but vc quota do not have this vc, possible due to job template error", vc_name)
+                    logger.warning(
+                        "ignore used gpu in %s, but vc quota do not have this vc, possible due to job template error",
+                        vc_name)
                     continue
 
                 if gpu_type not in vc_info[vc_name]:
-                    logger.warning("ignore used gpu %s in %s, but vc quota do not have this gpu_type", gpu_type, vc_name)
+                    logger.warning(
+                        "ignore used gpu %s in %s, but vc quota do not have this gpu_type",
+                        gpu_type, vc_name)
                     continue
 
                 labels = [vc_name, gpu_type]
@@ -633,30 +719,38 @@ def gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info):
                 if ratio_sum == 0:
                     available = 0
                 else:
-                    available = int(math.floor(cluster_gpu_info.available * cur_ratio / ratio_sum))
+                    available = int(
+                        math.floor(cluster_gpu_info.available * cur_ratio /
+                                   ratio_sum))
                 total_used, non_preemptable_used = vc_used
                 vc_avail_gauge.add_metric(labels, available)
-                vc_preemptive_avail_gauge.add_metric(labels, cluster_gpu_info.available)
-                vc_unschedulable_gauge.add_metric(labels, max(0, quota - non_preemptable_used - available))
+                vc_preemptive_avail_gauge.add_metric(
+                    labels, cluster_gpu_info.available)
+                vc_unschedulable_gauge.add_metric(
+                    labels, max(0, quota - non_preemptable_used - available))
     except Exception as e:
         error_counter.labels(type="vc_quota").inc()
         logger.exception("failed to process vc info")
 
-    return [vc_total_gauge, vc_avail_gauge, vc_preemptive_avail_gauge,
-            vc_unschedulable_gauge]
+    return [
+        vc_total_gauge, vc_avail_gauge, vc_preemptive_avail_gauge,
+        vc_unschedulable_gauge
+    ]
 
 
-def process_pods(k8s_api_addr, ca_path, headers, pods_info, service_endpoints, vc_usage):
+def process_pods(k8s_api_addr, ca_path, headers, pods_info, service_endpoints,
+                 vc_usage):
     list_pods_url = "{}/api/v1/pods".format(k8s_api_addr)
 
     pai_pod_gauge = gen_pai_pod_gauge()
     pai_container_gauge = gen_pai_container_gauge()
 
     try:
-        pods_object = request_with_histogram(list_pods_url, list_pods_histogram,
-                ca_path, headers)
+        pods_object = request_with_histogram(list_pods_url,
+                                             list_pods_histogram, ca_path,
+                                             headers)
         process_pods_status(pods_object, pai_pod_gauge, pai_container_gauge,
-                pods_info, service_endpoints, vc_usage)
+                            pods_info, service_endpoints, vc_usage)
     except Exception as e:
         error_counter.labels(type="parse").inc()
         logger.exception("failed to process pods")
@@ -668,9 +762,23 @@ def process_nodes(k8s_api_addr, ca_path, headers, pods_info, cluster_gpu_info):
     list_nodes_url = "{}/api/v1/nodes/".format(k8s_api_addr)
 
     nodes_object = request_with_histogram(list_nodes_url, list_nodes_histogram,
-            ca_path, headers)
+                                          ca_path, headers)
 
     return process_nodes_status(nodes_object, pods_info, cluster_gpu_info)
+
+
+def process_unscheduled_pods(pods_info, cluster_gpu_info):
+    used_gpu = 0
+    preemptable_used_gpu = 0
+    unscheduled_pods = pods_info.get("unscheduled", [])
+    for pod in unscheduled_pods:
+        if pod.preemptable:
+            preemptable_used_gpu += pod.gpu
+        else:
+            used_gpu += pod.gpu
+
+    cluster_gpu_info.available -= used_gpu
+    cluster_gpu_info.preemptable_available -= (used_gpu + preemptable_used_gpu)
 
 
 def load_machine_list(configFilePath):
@@ -680,7 +788,7 @@ def load_machine_list(configFilePath):
 
 def request_with_histogram(url, histogram, ca_path, headers):
     with histogram.time():
-        return requests.get(url, headers = headers, verify = ca_path).json()
+        return requests.get(url, headers=headers, verify=ca_path).json()
 
 
 def try_remove_old_prom_file(path):
@@ -692,21 +800,25 @@ def try_remove_old_prom_file(path):
         except Exception as e:
             logger.warning("can not remove old prom file %s", path)
 
+
 def register_stack_trace_dump():
     faulthandler.register(signal.SIGTRAP, all_threads=True, chain=False)
 
- # https://github.com/prometheus/client_python/issues/322#issuecomment-428189291
+
+# https://github.com/prometheus/client_python/issues/322#issuecomment-428189291
 def burninate_gc_collector():
     for callback in gc.callbacks[:]:
         if callback.__qualname__.startswith("GCCollector."):
             gc.callbacks.remove(callback)
 
-    for name, collector in list(prometheus_client.REGISTRY._names_to_collectors.items()):
+    for name, collector in list(
+            prometheus_client.REGISTRY._names_to_collectors.items()):
         if name.startswith("python_gc_"):
             try:
                 prometheus_client.REGISTRY.unregister(collector)
             except KeyError:  # probably gone already
                 pass
+
 
 class HealthResource(Resource):
     def render_GET(self, request):
@@ -726,13 +838,15 @@ def main(args):
     services_ref = AtomicRef(decay_time)
     loop_result_ref = AtomicRef(decay_time)
 
-    t = threading.Thread(target=loop, name="loop",
-            args=(args, services_ref, loop_result_ref))
+    t = threading.Thread(target=loop,
+                         name="loop",
+                         args=(args, services_ref, loop_result_ref))
     t.daemon = True
     t.start()
 
-    t = threading.Thread(target=requestor, name="requestor",
-            args=(args, services_ref))
+    t = threading.Thread(target=requestor,
+                         name="requestor",
+                         args=(args, services_ref))
     t.daemon = True
     t.start()
 
@@ -769,7 +883,7 @@ def requestor(args, services_ref):
 
         for s in services:
             url = urllib.parse.urljoin("http://{}:{}".format(s.ip, s.port),
-                    s.path)
+                                       s.path)
             try:
                 with service_response_histogram.labels(s.name, s.ip).time():
                     resp = requests.get(url, timeout=s.timeout)
@@ -788,16 +902,16 @@ class ClusterGPUInfo(object):
     def __init__(self):
         self.capacity = 0
         self.available = 0
-        self.preemptable_available = 0 # gpu available for preemptable job
+        self.preemptable_available = 0  # gpu available for preemptable job
         self.allocatable = 0
 
     def __repr__(self):
         return "capacity: %d, available: %d, preemptable_available %s, allocatable %d" % (
-                self.capacity,
-                self.available,
-                self.preemptable_available,
-                self.allocatable,
-                )
+            self.capacity,
+            self.available,
+            self.preemptable_available,
+            self.allocatable,
+        )
 
 
 def loop(args, services_ref, result_ref):
@@ -811,8 +925,11 @@ def loop(args, services_ref, result_ref):
 
     ca_path = args.ca
     bearer_path = args.bearer
-    if (ca_path is None and bearer_path is not None) or (ca_path is not None and bearer_path is None):
-        logger.warning("please provide bearer_path and ca_path at the same time or not")
+    if (ca_path is None
+            and bearer_path is not None) or (ca_path is not None
+                                             and bearer_path is None):
+        logger.warning(
+            "please provide bearer_path and ca_path at the same time or not")
 
     headers = None
     if not os.path.isfile(ca_path):
@@ -821,30 +938,38 @@ def loop(args, services_ref, result_ref):
         bearer_path = None
     if bearer_path is not None:
         with open(bearer_path, 'r') as bearer_file:
-           bearer = bearer_file.read()
-           headers = {'Authorization': "Bearer {}".format(bearer)}
+            bearer = bearer_file.read()
+            headers = {'Authorization': "Bearer {}".format(bearer)}
 
     while True:
         result = []
         try:
-            pods_info = collections.defaultdict(lambda : [])
+            pods_info = collections.defaultdict(lambda: [])
 
             service_endpoints = []
 
             vc_usage = VcUsage()
 
-            result.extend(process_pods(address, ca_path, headers, pods_info,
-                service_endpoints, vc_usage))
+            result.extend(
+                process_pods(address, ca_path, headers, pods_info,
+                             service_endpoints, vc_usage))
 
             services_ref.set(service_endpoints, datetime.datetime.now())
 
             cluster_gpu_info = ClusterGPUInfo()
 
-            result.extend(process_nodes(address, ca_path, headers, pods_info, cluster_gpu_info))
+            result.extend(
+                process_nodes(address, ca_path, headers, pods_info,
+                              cluster_gpu_info))
 
-            result.extend(process_vc_info(vc_quota_url, vc_usage, cluster_gpu_info))
+            process_unscheduled_pods(pods_info, cluster_gpu_info)
 
-            result.extend(collect_k8s_component(api_server_scheme, api_server_ip, api_server_port, ca_path, headers))
+            result.extend(
+                process_vc_info(vc_quota_url, vc_usage, cluster_gpu_info))
+
+            result.extend(
+                collect_k8s_component(api_server_scheme, api_server_ip,
+                                      api_server_port, ca_path, headers))
         except Exception as e:
             error_counter.labels(type="unknown").inc()
             logger.exception("watchdog failed in one iteration")
@@ -856,10 +981,10 @@ def loop(args, services_ref, result_ref):
 
 def get_logging_level():
     mapping = {
-            "DEBUG": logging.DEBUG,
-            "INFO": logging.INFO,
-            "WARNING": logging.WARNING
-            }
+        "DEBUG": logging.DEBUG,
+        "INFO": logging.INFO,
+        "WARNING": logging.WARNING
+    }
 
     result = logging.INFO
 
@@ -867,7 +992,8 @@ def get_logging_level():
         level = os.environ["LOGGING_LEVEL"]
         result = mapping.get(level.upper())
         if result is None:
-            sys.stderr.write("unknown logging level " + level + ", default to INFO\n")
+            sys.stderr.write("unknown logging level " + level +
+                             ", default to INFO\n")
             result = logging.INFO
 
     return result
@@ -875,16 +1001,31 @@ def get_logging_level():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("k8s_api", help="kubernetes api uri eg. http://10.151.40.133:8080")
-    parser.add_argument("--log", "-l", help="log dir to store log", default="/datastorage/prometheus")
-    parser.add_argument("--interval", "-i", help="interval between two collection", default="30")
-    parser.add_argument("--port", "-p", help="port to expose metrics", default="9101")
+    parser.add_argument(
+        "k8s_api", help="kubernetes api uri eg. http://10.151.40.133:8080")
+    parser.add_argument("--log",
+                        "-l",
+                        help="log dir to store log",
+                        default="/datastorage/prometheus")
+    parser.add_argument("--interval",
+                        "-i",
+                        help="interval between two collection",
+                        default="30")
+    parser.add_argument("--port",
+                        "-p",
+                        help="port to expose metrics",
+                        default="9101")
     parser.add_argument("--ca", "-c", help="ca file path")
     parser.add_argument("--bearer", "-b", help="bearer token file path")
-    parser.add_argument("--vc_url", "-u", required=False, help="url to list vc quota")
+    parser.add_argument("--vc_url",
+                        "-u",
+                        required=False,
+                        help="url to list vc quota")
     args = parser.parse_args()
 
-    logging.basicConfig(format="%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s",
-            level=get_logging_level())
+    logging.basicConfig(
+        format=
+        "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s",
+        level=get_logging_level())
 
     main(args)

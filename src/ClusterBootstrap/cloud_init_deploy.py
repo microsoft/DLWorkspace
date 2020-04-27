@@ -1,15 +1,22 @@
-#!/usr/bin/python3
-from ConfigUtils import *
-from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image, configuration
+#!/usr/bin/env python3
 import os
+import re
 import sys
-import uuid
+import copy
+import glob
+import json
 import yaml
+import uuid
 import utils
-import argparse
 import textwrap
-from params import default_config_parameters
+import argparse
+
 sys.path.append("../utils")
+from ConfigUtils import *
+from constants import CLOUD_INIT_FILE_MAP, ENV_CNF_YAML, ACTION_YAML, STATUS_YAML
+from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image, configuration
+from params import default_config_parameters
+
 
 def generate_ip_from_cluster(cluster_ip_range, index):
     slash_pos = cluster_ip_range.find("/")
@@ -17,85 +24,98 @@ def generate_ip_from_cluster(cluster_ip_range, index):
     ips3 = ips[:ips.rfind(".")]
     return ips3 + "." + str(index)
 
+
 def generate_trusted_domains(network_config, start_idx):
     ret = ""
     domain = fetch_dictionary(network_config, ["domain"])
     if not (domain is None):
         ret += "DNS.%d = %s\n" % (start_idx, "*." + domain)
-        start_idx +=1
+        start_idx += 1
     trusted_domains = fetch_dictionary(network_config, ["trusted-domains"])
     if not trusted_domains is None:
         for domain in trusted_domains:
             # "*." is encoded in domain for those entry
             ret += "DNS.%d = %s\n" % (start_idx, domain)
-            start_idx +=1
+            start_idx += 1
     return ret
 
+
 def get_platform_script_directory(target):
-    targetdir = target+"/"
-    if target is None or target=="default":
+    targetdir = target + "/"
+    if target is None or target == "default":
         targetdir = "./"
     return targetdir
 
+
 default_config_mapping = {
-    "dockerprefix": (["cluster_name"], lambda x:x.lower()+"/"),
-    "infrastructure-dockerregistry": (["dockerregistry"], lambda x:x),#keep
-    "worker-dockerregistry": (["dockerregistry"], lambda x:x),#keep
-    "api-server-ip": (["service_cluster_ip_range"], lambda x: generate_ip_from_cluster(x, 1) ),
-    "dns-server-ip": (["service_cluster_ip_range"], lambda x: generate_ip_from_cluster(x, 53) ),
-    "network-trusted-domains": (["network"], lambda x: generate_trusted_domains(x, 5 )),
-    #master deployment scripts
-    "premasterdeploymentscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"pre-master-deploy.sh"),
-    "postmasterdeploymentscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"post-master-deploy.sh"),
-    "mastercleanupscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"cleanup-master.sh"),
-    "masterdeploymentlist" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"deploy.list"),
-    #worker deployment scripts
-    "preworkerdeploymentscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"pre-worker-deploy.sh"),
-    "postworkerdeploymentscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"post-worker-deploy.sh"),
-    "workercleanupscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"cleanup-worker.sh"),
-    "workerdeploymentlist" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"deploy.list"),
-    }
+    "dockerprefix": (["cluster_name"], lambda x: x.lower()),
+    "infrastructure-dockerregistry": (["dockerregistry"], lambda x: x),  # keep
+    "worker-dockerregistry": (["dockerregistry"], lambda x: x),  # keep
+    "api-server-ip": (["service_cluster_ip_range"], lambda x: generate_ip_from_cluster(x, 1)),
+    "dns-server-ip": (["service_cluster_ip_range"], lambda x: generate_ip_from_cluster(x, 53)),
+    "network-trusted-domains": (["network"], lambda x: generate_trusted_domains(x, 5)),
+    # master deployment scripts
+    "premasterdeploymentscript": (["platform-scripts"], lambda x: get_platform_script_directory(x)+"pre-master-deploy.sh"),
+    "postmasterdeploymentscript": (["platform-scripts"], lambda x: get_platform_script_directory(x)+"post-master-deploy.sh"),
+    "mastercleanupscript": (["platform-scripts"], lambda x: get_platform_script_directory(x)+"cleanup-master.sh"),
+    "masterdeploymentlist": (["platform-scripts"], lambda x: get_platform_script_directory(x)+"deploy.list"),
+    # worker deployment scripts
+    "preworkerdeploymentscript": (["platform-scripts"], lambda x: get_platform_script_directory(x)+"pre-worker-deploy.sh"),
+    "postworkerdeploymentscript": (["platform-scripts"], lambda x: get_platform_script_directory(x)+"post-worker-deploy.sh"),
+    "workercleanupscript": (["platform-scripts"], lambda x: get_platform_script_directory(x)+"cleanup-worker.sh"),
+    "workerdeploymentlist": (["platform-scripts"], lambda x: get_platform_script_directory(x)+"deploy.list"),
+}
+
 
 def load_az_params_as_default(config):
     from az_params import default_az_parameters
     # need az_params default, in case we don't have the key in config.yaml
-    default_cfg = { k: v for k, v in default_az_parameters.items() }
-    azure_cluster_cfg = { k: v for k, v in config["azure_cluster"].items() } if "azure_cluster" in config else {}
+    # need to read complementary files generated by cloud_init_aztools
+    default_cfg = {k: v for k, v in default_az_parameters.items()}
+    azure_cluster_cfg = {k: v for k, v in config["azure_cluster"].items(
+    )} if "azure_cluster" in config else {}
     merge_config(config["azure_cluster"], default_cfg["azure_cluster"])
     merge_config(config["azure_cluster"], azure_cluster_cfg)
-    domain_mapping = {"regular":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low": config.get("network_domain",config["azure_cluster"]["default_low_priority_domain"])}
+    if "sku_mapping" in default_cfg and not "sku_mapping" in config:
+        config["sku_mapping"] = default_cfg["sku_mapping"]
+    domain_mapping = {"regular": "%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low": config.get(
+        "network", {}).get("domain", config["azure_cluster"]["default_low_priority_domain"])}
     config["network"] = {"domain": domain_mapping[config["priority"]]}
-    complementary_config = os.path.join(dirpath,"complementary.yaml")
     return config
+
 
 def on_premise_params(config):
     print("Warning: remember to set parameters:\ngpu_count_per_node, gpu_type, worker_node_num\n when using on premise machine!")
 
+
 def load_platform_type(config):
-    platform_type = list(set(config.keys()) & set(config["supported_platform"]))
-    assert len(platform_type) == 1 and "platform type should be specified explicitly and unique!"
+    platform_type = list(set(config.keys()) & set(
+        config["supported_platform"]))
+    assert len(
+        platform_type) == 1, "platform type should be specified explicitly and unique!"
     platform_type = platform_type[0]
     config["platform_type"] = platform_type
     return config
 
+
 def gen_platform_wise_config(config):
     config = load_platform_type(config)
-    azdefault = { 'network_domain':"config['network']['domain']", 
-        'worker_node_num':"config['azure_cluster']['worker_node_num']", 
-        'gpu_count_per_node':'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-count"]',
-        'gpu_type':'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-type"]',
-        'etcd_node_num': "config['azure_cluster']['infra_node_num']" }
-    on_premise_default = {'network_domain':"config['network']['domain']"}
-    platform_dict = { 'azure_cluster': azdefault, 'onpremise': on_premise_default }
-    platform_func = { 'azure_cluster': load_az_params_as_default, 'onpremise': on_premise_params } 
-    default_dict, default_func = platform_dict[config["platform_type"]], platform_func[config["platform_type"]]
+    platform_func = {'azure_cluster': load_az_params_as_default,
+                     'onpremise': on_premise_params}
+    default_func = platform_func[config["platform_type"]]
     config = default_func(config)
-    need_val = ['network_domain', 'worker_node_num', 'gpu_count_per_node', 'gpu_type']
-    config['etcd_node_num'] = config.get('etcd_node_num')
-    for ky in need_val:
-        if ky not in config:
-            config[ky] = eval(default_dict[ky])
     return config
+
+
+def get_stat_of_sku(config):
+    cntr = {}
+    for mc in config["worker_node"]:
+        mn = mc.split('.')[0]
+        vm_sz = config["machines"][mn]["vm_size"]
+        cntr[vm_sz] = cntr.get(vm_sz, 0) + 1
+    config["worker_sku_cnt"] = cntr
+    return config
+
 
 def update_docker_image_config(config):
     if config["kube_custom_scheduler"] or config["kube_custom_cri"]:
@@ -105,15 +125,17 @@ def update_docker_image_config(config):
             config["dockers"]["container"]["hyperkube"] = {}
     return config
 
+
 def add_ssh_key(config):
     keys = fetch_config(config, ["sshKeys"])
-    if isinstance( keys, list ):
+    if isinstance(keys, list):
         if "sshkey" in config and "sshKeys" in config and not (config["sshkey"] in config["sshKeys"]):
             config["sshKeys"].append(config["sshkey"])
     elif "sshkey" in config:
         config["sshKeys"] = []
         config["sshKeys"].append(config["sshkey"])
     return config
+
 
 def get_ssh_config(config):
     if "ssh_cert" not in config and os.path.isfile("./deploy/sshkey/id_rsa"):
@@ -122,18 +144,21 @@ def get_ssh_config(config):
         config["ssh_cert"] = expand_path(config["ssh_cert"])
     config["etcd_user"] = config["admin_username"]
     config["nfs_user"] = config["admin_username"]
+    config["worker_user"] = config["admin_username"]
     config["kubernetes_master_ssh_user"] = config["admin_username"]
     config = add_ssh_key(config)
     return config
 
+
 def get_domain(config):
-    if "network" in config and "domain" in config["network"] and len(config["network"]["domain"]) > 0 :
-        domain = "."+config["network"]["domain"]
+    if "network" in config and "domain" in config["network"] and len(config["network"]["domain"]) > 0:
+        domain = "." + config["network"]["domain"]
     else:
         domain = ""
     return domain
 
-def get_nodes_from_config(machinerole, config):
+
+def get_nodes_from_config(machinerole, config, with_domain=True):
     if "machines" not in config:
         return []
     else:
@@ -141,26 +166,26 @@ def get_nodes_from_config(machinerole, config):
         Nodes = []
         for nodename, nodeInfo in config["machines"].items():
             if "role" in nodeInfo and machinerole in nodeInfo["role"]:
-                if len(nodename.split("."))<3:
-                    Nodes.append(nodename+domain)
+                if len(nodename.split(".")) < 3 and with_domain:
+                    Nodes.append(nodename + domain)
                 else:
                     Nodes.append(nodename)
         return sorted(Nodes)
 
-def load_node_list_by_role_from_config(config, roles):
+
+def load_node_list_by_role_from_config(config, roles, with_domain=True):
     Nodes = []
     for role in roles:
+        assert role in config["allroles"], "invalid role, check your list of valid roles in config"
         role = "infra" if role == "infrastructure" else role
         temp_nodes = []
-        temp_nodes = get_nodes_from_config(role, config)
-        # if role == "infra":
-        #   config["etcd_node"] = temp_nodes
-        #   config["kubernetes_master_node"] = temp_nodes
+        temp_nodes = get_nodes_from_config(role, config, with_domain)
         config["{}_node".format(role)] = temp_nodes
         Nodes += temp_nodes
     return Nodes, config
 
-# Get the list of nodes for a particular service    
+
+# Get the list of nodes for a particular service
 def get_node_lists_for_service(service, config):
     if "etcd_node" not in config or "worker_node" not in config:
         print("cluster not ready! nodes unknown!")
@@ -170,10 +195,11 @@ def get_node_lists_for_service(service, config):
         nodes = config["worker_node"]
     elif nodetype == "etcd_node":
         nodes = config["etcd_node"]
-    elif nodetype.find( "etcd_node_" )>=0:
-        nodenumber = int(nodetype[nodetype.find( "etcd_node_" )+len("etcd_node_"):])
-        if len(config["etcd_node"])>=nodenumber:
-            nodes = [ config["etcd_node"][nodenumber-1] ]
+    elif nodetype.find("etcd_node_") >= 0:
+        nodenumber = int(nodetype[nodetype.find(
+            "etcd_node_") + len("etcd_node_"):])
+        if len(config["etcd_node"]) >= nodenumber:
+            nodes = [config["etcd_node"][nodenumber-1]]
         else:
             nodes = []
     elif nodetype == "all":
@@ -181,7 +207,8 @@ def get_node_lists_for_service(service, config):
     else:
         machines = fetch_config(config, ["machines"])
         if machines is None:
-            print("Service %s has a nodes type %s, but there is no machine configuration to identify node" % (service, nodetype))
+            print("Service %s has a nodes type %s, but there is no machine configuration to identify node" % (
+                service, nodetype))
             exit(-1)
         allnodes = config["worker_node"] + config["etcd_node"]
         nodes = []
@@ -191,31 +218,71 @@ def get_node_lists_for_service(service, config):
                 nodes.append(node)
     return nodes
 
+
 def load_default_config(config):
     apply_config_mapping(config, default_config_mapping)
-    config["webportal_node"] = None if len(get_node_lists_for_service("webportal", config))==0 \
-                                else get_node_lists_for_service("webportal", config)[0]
-    if ("influxdb_node" not in config):
-        config["influxdb_node"] = config["webportal_node"]
-    if ("elasticsearch_node" not in config):
-        config["elasticsearch_node"] = config["webportal_node"]
     if ("mysql_node" not in config):
-        config["mysql_node"] = None if len(get_node_lists_for_service("mysql", config))==0 \
-                                else get_node_lists_for_service("mysql", config)[0]
+        config["mysql_node"] = None if len(get_node_lists_for_service("mysql", config)) == 0 \
+            else get_node_lists_for_service("mysql", config)[0]
     if ("host" not in config["prometheus"]):
-        config["prometheus"]["host"] = None if len(get_node_lists_for_service("prometheus", config))==0 \
-                                        else get_node_lists_for_service("prometheus", config)[0]
+        config["prometheus"]["host"] = None if len(get_node_lists_for_service("prometheus", config)) == 0 \
+            else get_node_lists_for_service("prometheus", config)[0]
     config = update_docker_image_config(config)
+    config["admin_username"] = config.get("admin_username", config["cloud_config_nsg_rules"]["default_admin_username"])
+    config["api_servers"] = "https://" + \
+        config["kubernetes_master_node"][0] + ":" + str(config["k8sAPIport"])
 
-    config["api_servers"] = "https://"+config["kubernetes_master_node"][0]+":"+str(config["k8sAPIport"])
-    config["etcd_endpoints"] = ",".join(["https://"+x+":"+config["etcd3port1"] for x in config["etcd_node"]])
-
-    if os.path.isfile(config["ssh_cert"]+".pub"):
-        with open(config["ssh_cert"]+".pub") as f:
+    config["restapi"] = "http://%s:%s" % (
+        config["kubernetes_master_node"][0], config["restfulapiport"])
+    if os.path.isfile(config["ssh_cert"] + ".pub"):
+        with open(config["ssh_cert"] + ".pub") as f:
             config["sshkey"] = f.read()
+    config["files2cp"] = {
+        "common": ["./cloud_init_mkdir_and_cp.py",
+                   "./scripts/prepare_vm_disk.sh", "./scripts/prepare_ubuntu.sh",
+                   "./scripts/disable_kernel_auto_updates.sh", "./scripts/docker_network_gc_setup.sh",
+                   "./deploy/scripts/dns.sh", "./deploy/etcd/init_network.sh", "scripts/render_env_vars.sh",
+                   "scripts/fileshare_install.sh", "scripts/mnt_fs_svc.sh"],
+
+        "infra": ["./deploy/master/" + config["premasterdeploymentscript"],
+                  "./deploy/master/" +
+                  config["postmasterdeploymentscript"], "./scripts/cloud_init_infra.sh",
+                  "deploy/cloud-config/infra.kubelet.service.template", "deploy/scripts/pass_secret.sh",
+                  "deploy/services"],
+
+        "worker": ["./deploy/kubelet/" + config["preworkerdeploymentscript"],
+                   "./deploy/kubelet/" +
+                   config["postworkerdeploymentscript"],
+                   "./scripts/cloud_init_worker.sh",
+                   "deploy/cloud-config/worker.kubelet.service.template"],
+
+        "nfs": ["./scripts/cloud_init_nfs.sh"]}
+
+    config["repair-manager"]["cluster_name"] = config["cluster_name"]
+    config["prometheus"]["cluster_name"] = config["cluster_name"]
     return config
 
-def create_cluster_id(overwrite = False):
+
+def create_basic_auth_4_k8s(overwrite=False):
+    basic_auth = load_basic_auth()
+    if basic_auth is None or overwrite:
+        os.system("rm -f ./deploy/k8s_basic_auth.yml")
+        basic_auth = "{},admin,1000".format(uuid.uuid4().hex[:16])
+        k8s_auth = {"basic_auth": basic_auth}
+        with open('./deploy/k8s_basic_auth.yml', 'w') as f:
+            yaml.dump(k8s_auth, f)
+    return basic_auth
+
+
+def load_basic_auth():
+    if not os.path.exists('./deploy/k8s_basic_auth.yml'):
+        return None
+    with open('./deploy/k8s_basic_auth.yml', 'r') as f:
+        basic_auth = yaml.safe_load(f).get('basic_auth', None)
+        return basic_auth
+
+
+def create_cluster_id(overwrite=False):
     ID = load_cluster_ID()
     if ID is None or overwrite:
         clusterId = {}
@@ -223,134 +290,757 @@ def create_cluster_id(overwrite = False):
         with open('./deploy/clusterID.yml', 'w') as f:
             yaml.dump(clusterId, f)
         print("Cluster ID generated: " + clusterId["clusterId"])
+        return clusterId["clusterId"]
     else:
-        with open('./deploy/clusterID.yml', 'r') as f:
-            ID = yaml.load(f)['clusterId']
         print('Cluster ID file exists -- ./deploy/clusterID.yml:\n{}'.format(ID))
-
-def load_cluster_ID():
-    if (not os.path.exists('./deploy/clusterID.yml')):
-        return None
-    with open('./deploy/clusterID.yml', 'r') as f:
-        ID = yaml.load(f).get('clusterId', None)
         return ID
 
+
+def load_cluster_ID():
+    if not os.path.exists('./deploy/clusterID.yml'):
+        return None
+    with open('./deploy/clusterID.yml', 'r') as f:
+        ID = yaml.safe_load(f).get('clusterId', None)
+        return ID
+
+
 def load_config(args):
+    clusterID = load_cluster_ID()
+    assert (not clusterID is None), "All operation cancelled, \
+    please make sure you have cluster ID ready. You may call \
+    `cloud_init_deploy.py clusterID` to generate one."
     config = init_config(default_config_parameters)
+    config["clusterId"] = clusterID
     if args.verbose:
         utils.verbose = True
         print("Args = {0}".format(args))
-
     # deploy new cluster or load info of an existing cluster? specify the yaml file to specify explicitly
-    for cnf_fn in args.config:
-        config_file = os.path.join(dirpath, cnf_fn)
-        if not os.path.exists(config_file):
-            parser.print_help()
-            print("ERROR: {} does not exist!".format(config_file))
-            exit()
-        with open(config_file) as cf:
-            merge_config(config, yaml.safe_load(cf))
-
-    load_node_list_by_role_from_config(config, ['infra', 'worker', 'nfs', 'etcd', 'kubernetes_master'])
+    config = add_configs_in_order(args.config, config)
     config = gen_platform_wise_config(config)
-
-    clusterID = load_cluster_ID()
-    if not clusterID is None:
-        config["clusterId"] = clusterID
-        config = load_default_config(config)
-    else:
-        # this branch seems useless, try to delete it and test
-        apply_config_mapping(config, default_config_mapping)
-        config = update_docker_image_config(config)
-
+    load_node_list_by_role_from_config(
+        config, ['infra', 'worker', 'nfs', 'etcd', 'kubernetes_master', 'elasticsearch'])
+    config = load_default_config(config)
     config = get_ssh_config(config)
-    configuration( config, args.verbose )
+    configuration(config, args.verbose)
     if args.verbose:
-        print("deploy " + command + " " + (" ".join(args.nargs)))
         print("PlatformScripts = {0}".format(config["platform-scripts"]))
-
+    if not "private_docker_registry" in config or not "cloudinit" in config["private_docker_registry"]:
+        print("mush specify a private docker registry to put the cloudinit docker that contains sensitive information of this cluster!")
+        exit(-1)
     return config
 
-def render_for_infra():
+
+def say_yes_for(prompt, default):
+    # care about interactive input only when there's no default set
+    if not default is None and default != "":
+        print(prompt + " " + default)
+        response = default
+    else:
+        response = input(prompt)
+    firstchar = (response.strip())[0].lower()
+    if firstchar == "n":
+        return False
+    else:
+        return True
+
+
+def GetCertificateProperty(config):
+    """add info used for ETCD into config"""
+    masterips = []
+    masterdns = []
+    etcdips = []
+    etcddns = []
+    ippattern = re.compile("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+
+    for i, value in enumerate(config["kubernetes_master_node"]):
+        if ippattern.match(value):
+            masterips.append(value)
+        else:
+            masterdns.append(value)
+
+    config["apiserver_ssl_dns"] = "\n".join(
+        ["DNS." + str(i + 5) + " = " + dns for i, dns in enumerate(masterdns)])
+    config["apiserver_ssl_ip"] = "\n".join(["IP.{} = {}".format(i, sslip) for i, sslip in enumerate(
+        [config["api-server-ip"]] + config["ssl_localhost_ips"] + masterips)])
+
+    # kube-apiserver aggregator use easyrsa to generate crt files, we need to generate a group of master names for it.
+    # It does not care if it's a DNS name or IP.
+    masternames = []
+    for i, value in enumerate(config["kubernetes_master_node"]):
+        masternames.append(value)
+    config["apiserver_names_ssl_aggregator"] = ",".join(
+        ["DNS:" + name for i, name in enumerate(masternames)])
+    # TODO(harry): this only works for single master, if we have multiple masters, we need to have a reserved static IP to be used here and for the whole cluster.
+    config["master_ip_ssl_aggregator"] = utils.getIP(
+        config["kubernetes_master_node"][0])
+    for i, value in enumerate(config["etcd_node"]):
+        if ippattern.match(value):
+            etcdips.append(value)
+        else:
+            etcddns.append(value)
+
+    config["etcd_ssl_dns"] = "\n".join(
+        ["DNS." + str(i + 5) + " = " + dns for i, dns in enumerate(etcddns)])
+    config["etcd_ssl_ip"] = "\n".join(["IP.{} = {}".format(
+        i, sslip) for i, sslip in enumerate(config["ssl_localhost_ips"] + etcdips)])
+    return config
+
+
+def get_easy_rsa_and_cfssl(config):
+    os.system("mkdir -p ./deploy/bin/other/easy-rsa/")
+    copy_from_docker_image(config["dockers"]["container"]["binstore"]["fullname"],
+                           "/data/easy-rsa/v3.0.5.tar.gz", "./deploy/bin/other/easy-rsa/v3.0.5.tar.gz")
+    copy_from_docker_image(config["dockers"]["container"]["binstore"]
+                           ["fullname"], "/data/cfssl/linux/cfssl", "./deploy/bin/other/cfssl")
+    copy_from_docker_image(config["dockers"]["container"]["binstore"]["fullname"],
+                           "/data/cfssl/linux/cfssljson", "./deploy/bin/other/cfssljson")
+
+
+def gen_CA_certificates(config):
+    """Prerequisite: template/ssl has been rendered to deploy/ssl"""
+    os.system("cd ./deploy/ssl && bash ./gencerts_ca.sh")
+
+
+def gen_worker_certificates(config):
+    """Prerequisite: template/ssl has been rendered to deploy/ssl"""
+    os.system("cd ./deploy/ssl && bash ./gencerts_kubelet.sh")
+
+
+def gen_master_certificates(config):
+    """Prerequisite: template/ssl has been rendered to deploy/ssl"""
+    """Prerequisite: GetCertificateProperty has been invoked"""
+    os.system("cd ./deploy/ssl && bash ./gencerts_master.sh")
+    get_easy_rsa_and_cfssl(config)
+    os.system("cd ./deploy/ssl && bash ./gencerts_aggregator.sh")
+
+
+def gen_ETCD_certificates(config):
+    """Prerequisite: template/ssl has been rendered to deploy/ssl"""
+    """GetCertificateProperty is prerequisite"""
+    os.system("cd ./deploy/ssl && bash ./gencerts_etcd.sh")
+
+
+def gen_mounting_yaml(config):
+    allmountpoints = {}
+    mountshares = {}
+    mountconfig = {}
+    mount_sources_set = set()
+    os.system("mkdir -p ./deploy/storage/auto_share")
+    for nfs in config["nfs_node"]:
+        nfs_machine_name = nfs.split('.')[0]
+        spec = config["machines"][nfs_machine_name]
+        assert "private_ip" in spec, "Need private IP for NFS node!"
+        mount_triplets = []
+        if "fileshares" not in spec or len(spec["fileshares"]) == 0:
+            spec["fileshares"] = [[]]
+        for v in spec["fileshares"]:
+            if "nfs_local_path" in v:
+                if v['remote_mount_path'] in mount_sources_set:
+                    raise Exception(
+                        "Duplicate mounting mount path detected:\n{}".format(v["remote_mount_path"]))
+                assert set(v.keys()) == set(
+                    ['nfs_local_path', 'remote_mount_path', 'remote_link_path']), "invalid format of complete mounting items"
+                mount_sources_set.add(v['nfs_local_path'])
+                mount_triplets += v,
+            else:
+                full_mnt_item = {}
+                src_root = v['nfs_local_path_root'] if "nfs_local_path_root" in v else config["nfs-mnt-src-path"]
+                if 'remote_mount_path_root' in v:
+                    mnt_root = v['remote_mount_path_root']
+                else:
+                    mnt_root = config["physical-mount-path-vc"] if 'vc' in v else config["physical-mount-path"]
+                if 'remote_link_path_root' in v:
+                    lnk_root = v['remote_link_path_root']
+                else:
+                    lnk_root = config["dltsdata-storage-mount-path"] if 'vc' in v else config["storage-mount-path"]
+                vc = v["vc"] if "vc" in v else ""
+                # process leaves
+                if not "leaves" in v or len(v["leaves"]) == 0:
+                    v["leaves"] = [{"nfs_local_path": fldr, "remote_mount_path": fldr, "remote_link_path": fldr}
+                                   for fldr in config["default-storage-folders"]]
+                for leaf in v["leaves"]:
+                    mnt_from = os.path.join(
+                        src_root, vc, leaf["nfs_local_path"])
+                    mnt_mnt = os.path.join(
+                        mnt_root, vc, leaf["remote_mount_path"])
+                    mnt_lnk = os.path.join(
+                        lnk_root, vc, leaf["remote_link_path"])
+                    if mnt_mnt in mount_sources_set:
+                        raise Exception(
+                            "Duplicate mounting source path detected:\n{}".format(mnt_mnt))
+                    mount_sources_set.add(mnt_from)
+                    mount_triplets += {"nfs_local_path": mnt_from,
+                                       "remote_mount_path": mnt_mnt, "remote_link_path": mnt_lnk},
+        options = spec["options"] if "options" in spec else config["mountconfig"]["nfs"]["options"]
+        mountconfig[nfs_machine_name] = {
+            "private_ip": spec["private_ip"], "fileshares": mount_triplets, "options": options}
+    with open("./deploy/storage/auto_share/mounting.yaml", 'w') as mntfile:
+        yaml.dump(mountconfig, mntfile, default_flow_style=False)
+    return allmountpoints
+
+
+def render_mount(config, args):
+    """temp version, ZX MUST update"""
+    utils.render_template_directory(
+        "./template/storage/auto_share", "./deploy/storage/auto_share", config)
+    gen_mounting_yaml(config)
+
+
+def get_kube_labels_of_machine_name(config, node_name):
+    default_grp = config["machines"][node_name].get("kube_label_groups", [])
+    default_labels = {}
+    for grp in default_grp:
+        default_labels.update(
+            config["default_kube_labels_by_node_role"].get(grp, {}))
+    default_labels.update(config["machines"][node_name].get("kube_labels", {}))
+    return [ky.replace("/", "\\/") + '=' + val.replace("/", "\\/") for ky, val in default_labels.items()]
+
+
+def add_implied_services_based_on_config(config):
+    additional_svcs = []
+    if config.get("job-manager", {}).get("launcher", "") == "controller":
+        additional_svcs.append("launcher")
+    return additional_svcs
+
+
+def nfs_client_config(config):
+    with open("./deploy/storage/auto_share/mounting.yaml", 'r') as mf:
+        mounting = yaml.safe_load(mf)
+    config["mount_and_link"] = []
+    for mnt_itm in mounting.values():
+        for fs in mnt_itm["fileshares"]:
+            config["mount_and_link"] += fs["remote_mount_path"],
+    return config
+
+
+def escaped_etcd_end_point_and_k8s_api_server(config):
+    config["escaped_etcd_endpoints"] = ",".join(
+        ["https://" + x + ":" + config["etcd3port1"] for x in config["etcd_node"]]).replace("/", "\\/")
+    config["escaped_api_servers"] = config["api_servers"].replace("/", "\\/")
+    return config
+
+def render_infra_node_specific(config, args):
+    assert config["priority"] in ["regular", "low"]
+    config = escaped_etcd_end_point_and_k8s_api_server(config)
+    config = nfs_client_config(config)
+    hostname = config["kubernetes_master_node"][0].split(".")[0]
+    config["master_ip"] = config["machines"][hostname].get(
+        "private-ip", "127.0.0.1")
+    service_list = config["machines"][hostname].get("kube_services", config["kube_services_2_start"])
+    service_list = list(set(service_list + add_implied_services_based_on_config(config)))
+    config["kube_services"] = get_services_path_list(service_list)
+    config["kube_labels"] = get_kube_labels_of_machine_name(config, hostname)
+    # TODO zx: we may need to def get_file_modules_2_copy_by_node_role() to make it more extendable.
+    config["file_modules_2_copy"] = ["kubernetes_common", "kubernetes_infra", "etcd",
+                                     "ip_resolve", "restfulapi", "dashboard", "nfs_client", "repairmanager"]
+    utils.render_template("./template/cloud-config/cloud_init_infra.txt.template",
+                          "./deploy/cloud-config/cloud_init_infra.txt", config)
+
+
+def render_worker_node_specific(config, args):
+    config = escaped_etcd_end_point_and_k8s_api_server(config)
+    config = nfs_client_config(config)
+    worker_name = config["worker_node"][0].split(".")[0]
+    common_worker_labels = get_kube_labels_of_machine_name(config, worker_name)
+    config = get_stat_of_sku(config)
+    default_worker_f2cp = ["kubernetes_common", "kubelet_worker", "nfs_client"]
+    for sku in config["worker_sku_cnt"]:
+        gpu_type = config.get("sku_mapping", {}).get(
+            sku, {}).get("gpu-type", "None")
+        config["kube_labels"] = common_worker_labels + \
+            ["sku={}".format(sku), "gpuType={}".format(gpu_type)]
+        config["file_modules_2_copy"] = [mod for mod in default_worker_f2cp]
+        if gpu_type != "None":
+            config["file_modules_2_copy"].append("gpu_docker_daemon")
+        utils.render_template("./template/cloud-config/cloud_init_worker.txt.template",
+                              "./deploy/cloud-config/cloud_init_worker_{}.txt".format(sku), config)
+
+
+def render_elasticsearch_node_specific(config, args):
+    if not "elasticsearch_node" in config or len(config["elasticsearch_node"]) == 0:
+        print("Warning: no elasticsearch node specified, logging service might not work as expected.")
+        return
+    config.pop("mount_and_link", [])
+    config = escaped_etcd_end_point_and_k8s_api_server(config)
+    example_node_name = config["elasticsearch_node"][0].split(".")[0]
+    config["kube_labels"] = get_kube_labels_of_machine_name(config, example_node_name)
+    config["file_modules_2_copy"] = ["kubernetes_common", "kubelet_worker"]
+    utils.render_template("./template/cloud-config/cloud_init_worker.txt.template",
+            "./deploy/cloud-config/cloud_init_elasticsearch.txt", config)
+
+
+def render_nfs_node_specific(config, args):
+    assert config["priority"] in ["regular", "low"]
+    config = escaped_etcd_end_point_and_k8s_api_server(config)
+    with open("./deploy/storage/auto_share/mounting.yaml", 'r') as mf:
+        mounting = yaml.safe_load(mf)
+    default_nfs_f2cp = ["kubernetes_common", "kubelet_worker"]
+    for nfs in config["nfs_node"]:
+        nfs_machine_name = nfs.split(".")[0]
+        config["data_disk_mnt_path"] = config["machines"][nfs_machine_name]["data_disk_mnt_path"]
+        config["files2share"] = []
+        for itm in mounting[nfs_machine_name]["fileshares"]:
+            config["files2share"] += itm["nfs_local_path"],
+        config["kube_labels"] = get_kube_labels_of_machine_name(
+            config, nfs_machine_name)
+        config["storage_manager"] = config["machines"][nfs_machine_name]["storage_manager"]
+        # each NFS has a unique config file for its storage manager
+        render_storagemanager(config, nfs_machine_name)
+        config["file_modules_2_copy"] = default_nfs_f2cp + \
+            ["{}_storage_manager".format(nfs_machine_name)]
+        utils.render_template("./template/cloud-config/cloud_init_nfs.txt.template",
+                              "./deploy/cloud-config/cloud_init_{}.txt".format(nfs.split(".")[0]), config)
+    config.pop("files2share", "")
+
+
+def render_ETCD(config):
+    etcd_servers = config["etcd_node"]
+    etcd_server_user = config["etcd_user"]
+    config["etcd_node_ip"] = "$ETCDIP"
+    config["hostname"] = "$HOSTNAME"
+    config["etcd_node_num"] = len([spec for spec in config["machines"].values() if 'etcd' in spec['role']])
+    # docker_etcd.sh not used even in original deployment pipeline, docker_etcd_ssl.sh not used in regular code
+    # path of original deployment pipeline, to make it clear, we are not rendering the whole folder
+    utils.render_template("./template/etcd/etcd3.cloud.service",
+                          "./deploy/etcd/etcd3.service", config)
+    utils.render_template("./template/etcd/etcd_ssl.cloud.sh",
+                          "./deploy/etcd/etcd_ssl.sh", config)
+    utils.render_template("./template/etcd/etcd_service.sh",
+                          "./deploy/etcd/etcd_service.sh", config)
+    utils.render_template("./template/etcd/init_network.sh",
+                          "./deploy/etcd/init_network.sh", config)
+
+
+def check_buildable_images(image_list, config):
+    for imagename in image_list:
+        imagename = imagename.lower()
+        if imagename in config["build-docker-via-config"]:
+            print("Docker image {} should be built via configuration. ".format(imagename))
+            exit()
+
+
+def render_docker_images(config, verbose):
+    if verbose:
+        print("Rendering docker-images from template ...")
+    utils.render_template_directory(
+        "../docker-images/", "./deploy/docker-images", config, verbose)
+
+
+def build_docker_images(args, config):
+    render_docker_images(config, args.verbose)
+    if verbose:
+        print("Build docker ...")
+    build_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"],
+                  args.nargs[1:], config, args.verbose, nocache=args.nocache)
+
+
+def login_private_docker(config):
+    for docker_registry, credential in config["private_docker_credential"].items():
+        os.system("docker login {} -u {} -p {}".format(docker_registry,
+           credential["username"], credential["password"]))
+
+
+def push_docker_images(args, config):
+    # use docker build if you want to check rendering info
+    render_docker_images(config, False)
+    if "private_docker_credential" in config:
+        login_private_docker(config)
+    push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"],
+                 args.nargs[1:], config, args.verbose, nocache=args.nocache)
+
+
+def docker_required_by_services(config):
+    dockers2push = ["cloudinit", "init-container"]
+    for itm in config["machines"].values():
+        for svc in itm.get("kube_services", []):
+            dockers2push += config["service_2_docker_map"].get(svc, [])
+    return dockers2push
+
+
+def push_all_prerequisite_docker_images(args, config):
+    render_docker_images(config, args.verbose)
+    docker_list = docker_required_by_services(config)
+    check_buildable_images(docker_list, config)
+    if "private_docker_credential" in config:
+        login_private_docker(config)
+    push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"],
+                 docker_list, config, args.verbose, nocache=args.nocache)
+
+
+def get_hyperkube_docker(config, force=False):
+    os.system("mkdir -p ./deploy/bin")
+    print("Use docker container %s" %
+          config["dockers"]["container"]["hyperkube"]["fullname"])
+    if force or not os.path.exists("./deploy/bin/hyperkube"):
+        copy_from_docker_image(config["dockers"]["container"]["hyperkube"]
+                               ["fullname"], "/hyperkube", "./deploy/bin/hyperkube")
+    if force or not os.path.exists("./deploy/bin/kubelet"):
+        copy_from_docker_image(
+            config["dockers"]["container"]["hyperkube"]["fullname"], "/kubelet", "./deploy/bin/kubelet")
+    if force or not os.path.exists("./deploy/bin/kubectl"):
+        copy_from_docker_image(
+            config["dockers"]["container"]["hyperkube"]["fullname"], "/kubectl", "./deploy/bin/kubectl")
+    if config['kube_custom_cri']:
+        if force or not os.path.exists("./deploy/bin/crishim"):
+            copy_from_docker_image(
+                config["dockers"]["container"]["hyperkube"]["fullname"], "/crishim", "./deploy/bin/crishim")
+        if force or not os.path.exists("./deploy/bin/nvidiagpuplugin.so"):
+            copy_from_docker_image(config["dockers"]["container"]["hyperkube"]
+                                   ["fullname"], "/nvidiagpuplugin.so", "./deploy/bin/nvidiagpuplugin.so")
+
+
+def get_cni_binary(config):
+    os.system("mkdir -p ./deploy/bin")
+    # This tar file contains binary build from https://github.com/containernetworking/cni which used by weave
+    copy_from_docker_image(config["dockers"]["container"]["binstore"]["fullname"],
+                           "/data/cni/cni-v0.7.1.tgz", "./deploy/bin/cni-v0.7.1.tgz")
+    os.system("tar -zxvf ./deploy/bin/cni-v0.7.1.tgz -C ./deploy/bin")
+
+
+def get_kubectl_binary(config, force=False):
+    if os.path.exists("./deploy/bin/kubectl"):
+        return
+    get_hyperkube_docker(config, force=force)
+    get_cni_binary(config)
+
+
+def update_service_path():
+    service2path = get_all_services()
+    newentries = {}
+    for service in service2path:
+        servicename = get_service_name(service2path[service])
+        newentries[servicename] = service2path[service]
+    service2path.update(newentries)
+    return service2path
+
+
+def get_services_path_list(service_names):
+    service2path = update_service_path()
+    service_script_paths_dpl = []
+    for service in service_names:
+        service_fn = service2path[service]
+        dirname = os.path.dirname(service_fn)
+        if os.path.exists(os.path.join(dirname, "launch_order")) and "/" not in service:
+            with open(os.path.join(dirname, "launch_order"), 'r') as f:
+                allservices = f.readlines()
+                for filename in allservices:
+                    # If this line is a sleep tag (e.g. SLEEP 10), sleep for given seconds to wait for the previous service to start.
+                    if filename.startswith("SLEEP"):
+                        time.sleep(int(filename.split(" ")[1]))
+                    else:
+                        filename = filename.strip('\n')
+                        service_script_paths_dpl += os.path.join(
+                            dirname, filename),
+        else:
+            service_script_paths_dpl += service_fn,
+    service_script_paths = [
+        "services/" + fn.split('services/')[1] for fn in service_script_paths_dpl]
+    return service_script_paths
+
+
+def render_one_kube_service(service_script_fn):
+    print("service_fn:" + '/'.join(service_script_fn.split('/')[2:]))
+
+
+def render_kubelet(config, args):
+    config["master_ip"] = "$MASTER_IP"
+    config["etcd_endpoints"] = "$ETCD_ENDPOINTS"
+    utils.render_template_directory(
+        "./template/master", "./deploy/master", config)
+    utils.render_template_directory(
+        "./template/kube-addons", "./deploy/kube-addons", config)
+    # temporary hard-coding, will be fixed after refactoring of config/render logic
+    utils.render_template_directory(
+        "./template/web-docker", "./deploy/web-docker", config)
+    get_kubectl_binary(config, args.force)
+    render_kube_services(config)
+    # render files for originally "specific" nodes (in v2 we use env vars)
+    utils.render_template("./template/master/kube-apiserver.yaml",
+                          "./deploy/master/kube-apiserver.yaml", config)
+    utils.render_template("./template/master/dns-kubeconfig.yaml",
+                          "./deploy/master/dns-kubeconfig.yaml", config)
+    utils.render_template("./template/master/" + config["premasterdeploymentscript"],
+                          "./deploy/master/" + config["premasterdeploymentscript"], config)
+    utils.render_template("./template/master/" + config["postmasterdeploymentscript"],
+                          "./deploy/master/" + config["postmasterdeploymentscript"], config)
+
+
+def render_restfulapi(config):
+    if not os.path.exists("./deploy/RestfulAPI"):
+        os.system("mkdir -p ./deploy/RestfulAPI")
+    config = get_stat_of_sku(config)
+    utils.render_template("./template/RestfulAPI/config.yaml",
+                          "./deploy/RestfulAPI/config.yaml", config)
+    utils.render_template("./template/master/restapi-kubeconfig.yaml",
+                          "./deploy/master/restapi-kubeconfig.yaml", config)
+    config["restapi"] = "http://{}:{}".format(
+        config["kubernetes_master_node"][0], config["restfulapiport"])
+    return config
+
+
+def render_dashboard(config):
+    sshUser = config["admin_username"]
+    webUIIP = config["kubernetes_master_node"][0]
+    dockername = "%s/dlws-webui" % (config["dockerregistry"])
+    # write report configuration
+    masternodes = config["etcd_node"]
+    if ("servers" not in config["Dashboards"]["influxDB"]):
+        config["Dashboards"]["influxDB"]["servers"] = masternodes[0]
+    if ("servers" not in config["Dashboards"]["grafana"]):
+        config["Dashboards"]["grafana"]["servers"] = masternodes[0]
+
+    config["grafana_endpoint"] = "http://%s:%s" % (
+        config["Dashboards"]["grafana"]["servers"], config["Dashboards"]["grafana"]["port"])
+    config["prometheus_endpoint"] = "http://%s:%s" % (
+        config["prometheus"]["host"], config["prometheus"]["port"])
+
+    utils.render_template_directory(
+        "./template/dashboard", "./deploy/dashboard", config)
+
+
+def gen_dns_config_script(config):
+    utils.render_template("./template/dns/dns.sh.template",
+                          "deploy/scripts/dns.sh", config)
+    os.system('chmod 755 deploy/scripts/dns.sh')
+
+
+def pack_cloudinit_roles(config, args):
+    gen_tar = "tar -cvf cloudinit.tar cloudinit" if not args.nargs else ""
+    roles = args.nargs if args.nargs else ["common", "infra", "worker", "nfs"]
+    for role in roles:
+        pack_cloudinit_role(config, role)
+    if gen_tar:
+        os.system(gen_tar)
+
+
+def pack_cloudinit_role(config, role):
+    if not os.path.exists(CLOUD_INIT_FILE_MAP):
+        with open("./deploy/cloud-config/file_map.yaml") as rf:
+            file_map = yaml.safe_load(rf)
+            deploy_files = [itm["src"]
+                            for mod_val in file_map.values() for itm in mod_val]
+            src_root = os.path.commonpath(deploy_files)
+            print(src_root)
+            for mod_name, map_list in file_map.items():
+                for map_itm in map_list:
+                    de_root_fn = os.path.join(
+                        mod_name, os.path.relpath(map_itm["src"], start=src_root))
+                    os.system(
+                        'mkdir -p cloudinit/{}'.format(os.path.dirname(de_root_fn)))
+                    os.system(
+                        'cp -r {} cloudinit/{}'.format(map_itm["src"], de_root_fn))
+                    map_itm["cld"] = de_root_fn
+        with open(CLOUD_INIT_FILE_MAP, "w") as wf:
+            yaml.dump(file_map, wf)
+    for fn in config["files2cp"].get(role, []):
+        os.system('cp -r {} cloudinit/{}'.format(fn, os.path.basename(fn)))
+
+
+def gen_pass_secret_script(config):
+    utils.render_template(
+        "./template/secret/pass_secret.sh.template", "deploy/scripts/pass_secret.sh", config)
+
+
+def render_repairmanager(config):
+    utils.render_template_directory(
+        "./template/RepairManager", "./deploy/RepairManager/", config)
+
+
+def render_storagemanager(config, nodename):
+    deploy_path = "./deploy/StorageManager/{}_storage_manager.yaml".format(
+        nodename)
+    utils.render_template(
+        "./template/StorageManager/config.yaml", deploy_path, config)
+    with open("./deploy/cloud-config/file_map.yaml") as rf:
+        file_map = yaml.safe_load(rf)
+        file_map["{}_storage_manager".format(nodename)] = [
+            {"src": deploy_path, "dst": "/etc/StorageManager/config.yaml"}]
+    with open("./deploy/cloud-config/file_map.yaml", "w") as wf:
+        yaml.dump(file_map, wf)
+
+
+def render_for_infra_generic(config, args):
     gen_new_key = True
     regenerate_key = False
     clusterID = load_cluster_ID()
-    if not clusterID is None:
-        response = raw_input_with_default("There is a cluster (ID:%s) deployment in './deploy', do you want to keep the existing ssh key and CA certificates (y/n)?" % clusterID)
-        if first_char(response) == "n":
+    config["clusterId"] = clusterID
+    if os.path.exists("./deploy/sshkey"):
+        if say_yes_for("There is a cluster (ID:{}) deployment in './deploy', do you want to keep \
+            the existing ssh key and CA certificates (y/n)?".format(clusterID), args.yes):
+            gen_new_key = False
+            print("use existing ssh key and CA")
+        else:
             # Backup old cluster
             utils.backup_keys(config["cluster_name"])
             regenerate_key = True
-        else:
-            gen_new_key = False
-    else:
-        create_cluster_id()
+            print("use regenerate_key")
     if gen_new_key:
         utils.gen_SSH_key(regenerate_key)
-        gen_CA_certificates()
-        gen_worker_certificates()
         utils.backup_keys(config["cluster_name"])
+        config["basic_auth"] = create_basic_auth_4_k8s(regenerate_key)
 
-    add_kubelet_config()
+    config = GetCertificateProperty(config)
+    utils.render_template_directory(
+        "./template/ssl", "./deploy/ssl", config, verbose=True)
 
-    os.system( "mkdir -p ./deploy/cloud-config/")
-    os.system( "mkdir -p ./deploy/iso-creator/")
+    gen_dns_config_script(config)
+    if gen_new_key:
+        gen_CA_certificates(config)
+        gen_worker_certificates(config)
+        gen_master_certificates(config)
+        gen_ETCD_certificates(config)
+    utils.render_template("./template/cloud-config/file_map.yaml",
+                          "./deploy/cloud-config/file_map.yaml", config)
+    render_ETCD(config)
+    config = render_restfulapi(config)
+    render_kubelet(config, args)
+    render_dashboard(config)
+    render_mount(config, args)
+    render_repairmanager(config)
+    gen_pass_secret_script(config)
 
-    template_file = "./template/cloud-config/cloud-config-master.yml"
-    target_file = "./deploy/cloud-config/cloud-config-master.yml"
-    config["role"] = "master"
-    utils.render_template(template_file, target_file,config)
 
-    template_file = "./template/cloud-config/cloud-config-etcd.yml"
-    target_file = "./deploy/cloud-config/cloud-config-etcd.yml"
+def get_all_services():
+    rootdir = "./deploy/services"
+    servicedic = {}
+    for service in os.listdir(rootdir):
+        dirname = os.path.join(rootdir, service)
+        if os.path.isdir(dirname):
+            launch_order_file = os.path.join(dirname, "launch_order")
+            if os.path.isfile(launch_order_file):
+                servicedic[service] = launch_order_file
+                with open(launch_order_file, 'r') as f:
+                    allservices = f.readlines()
+                    for filename in reversed(allservices):
+                        filename = filename.strip()
+                        filename = os.path.join(dirname, filename)
+                        if os.path.isfile(filename):
+                            servicedic[service + "/" + os.path.splitext(
+                                os.path.basename(filename))[0]] = filename
+            else:
+                yamlname = os.path.join(dirname, service + ".yaml")
+                if not os.path.isfile(yamlname):
+                    yamls = glob.glob("*.yaml")
+                    yamlname = yamls[0]
+                with open(yamlname) as f:
+                    kind = yaml.safe_load(f).get("kind", "no kind")
+                    if kind in ["Deployment", "DaemonSet", "ReplicaSet", "CronJob", "StatefulSet"]:
+                        servicedic[service] = yamlname                        
+    return servicedic
 
-    config["role"] = "etcd"
-    utils.render_template(template_file, target_file,config)
+
+def get_service_name(service_config_file):
+    try:
+        with open(service_config_file) as f:
+            service_config = yaml.safe_load(f)
+        name = fetch_dictionary(service_config, ["metadata", "name"])
+        if not name is None:
+            return name
+        else:
+            name = fetch_dictionary(
+                service_config, ["spec", "template", "metadata", "name"])
+            if not name is None:
+                return name
+        return None
+    except:
+        return None
 
 
-    template_file = "./template/iso-creator/mkimg.sh.template"
-    target_file = "./deploy/iso-creator/mkimg.sh"
-    utils.render_template( template_file, target_file ,config)
+def service4nodetype(nodetypes, nodetype4service):
+    """not including 'all'. if you want it, add it explicitly, e.g., ['worker', 'all']"""
+    servicelist = []
+    for nodetype in nodetypes:
+        for service, type4svc in nodetype4service.items():
+            if type4svc == nodetype:
+                servicelist += service,
+    return servicelist
 
-    with open("./deploy/ssl/ca/ca.pem", 'r') as f:
-        content = f.read()
-    config["ca.pem"] = base64.b64encode(content)
 
-    with open("./deploy/ssl/kubelet/apiserver.pem", 'r') as f:
-        content = f.read()
-    config["apiserver.pem"] = base64.b64encode(content)
-    config["worker.pem"] = base64.b64encode(content)
+def render_kube_services(config):
+    """overwrite config['kubelables'] if want to change node type for certain services"""
+    """prepare /etc/kubernetes/kubelet.service for nodes by roles"""
+    utils.render_template_directory(
+        "./services/", "./deploy/services/", config)
+    config['labels'] = ["{{cnf['labels'] | join(',')}}"]
+    for role in ["infra", "worker"]:
+        utils.render_template("template/cloud-config/{}.kubelet.service.template".format(role),
+                              "./deploy/cloud-config/{}.kubelet.service.template".format(role), config)
 
-    with open("./deploy/ssl/kubelet/apiserver-key.pem", 'r') as f:
-        content = f.read()
-    config["apiserver-key.pem"] = base64.b64encode(content)
-    config["worker-key.pem"] = base64.b64encode(content)
 
-    add_additional_cloud_config()
-    add_kubelet_config()
-    template_file = "./template/cloud-config/cloud-config-worker.yml"
-    target_file = "./deploy/cloud-config/cloud-config-worker.yml"
-    utils.render_template( template_file, target_file ,config)
+def render_for_worker_generic(config, args):
+    # TODO: split into generic + specific node for options.env and worker-kubeconfig.yaml
+    config["etcd_endpoints"] = "$ETCD_ENDPOINTS"
+    orig_api_servers = config["api_servers"] if "api_servers" in config else ''
+    config["api_servers"] = "$KUBE_API_SERVER"
+    utils.render_template_directory(
+        "template/kubelet", "deploy/kubelet", config)
+    utils.render_template("template/cloud-config/worker.upgrade.list",
+                          "./deploy/cloud-config/worker.upgrade.list", config)
+    utils.render_template("template/cloud-config/worker_fallback.sh.template",
+                          "./deploy/cloud-config/worker_fallback.sh", config)
+    if orig_api_servers:
+        config["api_servers"] = orig_api_servers
+
 
 def run_command(args, command, parser):
-    if command == "loadconfig":
-        config = load_config(args)
-        with open("todeploy.yaml", "w") as wf:
-            yaml.dump(config, wf)
     if command == "clusterID":
         create_cluster_id(args.force)
-    if command == "test":
+    else:
+        if len(args.config) == 0:
+            args.config = [ENV_CNF_YAML, ACTION_YAML]
+            if os.path.exists(STATUS_YAML):
+                args.config.append(STATUS_YAML)
         config = load_config(args)
-        render_for_infra()
+    if command == "dumpconfig":
+        with open("todeploy.yaml", "w") as wf:
+            yaml.dump(config, wf)
+    if command == "render":
+        render_mount(config, args)
+        render_for_infra_generic(config, args)
+        render_for_worker_generic(config, args)
+        render_infra_node_specific(config, args)
+        render_worker_node_specific(config, args)
+        render_nfs_node_specific(config, args)
+        render_elasticsearch_node_specific(config, args)
+    if command == "rendergeneric":
+        if args.nargs[0] == 'infra':
+            render_for_infra_generic(config, args)
+        if args.nargs[0] == 'worker':
+            render_for_worker_generic(config, args)
+    if command == "rendermount":
+        render_mount(config, args)
+    if command == "renderspecific":
+        if len(args.nargs) == 0:
+            args.nargs = ["infra", "worker", "nfs", "elasticsearch"]
+        for role in args.nargs:
+            func = eval("render_{}_node_specific".format(role))
+            func(config, args)
+    if command == "pack":
+        pack_cloudinit_roles(config, args)
+    if command == "docker":
+        nargs = args.nargs
+        if len(nargs) >= 1:
+            configuration(config, args.verbose)
+            if nargs[0] == "build":
+                check_buildable_images(args.nargs[1], config)
+                build_docker_images(args, config)
+            if nargs[0] == "push":
+                check_buildable_images(args.nargs[1], config)
+                push_docker_images(args, config)
+            if nargs[0] == "servicesprerequisite":
+                push_all_prerequisite_docker_images(args, config)
+    if command == "test":
+        pass
 
 
 if __name__ == '__main__':
     # the program always run at the current directory.
+    # ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i deploy/sshkey/id_rsa core@
     dirpath = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
     os.chdir(dirpath)
-    parser = argparse.ArgumentParser( prog='cloud_init_deploy.py',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=textwrap.dedent('''
+    parser = argparse.ArgumentParser(prog='cloud_init_deploy.py',
+                                     formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     description=textwrap.dedent('''
         Build, deploy and administer a DL workspace cluster.
 
         Prerequest:
@@ -359,37 +1049,36 @@ if __name__ == '__main__':
 
         Command:
             render  render all files from template
-    ''') )
+    '''))
     parser.add_argument("-y", "--yes",
-        help="Answer yes automatically for all prompt",
-        action="store_true" )
+                        help="Answer yes automatically for all prompt")
     parser.add_argument("--force",
-        help="Force perform certain operation",
-        action="store_true" )
+                        help="Force perform certain operation",
+                        action="store_true")
     parser.add_argument("--native",
-        help="Run docker in native mode (in how it is built)",
-        action="store_true" )
+                        help="Run docker in native mode (in how it is built)",
+                        action="store_true")
     parser.add_argument("-s", "--sudo",
-        help = "Execute scripts in sudo",
-        action="store_true" )
+                        help="Execute scripts in sudo",
+                        action="store_true")
     parser.add_argument("-v", "--verbose",
-        help = "verbose print",
-        action="store_true")
+                        help="verbose print",
+                        action="store_true")
     parser.add_argument("--nocache",
-        help = "Build docker without cache",
-        action="store_true")
+                        help="Build docker without cache",
+                        action="store_true")
     parser.add_argument("--nodes",
-        help = "Specify an python regular expression that limit the nodes that the operation is applied.",
-        action="store",
-        default=None
-        )
-    parser.add_argument('-cnf','--config', nargs='+', help='Specify the config files you want to load', 
-        default = ["config.yaml", "complementary.yaml"])
+                        help="Specify an python regular expression that limit nodes that the operation is applied.",
+                        action="store",
+                        default=None
+                        )
+    # we use action='append', instead of nargs='+', to avoid conflict between list and additional command argument
+    parser.add_argument('-cnf', '--config', action='append', default=[], help='Specify the config files you want to load, later ones \
+        would overwrite former ones, e.g., -cnf config.yaml -cnf action.yaml')
     parser.add_argument("command",
-        help = "See above for the list of valid command" )
+                        help="See above for the list of valid command")
     parser.add_argument('nargs', nargs=argparse.REMAINDER,
-        help="Additional command argument",
-        )
+                        help="Additional command argument")
     args = parser.parse_args()
     command = args.command
     nargs = args.nargs
@@ -401,11 +1090,4 @@ if __name__ == '__main__':
     if not os.path.exists("./deploy"):
         os.system("mkdir -p ./deploy")
 
-    if command == "scriptblocks":
-        if nargs[0] in scriptblocks:
-            run_script_blocks(args.verbose, scriptblocks[nargs[0]])
-        else:
-            parser.print_help()
-            print("Error: Unknown scriptblocks " + nargs[0])
-    else:
-        run_command(args, command, parser)
+    run_command(args, command, parser)

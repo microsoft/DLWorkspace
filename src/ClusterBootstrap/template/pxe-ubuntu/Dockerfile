@@ -2,7 +2,7 @@ FROM ubuntu:16.04
 MAINTAINER Jin Li <jinlmsft@hotmail.com>
 
 RUN apt-get -y update && \
-    apt-get -y install \
+    apt-get --no-install-recommends install -y \
       vim \
       wget \
       curl \
@@ -13,11 +13,11 @@ RUN apt-get -y update && \
       rsync 
 
 RUN apt-get update -y && \
-    apt-get -y install tftpd-hpa inetutils-inetd syslinux isc-dhcp-server apache2
+    apt-get --no-install-recommends install -y tftpd-hpa inetutils-inetd syslinux isc-dhcp-server apache2
 
 RUN wget {{cnf["ubuntuImageUrl"]}}
 
-RUN apt-get -y update && apt-get -y install p7zip-full
+RUN apt-get -y update && apt-get --no-install-recommends install -y p7zip-full
 
 RUN mkdir -p /var/www/html/ubuntu/install
 RUN mkdir -p /tmp/ubuntu/
@@ -26,7 +26,7 @@ RUN 7z x -o/tmp/ubuntu {{cnf["ubuntuImageName"]}}
 RUN rm {{cnf["ubuntuImageName"]}}
 RUN cp -fr /tmp/ubuntu/install/* /var/www/html/ubuntu/install
 
-RUN apt-get update -y && apt-get install -y python-dev python-pip 
+RUN apt-get update -y && apt-get --no-install-recommends install -y python-dev python-pip 
 RUN pip install Flask
 RUN pip install flask_restful
 ENV APACHE_RUN_USER www-data

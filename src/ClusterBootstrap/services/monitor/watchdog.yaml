@@ -41,7 +41,7 @@ spec:
         env:
         - name: LOGGING_LEVEL
           value: INFO
-        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}watchdog:{{cnf["dockertag"]}}
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/watchdog:{{cnf["dockertag"]}}
         imagePullPolicy: Always
         name: watchdog
         readinessProbe:
@@ -57,6 +57,9 @@ spec:
       hostNetwork: true
       imagePullSecrets:
       - name: pai-secret
+      {% if cnf["private_docker_registry_username"] %}
+      - name: svccred
+      {% endif %}
       tolerations:
       - key: node.kubernetes.io/memory-pressure
         operator: Exists

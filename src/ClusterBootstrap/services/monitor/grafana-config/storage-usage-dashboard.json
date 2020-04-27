@@ -145,5 +145,6 @@
   },
   "timezone": "browser",
   "title": "Storage usage",
-  "version": 0
+  "version": 0,
+  "uid": "storage-usage"
 }}

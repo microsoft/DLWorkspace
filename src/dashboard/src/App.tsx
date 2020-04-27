@@ -6,9 +6,17 @@ import 'typeface-roboto';
 import 'typeface-roboto-mono';
 
 import Helmet from 'react-helmet';
-import { Box, CssBaseline, createMuiTheme, CircularProgress } from '@material-ui/core';
+import { Typography } from '@material-ui/core';
+import { Box, CssBaseline, createMuiTheme } from '@material-ui/core';
 import { ThemeProvider } from "@material-ui/styles";
 import { SnackbarProvider } from "notistack";
+import {
+  Provider as UseHttpProvider,
+  Options as UseHttpOptions,
+  CachePolicies,
+} from "use-http-2";
+
+import Loading from './components/Loading';
 
 import ConfigContext, { Provider as ConfigProvider } from "./contexts/Config";
 import UserContext, { Provider as UserProvider } from "./contexts/User";
@@ -30,38 +38,52 @@ const JobsV2 = React.lazy(() => import('./pages/JobsV2'));
 const Job = React.lazy(() => import('./pages/Job'));
 const JobV2 = React.lazy(() => import('./pages/JobV2'));
 const ClusterStatus = React.lazy( () => import('./pages/ClusterStatus'));
+const Clusters = React.lazy(() => import('./pages/Clusters'));
+const Cluster = React.lazy(() => import('./pages/Cluster'));
 
 const theme = createMuiTheme();
+const useHttpOptions: UseHttpOptions = {
+  cachePolicy: CachePolicies.NO_CACHE
+};
 
 interface BootstrapProps {
   config: ConfigContext;
   user: UserContext;
 }
 
-const Loading = (
-  <Box flex={1} display="flex" alignItems="center" justifyContent="center">
-    <CircularProgress/>
+const PageLoading = (
+  <Box
+    flex={1}
+    display="flex"
+    flexDirection="column"
+    justifyContent="center"
+    alignItems="center"
+  >
+    <Loading/>
+    <Typography component="p" variant="subtitle1">Loading Page</Typography>
   </Box>
 );
 
 const Contexts: React.FC<BootstrapProps> = ({ config, user, children }) => {
   return (
     <BrowserRouter>
-      <ConfigProvider {...config}>
-        <UserProvider {...user}>
-          <SnackbarProvider>
-            <ConfirmProvider>
-              <TeamProvider>
-                <ClustersProvider>
-                  <ThemeProvider theme={theme}>
-                    {children}
-                  </ThemeProvider>
-                </ClustersProvider>
-              </TeamProvider>
-            </ConfirmProvider>
-          </SnackbarProvider>
-        </UserProvider>
-      </ConfigProvider>
+      <UseHttpProvider options={useHttpOptions}>
+        <ConfigProvider {...config}>
+          <UserProvider {...user}>
+            <SnackbarProvider>
+              <ConfirmProvider>
+                <TeamProvider>
+                  <ClustersProvider>
+                    <ThemeProvider theme={theme}>
+                      {children}
+                    </ThemeProvider>
+                  </ClustersProvider>
+                </TeamProvider>
+              </ConfirmProvider>
+            </SnackbarProvider>
+          </UserProvider>
+        </ConfigProvider>
+      </UseHttpProvider>
     </BrowserRouter>
   );
 }
@@ -88,7 +110,7 @@ const Layout: React.FC<RouteComponentProps> = ({ location, history }) => {
         <Content>
           <AppBar/>
           <Drawer/>
-          <React.Suspense fallback={Loading}>
+          <React.Suspense fallback={PageLoading}>
             <Switch location={location}>
               <Route exact path="/" component={Home}/>
               <Route path="/submission" component={Submission}/>
@@ -101,6 +123,9 @@ const Layout: React.FC<RouteComponentProps> = ({ location, history }) => {
               <Route strict exact path="/jobs-v2/" component={JobsV2}/>
               <Route path="/job/:team/:clusterId/:jobId" component={Job}/>
               <Route path="/cluster-status" component={ClusterStatus}/>
+              <Redirect strict exact from="/clusters" to="/clusters/"/>
+              <Route strict exact path="/clusters/" component={Clusters}/>
+              <Route strict exact path="/clusters/:clusterId" component={Cluster}/>
               <Redirect to="/"/>
             </Switch>
           </React.Suspense>

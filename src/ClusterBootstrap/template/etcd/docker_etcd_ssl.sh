@@ -9,12 +9,12 @@ docker run -d -v /usr/share/ca-certificates/mozilla:/etc/ssl/certs -v /etc/etcd/
  --restart always \
  --name philly-etcd3 dlws/etcd:3.1.10 /usr/local/bin/etcd \
  -name $HOSTNAME \
- {% if cnf["etcd_node_num"] == 1 %}-initial-cluster {{cnf["hostname"]}}=https://{{cnf["etcd_private_ip"]}}:{{cnf["etcd3portserver"]}} \
+ {% if cnf["etcd_node"]|length == 1 %}-initial-cluster {{cnf["hostname"]}}=https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3portserver"]}} \
  -initial-cluster-state new \
  -initial-cluster-token {{cnf["clusterId"]}} \
- -advertise-client-urls https://{{cnf["etcd_private_ip"]}}:{{cnf["etcd3port1"]}} \
+ -advertise-client-urls https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3port1"]}} \
  -listen-client-urls https://0.0.0.0:{{cnf["etcd3port1"]}} \
- -initial-advertise-peer-urls https://{{cnf["etcd_private_ip"]}}:{{cnf["etcd3portserver"]}} \
+ -initial-advertise-peer-urls https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3portserver"]}} \
  -listen-peer-urls https://0.0.0.0:{{cnf["etcd3portserver"]}} \
  {% else %}-advertise-client-urls https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3port1"]}} \
  -listen-client-urls https://0.0.0.0:{{cnf["etcd3port1"]}} \

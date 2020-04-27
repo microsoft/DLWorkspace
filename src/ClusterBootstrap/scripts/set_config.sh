@@ -7,4 +7,4 @@ if [ ! -e ../template/${config}_config.yaml.template ];then
 	cp ~/dltsdev-ci/${config}_config.yaml.template ../template/
 fi;
 cd ..
-python render_config.py ${config}
+python3 render_config.py ${config} $2

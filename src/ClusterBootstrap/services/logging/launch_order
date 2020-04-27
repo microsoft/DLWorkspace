@@ -1,3 +1,6 @@
+{% if cnf["elasticsearch"]["enabled"] -%}
 elasticsearch.yaml
-fluentd-configmap.yaml
-fluentd.yaml
+kibana.yaml
+{% endif -%}
+fluent-bit-config.yaml
+fluent-bit.yaml

@@ -1,0 +1,38 @@
+#cloud-config
+users:
+  - default
+  - name: {{cnf["etcd_user"]}}
+    groups: sudo
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+runcmd:
+ - cd /home/{{cnf["etcd_user"]}}
+ # ETCDIP is the IP for this server(the one that use this file to boot, ETCDSERVER1
+ # instead could be IP of its peer(since ETCD could have multiple servers)
+ - echo "export ETCDSERVER1=127.0.0.1" > boot.env
+ - echo "export ETCDPORT1={{cnf["etcd3port1"]}}" >> boot.env
+ # try to delete ETCDIP
+ - echo "export ETCDIP={{cnf["master_ip"]}}" >> boot.env
+ - echo "export USER={{cnf["etcd_user"]}}" >> boot.env
+ - echo "export KUBE_LABELS=\"{{cnf['kube_labels'] | join(',')}}\"" >> boot.env
+ - echo "export KUBE_SERVICES=\"{{cnf['kube_services'] | join(';')}}\"" >> boot.env
+ - echo "export ETCD_ENDPOINTS='{{cnf["escaped_etcd_endpoints"]}}'" >> boot.env
+ - echo "export MOD_2_CP='{{cnf["file_modules_2_copy"] | join(';')}}'" >> boot.env
+ # file share mount
+ - echo "export MNT_N_LNK='{{cnf["mount_and_link"] | join(';')}}'" >> boot.env
+ - curl -fsSL https://get.docker.com -o get-docker.sh; sh get-docker.sh
+ - sudo usermod -aG docker {{cnf["etcd_user"]}}
+ - sudo setfacl -m user:{{cnf["etcd_user"]}}:rw /var/run/docker.sock
+ {% if "private_docker_registry" in cnf and "cloudinit" in cnf["private_docker_registry"] %}
+ {% set cldinit_regname = cnf["private_docker_registry"]["cloudinit"] %}
+ - docker login {{cldinit_regname}} -u {{cnf["private_docker_credential"][cldinit_regname]["username"]}} -p {{cnf["private_docker_credential"][cldinit_regname]["password"]}}
+ {% else %}
+ {% set cldinit_regname = cnf["dockerregistry"] %}
+ {% endif %}
+ - docker pull {{cldinit_regname}}/{{cnf["cluster_name"].lower()}}/cloudinit
+ - docker create -ti --name bootpack {{cldinit_regname}}/{{cnf["cluster_name"].lower()}}/cloudinit bash
+ - docker cp bootpack:/usr/cloudinit.tar ./
+ - tar -xvf cloudinit.tar
+ - cd cloudinit
+ - ./cloud_init_infra.sh
+output: {all: '| tee -a /home/{{cnf["etcd_user"]}}/cloud-init-output.log'}

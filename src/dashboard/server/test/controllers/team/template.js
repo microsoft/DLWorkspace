@@ -18,8 +18,8 @@ const getTemplatesParams = new URLSearchParams({
   vcName: userParams.teamId
 })
 
-describe('GET /teams/:teamId/templates', () => {
-  it('should return template info', async () => {
+describe('GET /teams/:teamId/templates', function () {
+  it('should return template info', async function () {
     for (let key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .get('/templates?' + getTemplatesParams)
@@ -37,7 +37,7 @@ describe('GET /teams/:teamId/templates', () => {
     response.data[1].should.have.property('name', 'Targaryen')
   })
 
-  it('response should be empty if templates getting failed', async () => {
+  it('response should be empty if templates getting failed', async function () {
     for (let key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .get('/templates?' + getTemplatesParams)
