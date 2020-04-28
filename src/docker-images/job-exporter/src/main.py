@@ -122,7 +122,9 @@ def main(args):
     configured_gpu_counter.set(
         get_gpu_count("/gpu-config/gpu-configuration.json"))
 
-    decay_time = datetime.timedelta(seconds=args.interval * 2)
+    # 0 means do not retire data, as missing metric will intrrupt prometheus's evaluation
+    # of alerting rules
+    decay_time = datetime.timedelta(seconds=0)
 
     # used to exchange gpu info between GpuCollector and ContainerCollector
     nvidia_info_ref = collector.AtomicRef(decay_time)
