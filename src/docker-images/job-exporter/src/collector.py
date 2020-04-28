@@ -245,7 +245,8 @@ class AtomicRef(object):
 
     def get(self, now):
         with self.lock:
-            if self.date_in_produced + self.decay_time < now:
+            if self.decay_time.seconds != 0 and \
+                    self.date_in_produced + self.decay_time < now:
                 return None
             return self.data
 
@@ -973,7 +974,7 @@ class DCGMCollector(Collector):
                  dcgm_info_ref):
         Collector.__init__(self, name, sleep_time, atomic_ref,
                            iteration_counter)
-        self.dcgm_gauge_ref = AtomicRef(datetime.timedelta(seconds=60))
+        self.dcgm_gauge_ref = AtomicRef(datetime.timedelta(seconds=0))
         self.dcgm_handler = dcgm.DCGMHandler(10, self.dcgm_gauge_ref,
                                              dcgm_info_ref,
                                              DCGMCollector.cmd_histogram,
