@@ -79,7 +79,7 @@ spec:
           path: {{cnf["folder_auto_share"]}}
       - name: log
         hostPath:
-          path: /var/log/clustermanager
+          path: /var/log/dlworkspace
       - name: repairmanagerdata
         hostPath:
           path: /etc/RepairManager
