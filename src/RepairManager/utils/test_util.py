@@ -36,7 +36,20 @@ def mock_ecc_config():
         "enable_reboot": True,
         "enable_alert_job_owners": True,
         "days_until_node_reboot": 5,
-        "time_sleep_after_pausing": 0
+        "time_sleep_after_pausing": 0,
+        "attempts_for_pause_resume_jobs" : 1
+    }
+    return ecc_config
+
+def mock_etcd_config():
+    ecc_config = {
+        "data-dir": "/data-dir",
+        "listen-peer-urls": "http://0.0.0.0:2381",
+        "listen-client-urls": "http://0.0.0.0:2382",
+        "advertise-client-urls": "http://127.0.0.1:2382",
+        "initial-advertise-peer-urls": "http://127.0.0.1:2381",
+        "initial-cluster": "default=http://127.0.0.1:2381",
+        "enable-v2": True
     }
     return ecc_config
 

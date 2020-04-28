@@ -25,9 +25,6 @@ spec:
         image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["repairmanager"]}}:{{cnf["dockertag"]}}
         command: ["/run.sh"]
         imagePullPolicy: Always
-        env:
-        - name: PROMETHEUS_URL
-          value: http://{{cnf["repair-manager"]["prometheus-ip"]}}:{{cnf["repair-manager"]["prometheus-port"]}}
         volumeMounts:
         - mountPath: /etc/kubernetes/ssl
           name: certs
@@ -82,7 +79,7 @@ spec:
           path: {{cnf["folder_auto_share"]}}
       - name: log
         hostPath:
-          path: /var/log/clustermanager
+          path: /var/log/dlworkspace
       - name: repairmanagerdata
         hostPath:
           path: /etc/RepairManager
