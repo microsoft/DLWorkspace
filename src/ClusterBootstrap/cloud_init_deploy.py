@@ -513,7 +513,7 @@ def storage_client_config(config):
     for mnt_itm in mounting.values():
         config["fileshare_system"].add(mnt_itm["fileshare_system"])
         for fs in mnt_itm["fileshares"]:
-            config["mount_and_link"] += fs["client_mount_root"],
+            config["mount_and_link"].append(fs["client_mount_root"])
     config["fileshare_system"] = list(config["fileshare_system"])
     return config
 
@@ -598,10 +598,8 @@ def render_nfs_node_specific(config, args):
     config.pop("files2share", "")
 
 
-def render_lustre_node_specific(config, args):
-    assert config["priority"] in ["regular", "low"]
-    config = escaped_etcd_end_point_and_k8s_api_server(config)
-    config["file_modules_2_copy"] = ["lustre_server"]
+def render_mdt_node_specific(config, args):
+    """could only be invoked in render_lustre_node_specific, otherwise add file_modules"""
     config["mdt_id"] = 0
     lustre_disk_id = 1
     mdt_node_name = config["mdt_node"][0].split(".")[0]
@@ -611,6 +609,11 @@ def render_lustre_node_specific(config, args):
         "./deploy/cloud-config/cloud_init_{}.txt".format(mdt_node_name), config)
     config["mgs_node_private_ip"] = mdt_spec["private_ip"]
     config.pop("mdt_id")
+    return config
+
+
+def render_oss_node_specific(config, args):
+    """could only be invoked in render_lustre_node_specific, otherwise add file_modules"""
     for oss in config.get("oss_node", []):
         oss_machine_name = oss.split(".")[0]
         oss_spec = config["machines"][oss_machine_name]
@@ -630,6 +633,15 @@ def render_lustre_node_specific(config, args):
             config, oss_machine_name)
         utils.render_template("./template/cloud-config/cloud_init_lustre.txt.template",
                               "./deploy/cloud-config/cloud_init_{}.txt".format(oss_machine_name), config)
+    return config
+
+
+def render_lustre_node_specific(config, args):
+    assert config["priority"] in ["regular", "low"]
+    config = escaped_etcd_end_point_and_k8s_api_server(config)
+    config["file_modules_2_copy"] = ["lustre_server"]
+    config = render_mdt_node_specific(config, args)
+    config = render_oss_node_specific(config, args)
 
 
 def render_ETCD(config):
