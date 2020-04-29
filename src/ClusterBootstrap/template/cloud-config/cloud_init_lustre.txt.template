@@ -22,7 +22,7 @@ runcmd:
 {% if "oss_id" in cnf %}
  - echo "export OSS_ID={{cnf["oss_id"]}}" >> boot.env
 {% endif %}
- # pull docker and install NFS service kits
+ # pull docker and install Lustre service kits
  - curl -fsSL https://get.docker.com -o get-docker.sh; sh get-docker.sh
  - sudo usermod -aG docker {{cnf["lustre_user"]}}
  - sudo service docker start

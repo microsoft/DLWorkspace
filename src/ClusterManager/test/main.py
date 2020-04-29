@@ -6,6 +6,7 @@ import logging
 import glob
 import datetime
 import sys
+import copy
 
 import utils
 
@@ -59,7 +60,14 @@ def main(args):
             cases.append(obj)
             case_names.append(full_name)
 
-    logger.info("will run %d cases %s", len(case_names), case_names)
+    logger.info("will run %d cases %s %s times", len(case_names), case_names,
+                args.nums)
+    if args.nums > 1:
+        cp = copy.deepcopy(cases)
+        name_cp = copy.deepcopy(case_names)
+        for i in range(args.nums):
+            cases.extend(cp)
+            case_names.extend(name_cp)
     num_proc = min(args.process, len(cases))
 
     result = utils.run_cases_in_parallel(cases, args, num_proc)
@@ -120,6 +128,11 @@ if __name__ == '__main__':
                         "-c",
                         required=True,
                         help="path to config dir")
+    parser.add_argument("--nums",
+                        "-n",
+                        type=int,
+                        default=1,
+                        help="number of times to test all cases")
     args = parser.parse_args()
 
     main(args)

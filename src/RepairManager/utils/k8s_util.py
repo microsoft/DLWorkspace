@@ -19,6 +19,21 @@ def cordon_node(node_name, dry_run=True):
         return e.output.decode()
 
 
+def uncordon_node(node_name, dry_run=True):
+    args = ['kubectl', 'uncordon', node_name]
+
+    if dry_run:
+        args.append('--dry-run')
+
+    try:
+        output = subprocess.check_output(args, stderr=subprocess.STDOUT)
+        logging.info(output.decode())
+        return output.decode()
+    except subprocess.CalledProcessError as e:
+        logging.exception(f'Exception attempting to uncordon node {node_name}')
+        return e.output.decode()
+
+
 def is_node_cordoned(node_info, node_name):
     for node in node_info.items:
         for address in node.status.addresses:
@@ -48,7 +63,7 @@ def list_namespaced_pod(namespace):
     return api_instance.list_namespaced_pod(namespace)
 
 
-def get_job_info_from_nodes(nodes, portal_url, cluster_name):
+def get_job_info_indexed_by_job_id(nodes, portal_url, cluster_name):
     pods = list_namespaced_pod("default")
     jobs = {}
     for pod in pods.items:
@@ -61,12 +76,37 @@ def get_job_info_from_nodes(nodes, portal_url, cluster_name):
                     vc_name = pod.metadata.labels['vcName']
                     if job_id not in jobs:
                         jobs[job_id] = {
-                        'user_name': user_name,
-                        'node_names': {node_name},
-                        'vc_name': vc_name,
-                        'job_link': f'https://{portal_url}/job/{vc_name}/{cluster_name}/{job_id}'}
+                            'user_name': user_name,
+                            'node_names': {node_name},
+                            'vc_name': vc_name,
+                            'job_link': f'https://{portal_url}/job/{vc_name}/{cluster_name}/{job_id}'
+                        }
                     else:
                         jobs[job_id]['node_names'].add(node_name)
+    return jobs
+
+
+def get_job_info_indexed_by_node(nodes, portal_url, cluster_name):
+    pods = list_namespaced_pod("default")
+    jobs = {}
+    for pod in pods.items:
+        if pod.metadata and pod.metadata.labels:
+            if 'jobId' in pod.metadata.labels and 'userName' in pod.metadata.labels:
+                if pod.spec.node_name in nodes:
+                    job_id = pod.metadata.labels['jobId']
+                    user_name = pod.metadata.labels['userName']
+                    node_name = pod.spec.node_name
+                    vc_name = pod.metadata.labels['vcName']
+                    job = {
+                        'job_id': job_id,
+                        'user_name': user_name,
+                        'vc_name': vc_name,
+                        'job_link': f'https://{portal_url}/job/{vc_name}/{cluster_name}/{job_id}'
+                    }
+                    if node_name not in jobs:
+                        jobs[node_name] = [job]
+                    else:
+                        jobs[node_name].append(job)
     return jobs
 
 

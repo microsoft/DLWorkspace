@@ -124,7 +124,7 @@ class EccDetectErrorRule(Rule):
                 node_name=node_name,
                 dry_run=cordon_dry_run)
 
-        impacted_jobs = k8s_util.get_job_info_from_nodes(
+        impacted_jobs = k8s_util.get_job_info_indexed_by_job_id(
             nodes=self.new_bad_nodes,
             portal_url=self.config['portal_url'],
             cluster_name=self.config['cluster_name'])

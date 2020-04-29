@@ -93,5 +93,28 @@ class TestRuleAlertHandler(unittest.TestCase):
         self.assertFalse(result)
 
 
+    @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
+    @mock.patch('utils.email_util.EmailHandler')
+    def test_get_rule_cache_keys(self, mock_email_handler, mock_config):
+        mock_config.return_value = _mock_rule_config()
+        rule = "TestRule"
+
+        rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
+
+        keys = rule_alert_handler_instance.get_rule_cache_keys(rule)
+        self.assertEqual(len(keys), 0)
+
+        rule_alert_handler_instance.update_rule_cache(rule, "test_key1", "test_value1")
+        rule_alert_handler_instance.update_rule_cache(rule, "test_key2", "test_value2")
+        rule_alert_handler_instance.update_rule_cache(rule, "test_key3", "test_value3")
+
+        keys = rule_alert_handler_instance.get_rule_cache_keys(rule)
+        self.assertEqual(len(keys), 3)
+        self.assertTrue("test_key1" in keys)
+        self.assertTrue("test_key2" in keys)
+        self.assertTrue("test_key3" in keys)
+
+
+
 if __name__ == '__main__':
     unittest.main()

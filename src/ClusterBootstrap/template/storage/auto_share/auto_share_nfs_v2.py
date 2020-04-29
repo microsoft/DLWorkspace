@@ -169,6 +169,8 @@ def link_fileshare(verbose=True):
                     # otherwise the softlink itself would not be deleted
                     link_dst = os.path.abspath(link_itm["dst"])
                     link_src = os.path.abspath(link_src)
+                    if os.path.exists(link_dst):
+                        continue
                     exec_with_output(
                         "mkdir -p {}".format(os.path.dirname(link_dst)), verbose=verbose)
                     exec_with_output(
@@ -178,8 +180,9 @@ def link_fileshare(verbose=True):
                     exec_with_output("chmod 777 {}".format(
                         link_src), verbose=verbose)
             else:
-                exec_wo_output("mkdir -p {}; sudo ln -s {} {}; ".format(
-                    os.path.dirname(triplet["remote_link_path"]), triplet["remote_mount_path"], triplet["remote_link_path"]))
+                exec_wo_output("if [ ! -e {} ]; then mkdir -p {}; sudo ln -s {} {}; fi;".format(
+                    triplet["remote_link_path"], os.path.dirname(triplet["remote_link_path"]),
+                    triplet["remote_mount_path"], triplet["remote_link_path"]))
 
 
 def start_logging(logdir='/var/log/auto_share'):
