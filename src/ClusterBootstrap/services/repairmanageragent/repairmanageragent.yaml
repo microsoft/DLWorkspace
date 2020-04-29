@@ -17,6 +17,7 @@ spec:
       {% if cnf["dnsPolicy"] %}
       dnsPolicy: {{cnf["dnsPolicy"]}}
       {% endif %}
+      hostNetwork: true # allow to bypass firewall
       hostPID: true
       nodeSelector:
         repairmanageragent: active
