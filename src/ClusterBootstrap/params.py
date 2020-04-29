@@ -1,7 +1,7 @@
 # These are the default configuration parameter
 default_config_parameters = {
     "supported_platform": ["azure_cluster", "onpremise"],
-    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev", "etcd", "kubernetes_master", "mysqlserver", "elasticsearch", "samba"},
+    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev", "etcd", "kubernetes_master", "mysqlserver", "elasticsearch", "samba", "lustre", "mdt", "oss"},
     # Kubernetes setting
     "service_cluster_ip_range": "10.3.0.0/16",
     "pod_ip_range": "10.2.0.0/16",
@@ -63,7 +63,9 @@ default_config_parameters = {
         "prometheus-ip": "localhost",
         "prometheus-port": 9091,
         "etcd": {
-            "data-dir": "/etc/RepairManager/etcd"
+            "data-dir": "/etc/RepairManager/etcd",
+            "peer-port": 2381,
+            "client-port": 2382
         }
     },
 
@@ -92,6 +94,7 @@ default_config_parameters = {
     "storagemanager": "storagemanager",
     "repairmanager": "repairmanager",
     "repairmanageretcd": "repairmanageretcd",
+    "repairmanageragent": "repairmanageragent",
     "ssh_cert": "./deploy/sshkey/id_rsa",
     "admin_username": "core",
     # the path of where dfs/nfs is source linked and consumed on each node,
@@ -291,6 +294,7 @@ default_config_parameters = {
         'worker': {
             "worker": "active",
             "beta.kubernetes.io/os": "linux",
+            "repairmanageragent": "active"
             },
         'mysqlserver': {
             "mysql-server": "active"
@@ -693,12 +697,11 @@ default_config_parameters = {
     "cloud_config_nsg_rules": {
         "vnet_range": "192.168.0.0/16",
         "default_admin_username": "core",
-        "tcp_port_for_pods": "30000-49999",
         "tcp_port_ranges": "80 443 30000-49999 25826 3000 22222 9091 9092",
         # There is no udp port requirement for now
         #"udp_port_ranges": "25826",
         "inter_connect": {
-            "tcp_port_ranges": "22 1443 2379 3306 5000 8086 9092 9114 9200 9300 10250",
+            "tcp_port_ranges": "22 1443 2379 2382 3306 5000 8086 9092 9114 9200 9300 10250 30000-49999",
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         },

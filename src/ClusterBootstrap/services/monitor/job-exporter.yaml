@@ -60,6 +60,8 @@ spec:
           name: device-mount
         - mountPath: /var/drivers/nvidia/current
           name: driver-path
+        - mountPath: /host-fs
+          name: host-fs
         name: job-exporter
         ports:
         - containerPort: {{cnf['job-exporter']['port']}}
@@ -79,6 +81,9 @@ spec:
         - name: driver-path
           hostPath:
             path: /var/drivers/nvidia/current
+        - name: host-fs # calling nvsm requires this
+          hostPath:
+            path: /
       hostNetwork: true
       hostPID: true # This is required since job-exporter should get list of pid in container
       tolerations:

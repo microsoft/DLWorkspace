@@ -1,0 +1,43 @@
+#cloud-config
+users:
+  - default
+  - name: {{cnf["lustre_user"]}}
+    groups: sudo
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+runcmd:
+ - cd /home/{{cnf["lustre_user"]}}
+ # render env variables
+ - echo "export USER={{cnf["lustre_user"]}}" >> boot.env
+ - echo "export DATA_DISK_MNT_PATH='{{cnf["data_disk_mnt_path"]}}'" >> boot.env
+ - echo "export PLATFORM_TYPE={{cnf["platform_type"]}}" >> boot.env
+ - echo "export KUBE_LABELS=\"{{cnf['kube_labels'] | join(',')}}\"" >> boot.env
+ - echo "export ETCD_ENDPOINTS='{{cnf["escaped_etcd_endpoints"]}}'" >> boot.env
+ - echo "export KUBE_API_SERVER='{{cnf["escaped_api_servers"]}}'" >> boot.env
+ - echo "export MOD_2_CP='{{cnf["file_modules_2_copy"] | join(';')}}'" >> boot.env
+ - echo "export MGS_NODE_PRIVATE_IP='{{cnf["mgs_node_private_ip"]}}'" >> boot.env
+{% if "mdt_id" in cnf %}
+ - echo "export MDT_ID={{cnf["mdt_id"]}}" >> boot.env
+{% endif %}
+{% if "oss_id" in cnf %}
+ - echo "export OSS_ID={{cnf["oss_id"]}}" >> boot.env
+{% endif %}
+ # pull docker and install NFS service kits
+ - curl -fsSL https://get.docker.com -o get-docker.sh; sh get-docker.sh
+ - sudo usermod -aG docker {{cnf["lustre_user"]}}
+ - sudo service docker start
+ - sudo setfacl -m user:{{cnf["lustre_user"]}}:rw /var/run/docker.sock
+ {% if "private_docker_registry" in cnf and "cloudinit" in cnf["private_docker_registry"] %}
+ {% set cldinit_regname = cnf["private_docker_registry"]["cloudinit"] %}
+ - docker login {{cldinit_regname}} -u {{cnf["private_docker_credential"][cldinit_regname]["username"]}} -p {{cnf["private_docker_credential"][cldinit_regname]["password"]}}
+ {% else %}
+ {% set cldinit_regname = cnf["dockerregistry"] %}
+ {% endif %}
+ - docker pull {{cldinit_regname}}/{{cnf["cluster_name"].lower()}}/cloudinit
+ - docker logout {{cldinit_regname}}
+ - docker create -ti --name bootpack {{cldinit_regname}}/{{cnf["cluster_name"].lower()}}/cloudinit bash
+ - docker cp bootpack:/usr/cloudinit.tar ./
+ - tar -xvf cloudinit.tar
+ - cd cloudinit
+ - sudo bash ./setup_lustre.sh
+output: {all: '| tee -a /home/{{cnf["lustre_user"]}}/cloud-init-output.log'}

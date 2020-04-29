@@ -1621,15 +1621,20 @@ class DataHandler(object):
                 cursor.close()
         return ret
 
-    def delete_rows_from_table_older_than_days(self,
-                                               table,
-                                               days_ago,
-                                               col="time"):
+    def delete_rows_from_table_older_than_days(self, table, days_ago,
+                                               col="time", cond=None):
         cursor = None
         ret = False
         try:
             query = "DELETE FROM %s WHERE %s < NOW() - INTERVAL %s DAY" % \
                     (table, col, days_ago)
+            if isinstance(cond, dict):
+                for field, op_and_value in cond.items():
+                    op, value = op_and_value
+                    if isinstance(value, list):
+                        value = "(%s)" % ",".join(["'%s'" % v for v in value])
+                    query += " AND `%s` %s %s" % (field, op, value)
+
             cursor = self.conn.cursor()
             cursor.execute(query)
             self.conn.commit()

@@ -14,6 +14,7 @@ runcmd:
  - echo "export MOD_2_CP='{{cnf["file_modules_2_copy"] | join(';')}}'" >> boot.env
  # file share mount
  - echo "export MNT_N_LNK='{{cnf["mount_and_link"] | join(';')}}'" >> boot.env
+ - echo "export FILE_SHARE_SYSTEM='{{cnf["fileshare_system"] | join(';')}}'" >> boot.env
  - curl -fsSL https://get.docker.com -o get-docker.sh; sh get-docker.sh
  - sudo usermod -aG docker {{cnf["worker_user"]}}
  - sudo setfacl -m user:{{cnf["worker_user"]}}:rw /var/run/docker.sock

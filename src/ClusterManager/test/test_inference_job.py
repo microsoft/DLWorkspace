@@ -70,3 +70,38 @@ def test_inference_job_running(args):
                 assert output.find(
                     expected_output) != -1, "could not find %s in log %s" % (
                         expected_output, output)
+
+@utils.case()
+def test_inference_job_scale(args):
+    if utils.get_launcher(args.config) == "controller":
+        return
+    job_spec = utils.gen_default_job_description("inference", args.email,
+                                                args.uid, args.vc, cmd="sleep 600")
+
+    with utils.run_job(args.rest, job_spec) as job:
+        job_id = job.jid
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        deployment_name = job_id + "-deployment"
+        deployment = utils.kube_get_deployment(args.config, "default", deployment_name)
+        assert 1 == deployment.spec.replicas
+
+        desired_replicas = 2
+        logger.info("scale up job %s to %d" % (job_id, desired_replicas))
+        resp = utils.scale_job(args.rest, args.email, job_id, desired_replicas)
+        assert "Success" == resp
+
+        time.sleep(30)
+        deployment = utils.kube_get_deployment(args.config, "default", deployment_name)
+        assert desired_replicas == deployment.spec.replicas
+
+        desired_replicas = 1
+        logger.info("scale down job %s to %d" % (job_id, desired_replicas))
+        resp = utils.scale_job(args.rest, args.email, job_id, desired_replicas)
+        assert "Success" == resp
+
+        time.sleep(30)
+        deployment = utils.kube_get_deployment(args.config, "default", deployment_name)
+        assert desired_replicas == deployment.spec.replicas

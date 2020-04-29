@@ -1,0 +1,523 @@
+#!/usr/bin/env python3
+
+import argparse
+import base64
+import collections
+import logging
+import os
+import json
+import yaml
+import mysql.connector
+import multiprocessing
+import subprocess
+
+from argparse import RawTextHelpFormatter
+from kubernetes import client as k8s_client
+from kubernetes.client.rest import ApiException
+from kubernetes.client import Configuration, ApiClient
+
+
+logger = logging.getLogger(__name__)
+
+
+def find_infra_node_name(machines):
+    for hostname, val in machines.items():
+        role_val = val.get("role")
+        if type(role_val) == str and role_val == "infrastructure":
+            return hostname
+        elif type(role_val) == list:
+            for role in role_val:
+                if role == "infra":
+                    return hostname
+
+
+def get_config_file(config_dir, filename):
+    config = {}
+    config_path = os.path.join(config_dir, filename)
+    if os.path.isfile(config_path):
+        with open(config_path) as f:
+            config = yaml.full_load(f)
+    return config
+
+
+def get_config_yaml(config_dir):
+    return get_config_file(config_dir, "config.yaml")
+
+
+def get_cluster_yaml(config_dir):
+    return get_config_file(config_dir, "cluster.yaml")
+
+
+def get_status_yaml(config_dir):
+    return get_config_file(config_dir, "status.yaml")
+
+
+def get_cluster_id(config_dir):
+    with open(os.path.join(config_dir, "clusterID", "clusterID.yml")) as f:
+        cluster_id = yaml.safe_load(f)["clusterId"]
+    return cluster_id
+
+
+def get_basic_auth(config_dir):
+    config_yaml = get_config_yaml(config_dir)
+    basic_auth = config_yaml.get("basic_auth")
+
+    if basic_auth is None:
+        cluster_yaml = get_cluster_yaml(config_dir)
+        basic_auth = cluster_yaml.get("basic_auth")
+
+    if basic_auth is None:
+        k8s_basic_auth_path = os.path.join(config_dir, "clusterID",
+                                           "k8s_basic_auth.yml")
+        with open(k8s_basic_auth_path) as f:
+            basic_auth = yaml.safe_load(f).get("basic_auth")
+
+    return basic_auth
+
+
+def get_machine_list(config_dir):
+    config_yaml = get_config_yaml(config_dir)
+    machines = config_yaml.get("machines")
+
+    if machines is None:
+        cluster_yaml = get_cluster_yaml(config_dir)
+        machines = cluster_yaml.get("machines")
+
+    if machines is None:
+        status_yaml = get_status_yaml(config_dir)
+        machines = status_yaml.get("machines")
+
+    if machines is None:
+        machines = []
+
+    return machines
+
+
+def get_db_conn(config_dir):
+    config = get_config_yaml(config_dir)
+    cluster_id = get_cluster_id(config_dir)
+    conn = mysql.connector.connect(
+        user=config["mysql_username"],
+        password=config["mysql_password"],
+        host=config["mysql_node"],
+        database="DLWSCluster-%s" % cluster_id)
+    return conn
+
+
+def get_expected_capacity(config_dir):
+    conn = None
+    cursor = None
+    ret = None
+    try:
+        conn = get_db_conn(config_dir)
+        cursor = conn.cursor()
+        query = "SELECT `resourceMetadata` FROM `vc` LIMIT 1"
+        cursor.execute(query)
+        for resource_metadata in cursor:
+            data = json.loads(resource_metadata[0])
+            if "gpu" in data:
+                for sku, meta in data["gpu"].items():
+                    ret = int(meta["per_node"])
+        conn.commit()
+    except Exception:
+        logger.exception("Failed to get expected capacity")
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if conn is not None:
+            conn.close()
+    return ret
+
+
+def get_user(config_dir):
+    config_yaml = get_config_yaml(config_dir)
+    user = config_yaml.get("admin_username")
+
+    if user is None:
+        cluster_yaml = get_cluster_yaml(config_dir)
+        user = cluster_yaml.get("admin_username")
+
+    if user is None:
+        status_yaml = get_status_yaml(config_dir)
+        for machine, machine_info in status_yaml.get("machines", {}).items():
+            if "infra" in machine_info["role"]:
+                user = machine_info.get("admin_username")
+
+    return user
+
+
+def get_domain(config_dir):
+    config_yaml = get_config_yaml(config_dir)
+    domain = config_yaml.get("network", {}).get("domain")
+
+    if domain is None:
+        cluster_yaml = get_cluster_yaml(config_dir)
+        domain = cluster_yaml.get("network", {}).get("domain")
+
+    if domain is None:
+        status_yaml = get_status_yaml(config_dir)
+        for machine, machine_info in status_yaml.get("machines", {}).items():
+            if "infra" in machine_info["role"]:
+                fqdns = machine_info["fqdns"]
+                domain = fqdns[(fqdns.find(".") + 1):]
+                break
+
+    return domain
+
+
+def build_k8s_config(config_dir):
+    machines = get_machine_list(config_dir)
+    infra_host = find_infra_node_name(machines)
+    domain = get_domain(config_dir)
+    basic_auth = get_basic_auth(config_dir)
+
+    config = Configuration()
+
+    config.host = "https://%s.%s:1443" % (infra_host, domain)
+    config.username = basic_auth.split(",")[1]
+    config.password = basic_auth.split(",")[0]
+    bearer = "%s:%s" % (config.username, config.password)
+    encoded = base64.b64encode(bearer.encode("utf-8")).decode("utf-8")
+    config.api_key["authorization"] = "Basic " + encoded
+
+    config.ssl_ca_cert = os.path.join(config_dir, "ssl/apiserver/ca.pem")
+    return config
+
+
+def cordon_k8s_nodes(config_dir, nodes):
+    config = build_k8s_config(config_dir)
+    api_client = ApiClient(configuration=config)
+    k8s_core_api = k8s_client.CoreV1Api(api_client)
+    for node in nodes:
+        try:
+            api_call_body = k8s_client.V1Node(
+                spec=k8s_client.V1NodeSpec(unschedulable=True))
+            k8s_core_api.patch_node(node, api_call_body)
+            logger.info("node %s cordoned", node)
+        except ApiException:
+            logger.exception("Exception when calling CoreV1Api->patch_node")
+
+
+def uncordon_k8s_nodes(config_dir, nodes):
+    config = build_k8s_config(config_dir)
+    api_client = ApiClient(configuration=config)
+    k8s_core_api = k8s_client.CoreV1Api(api_client)
+    for node in nodes:
+        try:
+            api_call_body = k8s_client.V1Node(
+                spec=k8s_client.V1NodeSpec(unschedulable=False))
+            k8s_core_api.patch_node(node, api_call_body)
+            logger.info("node %s uncordoned", node)
+        except ApiException:
+            logger.exception("Exception when calling CoreV1Api->patch_node")
+
+
+def get_k8s_nodes(config_dir):
+    config = build_k8s_config(config_dir)
+    api_client = ApiClient(configuration=config)
+    k8s_core_api = k8s_client.CoreV1Api(api_client)
+    ret = []
+    try:
+        resp = k8s_core_api.list_node()
+        ret = resp.items
+    except ApiException:
+        logger.exception("Exception when calling CoreV1Api->list_node")
+    return ret
+
+
+def get_k8s_pods(config_dir):
+    config = build_k8s_config(config_dir)
+    api_client = ApiClient(configuration=config)
+    k8s_core_api = k8s_client.CoreV1Api(api_client)
+    ret = []
+    try:
+        resp = k8s_core_api.list_namespaced_pod(namespace="default")
+        ret = resp.items
+    except ApiException:
+        logger.exception("Exception when calling CoreV1Api->list_namespaced_pod")
+    return ret
+
+
+def get_jobs_on_nodes(config_dir, nodes):
+    pods = get_k8s_pods(config_dir)
+    jobs = collections.defaultdict(lambda: list())
+    for pod in pods:
+        if pod.metadata is None or pod.metadata.labels is None:
+            continue
+
+        if pod.spec is None or pod.spec.node_name is None:
+            continue
+
+        labels = pod.metadata.labels
+        node_name = pod.spec.node_name
+        if "jobId" in labels and "userName" in labels and \
+                "vcName" in labels and node_name in nodes:
+            job_id = labels["jobId"]
+            username = labels["userName"]
+            vc_name = labels["vcName"]
+
+            job = {
+                "job_id": job_id,
+                "username": username,
+                "vc_name": vc_name
+            }
+
+            jobs[node_name].append(job)
+            logger.info("node %s job %s", node_name, job)
+
+    nodes_with_jobs = []
+    user_list = []
+    job_list = []
+    nodes_without_jobs = []
+    for node in nodes:
+        if node not in jobs:
+            nodes_without_jobs.append(node)
+        else:
+            nodes_with_jobs.append(node)
+            for job in jobs[node]:
+                job_id = job["job_id"]
+                username = job["username"]
+                vc_name = job["vc_name"]
+                user_list.append(username)
+                job_list.append((job_id, username, vc_name))
+
+    logger.info("nodes without jobs: %s", ",".join(nodes_without_jobs))
+    logger.info("nodes with jobs   : %s", ",".join(nodes_with_jobs))
+    logger.info("users to email    : %s", ";".join(list(set(user_list))))
+    logger.info("jobs affected     :\n%s", 
+                "\n".join(["%s %s %s" % (job[0], job[1], job[2]) 
+                           for job in job_list]))
+
+    return jobs
+
+
+def get_k8s_gpu_nodes(config_dir):
+    nodes = get_k8s_nodes(config_dir)
+    gpu_nodes = []
+    for node in nodes:
+        if node.status is not None and node.status.capacity is not None \
+                and "nvidia.com/gpu" in node.status.capacity:
+            gpu_nodes.append(node)
+    return gpu_nodes
+
+
+def get_hostname(node):
+    hostname = None
+    for address in node.status.addresses:
+        if address.type == 'Hostname':
+            hostname = address.address
+    return hostname
+
+
+def get_gpu_count(config_dir):
+    expected = get_expected_capacity(config_dir)
+    if expected is None:
+        logger.info("Expected GPU capacity is None, skipping.")
+        return
+
+    nodes = get_k8s_gpu_nodes(config_dir)
+    miscount_nodes = []
+    for node in nodes:
+        hostname = get_hostname(node)
+        capacity = int(node.status.capacity["nvidia.com/gpu"])
+        allocatable = int(node.status.allocatable["nvidia.com/gpu"])
+        if expected != capacity or capacity != allocatable:
+            logger.info("%s. expected %s, capacity %s, allocatable %s", 
+                        hostname, expected, capacity, allocatable)
+            miscount_nodes.append(hostname)
+    if len(miscount_nodes) > 0:
+        logger.info("miscount nodes: %s", ",".join(miscount_nodes))
+    else:
+        logger.info("no miscount nodes")
+
+
+def get_ready(node):
+    ready = False
+    if node.status is not None and node.status.conditions is not None:
+        for condition in node.status.conditions:
+            if condition.type == "Ready" and condition.status == "True":
+                ready = True
+                break
+    return ready
+
+
+def get_unschedulable(config_dir):
+    nodes = get_k8s_gpu_nodes(config_dir)
+    unschedulable_nodes = []
+    notready_nodes = []
+    for node in nodes:
+        hostname = get_hostname(node)
+        unschedulable = node.spec.unschedulable is True
+        ready = get_ready(node)
+        if unschedulable is True or ready is not True:
+            logger.info("%s. unschedulable %s, ready %s",
+                        hostname, unschedulable, ready)
+        if unschedulable is True:
+            unschedulable_nodes.append(hostname)
+        if ready is not True:
+            notready_nodes.append(hostname)
+    if len(unschedulable_nodes) > 0:
+        logger.info("unschedulable nodes: %s", ",".join(unschedulable_nodes))
+    else:
+        logger.info("all nodes are schedulable")
+    if len(notready_nodes) > 0:
+        logger.info("notready nodes     : %s", ",".join(notready_nodes))
+    else:
+        logger.info("all nodes are ready")
+
+
+def ssh_exec(params):
+    identity_file, user, host, command = params
+    ssh_command = \
+        """ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """ % \
+        (identity_file, user, host, command)
+    output = b""
+    try:
+        output = subprocess.check_output(ssh_command, shell=True)
+    except subprocess.CalledProcessError as exc:
+        output = exc.output
+    return output.decode()
+
+
+def parallel_ssh(config_dir, nodes, command):
+    identity_file = os.path.join(config_dir, "sshkey", "id_rsa")
+    assert os.path.isfile(identity_file), "sshkey/id_rsa must exist!"
+
+    user = get_user(config_dir)
+    assert user is not None, "admin_username cannot be None, check config files"
+
+    domain = get_domain(config_dir)
+    assert domain is not None, "domain cannot be None, check config files"
+
+    arg_lists = []
+    for node in nodes:
+        host = "%s.%s" % (node, domain)
+        arg_lists.append((identity_file, user, host, command))
+
+    with multiprocessing.Pool(len(nodes)) as pool:
+        results = pool.map(ssh_exec, arg_lists)
+    return results
+
+
+def ssh_exec_hostname(config_dir, nodes):
+    cmd = "hostname"
+    results = parallel_ssh(config_dir, nodes, cmd)
+    for i, node in enumerate(nodes):
+        logger.info("[%s] %s", node, results[i])
+
+
+def get_ib(config_dir):
+    cmd = "ibstatus && ifconfig ib0"
+    nodes = get_k8s_gpu_nodes(config_dir)
+    nodes = [get_hostname(node) for node in nodes]
+    results = parallel_ssh(config_dir, nodes, cmd)
+    nodes_without_ib = []
+    nodes_with_bad_ipoib = []
+    for i, node in enumerate(nodes):
+        if "4: ACTIVE" not in results[i]:
+            nodes_without_ib.append(node)
+            logger.info("[%s] %s", node, results[i])
+        elif "mtu 2044" not in results[i]:
+            nodes_with_bad_ipoib.append(node)
+            logger.info("[%s] %s", node, results[i])
+
+    if len(nodes_without_ib) > 0:
+        logger.info("nodes without ib: %s", ",".join(nodes_without_ib))
+    else:
+        logger.info("all nodes have ib")
+
+    if len(nodes_with_bad_ipoib) > 0:
+        logger.info("nodes with bad ipoib: %s", ",".join(nodes_with_bad_ipoib))
+    else:
+        logger.info("all nodes have good ipoib")
+
+
+def restart_kubelet(config_dir, nodes):
+    cmd = "sudo systemctl restart kubelet"
+    _ = parallel_ssh(config_dir, nodes, cmd)
+
+
+def restart_walinuxagent(config_dir, nodes):
+    cmd = "sudo systemctl restart walinuxagent"
+    _ = parallel_ssh(config_dir, nodes, cmd)
+
+
+def reboot(config_dir, nodes):
+    cmd = "sudo reboot"
+    _ = parallel_ssh(config_dir, nodes, cmd)
+
+
+def main(args):
+    config = args.config
+    action = args.action
+    nodes = args.nodes
+    if nodes is not None:
+        nodes = nodes.split(",")
+
+    if action == "gpu-count":
+        get_gpu_count(config)
+    elif action == "unschedulable":
+        get_unschedulable(config)
+    elif action == "ib":
+        get_ib(config)
+    elif action == "cordon":
+        assert nodes is not None
+        cordon_k8s_nodes(config, nodes)
+    elif action == "uncordon":
+        assert nodes is not None
+        uncordon_k8s_nodes(config, nodes)
+    elif action == "jobs":
+        assert nodes is not None
+        get_jobs_on_nodes(config, nodes)
+    elif action == "hostname":
+        assert nodes is not None
+        ssh_exec_hostname(config, nodes)
+    elif action == "kubelet":
+        assert nodes is not None
+        restart_kubelet(config, nodes)
+    elif action == "walinuxagent":
+        assert nodes is not None
+        restart_walinuxagent(config, nodes)
+    elif action == "reboot":
+        assert nodes is not None
+        response = input("!!!WARNING!!! Confirm node reboot[Y/N]: ")
+        if response == "Y":
+            reboot(config, nodes)
+    else:
+        logger.exception("Unrecognized action")
+
+
+if __name__ == '__main__':
+    logging.basicConfig(
+        format=
+        "%(asctime)s: %(levelname)s - %(filename)s:%(lineno)d@%(process)d: %(message)s",
+        level=logging.INFO)
+    parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
+    parser.add_argument("--config",
+                        "-c",
+                        required=True,
+                        help="path to config dir")
+    action_desc = [
+        "  gpu-count       get nodes with gpu miscount",
+        "  unschedulable   get Unschedulable/NotReady gpu nodes",
+        "  ib              get gpu nodes with bad ib or ipoib",
+        "  cordon          uncordon a list of nodes from --nodes/-n",
+        "  uncordon        cordon a list of nodes from --nodes/-n",
+        "  jobs            get jobs on a list of nodes from --nodes/-n",
+        "  hostname        exec hostname on all gpu nodes",
+        "  kubelet         'sudo systemctl restart kubelet' on nodes from --nodes/-n",
+        "  walinuxagent    'sudo systemctl restart walinuxagent' on nodes from --nodes/-n",
+        "  reboot          'sudo reboot' on nodes from --nodes/-n",
+    ]
+    parser.add_argument("--action",
+                        "-a",
+                        required=True,
+                        help="action to take:\n%s" % "\n".join(action_desc))
+    parser.add_argument("--nodes",
+                        "-n",
+                        required=False,
+                        default=None,
+                        help="comma separated list of nodes")
+    args = parser.parse_args()
+
+    main(args)

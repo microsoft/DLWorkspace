@@ -20,6 +20,7 @@ default_az_parameters = {
         "worker_local_storage_sz": 1024,
         "mysqlserver_local_storage_sz": 2048,
         "elasticsearch_local_storage_sz" : 2048,
+        "lustre_local_storage_sz" : 1024,
         "nfs_data_disk_sku": "Premium_LRS",
         "nfs_data_disk_sz": 1024,
         "nfs_data_disk_num": 1,

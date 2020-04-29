@@ -14,18 +14,12 @@ import {
   useTheme,
 } from "@material-ui/core/styles";
 import { makeStyles, createStyles } from "@material-ui/core/styles";
-import Context from "./Context";
+import Context, { WIDTH } from "./Context";
 import ConfigContext from "../../contexts/Config";
 
-const useStyles = makeStyles((theme: Theme) => createStyles({
-  title: {
-    padding: theme.spacing(1)
-  },
-  titleLink: {
-    textDecoration: "none"
-  },
-  drawerHeader: {
-    marginTop:64,
+const useNavigationListStyles = makeStyles((theme: Theme) => createStyles({
+  root: {
+    marginTop: 64,
     display: 'flex',
     flexDirection:'column',
     alignItems: 'center',
@@ -34,6 +28,12 @@ const useStyles = makeStyles((theme: Theme) => createStyles({
     justifyContent: 'flex-end',
   },
 }));
+
+const useDashboardDrawerStyles = makeStyles({
+  paper: {
+    width: WIDTH
+  }
+});
 
 export const ListLink = React.forwardRef<Link, LinkProps>(
   ({ to, ...props }, ref) => <Link ref={ref} to={to} {...props}/>
@@ -57,10 +57,10 @@ const LinkListItem: React.FC<LinkProps> = ({ to, children }) => {
 };
 
 const NavigationList: React.FC = () => {
-  const styles = useStyles();
+  const styles = useNavigationListStyles();
   const { wiki } = React.useContext(ConfigContext);
   return (
-    <List component="nav" className={styles.drawerHeader}>
+    <List component="nav" classes={styles}>
       <LinkListItem to="/submission/training">
         <ListItemText>Submit Training Job</ListItemText>
       </LinkListItem>
@@ -70,18 +70,18 @@ const NavigationList: React.FC = () => {
       <LinkListItem to="/jobs">
         <ListItemText>View and Manage Jobs</ListItemText>
       </LinkListItem>
-      <LinkListItem to="/jobs-v2">
-        <ListItemText>View and Manage Jobs V2</ListItemText>
-      </LinkListItem>
-      <LinkListItem to="/cluster-status">
-        <ListItemText>Cluster Status</ListItemText>
+      <LinkListItem to="/jobs-legacy">
+        <ListItemText secondary="(legacy)">View and Manage Jobs</ListItemText>
       </LinkListItem>
       <LinkListItem to="/clusters">
-        <ListItemText>Cluster Status V2</ListItemText>
+        <ListItemText>Cluster Status</ListItemText>
+      </LinkListItem>
+      <LinkListItem to="/cluster-status">
+        <ListItemText secondary="(legacy)">Cluster Status</ListItemText>
       </LinkListItem>
       <ListItem button>
         <ListItemText>
-          <a href={wiki} target="_blank" style={{ textDecoration:'none' }}>DLTS Wiki</a>
+          <a href={wiki} target="_blank" rel="noopener noreferrer" style={{ textDecoration:'none' }}>DLTS Wiki</a>
         </ListItemText>
       </ListItem>
     </List>
@@ -92,6 +92,7 @@ const DashboardDrawer: React.FC = () => {
   const { open, setOpen } = React.useContext(Context);
   const onClose = React.useCallback(() => setOpen(false), [setOpen]);
   const theme = useTheme();
+  const styles = useDashboardDrawerStyles();
   const isDesktop = useMediaQuery(theme.breakpoints.up("sm"));
   const variant = isDesktop ? "persistent" : "temporary";
 
@@ -103,6 +104,7 @@ const DashboardDrawer: React.FC = () => {
       variant={variant}
       open={open}
       onClose={onClose}
+      classes={styles}
     >
       <Divider/>
       <NavigationList />

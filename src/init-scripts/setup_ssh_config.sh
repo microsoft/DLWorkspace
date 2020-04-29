@@ -173,15 +173,22 @@ then
         fi
     done
 else
-    echo `date` "testing self"
-    ssh ${self_name}
-    # do not add code here
-    rtn=$?
-    echo `date` "done testing self"
-    if [ "$rtn" -eq "0" ] ; then
-        exit 0
-    else
-        echo "failed to test self"
-        exit 209
-    fi
+    for i in `seq 1 10` ; do
+        echo `date` "testing self" $i
+        ssh ${self_name}
+        # do not add code here
+        rtn=$?
+        echo `date` "done testing self" $i
+        if [ "$rtn" -eq "0" ] ; then
+            exit 0
+        else
+            echo "failed to test self" $i
+            pgrep sshd
+            /etc/inid.d/ssh restart
+            pgrep sshd
+            sleep 1
+        fi
+    done
+    echo "failed to test self"
+    exit 209
 fi

@@ -156,7 +156,7 @@ const Clusters: FunctionComponent = () => {
       field: 'runningJobs',
       render: (data: any) => data.clusterId == null ? (
         <Tooltip title={`View jobs in ${data.id}`}>
-          <UILink variant="subtitle2" component={RouterLink} to={`/jobs-v2/${data.id}`}>
+          <UILink variant="subtitle2" component={RouterLink} to={`/jobs/${data.id}`}>
             {get(data, 'runningJobs', 0)}
           </UILink>
         </Tooltip>

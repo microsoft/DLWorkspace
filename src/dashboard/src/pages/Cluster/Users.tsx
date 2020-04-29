@@ -29,9 +29,12 @@ import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
 import { humanBytes } from '../Clusters/useResourceColumns';
 
-const humanSeconds = (seconds: number) => {
+const humanHours = (seconds: number) => {
   if (typeof seconds !== 'number') return seconds;
-  return formatDistanceStrict(seconds * 1000, 0);
+  return formatDistanceStrict(seconds * 1000, 0, {
+    roundingMethod: 'round',
+    unit: 'hour'
+  });
 }
 
 interface Props {
@@ -171,13 +174,13 @@ const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods
     title: 'Booked GPU Last 30 days',
     field: 'gpu.booked',
     type: 'numeric',
-    render: (data) => <>{humanSeconds(get(data, 'gpu.booked'))}</>,
+    render: (data) => <>{humanHours(get(data, 'gpu.booked'))}</>,
     width: 'auto'
   } as Column<any>, {
     title: 'Idle GPU Last 30 days',
     field: 'gpu.idle',
     type: 'numeric',
-    render: (data) => <>{humanSeconds(get(data, 'gpu.idle'))}</>,
+    render: (data) => <>{humanHours(get(data, 'gpu.idle'))}</>,
     width: 'auto'
   } as Column<any>, {
     title: 'Idle GPU % Last 30 days',

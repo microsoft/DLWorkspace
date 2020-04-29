@@ -1,4 +1,5 @@
 #!/bin/bash
+# delete existing deployment file, to start deploying a new cluster, skip this if need existing files.
 shopt -s extglob
 rm -rf deploy/!(bin) cloudinit* !(config).yaml
 # prepare clusterID

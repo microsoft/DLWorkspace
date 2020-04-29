@@ -23,16 +23,20 @@ kill_template = """
         type: reaper
 """
 
+
 def config_kill_rule(m):
     for vc_name, hour in m.items():
         print(kill_template % (vc_name, hour, vc_name, vc_name, hour, vc_name))
 
+
 def extract_relevant_config(config_map):
-    return config_map.get("prometheus", {}).get("alerting", {}).get("kill-idle", {})
+    return config_map.get("prometheus", {}).get("alerting",
+                                                {}).get("kill-idle", {})
+
 
 if __name__ == "__main__":
     with open(sys.argv[1]) as f:
-        config = yaml.load(f.read())
+        config = yaml.full_load(f.read())
 
     print(headers)
     config_kill_rule(extract_relevant_config(config))

@@ -389,7 +389,7 @@ def add_n_machines(config, args, num_2_add):
 
 def add_machine(vmname, spec, verbose, dryrun, output_file):
     multual_exclusive_roles = set(
-        ["infra", "worker", "elasticsearch", "mysqlserver"])
+        ["infra", "worker", "elasticsearch", "mysqlserver", "lustre"])
     mul_ex_role_in_spec = list(set(spec["role"]) & multual_exclusive_roles)
     assert len(mul_ex_role_in_spec) <= 1, "We don't allow role overlapping between these roles:{}.".format(
         ",".join(list(multual_exclusive_roles)))
@@ -426,7 +426,7 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
     # called "spec_name" for a spec. as for now, workers are different only in vm_size
     if "worker" in spec["role"]:
         cldinit_appendix = "cloud_init_worker_{}.txt".format(spec["vm_size"])
-    elif len(mul_ex_role_in_spec) == 1:
+    elif len(mul_ex_role_in_spec) == 1 and "lustre" not in spec["role"]:
         cldinit_appendix = "cloud_init_{}.txt".format(mul_ex_role_in_spec[0])
     cloud_init_file = spec.get(
         "cloud_init_file", 'deploy/cloud-config/{}'.format(cldinit_appendix))

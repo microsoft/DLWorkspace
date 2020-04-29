@@ -26,6 +26,9 @@ export const humanBytes = (bytes: number) => {
   if (bytes >= 1024) {
     return (bytes / 1024).toFixed(1) + ' KiB'
   }
+  if (isNaN(bytes)) {
+    return '0 B'
+  }
   return bytes + ' B'
 }
 

@@ -47,17 +47,17 @@ const Brief: FunctionComponent = () => {
           secondaryTypographyProps={{ component: 'div' }}
         />
       </ListItem>
-      { isNaN(submitted.valueOf()) || (
+      { isFinite(submitted.valueOf()) && (
         <ListItem>
           <ListItemText primary="Job Submitted Time" secondary={submitted.toLocaleString()}/>
         </ListItem>
       ) }
-      { isNaN(started.valueOf()) || (
+      { isFinite(started.valueOf()) && (
         <ListItem>
           <ListItemText primary="Job Started Time" secondary={started.toLocaleString()}/>
         </ListItem>
       ) }
-      { isNaN(finished.valueOf()) || (
+      { isFinite(finished.valueOf()) && (
         <ListItem>
           <ListItemText primary="Job Finished Time" secondary={finished.toLocaleString()}/>
         </ListItem>

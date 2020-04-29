@@ -16,3 +16,5 @@ export const Provider: React.FC = ({ children }) => {
     />
   );
 };
+
+export const WIDTH = 240;
