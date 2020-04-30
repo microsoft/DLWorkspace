@@ -366,6 +366,28 @@ def get_unschedulable(config_dir):
         logger.info("all nodes are ready")
 
 
+def get_ssh_params(config_dir):
+    identity_file = os.path.join(config_dir, "sshkey", "id_rsa")
+    assert os.path.isfile(identity_file), "sshkey/id_rsa must exist!"
+
+    user = get_user(config_dir)
+    assert user is not None, "admin_username cannot be None, check config files"
+
+    domain = get_domain(config_dir)
+    assert domain is not None, "domain cannot be None, check config files"
+
+    return identity_file, user, domain
+
+
+def ssh_connect(config_dir, nodes):
+    identity_file, user, domain = get_ssh_params(config_dir)
+    for node in nodes:
+        host = "%s.%s" % (node, domain)
+        os.system(
+            """ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" """ %
+            (identity_file, user, host))
+
+
 def ssh_exec(params):
     identity_file, user, host, command = params
     ssh_command = \
@@ -380,14 +402,7 @@ def ssh_exec(params):
 
 
 def parallel_ssh(config_dir, nodes, command):
-    identity_file = os.path.join(config_dir, "sshkey", "id_rsa")
-    assert os.path.isfile(identity_file), "sshkey/id_rsa must exist!"
-
-    user = get_user(config_dir)
-    assert user is not None, "admin_username cannot be None, check config files"
-
-    domain = get_domain(config_dir)
-    assert domain is not None, "domain cannot be None, check config files"
+    identity_file, user, domain = get_ssh_params(config_dir)
 
     arg_lists = []
     for node in nodes:
@@ -422,12 +437,14 @@ def get_ib(config_dir):
             logger.info("[%s] %s", node, results[i])
 
     if len(nodes_without_ib) > 0:
-        logger.info("nodes without ib: %s", ",".join(nodes_without_ib))
+        logger.info("%s nodes without ib: %s", len(nodes_without_ib), 
+                    ",".join(nodes_without_ib))
     else:
         logger.info("all nodes have ib")
 
     if len(nodes_with_bad_ipoib) > 0:
-        logger.info("nodes with bad ipoib: %s", ",".join(nodes_with_bad_ipoib))
+        logger.info("%s nodes with bad ipoib: %s", len(nodes_with_bad_ipoib),
+                    ",".join(nodes_with_bad_ipoib))
     else:
         logger.info("all nodes have good ipoib")
 
@@ -472,6 +489,9 @@ def main(args):
     elif action == "hostname":
         assert nodes is not None
         ssh_exec_hostname(config, nodes)
+    elif action == "connect":
+        assert nodes is not None
+        ssh_connect(config, nodes)
     elif action == "kubelet":
         assert nodes is not None
         restart_kubelet(config, nodes)
@@ -505,6 +525,7 @@ if __name__ == '__main__':
         "  uncordon        cordon a list of nodes from --nodes/-n",
         "  jobs            get jobs on a list of nodes from --nodes/-n",
         "  hostname        exec hostname on all gpu nodes",
+        "  connect         ssh to a node from --nodes/-n",
         "  kubelet         'sudo systemctl restart kubelet' on nodes from --nodes/-n",
         "  walinuxagent    'sudo systemctl restart walinuxagent' on nodes from --nodes/-n",
         "  reboot          'sudo reboot' on nodes from --nodes/-n",
