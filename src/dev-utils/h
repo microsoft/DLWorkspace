@@ -10,6 +10,8 @@ import yaml
 import mysql.connector
 import multiprocessing
 import subprocess
+import urllib
+import requests
 
 from argparse import RawTextHelpFormatter
 from kubernetes import client as k8s_client
@@ -287,6 +289,7 @@ def get_jobs_on_nodes(config_dir, nodes):
     logger.info("jobs affected     :\n%s", 
                 "\n".join(["%s %s %s" % (job[0], job[1], job[2]) 
                            for job in job_list]))
+    logger.info("job ids: %s", ",".join([job[0] for job in job_list]))
 
     return jobs
 
@@ -464,12 +467,53 @@ def reboot(config_dir, nodes):
     _ = parallel_ssh(config_dir, nodes, cmd)
 
 
+def op_jobs(config_dir, job_ids, op, user):
+    if not isinstance(job_ids, list):
+        return
+
+    machines = get_machine_list(config_dir)
+    infra_host = find_infra_node_name(machines)
+    domain = get_domain(config_dir)
+    restful_url = "http://%s.%s" % (infra_host, domain)
+
+    if isinstance(job_ids, list):
+        job_ids = ",".join(job_ids)
+
+    args = urllib.parse.urlencode({
+        "userName": user,
+        "jobIds": job_ids,
+    })
+    url = urllib.parse.urljoin(restful_url, "/%sJobs" % op) + "?" + args
+    resp = requests.get(url)
+    return resp.json()
+
+
+def pause_jobs(config_dir, job_ids, user):
+    try:
+        resp = op_jobs(config_dir, job_ids, "Pause", user)
+        print(resp)
+    except Exception as e:
+        print(e)
+
+
+def resume_jobs(config_dir, job_ids, user):
+    try:
+        resp = op_jobs(config_dir, job_ids, "Resume", user)
+        print(resp)
+    except Exception as e:
+        print(e)
+
+
 def main(args):
     config = args.config
     action = args.action
     nodes = args.nodes
+    jobs = args.jobs
+    user = args.user
     if nodes is not None:
         nodes = nodes.split(",")
+    if jobs is not None:
+        jobs = jobs.split(",")
 
     if action == "gpu-count":
         get_gpu_count(config)
@@ -504,8 +548,13 @@ def main(args):
         if response == "Y":
             reboot(config, nodes)
     elif action == "pause-jobs":
+        assert user is not None
         assert jobs is not None
-        pause_jobs
+        pause_jobs(config, jobs, user)
+    elif action == "resume-jobs":
+        assert user is not None
+        assert jobs is not None
+        resume_jobs(config, jobs, user)
     else:
         logger.exception("Unrecognized action")
 
@@ -542,6 +591,16 @@ if __name__ == '__main__':
                         required=False,
                         default=None,
                         help="comma separated list of nodes")
+    parser.add_argument("--jobs",
+                        "-j",
+                        required=False,
+                        default=None,
+                        help="comma separated list of jobs")
+    parser.add_argument("--user",
+                        "-u",
+                        required=False,
+                        default=None,
+                        help="admin username")
     args = parser.parse_args()
 
     main(args)
