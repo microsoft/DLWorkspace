@@ -610,6 +610,9 @@ if __name__ == '__main__':
         "  kubelet         'sudo systemctl restart kubelet' on nodes from --nodes/-n",
         "  walinuxagent    'sudo systemctl restart walinuxagent' on nodes from --nodes/-n",
         "  reboot          'sudo reboot' on nodes from --nodes/-n",
+        "  job-status      get status for jobs from --jobs/-j",
+        "  pause-jobs      pause jobs from --jobs/-j with username from --user/-u",
+        "  resume-jobs     resume jobs from --jobs/-j with username from --user/-u",
     ]
     parser.add_argument("--action",
                         "-a",
