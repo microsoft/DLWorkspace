@@ -503,6 +503,9 @@ def main(args):
         response = input("!!!WARNING!!! Confirm node reboot[Y/N]: ")
         if response == "Y":
             reboot(config, nodes)
+    elif action == "pause-jobs":
+        assert jobs is not None
+        pause_jobs
     else:
         logger.exception("Unrecognized action")
 
