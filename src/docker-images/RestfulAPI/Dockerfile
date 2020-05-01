@@ -24,7 +24,8 @@ RUN apt-get update && apt-get --no-install-recommends install -y apt-transport-h
         build-essential \
         libssl-dev \
         libmysqlclient-dev \
-        sudo
+        sudo \
+        gawk
 
 RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
 

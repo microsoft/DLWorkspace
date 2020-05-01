@@ -254,21 +254,14 @@ class Launcher(object):
     @record
     def _get_deployment(self, name):
         api_response = self.k8s_AppsAPI.read_namespaced_deployment_scale(
-            namespace=self.namespace,
-            pretty=self.pretty,
-            name=name
-        )
+            namespace=self.namespace, pretty=self.pretty, name=name)
         logger.debug("Get pods: {}".format(api_response))
         return api_response
 
     @record
     def _patch_deployment(self, name, body):
         api_response = self.k8s_AppsAPI.patch_namespaced_deployment_scale(
-            namespace=self.namespace,
-            pretty=self.pretty,
-            name=name,
-            body=body
-        )
+            namespace=self.namespace, pretty=self.pretty, name=name, body=body)
         return api_response
 
     @record
@@ -1164,8 +1157,8 @@ class PythonLauncher(Launcher):
 
         deployment.spec.replicas = new_replicas
         self._patch_deployment(name=name, body=deployment)
-        logger.debug("Scale inference job %s from %d to %d." % (job_object.job_id, replicas, new_replicas))
-
+        logger.debug("Scale inference job %s from %d to %d." %
+                     (job_object.job_id, replicas, new_replicas))
 
     def run(self, queue):
         # TODO maintain a data_handler so do not need to init it every time
