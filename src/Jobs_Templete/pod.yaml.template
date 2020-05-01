@@ -259,9 +259,9 @@ spec:
     {% endif %}
     - name: DLTS_PREEMPTIBLE
     {% if job["preemptionAllowed"] %}
-      value: true
+      value: "true"
     {% else%}
-      value: false
+      value: "false"
     {% endif %}
     {% for env in job["envs"] %}
     - name: {{env.name}}
