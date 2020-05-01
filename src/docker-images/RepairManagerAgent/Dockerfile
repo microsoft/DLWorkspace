@@ -7,6 +7,8 @@ RUN apt-get update && apt-get --no-install-recommends install -y \
     systemd-sysv
 
 RUN pip3 install wheel setuptools requests
+
+# separate line as pyyaml has dependency on setuptools
 RUN pip3 install pyyaml
 
 COPY run.sh /
