@@ -1377,6 +1377,14 @@ def update_job_priorites(username, job_priorities):
             data_handler.Close()
 
 
+def get_job_insight(job_id, username):
+    pass
+
+
+def set_job_insight(job_id, username, payload):
+    pass
+
+
 def getAlias(username):
     if "@" in username:
         username = username.split("@")[0].strip()

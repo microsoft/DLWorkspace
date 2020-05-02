@@ -127,6 +127,7 @@ class DataHandler(object):
                     `retries`             int    NULL DEFAULT 0,
                     `lastUpdated` DATETIME     DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     `priority` INT   DEFAULT 100 NOT NULL,
+                    `insight` LONGTEXT  NULL,
                     PRIMARY KEY (`id`),
                     UNIQUE(`jobId`),
                     INDEX (`userName`),
@@ -1065,7 +1066,7 @@ class DataHandler(object):
         cursor = None
         try:
             cursor = self.conn.cursor()
-            query = "SELECT `jobId`, `jobName`, `userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobTime`, `jobParams`  FROM `%s` where `jobId` = '%s' " % (
+            query = "SELECT `jobId`, `jobName`, `userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobTime`, `jobParams`, `insight` FROM `%s` where `jobId` = '%s' " % (
                 self.jobtablename, jobId)
             cursor.execute(query)
 
@@ -1079,6 +1080,9 @@ class DataHandler(object):
                 if record["jobParams"] is not None:
                     record["jobParams"] = self.load_json(
                         base64decode(record["jobParams"]))
+                if record["insight"] is not None:
+                    record["insight"] = self.load_json(
+                        base64decode(record["insight"]))
                 ret.append(record)
             self.conn.commit()
         except Exception as e:
