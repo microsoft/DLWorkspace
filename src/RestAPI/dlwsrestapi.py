@@ -1031,8 +1031,10 @@ class JobInsight(Resource):
         job_id = args.get("jobId")
         username = args.get("userName")
 
-        job_insight = JobRestAPIUtils.get_job_insight(job_id, username)
-        return generate_response(job_insight)
+        resp, status_code = JobRestAPIUtils.get_job_insight(job_id, username)
+        if status_code != 200:
+            return resp, status_code
+        return generate_response(resp)
 
     def post(self):
         args = self.post_parser.parse_args()
@@ -1040,9 +1042,11 @@ class JobInsight(Resource):
         username = args.get("userName")
         payload = request.get_json(silent=True)
 
-        msg, status_code = JobRestAPIUtils.set_job_insight(job_id, username,
-                                                           payload)
-        return msg, status_code
+        resp, status_code = JobRestAPIUtils.set_job_insight(job_id, username,
+                                                            payload)
+        if status_code != 200:
+            return resp, status_code
+        return generate_response(resp)
 
 
 @app.route("/metrics")
