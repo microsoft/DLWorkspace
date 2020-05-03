@@ -180,7 +180,7 @@ else
         else
             echo "failed to test self" $i
             pgrep sshd
-            /etc/inid.d/ssh restart
+            /etc/init.d/ssh restart
             pgrep sshd
             sleep 1
         fi
