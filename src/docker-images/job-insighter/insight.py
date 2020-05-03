@@ -118,6 +118,73 @@ def get_task_mem_usage_byte(prometheus_url, since, end, step):
         since, end, step)
 
 
+def get_vc_info(restful_url):
+    params = urllib.parse.urlencode({
+        "userName": "Administrator",
+    })
+    url = urllib.parse.urljoin(restful_url, "/ListVCs") + "?" + params
+    obj = request_with_error_handling(url)
+    return walk_json_field_safe(obj, "result")
+
+
+def get_node_spec(vc_info):
+    try:
+        metadata = walk_json_field_safe(vc_info, 0, "resourceMetadata")
+        meta = json.loads(metadata)
+
+        # This is assuming that the cluster is homogeneous, i.e. only 1 type
+        # of machine.
+        gpu_meta = next(iter(meta["gpu"].values()))
+        gpu_per_node = int(gpu_meta.get("per_node"))
+
+        cpu_meta = next(iter(meta["cpu"].values()))
+        cpu_per_node = float(cpu_meta.get("per_node"))
+        cpu_schedulable_ratio = float(cpu_meta.get("schedulable_ratio", 1))
+        max_cpu_per_gpu = cpu_per_node * cpu_schedulable_ratio / gpu_per_node
+
+        mem_meta = next(iter(meta["memory"].values()))
+        mem_per_node = to_byte(mem_meta["per_node"])
+        mem_schedulable_ratio = float(mem_meta.get("schedulable_ratio", 1))
+        max_memory_per_gpu = mem_per_node * mem_schedulable_ratio / gpu_per_node
+    except:
+        logger.exception("Failed to get max resource per gpu.")
+        max_cpu_per_gpu = max_memory_per_gpu = None
+
+    return {
+        "max_cpu_per_gpu": max_cpu_per_gpu,
+        "max_memory_per_gpu": max_memory_per_gpu
+    }
+
+
+def get_vc_running_job_ids(restful_url, vc_name):
+    running_job_ids = []
+    try:
+        params = urllib.parse.urlencode({
+            "userName": "Administrator",
+            "vcName": vc_name,
+            "jobOwner": "all",
+            "num": 0,
+        })
+        url = urllib.parse.urljoin(restful_url, "/ListJobsV2") + "?" + params
+        obj = request_with_error_handling(url)
+
+        jobs = walk_json_field_safe(obj, "runningJobs")
+        running_job_ids = [job.get("jobId") for job in jobs]
+    except:
+        logger.exception("Failed to get running job ids for vc %s.", vc_name)
+
+    return running_job_ids
+
+
+def get_running_job_ids(restful_url, vc_info):
+    running_job_ids = []
+    for vc in vc_info:
+        vc_running_job_ids = \
+            get_vc_running_job_ids(restful_url, vc.get("vcName"))
+        running_job_ids.extend(vc_running_job_ids)
+    return running_job_ids
+
+
 def avg(ts):
     """Calculates the average of the timeseries.
 
@@ -267,7 +334,7 @@ class Insight(object):
                            "use without interfering with other GPUs in this " \
                            "cluster is %.2fG. You can preload more input " \
                            "data into memory to make sure your data pipeline " \
-                           "is never waiting on dataloading from " \
+                           "is never waiting on data loading from " \
                            "disk/remote.\n" % (self.cpu_per_active_gpu / G,
                                                self.max_cpu_per_gpu / G)
 
@@ -342,44 +409,17 @@ def upload_insight(insight, restful_url, dry_run):
         return
 
 
-def get_node_spec(restful_url):
-    try:
-        params = urllib.parse.urlencode({
-            "userName": "Administrator",
-        })
-        url = urllib.parse.urljoin(restful_url, "/ListVCs") + "?" + params
-        obj = request_with_error_handling(url)
-
-        metadata = walk_json_field_safe(obj, "result", 0, "resourceMetadata")
-        meta = json.loads(metadata)
-
-        # This is assuming that the cluster is homogeneous, i.e. only 1 type
-        # of machine.
-        gpu_meta = next(iter(meta["gpu"].values()))
-        gpu_per_node = int(gpu_meta.get("per_node"))
-
-        cpu_meta = next(iter(meta["cpu"].values()))
-        cpu_per_node = float(cpu_meta.get("per_node"))
-        cpu_schedulable_ratio = float(cpu_meta.get("schedulable_ratio", 1))
-        max_cpu_per_gpu = cpu_per_node * cpu_schedulable_ratio / gpu_per_node
-
-        mem_meta = next(iter(meta["memory"].values()))
-        mem_per_node = to_byte(mem_meta["per_node"])
-        mem_schedulable_ratio = float(mem_meta.get("schedulable_ratio", 1))
-        max_memory_per_gpu = mem_per_node * mem_schedulable_ratio / gpu_per_node
-    except:
-        logger.exception("Failed to get max resource per gpu.")
-        max_cpu_per_gpu = max_memory_per_gpu = None
-
-    return {
-        "max_cpu_per_gpu": max_cpu_per_gpu,
-        "max_memory_per_gpu": max_memory_per_gpu
-    }
-
-
 def gen_insights(job_utils, restful_url, dry_run):
-    node_spec = get_node_spec(restful_url)
+    vc_info = get_vc_info(restful_url)
+    node_spec = get_node_spec(vc_info)
+    running_job_ids = get_running_job_ids(restful_url, vc_info)
+
     for job_util in job_utils:
+        # Only generate insight for currently running jobs.
+        if job_util.job_id not in running_job_ids:
+            logger.info("skip generating non-running job %s", job_util.job_id)
+            continue
+
         try:
             insight = Insight(job_util, node_spec)
             upload_insight(insight, restful_url, dry_run)
