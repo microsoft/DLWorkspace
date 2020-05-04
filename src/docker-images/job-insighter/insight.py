@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 
 
-G = 2 ** 30
+G = 2**30
 
 
 def to_byte(data):
@@ -293,8 +293,8 @@ class Insight(object):
             "end": self.end,
             "job_timespan": self.job_timespan,
             "num_gpus": self.num_gpus,
-            "num_idle_gpus": self.idle_gpus,
-            "num_active_gpus": self.active_gpus,
+            "num_idle_gpus": len(self.idle_gpus),
+            "num_active_gpus": len(self.active_gpus),
             "avg_active_gpu_util": self.active_gpu_util,
             "avg_active_gpu_memory_util": self.active_gpu_memory_util,
             "avg_cpu_per_active_gpu": self.cpu_per_active_gpu,
@@ -362,8 +362,8 @@ class Insight(object):
                            "cluster is %.2fG. You can preload more input " \
                            "data into memory to make sure your data pipeline " \
                            "is never waiting on data loading from " \
-                           "disk/remote.\n" % (self.cpu_per_active_gpu / G,
-                                               self.max_cpu_per_gpu / G)
+                           "disk/remote.\n" % (self.memory_per_active_gpu / G,
+                                               self.max_memory_per_gpu / G)
 
             message += " - Please take a closer look at METRICS tab to " \
                        "understand the utilization pattern of GPU, GPU " \
@@ -373,8 +373,7 @@ class Insight(object):
                        "It could also be possible that storage read " \
                        "throughput is a bottleneck.\n"
 
-    def __repr__(self):
-        return str(self.__dict__)
+            self.messages.append(message)
 
 
 def get_job_utils(task_gpu_percent, task_gpu_mem_percent, task_cpu_percent,
@@ -432,25 +431,32 @@ def get_job_utils(task_gpu_percent, task_gpu_mem_percent, task_cpu_percent,
     return job_utils
 
 
-def upload_insight(insight, restful_url, dry_run):
-    if dry_run:
-        logger.info("dry run. logging insight: %s", insight)
-        return
+def upload_insights(insights, restful_url, dry_run):
+    for insight in insights:
+        job_id = insight.job_id
+        try:
+            job_insight = insight.export()
+            if dry_run:
+                logger.info("dry run. logging insight for job %s: %s", job_id,
+                            job_insight)
+                continue
 
-    job_id = insight.job_id
-    resp = set_job_insight(restful_url, job_id, insight)
-    if resp.status_code != 200:
-        logger.error("failed to upload insight for job %s. %s", job_id,
-                     resp.text)
-    else:
-        logger.info("successfully uploaded insight for job %s", job_id)
+            resp = set_job_insight(restful_url, job_id, job_insight)
+            if resp.status_code != 200:
+                logger.error("failed to upload insight for job %s. %s", job_id,
+                             resp.text)
+            else:
+                logger.info("successfully uploaded insight for job %s", job_id)
+        except:
+            logger.exception("failed to upload insight for %s", job_id)
 
 
-def gen_insights(job_utils, restful_url, dry_run):
-    vc_info = get_vc_info(restful_url)
-    node_spec = get_node_spec(vc_info)
-    running_job_ids = get_running_job_ids(restful_url, vc_info)
+def gen_insights(task_gpu_percent, task_gpu_mem_percent, task_cpu_percent,
+                 task_mem_usage_byte, since, end, node_spec, running_job_ids):
+    job_utils = get_job_utils(task_gpu_percent, task_gpu_mem_percent,
+                              task_cpu_percent, task_mem_usage_byte, since, end)
 
+    insights = []
     for job_util in job_utils:
         # Only generate insight for currently running jobs.
         if job_util.job_id not in running_job_ids:
@@ -458,10 +464,11 @@ def gen_insights(job_utils, restful_url, dry_run):
             continue
 
         try:
-            insight = Insight(job_util, node_spec)
-            upload_insight(insight, restful_url, dry_run)
+            insights.append(Insight(job_util, node_spec))
         except:
-            logger.exception("failed to generate Insight from %s", job_util)
+            logger.exception("failed to generate insight from %s", job_util)
+
+    return insights
 
 
 def run(prometheus_url, hours_ago, restful_url, dry_run):
@@ -492,15 +499,22 @@ def run(prometheus_url, hours_ago, restful_url, dry_run):
         logger.error("task_mem_usage_byte is None, skipping ...")
         return
 
-    job_utils = get_job_utils(task_gpu_percent, task_gpu_mem_percent,
-                              task_cpu_percent, task_mem_usage_byte, since, end)
+    vc_info = get_vc_info(restful_url)
+    node_spec = get_node_spec(vc_info)
+    running_job_ids = get_running_job_ids(restful_url, vc_info)
 
-    gen_insights(job_utils, restful_url, dry_run)
+    insights = gen_insights(task_gpu_percent, task_gpu_mem_percent,
+                            task_cpu_percent, task_mem_usage_byte, since, end,
+                            node_spec, running_job_ids)
+    upload_insights(insights, restful_url, dry_run)
 
 
 def main(params):
-    run(params.prometheus_url, params.hours_ago, params.restful_url,
-        params.dry_run)
+    try:
+        run(params.prometheus_url, params.hours_ago, params.restful_url,
+            params.dry_run)
+    except:
+        logger.exception("failed in current run of job insight")
 
 
 if __name__ == "__main__":
