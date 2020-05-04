@@ -1401,7 +1401,7 @@ def get_job_insight(job_id, username):
 
             # Only job owner and VC users/admins can see job insight
             if job["userName"] != username and \
-                    has_access(username, VC, job["vcName"], COLLABORATOR):
+                    not has_access(username, VC, job["vcName"], COLLABORATOR):
                 msg = "Unauthorized access to insight for job %s by user %s" % \
                       (job_id, username)
                 logger.error(msg)
@@ -1445,7 +1445,7 @@ def set_job_insight(job_id, username, insight):
                 return msg, 404
 
             # Only VC admins can set job insight
-            if has_access(username, VC, job["vcName"], ADMIN):
+            if not has_access(username, VC, job["vcName"], ADMIN):
                 msg = "Unauthorized to set insight for job %s by user %s" % \
                       (job_id, username)
                 logger.error(msg)

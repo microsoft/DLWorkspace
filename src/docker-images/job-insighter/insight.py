@@ -342,7 +342,9 @@ class Insight(object):
                        "understand the utilization pattern of GPU, GPU " \
                        "memory, CPU and memory throughout time. You can " \
                        "try further optimization based on the " \
-                       "utilization pattern of different resources.\n"
+                       "utilization pattern of different resources. " \
+                       "It could also be possible that storage read " \
+                       "throughput is a bottleneck.\n"
 
     def __repr__(self):
         return str(self.__dict__)
