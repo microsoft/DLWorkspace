@@ -773,6 +773,8 @@ def test_job_insight(args):
         assert state == "running"
 
         payload = {"messages": ["dummy"]}
-        utils.set_job_insight(args.rest, args.email, job.jid, payload)
+        resp = utils.set_job_insight(args.rest, args.email, job.jid, payload)
+        assert resp.status_code == 200
+
         insight = utils.get_job_insight(args.rest, args.email, job.jid)
         assert payload == insight

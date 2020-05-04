@@ -185,6 +185,16 @@ def get_running_job_ids(restful_url, vc_info):
     return running_job_ids
 
 
+def set_job_insight(restful_url, job_id, insight):
+    params = urllib.parse.urlencode({
+        "jobId": job_id,
+        "userName": "Administrator",
+    })
+    url = urllib.parse.urljoin(restful_url, "/JobInsight") + "?" + params
+    resp = requests.post(url, data=json.dumps(insight))
+    return resp
+
+
 def avg(ts):
     """Calculates the average of the timeseries.
 
@@ -276,6 +286,23 @@ class Insight(object):
         # Generate insight messages
         self.messages = []
         self.gen_messages()
+
+    def export(self):
+        return {
+            "since": self.since,
+            "end": self.end,
+            "job_timespan": self.job_timespan,
+            "num_gpus": self.num_gpus,
+            "num_idle_gpus": self.idle_gpus,
+            "num_active_gpus": self.active_gpus,
+            "avg_active_gpu_util": self.active_gpu_util,
+            "avg_active_gpu_memory_util": self.active_gpu_memory_util,
+            "avg_cpu_per_active_gpu": self.cpu_per_active_gpu,
+            "avg_memory_per_active_gpu": self.memory_per_active_gpu,
+            "max_cpu_per_gpu": self.max_cpu_per_gpu,
+            "max_memory_per_gpu": self.max_memory_per_gpu,
+            "messages": self.messages,
+        }
 
     def gen_messages(self):
         if self.job_timespan < 600:
@@ -410,6 +437,14 @@ def upload_insight(insight, restful_url, dry_run):
         logger.info("dry run. logging insight: %s", insight)
         return
 
+    job_id = insight.job_id
+    resp = set_job_insight(restful_url, job_id, insight)
+    if resp.status_code != 200:
+        logger.error("failed to upload insight for job %s. %s", job_id,
+                     resp.text)
+    else:
+        logger.info("successfully uploaded insight for job %s", job_id)
+
 
 def gen_insights(job_utils, restful_url, dry_run):
     vc_info = get_vc_info(restful_url)
@@ -482,6 +517,7 @@ if __name__ == "__main__":
     parser.add_argument("--hours_ago",
                         "-a",
                         default=1,
+                        type=int,
                         help="Collect metrics since hours ago. Default: 1")
     parser.add_argument("--restful_url",
                         "-r",
