@@ -150,7 +150,7 @@ then
         succ=false
         for i in `seq 1 3600` ; do
             echo `date` "testing $host"
-            ssh $host "echo 1"
+            ssh $host true
             # do not add code here
             rtn=$?
             echo `date` "done testing $host"
@@ -171,7 +171,7 @@ then
 else
     for i in `seq 1 10` ; do
         echo `date` "testing self" $i
-        ssh ${self_name}
+        ssh ${self_name} true
         # do not add code here
         rtn=$?
         echo `date` "done testing self" $i
