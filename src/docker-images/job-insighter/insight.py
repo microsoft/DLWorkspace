@@ -315,6 +315,7 @@ class Insight(object):
             self.messages.append(
                 "All of %s GPU(s) in the job are idle. Please consider killing "
                 "the job if you do not need it any more." % len(self.idle_gpus))
+            return
         elif len(self.idle_gpus) > 0:
             self.messages.append(
                 "There are %s idle GPU(s) in the job. If you are running a "
