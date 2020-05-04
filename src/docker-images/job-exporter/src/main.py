@@ -154,8 +154,8 @@ def main(args):
         ("zombie_collector", interval, decay_time, collector.ZombieCollector,
          stats_info_ref, zombie_info_ref),
         ("process_collector", interval, decay_time, collector.ProcessCollector),
-        #        ("dcgm_collector", interval, decay_time, collector.DCGMCollector,
-        #         dcgm_info_ref),
+        ("dcgm_collector", interval, decay_time, collector.DCGMCollector,
+         dcgm_info_ref),
         ("nvsm_collector", 10, datetime.timedelta(seconds=1200),
          collector.NVSMCollector),
     ]

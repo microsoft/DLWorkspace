@@ -27,13 +27,15 @@ class nv_host(object):
                     code, p.stdout.read(), p.stderr.read())
 
     def __exit__(self, type, value, traceback):
-        p = subprocess.Popen(["nv-hostengine", "--term"],
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-        code = p.wait(timeout=60)
-        logger.info("stop nv-hostengine exit with %s, stdout %s, stderr %s",
-                    code, p.stdout.read(), p.stderr.read())
+        return
 
+
+#        p = subprocess.Popen(["nv-hostengine", "--term"],
+#                             stdout=subprocess.PIPE,
+#                             stderr=subprocess.PIPE)
+#        code = p.wait(timeout=60)
+#        logger.info("stop nv-hostengine exit with %s, stdout %s, stderr %s",
+#                    code, p.stdout.read(), p.stderr.read())
 
 # Ref: https://github.com/NVIDIA/gpu-monitoring-tools/blob/9e2979804d297cf5a81640ba8a8e941365e58f14/dcgm-exporter/dcgm-exporter#L85
 mapping = [
