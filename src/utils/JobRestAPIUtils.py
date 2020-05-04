@@ -1408,11 +1408,11 @@ def get_job_insight(job_id, username):
                 return msg, 403
 
             if job["insight"] is not None:
-                insight = base64decode(job["insight"])
+                insight = json.loads(base64decode(job["insight"]))
             else:
                 insight = {}
-            logger.info("User %s successfully gets insight for job %s",
-                        username, job_id)
+            logger.info("Insight for job %s is successfully get by user %s",
+                        job_id, username)
             return insight, 200
     except Exception as e:
         msg = "Exception when getting insight for job %s by user %s. %s" % \
@@ -1458,9 +1458,8 @@ def set_job_insight(job_id, username, insight):
                 return msg, 400
 
             cond_fields = {"jobId": job_id}
-            data_fields = {"insight": base64decode(json.dumps(insight))}
-            ret = data_handler.UpdateJobTextFields(job_id, cond_fields,
-                                                   data_fields)
+            data_fields = {"insight": base64encode(json.dumps(insight))}
+            ret = data_handler.UpdateJobTextFields(cond_fields, data_fields)
             if ret is True:
                 msg = "Insight for job %s is successfully set by user %s" % \
                       (job_id, username)

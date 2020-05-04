@@ -1040,7 +1040,7 @@ class JobInsight(Resource):
         args = self.post_parser.parse_args()
         job_id = args.get("jobId")
         username = args.get("userName")
-        payload = request.get_json(silent=True)
+        payload = request.get_json(force=True, silent=True)
 
         resp, status_code = JobRestAPIUtils.set_job_insight(job_id, username,
                                                             payload)
