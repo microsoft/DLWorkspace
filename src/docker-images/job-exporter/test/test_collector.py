@@ -51,6 +51,7 @@ class TestContainerCollector(base.TestBase):
             "dixu@example.com",
             "platform",
             False,
+            False,
         )
 
         gpu_ids, labels = ContainerCollector.parse_from_labels(
@@ -65,6 +66,7 @@ class TestContainerCollector(base.TestBase):
             "pod_name": "this_is_pod_name_val",
             "user_email": "dixu@example.com",
             "vc_name": "platform",
+            "preemptible": "false",
         }
 
         self.assertEqual(target_labels, labels)

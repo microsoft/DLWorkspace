@@ -47,6 +47,7 @@ class TestDockerInspect(base.TestBase):
             None,
             None,
             False,
+            False,
         )
 
         self.assertEqual(target_inspect_info, inspect_info)
@@ -68,6 +69,7 @@ class TestDockerInspect(base.TestBase):
             None,
             None,
             False,
+            False,
         )
         self.assertEqual(target_inspect_info, inspect_info)
 
@@ -88,6 +90,7 @@ class TestDockerInspect(base.TestBase):
             None,
             None,
             False,
+            False,
         )
         self.assertEqual(target_inspect_info, inspect_info)
 
@@ -107,6 +110,7 @@ class TestDockerInspect(base.TestBase):
             3533,
             "dixu@example.com",
             "platform",
+            False,
             False,
         )
         self.assertEqual(target_inspect_info, inspect_info)

@@ -58,7 +58,8 @@ class InspectResult(object):
                 self.pid == o.pid and \
                 self.email == o.email and \
                 self.vc_name == o.vc_name and \
-                self.is_host_network == o.is_host_network
+                self.is_host_network == o.is_host_network and \
+                self.is_preemptible == o.is_preemptible
 
 
 keys = {
