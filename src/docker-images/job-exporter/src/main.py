@@ -9,6 +9,7 @@ import signal
 import faulthandler
 import gc
 import datetime
+import sys
 
 import prometheus_client
 from prometheus_client import Gauge
@@ -158,6 +159,10 @@ def main(args):
          dcgm_info_ref),
         ("nvsm_collector", 10, datetime.timedelta(seconds=1200),
          collector.NVSMCollector),
+        ("infiniband_collector", interval, decay_time,
+         collector.InfinibandCollector),
+        ("nv_peer_mem_collector", interval, decay_time,
+         collector.NvPeerMemCollector),
     ]
 
     refs = list(map(lambda x: collector.make_collector(*x), collector_args))

@@ -123,6 +123,21 @@ def gen_nvsm_total_gauge():
                              "total metric count from nvsm show health")
 
 
+def gen_infiniband_gauge():
+    return GaugeMetricFamily("infiniband_count",
+                             "count of active Infiniband devices")
+
+
+def gen_ipoib_gauge():
+    return GaugeMetricFamily("ipoib_count",
+                             "count of active IPoIB interfaces")
+
+
+def gen_nv_peer_mem_gauge():
+    return GaugeMetricFamily("nv_peer_mem_count",
+                             "count of active nv_peer_mem (GPUDirect) module. 0 or 1")
+
+
 class ResourceGauges(object):
     def __init__(self):
         self.task_labels = [
@@ -717,7 +732,7 @@ class ContainerCollector(Collector):
             if dcgm_infos:
                 for id in gpu_ids:
                     if dcgm_infos.get(id) is None:
-                        contine
+                        continue
                     dcgm_metric = dcgm_infos[id] # will be type of DCGMMetrics
                     uuid = dcgm_metric.uuid
                     labels = copy.deepcopy(container_labels)
@@ -1058,5 +1073,168 @@ class NVSMCollector(Collector):
                                e.output)
         except Exception:
             logger.exception("call nvsm failed")
+
+        return ""
+
+
+class InfinibandCollector(Collector):
+    """Include active Infiniband device count and active IPoIB count"""
+    ibstatus_histogram = Histogram("cmd_ibstatus_latency_seconds",
+                                   "Command call latency for ibstatus (seconds)")
+    ibstatus_timeout = 10
+
+    ifconfig_histogram = Histogram("cmd_ifconfig_latency_seconds",
+                                   "Command call latency for ifconfig (seconds)")
+    ifconfig_timeout = 10
+
+    def __init__(self, name, sleep_time, atomic_ref, iteration_counter):
+        Collector.__init__(self, name, sleep_time, atomic_ref,
+                           iteration_counter)
+
+    def collect_impl(self):
+        infiniband_gauge = gen_infiniband_gauge()
+        ipoib_gauge = gen_ipoib_gauge()
+
+        try:
+            output = self.call_ibstatus()
+            infiniband_count = self.parse_ibstatus_output(output)
+
+            output = self.call_ifconfig()
+            ipoib_count = self.parse_ifconfig_output(output)
+
+            if infiniband_count is not None and ipoib_count is not None:
+                infiniband_gauge.add_metric([], infiniband_count)
+                ipoib_gauge.add_metric([], ipoib_count)
+                return infiniband_gauge, ipoib_gauge
+            else:
+                return None
+        except Exception:
+            logger.exception("collect infiniband metric failed")
+
+        return None
+
+    def parse_ibstatus_output(self, output):
+        if output is None:
+            return None
+
+        # Try to count the active IB when IB driver is installed
+        return output.count("state:\t\t 4: ACTIVE")
+
+    def parse_ifconfig_output(self, output):
+        if output is None:
+            return None
+
+        ipoib_count = 0
+        for line in output.split("\n"):
+            line = line.strip()
+            if line.startswith("ib") and "mtu 2044" in line:
+                ipoib_count += 1
+        return ipoib_count
+
+    def call_ibstatus(self):
+        try:
+            return utils.exec_cmd(
+                ["chroot", "/host-fs", "ibstatus"],
+                histogram=InfinibandCollector.ibstatus_histogram,
+                stderr=subprocess.STDOUT, # also capture stderr output
+                timeout=InfinibandCollector.ibstatus_timeout)
+        except subprocess.TimeoutExpired as e:
+            logger.warning("ibstatus timeout")
+        except subprocess.CalledProcessError as e:
+            if e.returncode == 127:
+                self.sleep_time = 86400 # IB driver is not installed, not an IB cluster, sleep for 1 day to try again
+                logger.info(
+                    "IB driver is not installed, reset sleep_time to %s",
+                    self.sleep_time)
+                return None
+            else:
+                logger.warning("ibstatus returns %d, output %s", e.returncode,
+                               e.output)
+        except Exception:
+            logger.exception("call ibstatus failed")
+
+        return ""
+
+    def call_ifconfig(self):
+        try:
+            return utils.exec_cmd(
+                ["chroot", "/host-fs", "ifconfig"],
+                histogram=InfinibandCollector.ifconfig_histogram,
+                stderr=subprocess.STDOUT,  # also capture stderr output
+                timeout=InfinibandCollector.ifconfig_timeout)
+        except subprocess.TimeoutExpired as e:
+            logger.warning("ifconfig timeout")
+        except subprocess.CalledProcessError as e:
+            if e.returncode == 127:
+                logger.exception(
+                    "ifconfig is not installed on host. apt install net-tools.")
+                return None
+            else:
+                logger.warning("ifconfig returns %d, output %s",
+                               e.returncode, e.output)
+        except Exception:
+            logger.exception("call ifconfig failed")
+
+        return ""
+
+
+class NvPeerMemCollector(Collector):
+    # https://github.com/Mellanox/nv_peer_memory
+    cmd_histogram = Histogram("cmd_nv_peer_mem_latency_seconds",
+                              "Command call latency for nv_peer_mem (seconds)")
+    cmd_timeout = 10
+
+    def __init__(self, name, sleep_time, atomic_ref, iteration_counter):
+        Collector.__init__(self, name, sleep_time, atomic_ref,
+                           iteration_counter)
+
+    def collect_impl(self):
+        nv_peer_mem_gauge = gen_nv_peer_mem_gauge()
+
+        try:
+            output = self.call_nv_peer_mem()
+            value = self.parse_nv_peer_mem_output(output)
+
+            if value is not None:
+                nv_peer_mem_gauge.add_metric([], value)
+                return [nv_peer_mem_gauge]
+            else:
+                return None
+        except Exception:
+            logger.exception("collect nv_peer_memory metric failed")
+
+        return None
+
+    def parse_nv_peer_mem_output(self, output):
+        if output is None:
+            return None
+
+        signal_str = [
+            "Loaded: loaded (/etc/init.d/nv_peer_mem; generated)",
+            "Active: active (exited)",
+        ]
+        for s in signal_str:
+            if s not in output:
+                return 0
+        return 1
+
+    def call_nv_peer_mem(self):
+        try:
+            return utils.exec_cmd(
+                ["chroot", "/host-fs", "service", "nv_peer_mem", "status"],
+                histogram=NvPeerMemCollector.cmd_histogram,
+                stderr=subprocess.STDOUT,  # also capture stderr output
+                timeout=NvPeerMemCollector.cmd_timeout)
+        except subprocess.TimeoutExpired as e:
+            logger.warning("service nv_peer_mem status timeout")
+        except subprocess.CalledProcessError as e:
+            if e.returncode == 4:
+                logger.exception("nv_peer_mem service cannot be found")
+                return None
+            else:
+                logger.warning("service nv_peer_mem status returns %d, output %s",
+                               e.returncode, e.output)
+        except Exception:
+            logger.exception("call nv_peer_mem failed")
 
         return ""
