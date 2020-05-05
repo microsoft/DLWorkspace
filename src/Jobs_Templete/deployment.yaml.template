@@ -120,6 +120,12 @@ spec:
           value: {{ job["vcName"] }}
         - name: DLTS_VC_NAME
           value: {{ job["vcName"] }}
+        - name: DLTS_PREEMPTIBLE
+        {% if job["preemptionAllowed"] %}
+          value: true
+        {% else%}
+          value: false
+        {% endif %}
         {% for env in job["envs"] %}
         - name: {{env.name}}
           value: "{{env.value}}"

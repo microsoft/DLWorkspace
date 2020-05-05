@@ -275,6 +275,11 @@ def gen_container_envs(job, role):
         result.append({"name": "DLWS_HOST_NETWORK", "value": "enable"})
         result.append({"name": "DLTS_HOST_NETWORK", "value": "enable"})
 
+    if job.is_preemption_allowed:
+        result.append({"name": "DLTS_PREEMPTIBLE", "value": "true"})
+    else:
+        result.append({"name": "DLTS_PREEMPTIBLE", "value": "false"})
+
     for i, key_value in enumerate(job.ssh_public_keys):
         result.append({
             "name": "DLTS_PUBLIC_SSH_KEY_%d" % i,
