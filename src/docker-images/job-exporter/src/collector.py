@@ -133,6 +133,7 @@ class ResourceGauges(object):
             "pod_name",
             "user_email",
             "vc_name",
+            "preemptible",
         ]
         self.service_labels = ["name"]
 
@@ -203,6 +204,12 @@ class ResourceGauges(object):
         label_array = [None] * len(gauge._labelnames)
 
         for k, v in labels.items():
+            if type(k) != str or \
+                    type(v) != str or \
+                    type(val) not in {int, float}:
+                raise RuntimeError("type error for add_value %s, %s, %s",
+                                   metric_name, labels,
+                                   val) # fail fast to facilitate debug
             try:
                 index = gauge._labelnames.index(k)
                 label_array[index] = v
@@ -613,6 +620,7 @@ class ContainerCollector(Collector):
         result_labels["pod_name"] = inspect_info.pod_name or "unknown"
         result_labels["user_email"] = inspect_info.email or "unknown"
         result_labels["vc_name"] = inspect_info.vc_name or "unknown"
+        result_labels["preemptible"] = str(inspect_info.is_preemptible).lower()
 
         if inspect_info.gpu_ids:
             ids = inspect_info.gpu_ids.replace("\"", "").split(",")
