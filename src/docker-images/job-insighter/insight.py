@@ -323,58 +323,70 @@ class Insight(object):
                 "do not need all GPUs in the job, please consider killing the "
                 "job and request a new job with smaller number of GPUs." %
                 len(self.idle_gpus))
+        else:
+            self.messages.append("All GPU(s) are active.")
 
-        # Check active GPUs
+        # Check Resource usage for active GPUs
         good_gpu_util_threshold = 90
         good_gpu_mem_util_threshold = 50
         if self.active_gpu_util >= good_gpu_util_threshold:
             self.messages.append("Average active GPU utilization "
                                  "is good at %.2f%%." % self.active_gpu_util)
         else:
-            message = "Average active GPU utilization is below " \
-                      "%s%%. You can take below suggestions to potentially " \
-                      "boost GPU utilization.\n" % good_gpu_util_threshold
+            self.messages.append(
+                "Average active GPU utilization is below "
+                "%s%%. You can take below suggestions to potentially "
+                "boost GPU utilization." % good_gpu_util_threshold)
+
+            messages = []
             if self.active_gpu_memory_util < good_gpu_mem_util_threshold:
-                message += " - Average active GPU memory utilization is below " \
-                           "%s%%. Try increasing batch size to put more data " \
-                           "onto GPU memory to boost GPU utilization. For a " \
-                           "distributed job, if the model has strict " \
-                           "requirement on the global effective batch size " \
-                           "for convergence, you can consider using a job " \
-                           "with fewer GPUs and bigger batch size per GPU.\n" \
-                           % good_gpu_mem_util_threshold
+                messages.append(
+                    "Average active GPU memory utilization is below "
+                    "%s%%. Try increasing batch size to put more data "
+                    "onto GPU memory to boost GPU utilization. For a "
+                    "distributed job, if the model has strict "
+                    "requirement on the global effective batch size "
+                    "for convergence, you can consider using a job "
+                    "with fewer GPUs and bigger batch size per GPU."
+                    % good_gpu_mem_util_threshold)
 
             if self.max_cpu_per_gpu is not None and \
                     self.cpu_per_active_gpu < self.max_cpu_per_gpu:
-                message += " - The job uses %.2f CPU cores per active GPU on " \
-                           "average. The maximum CPU cores per GPU you can " \
-                           "use without interfering with other GPUs in this " \
-                           "cluster is %.2f. You can use more CPU cores to " \
-                           "perform data preprocessing to keep GPUs from " \
-                           "starvation. Please consider using/increasing " \
-                           "parallel preprocessing on your input data.\n" % \
-                           (self.cpu_per_active_gpu, self.max_cpu_per_gpu)
+                messages.append(
+                    "The job uses %.2f CPU cores per active GPU on "
+                    "average. The maximum CPU cores per GPU you can "
+                    "use without interfering with other GPUs in this "
+                    "cluster is %.2f. You can use more CPU cores to "
+                    "perform data preprocessing to keep GPUs from "
+                    "starvation. Please consider using/increasing "
+                    "parallel preprocessing on your input data." %
+                    (self.cpu_per_active_gpu, self.max_cpu_per_gpu)
+                )
 
             if self.max_memory_per_gpu is not None and \
                     self.memory_per_active_gpu < self.max_memory_per_gpu:
-                message += " - The job uses %.2fG memory per active GPU on " \
-                           "average. The maximum memory per GPU you can " \
-                           "use without interfering with other GPUs in this " \
-                           "cluster is %.2fG. You can preload more input " \
-                           "data into memory to make sure your data pipeline " \
-                           "is never waiting on data loading from " \
-                           "disk/remote.\n" % (self.memory_per_active_gpu / G,
-                                               self.max_memory_per_gpu / G)
+                messages.append(
+                    "The job uses %.2fG memory per active GPU on "
+                    "average. The maximum memory per GPU you can "
+                    "use without interfering with other GPUs in this "
+                    "cluster is %.2fG. You can preload more input "
+                    "data into memory to make sure your data pipeline "
+                    "is never waiting on data loading from "
+                    "disk/remote." % (self.memory_per_active_gpu / G,
+                                      self.max_memory_per_gpu / G)
+                )
 
-            message += " - Please take a closer look at METRICS tab to " \
-                       "understand the utilization pattern of GPU, GPU " \
-                       "memory, CPU and memory throughout time. You can " \
-                       "try further optimization based on the " \
-                       "utilization pattern of different resources. " \
-                       "It could also be possible that storage read " \
-                       "throughput is a bottleneck.\n"
+            messages.append(
+                "Please take a closer look at METRICS tab to "
+                "understand the utilization pattern of GPU, GPU "
+                "memory, CPU and memory throughout time. You can "
+                "try further optimization based on the "
+                "utilization pattern of different resources. "
+                "It could also be possible that storage read "
+                "throughput is a bottleneck."
+            )
 
-            self.messages.append(message)
+            self.messages.append(messages)
 
 
 def get_job_utils(task_gpu_percent, task_gpu_mem_percent, task_cpu_percent,
@@ -386,6 +398,8 @@ def get_job_utils(task_gpu_percent, task_gpu_mem_percent, task_cpu_percent,
         task_gpu_mem_percent: A list of all task_gpu_mem_percent
         task_cpu_percent: A list of all task_cpu_percent
         task_mem_usage_byte: A list of all task_mem_usage_byte
+        start: Start time in epoch seconds
+        end: End time in epoch seconds
 
     Returns:
         A list of JobUtil
