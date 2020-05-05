@@ -1229,7 +1229,7 @@ class NvPeerMemCollector(Collector):
             logger.warning("service nv_peer_mem status timeout")
         except subprocess.CalledProcessError as e:
             if e.returncode == 4:
-                logger.exception("nv_peer_mem service cannot be found")
+                logger.info("nv_peer_mem service cannot be found")
                 return None
             else:
                 logger.warning("service nv_peer_mem status returns %d, output %s",
