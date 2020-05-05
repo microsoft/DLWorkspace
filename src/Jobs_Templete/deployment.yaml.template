@@ -181,3 +181,4 @@ spec:
       {% endif %}
       {% endfor %}
       {% endif %}
+      priorityClassName: inference-job-priority

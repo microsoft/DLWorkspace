@@ -691,6 +691,19 @@ def take_job_actions(data_handler, redis_conn, launcher, jobs):
                   cluster_schedulable, vc_schedulables)
 
 
+def is_version_satisified(actual, base):
+    actual = list(map(int, actual.split(".")))
+    base = list(map(int, base.split(".")))
+
+    i = 0
+    for i in range(min(len(actual), len(base))):
+        if actual[i] > base[i]:
+            return True
+        elif actual[i] < base[i]:
+            return False
+    return len(actual) >= len(base)
+
+
 def Run(redis_port, target_status):
     register_stack_trace_dump()
     process_name = "job_manager_" + target_status
@@ -699,6 +712,13 @@ def Run(redis_port, target_status):
 
     notifier = notify.Notifier(config.get("job-manager"))
     notifier.start()
+
+    kube_server_version = os.environ.get("KUBE_SERVER_VERSION", "0")
+    # https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/#non-preempting-priority-class
+    is_support_pod_priority = is_version_satisified(kube_server_version, "1.15")
+    config["is_support_pod_priority"] = is_support_pod_priority
+    logger.info("kube server version is %s, is_support_pod_priority %s",
+                kube_server_version, is_support_pod_priority)
 
     launcher_type = config.get("job-manager", {}).get("launcher", "python")
     if launcher_type == "python":

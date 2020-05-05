@@ -36,9 +36,9 @@ class Framework(object):
     def __init__(self, init_image, labels, annotations, roles, job_id, pod_name,
                  user_cmd, alias, email, gid, uid, mount_points, plugins,
                  family_token, vc_name, dns_policy, node_selector,
-                 ssh_private_key, ssh_public_keys,
-                 is_preemption_allowed, is_host_network,
-                 is_host_ipc, is_privileged, is_debug):
+                 ssh_private_key, ssh_public_keys, priority_class,
+                 is_preemption_allowed, is_host_network, is_host_ipc,
+                 is_privileged, is_debug):
         self.init_image = init_image # str, maybe None
         self.labels = labels # map
         self.annotations = annotations # map
@@ -58,6 +58,7 @@ class Framework(object):
         self.node_selector = node_selector # map
         self.ssh_private_key = ssh_private_key # str
         self.ssh_public_keys = ssh_public_keys # list of str
+        self.priority_class = priority_class # str
         self.is_preemption_allowed = is_preemption_allowed # bool
         self.is_host_network = is_host_network # bool
         self.is_host_ipc = is_host_ipc # bool
@@ -533,6 +534,8 @@ def gen_task_role(job, role):
         "containers": gen_containers(job, role),
         "volumes": volumes,
     }
+    if job.priority_class is not None:
+        pod_spec["priorityClassName"] = job.priority_class
 
     if job.init_image is not None:
         pod_spec["initContainers"] = gen_init_container(job, role)
@@ -664,6 +667,10 @@ def transform_regular_job(params, cluster_config):
 
     labels = params.get("label", {})
     annotations = params.get("annotations", {})
+    if cluster_config["is_support_pod_priority"]:
+        priority_class = "job-priority"
+    else:
+        priority_class = None
 
     framework = Framework(
         params["init-container"],
@@ -685,6 +692,7 @@ def transform_regular_job(params, cluster_config):
         params.get("nodeSelector", {}),
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
+        priority_class,
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
@@ -731,6 +739,10 @@ def transform_distributed_job(params, cluster_config):
 
     labels = params.get("label", {})
     annotations = params.get("annotations", {})
+    if cluster_config["is_support_pod_priority"]:
+        priority_class = "job-priority"
+    else:
+        priority_class = None
 
     framework = Framework(
         params["init-container"],
@@ -752,6 +764,7 @@ def transform_distributed_job(params, cluster_config):
         params.get("nodeSelector", {}),
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
+        priority_class,
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
@@ -795,6 +808,11 @@ def transform_inference_job(params, cluster_config):
     labels = params.get("label", {})
     annotations = params.get("annotations", {})
 
+    if cluster_config["is_support_pod_priority"]:
+        priority_class = "inference-job-priority"
+    else:
+        priority_class = None
+
     framework = Framework(
         None, # init container
         labels,
@@ -815,6 +833,7 @@ def transform_inference_job(params, cluster_config):
         params.get("nodeSelector", {}),
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
+        priority_class,
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
