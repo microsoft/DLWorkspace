@@ -47,14 +47,13 @@ def test_regular_preemptable_job_running(args):
 
 @utils.case(unstable=True)
 def test_data_job_running(args):
-    expected_state = "finished"
     expected_word = "wantThisInLog"
     cmd = "mkdir -p /tmp/dlts_test_dir; " \
           "echo %s > /tmp/dlts_test_dir/testfile; " \
           "cd /DataUtils; " \
           "./copy_data.sh /tmp/dlts_test_dir adl://indexserveplatform-experiment-c09.azuredatalakestore.net/local/dlts_test_dir True 4194304 4 2 >/dev/null 2>&1;" \
           "./copy_data.sh adl://indexserveplatform-experiment-c09.azuredatalakestore.net/local/dlts_test_dir /tmp/dlts_test_dir_copyback False 33554432 4 2 >/dev/null 2>&1;" \
-          "cat /tmp/dlts_test_dir_copyback/testfile; " % expected_word
+          "cat /tmp/dlts_test_dir_copyback/testfile; sleep 120" % expected_word
 
     image = "indexserveregistry.azurecr.io/dlts-data-transfer-image:latest"
 
@@ -66,10 +65,9 @@ def test_data_job_running(args):
                                                  image=image)
     with utils.run_job(args.rest, job_spec) as job:
         state = job.block_until_state_not_in(
-            {"unapproved", "queued", "scheduling", "running"})
-        assert expected_state == state
+            {"unapproved", "queued", "scheduling"})
 
-        for _ in range(10):
+        for _ in range(300):
             log = utils.get_job_log(args.rest, args.email, job.jid)
             if expected_word in log:
                 break
