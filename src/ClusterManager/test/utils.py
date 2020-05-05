@@ -447,7 +447,7 @@ def get_job_insight(rest_url, email, job_id):
         "jobId": job_id,
         "userName": email,
     })
-    url = urllib.parse.urljoin(rest_url, "/JobInsight") + "?" + args
+    url = urllib.parse.urljoin(rest_url, "/Insight") + "?" + args
     resp = requests.get(url)
     return resp.json()
 
@@ -457,7 +457,7 @@ def set_job_insight(rest_url, email, job_id, insight):
         "jobId": job_id,
         "userName": email,
     })
-    url = urllib.parse.urljoin(rest_url, "/JobInsight") + "?" + args
+    url = urllib.parse.urljoin(rest_url, "/Insight") + "?" + args
     resp = requests.post(url, data=json.dumps(insight))
     return resp
 

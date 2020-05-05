@@ -67,7 +67,7 @@ class TestInsight(TestCase):
                                 since, end, node_spec, running_job_ids)
         self.assertEqual(len(insights), 1)
 
-        insight = insights[0].export()
+        insight = insights[0]
 
         expected_messages = ["All GPU(s) are active."]
         expected_messages.append(
@@ -115,6 +115,7 @@ class TestInsight(TestCase):
         expected_messages.append(messages)
 
         expected_insight = {
+            "job_id": "job0",
             "since": since,
             "end": end,
             "job_timespan": end - since,

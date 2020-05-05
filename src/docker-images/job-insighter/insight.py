@@ -8,6 +8,7 @@ import re
 import requests
 import timeit
 import urllib.parse
+import time
 
 from datetime import datetime, timedelta
 
@@ -190,7 +191,7 @@ def set_job_insight(restful_url, job_id, insight):
         "jobId": job_id,
         "userName": "Administrator",
     })
-    url = urllib.parse.urljoin(restful_url, "/JobInsight") + "?" + params
+    url = urllib.parse.urljoin(restful_url, "/Insight") + "?" + params
     resp = requests.post(url, data=json.dumps(insight))
     return resp
 
@@ -219,76 +220,35 @@ def timespan(ts):
     return ts[-1][0] - ts[0][0]
 
 
-class JobUtil(object):
-    def __init__(self, job_id, utils, since, end):
+class Insighter(object):
+    def __init__(self, job_id, job_util, node_spec, since, end):
         self.job_id = job_id
+        self.job_util = job_util
+        self.node_spec = node_spec
         self.since = since
         self.end = end
 
-        # Calculate average usage
-        self.gpu = {
-            uuid: avg(ts) for uuid, ts in utils["gpu"].items()
-        }
-        self.gpu_memory = {
-            uuid: avg(ts) for uuid, ts in utils["gpu_memory"].items()
-        }
-        self.cpu = {
-            pod_name: avg(ts) / 100 for pod_name, ts in utils["cpu"].items()
-        }
-        self.memory = {
-            pod_name: avg(ts) for pod_name, ts in utils["memory"].items()
-        }
-
-        # Compute time span
-        timespans = [timespan(ts) for _, ts in utils["gpu"].items()]
-        timespans.extend(
-            [timespan(ts) for _, ts in utils["gpu_memory"].items()])
-        timespans.extend([timespan(ts) for _, ts in utils["cpu"].items()])
-        timespans.extend([timespan(ts) for _, ts in utils["memory"].items()])
-        self.timespan = min(timespans)
-
-    def __repr__(self):
-        return str(self.__dict__)
-
-
-class Insight(object):
-    def __init__(self, job_util, node_spec):
-        self.job_id = job_util.job_id
-        self.since = job_util.since
-        self.end = job_util.end
-
         # Resource usage pattern from job_util
-        self.job_timespan = job_util.timespan
-        self.num_gpus = len(job_util.gpu)
-        self.idle_gpus = sorted([u for u, v in job_util.gpu.items() if v == 0])
-        self.active_gpus = sorted([u for u, v in job_util.gpu.items() if v > 0])
+        self.job_timespan = None
+        self.num_gpus = None
+        self.idle_gpus = None
+        self.active_gpus = None
 
-        self.active_gpu_util = 0
-        self.active_gpu_memory_util = 0
-        self.cpu_per_active_gpu = 0
-        self.memory_per_active_gpu = 0
+        self.active_gpu_util = None
+        self.active_gpu_memory_util = None
+        self.cpu_per_active_gpu = None
+        self.memory_per_active_gpu = None
 
-        n = len(self.active_gpus)
-        if n > 0:
-            self.active_gpu_util = \
-                sum([job_util.gpu[u] for u in self.active_gpus]) / n
-            self.active_gpu_memory_util = \
-                sum([job_util.gpu_memory[u] for u in self.active_gpus]) / n
-            self.cpu_per_active_gpu = \
-                sum([v for _, v in job_util.cpu.items()]) / n
-            self.memory_per_active_gpu = \
-                sum([v for _, v in job_util.memory.items()]) / n
-
-        # Maximum CPU and memory per GPU based on node_spec
-        self.max_cpu_per_gpu = node_spec.get("max_cpu_per_gpu")
-        self.max_memory_per_gpu = node_spec.get("max_memory_per_gpu")
+        self.max_cpu_per_gpu = None
+        self.max_memory_per_gpu = None
 
         # Generate insight messages
         self.messages = []
-        self.gen_messages()
 
     def export(self):
+        """Valid call after generate"""
         return {
+            "job_id": self.job_id,
             "since": self.since,
             "end": self.end,
             "job_timespan": self.job_timespan,
@@ -303,6 +263,72 @@ class Insight(object):
             "max_memory_per_gpu": self.max_memory_per_gpu,
             "messages": self.messages,
         }
+
+    def generate(self):
+        # Job time span
+        self.gen_job_timespan()
+
+        # Resource average usage aggregation over time for insight
+        self.gen_usage_aggregates()
+
+        # Max resource limit for the job
+        self.gen_usage_limit()
+
+        # Generate insight messages
+        self.gen_messages()
+
+    def gen_job_timespan(self):
+        timespans = [timespan(ts) for _, ts in self.job_util["gpu"].items()]
+        timespans.extend(
+            [timespan(ts) for _, ts in self.job_util["gpu_memory"].items()])
+        timespans.extend(
+            [timespan(ts) for _, ts in self.job_util["cpu"].items()])
+        timespans.extend(
+            [timespan(ts) for _, ts in self.job_util["memory"].items()])
+        self.job_timespan = min(timespans)
+
+    def gen_usage_aggregates(self):
+        gpu, gpu_memory, cpu, memory = self.get_avg_usage_over_time()
+
+        self.num_gpus = len(gpu)
+        self.idle_gpus = sorted([u for u, v in gpu.items() if v == 0])
+        self.active_gpus = sorted([u for u, v in gpu.items() if v > 0])
+
+        self.active_gpu_util = 0
+        self.active_gpu_memory_util = 0
+        self.cpu_per_active_gpu = 0
+        self.memory_per_active_gpu = 0
+
+        n = len(self.active_gpus)
+        if n > 0:
+            self.active_gpu_util = \
+                sum([gpu[u] for u in self.active_gpus]) / n
+            self.active_gpu_memory_util = \
+                sum([gpu_memory[u] for u in self.active_gpus]) / n
+            self.cpu_per_active_gpu = \
+                sum([v for _, v in cpu.items()]) / n
+            self.memory_per_active_gpu = \
+                sum([v for _, v in memory.items()]) / n
+
+    def gen_usage_limit(self):
+        self.max_cpu_per_gpu = self.node_spec.get("max_cpu_per_gpu")
+        self.max_memory_per_gpu = self.node_spec.get("max_memory_per_gpu")
+
+    def get_avg_usage_over_time(self):
+        gpu = {
+            uuid: avg(ts) for uuid, ts in self.job_util["gpu"].items()}
+        gpu_memory = {
+            uuid: avg(ts) for uuid, ts in self.job_util["gpu_memory"].items()
+        }
+        cpu = {
+            pod_name: avg(ts) / 100
+            for pod_name, ts in self.job_util["cpu"].items()
+        }
+        memory = {
+            pod_name: avg(ts)
+            for pod_name, ts in self.job_util["memory"].items()
+        }
+        return gpu, gpu_memory, cpu, memory
 
     def gen_messages(self):
         if self.job_timespan < 600:
@@ -390,7 +416,7 @@ class Insight(object):
 
 
 def get_job_utils(task_gpu_percent, task_gpu_mem_percent, task_cpu_percent,
-                  task_mem_usage_byte, since, end):
+                  task_mem_usage_byte):
     """Parse metric lists and constructs a list of JobUtil.
 
     Args:
@@ -402,10 +428,8 @@ def get_job_utils(task_gpu_percent, task_gpu_mem_percent, task_cpu_percent,
         end: End time in epoch seconds
 
     Returns:
-        A list of JobUtil
+        A list of job utils
     """
-    job_utils = []
-
     jobs = collections.defaultdict(
         lambda: collections.defaultdict(
             lambda: collections.defaultdict()))
@@ -437,26 +461,41 @@ def get_job_utils(task_gpu_percent, task_gpu_mem_percent, task_cpu_percent,
             pod_name = metric["pod_name"]
             jobs[job_id]["memory"][pod_name] = item["values"]
 
-    for job_id, utils in jobs.items():
-        try:
-            job_utils.append(JobUtil(job_id, utils, since, end))
-        except:
-            logger.exception("failed to create JobUtil: %s, %s", job_id, utils)
+    return jobs
 
-    return job_utils
+
+def gen_insights(task_gpu_percent, task_gpu_mem_percent, task_cpu_percent,
+                 task_mem_usage_byte, since, end, node_spec, running_job_ids):
+    job_utils = get_job_utils(task_gpu_percent, task_gpu_mem_percent,
+                              task_cpu_percent, task_mem_usage_byte)
+
+    insights = []
+    for job_id, job_util in job_utils.items():
+        # Only generate insight for currently running jobs.
+        if job_id not in running_job_ids:
+            logger.info("skip generating non-running job %s", job_id)
+            continue
+
+        try:
+            insighter = Insighter(job_id, job_util, node_spec, since, end)
+            insighter.generate()
+            insights.append(insighter.export())
+        except:
+            logger.exception("failed to generate insight from %s", job_util)
+
+    return insights
 
 
 def upload_insights(insights, restful_url, dry_run):
     for insight in insights:
-        job_id = insight.job_id
+        job_id = insight.get("job_id")
         try:
-            job_insight = insight.export()
             if dry_run:
                 logger.info("dry run. logging insight for job %s: %s", job_id,
-                            job_insight)
+                            insight)
                 continue
 
-            resp = set_job_insight(restful_url, job_id, job_insight)
+            resp = set_job_insight(restful_url, job_id, insight)
             if resp.status_code != 200:
                 logger.error("failed to upload insight for job %s. %s", job_id,
                              resp.text)
@@ -464,26 +503,6 @@ def upload_insights(insights, restful_url, dry_run):
                 logger.info("successfully uploaded insight for job %s", job_id)
         except:
             logger.exception("failed to upload insight for %s", job_id)
-
-
-def gen_insights(task_gpu_percent, task_gpu_mem_percent, task_cpu_percent,
-                 task_mem_usage_byte, since, end, node_spec, running_job_ids):
-    job_utils = get_job_utils(task_gpu_percent, task_gpu_mem_percent,
-                              task_cpu_percent, task_mem_usage_byte, since, end)
-
-    insights = []
-    for job_util in job_utils:
-        # Only generate insight for currently running jobs.
-        if job_util.job_id not in running_job_ids:
-            logger.info("skip generating non-running job %s", job_util.job_id)
-            continue
-
-        try:
-            insights.append(Insight(job_util, node_spec))
-        except:
-            logger.exception("failed to generate insight from %s", job_util)
-
-    return insights
 
 
 def run(prometheus_url, hours_ago, restful_url, dry_run):
@@ -525,11 +544,15 @@ def run(prometheus_url, hours_ago, restful_url, dry_run):
 
 
 def main(params):
-    try:
-        run(params.prometheus_url, params.hours_ago, params.restful_url,
-            params.dry_run)
-    except:
-        logger.exception("failed in current run of job insight")
+    while True:
+        try:
+            run(params.prometheus_url, params.hours_ago, params.restful_url,
+                params.dry_run)
+        except:
+            logger.exception("failed in current run of job insight")
+
+        logger.info("sleep for %s seconds before next run.", params.sleep_time)
+        time.sleep(params.sleep_time)
 
 
 if __name__ == "__main__":
@@ -556,6 +579,12 @@ if __name__ == "__main__":
                         "-d",
                         action="store_true",
                         help="Do not write to database if specified")
+    parser.add_argument("--sleep_time",
+                        "-s",
+                        default=300,
+                        type=int,
+                        help="Sleep interval in seconds between runs. "
+                             "Default: 300")
 
     args = parser.parse_args()
 

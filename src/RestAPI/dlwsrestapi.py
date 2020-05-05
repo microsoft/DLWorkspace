@@ -1015,8 +1015,8 @@ class JobPriority(Resource):
         return generate_response(job_priorities)
 
 
-@api.resource("/JobInsight")
-class JobInsight(Resource):
+@api.resource("/Insight")
+class Insight(Resource):
     def __init__(self):
         self.post_parser = reqparse.RequestParser()
         self.post_parser.add_argument("jobId", required=True)
