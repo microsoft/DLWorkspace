@@ -163,10 +163,11 @@ class DCGMHandler(object):
                 for i, (_, name, _) in enumerate(mapping):
                     value = part[i + 1]
                     args[name] = value
-                    if i == 0: # do not generate uuid metric
+                    if name == "uuid": # do not generate uuid metric
                         continue
                     if value == "N/A":
                         continue
+                    args[name] = float(value)
 
                     gauges[name].add_metric([minor_number, args["uuid"]],
                                             float(value))

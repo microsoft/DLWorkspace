@@ -69,7 +69,7 @@ def iftop(interface, histogram, timeout):
     try:
         output = utils.exec_cmd(
             cmd,
-            stderr=subprocess.STDOUT,  # also capture stderr output
+            stderr=subprocess.STDOUT, # also capture stderr output
             histogram=histogram,
             timeout=timeout)
         return parse_iftop(output)
@@ -136,7 +136,7 @@ def lsof(pid, histogram, timeout):
             ["infilter",
              str(pid), "/usr/bin/lsof", "-i", "-n", "-P"],
             histogram=histogram,
-            stderr=subprocess.STDOUT,  # also capture stderr output
+            stderr=subprocess.STDOUT, # also capture stderr output
             timeout=timeout)
         return parse_lsof(output)
     except subprocess.TimeoutExpired:
@@ -206,7 +206,7 @@ def get_interfaces():
         "iL",
         fcntl.ioctl(
             s.fileno(),
-            0x8912,  # SIOCGIFCONF
+            0x8912, # SIOCGIFCONF
             struct.pack("iL", bytes,
                         names.buffer_info()[0])))[0]
 
@@ -268,7 +268,7 @@ def get_network_consumption(interface_name):
             data = line.split(":")[1].strip().split()
             net_in = data[0]
             net_out = data[8]
-            return net_in, net_out
+            return int(net_in), int(net_out)
     logger.error(
         "failed to read node wise network traffic from interface %s, content is %s",
         interface_name, content)
