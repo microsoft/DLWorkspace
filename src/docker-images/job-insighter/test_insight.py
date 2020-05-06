@@ -71,13 +71,13 @@ class TestInsight(TestCase):
 
         expected_messages = ["All GPU(s) are active."]
         expected_messages.append(
-            "Average active GPU utilization is below "
+            "Average active GPU utilization over time is below "
             "90%. You can take below suggestions to potentially "
             "boost GPU utilization."
         )
         messages = []
         messages.append(
-            "Average active GPU memory utilization is below "
+            "Average active GPU memory utilization over time is below "
             "50%. Try increasing batch size to put more data "
             "onto GPU memory to boost GPU utilization. For a "
             "distributed job, if the model has strict "
@@ -86,8 +86,8 @@ class TestInsight(TestCase):
             "with fewer GPUs and bigger batch size per GPU."
         )
         messages.append(
-            "The job uses 1.00 CPU cores per active GPU on "
-            "average. The maximum CPU cores per GPU you can "
+            "The job uses 1.00 CPU cores per active GPU on average"
+            "over time. The maximum CPU cores per GPU you can "
             "use without interfering with other GPUs in this "
             "cluster is 4.00. You can use more CPU cores to "
             "perform data preprocessing to keep GPUs from "
@@ -95,8 +95,8 @@ class TestInsight(TestCase):
             "parallel preprocessing on your input data."
         )
         messages.append(
-            "The job uses 10.00G memory per active GPU on "
-            "average. The maximum memory per GPU you can "
+            "The job uses 10.00G memory per active GPU on average"
+            "over time. The maximum memory per GPU you can "
             "use without interfering with other GPUs in this "
             "cluster is 100.00G. You can preload more input "
             "data into memory to make sure your data pipeline "
@@ -104,13 +104,15 @@ class TestInsight(TestCase):
             "disk/remote."
         )
         messages.append(
-            "Please take a closer look at METRICS tab to "
+            "Please check if your program is waiting on NFS I/O. "
+            "If so, please consider using scalable storage, e.g. "
+            "Azure blob."
+        )
+        messages.append(
+            "Suggestions above are purely based on average usage over "
+            "time. Please take a closer look at METRICS tab to better"
             "understand the utilization pattern of GPU, GPU "
-            "memory, CPU and memory throughout time. You can "
-            "try further optimization based on the "
-            "utilization pattern of different resources. "
-            "It could also be possible that storage read "
-            "throughput is a bottleneck."
+            "memory, CPU and memory over time for further optimization. "
         )
         expected_messages.append(messages)
 

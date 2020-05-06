@@ -356,18 +356,18 @@ class Insighter(object):
         good_gpu_util_threshold = 90
         good_gpu_mem_util_threshold = 50
         if self.active_gpu_util >= good_gpu_util_threshold:
-            self.messages.append("Average active GPU utilization "
+            self.messages.append("Average active GPU utilization over time "
                                  "is good at %.2f%%." % self.active_gpu_util)
         else:
             self.messages.append(
-                "Average active GPU utilization is below "
+                "Average active GPU utilization over time is below "
                 "%s%%. You can take below suggestions to potentially "
                 "boost GPU utilization." % good_gpu_util_threshold)
 
             messages = []
             if self.active_gpu_memory_util < good_gpu_mem_util_threshold:
                 messages.append(
-                    "Average active GPU memory utilization is below "
+                    "Average active GPU memory utilization over time is below "
                     "%s%%. Try increasing batch size to put more data "
                     "onto GPU memory to boost GPU utilization. For a "
                     "distributed job, if the model has strict "
@@ -379,8 +379,8 @@ class Insighter(object):
             if self.max_cpu_per_gpu is not None and \
                     self.cpu_per_active_gpu < self.max_cpu_per_gpu:
                 messages.append(
-                    "The job uses %.2f CPU cores per active GPU on "
-                    "average. The maximum CPU cores per GPU you can "
+                    "The job uses %.2f CPU cores per active GPU on average"
+                    "over time. The maximum CPU cores per GPU you can "
                     "use without interfering with other GPUs in this "
                     "cluster is %.2f. You can use more CPU cores to "
                     "perform data preprocessing to keep GPUs from "
@@ -392,8 +392,8 @@ class Insighter(object):
             if self.max_memory_per_gpu is not None and \
                     self.memory_per_active_gpu < self.max_memory_per_gpu:
                 messages.append(
-                    "The job uses %.2fG memory per active GPU on "
-                    "average. The maximum memory per GPU you can "
+                    "The job uses %.2fG memory per active GPU on average"
+                    "over time. The maximum memory per GPU you can "
                     "use without interfering with other GPUs in this "
                     "cluster is %.2fG. You can preload more input "
                     "data into memory to make sure your data pipeline "
@@ -403,13 +403,16 @@ class Insighter(object):
                 )
 
             messages.append(
-                "Please take a closer look at METRICS tab to "
+                "Please check if your program is waiting on NFS I/O. "
+                "If so, please consider using scalable storage, e.g. "
+                "Azure blob."
+            )
+
+            messages.append(
+                "Suggestions above are purely based on average usage over "
+                "time. Please take a closer look at METRICS tab to better"
                 "understand the utilization pattern of GPU, GPU "
-                "memory, CPU and memory throughout time. You can "
-                "try further optimization based on the "
-                "utilization pattern of different resources. "
-                "It could also be possible that storage read "
-                "throughput is a bottleneck."
+                "memory, CPU and memory over time for further optimization. "
             )
 
             self.messages.append(messages)
