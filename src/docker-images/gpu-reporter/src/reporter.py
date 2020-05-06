@@ -179,27 +179,27 @@ class IdlenessCalculator(object):
             nonidle_util = util * self.step_seconds
         return booked, idle, nonidle_util
 
-    def observe(self, vc, user, job_id, time, util):
+    def observe(self, preemptible, vc, user, job_id, time, util):
         if time < self.one_month_ago:
             return
 
         booked, idle, nonidle_util = self.calculate_increment(util)
 
         # do not implment __getitem__ here. That's slow
-        self.since_one_month.next[vc].next[user].next[job_id].add(
-            booked, idle, nonidle_util)
+        self.since_one_month.next[preemptible].next[vc].next[user].next[
+            job_id].add(booked, idle, nonidle_util)
 
         if time < self.fourteen_days_ago:
             return
 
-        self.since_fourteen_days.next[vc].next[user].next[job_id].add(
-            booked, idle, nonidle_util)
+        self.since_fourteen_days.next[preemptible].next[vc].next[user].next[
+            job_id].add(booked, idle, nonidle_util)
 
         if time < self.seven_days_ago:
             return
 
-        self.since_seven_days.next[vc].next[user].next[job_id].add(
-            booked, idle, nonidle_util)
+        self.since_seven_days.next[preemptible].next[vc].next[user].next[
+            job_id].add(booked, idle, nonidle_util)
 
     def export(self):
         return {
@@ -218,6 +218,8 @@ def calculate(obj, calculator):
         username = walk_json_field_safe(metric, "metric", "username")
         vc_name = walk_json_field_safe(metric, "metric", "vc_name")
         job_id = walk_json_field_safe(metric, "metric", "job_name")
+        preemptible = walk_json_field_safe(metric, "metric",
+                                           "preemptible") or "false"
 
         if username is None or vc_name is None or job_id is None:
             logger.warning(
@@ -231,7 +233,8 @@ def calculate(obj, calculator):
 
         for time, util in values:
             util = float(util)
-            calculator.observe(vc_name, username, job_id, time, util)
+            calculator.observe(preemptible, vc_name, username, job_id, time,
+                               util)
 
     result = calculator.export()
     elapsed = timeit.default_timer() - start
@@ -302,7 +305,7 @@ class CustomCollector(object):
 
     def walk_exported_register(self, exported):
         level_names = ["vc", "user", "job_id"]
-        labels = ["since"]
+        labels = ["since", "preemptible"]
 
         cluster_gauges = self.gen_gauges("cluster", labels) # special case
 
@@ -314,9 +317,14 @@ class CustomCollector(object):
             level_gauges.append(self.gen_gauges(level_name, labels))
 
         for since in ["31d", "14d", "7d"]:
-            self.add_metric(cluster_gauges, [since], exported[since])
-            self.add_leveled_metric(exported[since]["next"], level_gauges, 0,
-                                    [since])
+            for preemptible in ["true", "false"]:
+                start_reg = walk_json_field_safe(exported, since, "next",
+                                                 preemptible)
+                if start_reg is None:
+                    continue
+                self.add_metric(cluster_gauges, [since, preemptible], start_reg)
+                self.add_leveled_metric(start_reg["next"], level_gauges, 0,
+                                        [since, preemptible])
 
         result = []
         result.extend(cluster_gauges.values())
