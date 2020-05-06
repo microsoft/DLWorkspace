@@ -322,9 +322,17 @@ def gen_containers(job, role):
     logger.debug("volume_mounts: %s", volume_mounts)
 
     if job.init_image is None:
+        # This act like init_image for inference jobs, because inference jobs do not need to setup sshd
         cmd = [
-            "sh", "-c",
-            "printenv DLWS_LAUNCH_CMD > /job_command.sh ; mkdir -p /dlts-runtime/status ; touch /dlts-runtime/status/READY ; bash -x /job_command.sh"
+            "sh", "-c", """
+            printenv DLWS_LAUNCH_CMD > /job_command.sh
+            chmod +x /job_command.sh
+            mkdir -p /dlts-runtime/status
+            touch /dlts-runtime/status/READY
+            mkdir /dlts-runtime/env
+            bash /dlws-scripts/init_user.sh
+            runuser -s /bin/bash -l ${DLTS_USER_NAME} -c /job_command.sh
+            """
         ]
     else:
         cmd = ["bash", "/dlws-scripts/bootstrap.sh"]

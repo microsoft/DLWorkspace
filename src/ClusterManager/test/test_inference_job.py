@@ -71,12 +71,16 @@ def test_inference_job_running(args):
                     expected_output) != -1, "could not find %s in log %s" % (
                         expected_output, output)
 
+
 @utils.case()
 def test_inference_job_scale(args):
     if utils.get_launcher(args.config) == "controller":
         return
-    job_spec = utils.gen_default_job_description("inference", args.email,
-                                                args.uid, args.vc, cmd="sleep 600")
+    job_spec = utils.gen_default_job_description("inference",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 cmd="sleep 600")
 
     with utils.run_job(args.rest, job_spec) as job:
         job_id = job.jid
@@ -85,7 +89,8 @@ def test_inference_job_scale(args):
         assert state == "running"
 
         deployment_name = job_id + "-deployment"
-        deployment = utils.kube_get_deployment(args.config, "default", deployment_name)
+        deployment = utils.kube_get_deployment(args.config, "default",
+                                               deployment_name)
         assert 1 == deployment.spec.replicas
 
         desired_replicas = 2
@@ -94,7 +99,8 @@ def test_inference_job_scale(args):
         assert "Success" == resp
 
         time.sleep(30)
-        deployment = utils.kube_get_deployment(args.config, "default", deployment_name)
+        deployment = utils.kube_get_deployment(args.config, "default",
+                                               deployment_name)
         assert desired_replicas == deployment.spec.replicas
 
         desired_replicas = 1
@@ -103,5 +109,41 @@ def test_inference_job_scale(args):
         assert "Success" == resp
 
         time.sleep(30)
-        deployment = utils.kube_get_deployment(args.config, "default", deployment_name)
+        deployment = utils.kube_get_deployment(args.config, "default",
+                                               deployment_name)
         assert desired_replicas == deployment.spec.replicas
+
+
+@utils.case()
+def test_inference_job_use_alias_to_run(args):
+    job_spec = utils.gen_default_job_description(
+        "inference",
+        args.email,
+        args.uid,
+        args.vc,
+        cmd="echo dummy `whoami` ; sleep 120")
+
+    def satisified(expected, times, log):
+        """ return True on found `expected` occurs `times` times in `log` """
+        start = 0
+        for _ in range(times):
+            end = log.find(expected, start)
+            if end == -1:
+                return False
+            start = end + 1
+        return True
+
+    expected_word = "dummy %s" % (args.email.split("@")[0])
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        for _ in range(300):
+            log = utils.get_job_log(args.rest, args.email, job.jid)
+            if satisified(expected_word, 2, log):
+                break
+            time.sleep(0.5)
+
+        assert satisified(expected_word, 2, log), 'log is %s' % (log)
