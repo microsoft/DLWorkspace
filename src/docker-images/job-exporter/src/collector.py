@@ -36,6 +36,7 @@ import docker_stats
 import nvidia
 import ps
 import dcgm
+import infiniband
 
 logger = logging.getLogger(__name__)
 
@@ -121,16 +122,6 @@ def gen_nvsm_good_gauge():
 def gen_nvsm_total_gauge():
     return GaugeMetricFamily("nvsm_health_total_count",
                              "total metric count from nvsm show health")
-
-
-def gen_infiniband_gauge():
-    return GaugeMetricFamily("infiniband_count",
-                             "count of active Infiniband devices")
-
-
-def gen_ipoib_gauge():
-    return GaugeMetricFamily("ipoib_count",
-                             "count of active IPoIB interfaces")
 
 
 def gen_nv_peer_mem_gauge():
@@ -585,7 +576,8 @@ class ContainerCollector(Collector):
             ]))
 
     def __init__(self, name, sleep_time, atomic_ref, iteration_counter,
-                 gpu_info_ref, stats_info_ref, interface, dcgm_info_ref):
+                 gpu_info_ref, stats_info_ref, interface, dcgm_info_ref,
+                 infiniband_info_ref, ipoib_info_ref):
         Collector.__init__(self, name, sleep_time, atomic_ref,
                            iteration_counter)
         self.gpu_info_ref = gpu_info_ref
@@ -596,6 +588,8 @@ class ContainerCollector(Collector):
             "found %s as potential network interface to listen network traffic",
             self.network_interface)
         self.dcgm_info_ref = dcgm_info_ref
+        self.infiniband_info_ref = infiniband_info_ref
+        self.ipoib_info_ref = ipoib_info_ref
 
         # k8s will prepend "k8s_" to pod name. There will also be a container name
         # prepend with "k8s_POD_" which is a docker container used to construct
@@ -614,14 +608,19 @@ class ContainerCollector(Collector):
         gpu_infos = self.gpu_info_ref.get(now)
         self.stats_info_ref.set(stats_obj, now)
         dcgm_infos = self.dcgm_info_ref.get(now)
+        infiniband_infos = self.infiniband_info_ref.get(now)
+        ipoib_infos = self.ipoib_info_ref.get(now)
 
         logger.debug("all_conns is %s", all_conns)
         logger.debug("gpu_info is %s", gpu_infos)
         logger.debug("stats_obj is %s", stats_obj)
         logger.debug("dcgm_infos is %s", dcgm_infos)
+        logger.debug("infiniband_infos is %s", infiniband_infos)
+        logger.debug("ipoib_infos is %s", ipoib_infos)
 
         return self.collect_container_metrics(stats_obj, gpu_infos, all_conns,
-                                              dcgm_infos)
+                                              dcgm_infos, infiniband_infos,
+                                              ipoib_infos)
 
     @staticmethod
     def parse_from_labels(inspect_info, gpu_infos):
@@ -679,7 +678,8 @@ class ContainerCollector(Collector):
         return None
 
     def process_one_container(self, container_id, stats, gpu_infos, all_conns,
-                              gauges, dcgm_infos):
+                              gauges, dcgm_infos, infiniband_infos,
+                              ipoib_infos):
         container_name = utils.walk_json_field_safe(stats, "name")
         pai_service_name = ContainerCollector.infer_service_name(container_name)
 
@@ -740,6 +740,24 @@ class ContainerCollector(Collector):
                     labels["uuid"] = uuid
                     gauges.add_dcgm_metric(dcgm_metric, labels)
 
+            if is_host_network:
+                if infiniband_infos:
+                    for infiniband_info in infiniband_infos:
+                        labels = copy.deepcopy(container_labels)
+                        labels.update(infiniband_info.labels)
+                        gauges.add_value("task_infiniband_receive_bytes_total",
+                                         labels, infiniband_info.receive_bytes)
+                        gauges.add_value("task_infiniband_transmit_bytes_total",
+                                         labels, infiniband_info.transmit_bytes)
+                if ipoib_infos:
+                    for ipoib_info in ipoib_infos:
+                        labels = copy.deepcopy(container_labels)
+                        labels.update(ipoib_info.labels)
+                        gauges.add_value("task_ipoib_receive_bytes_total",
+                                         labels, ipoib_info.receive_bytes)
+                        gauges.add_value("task_ipoib_transmit_bytes_total",
+                                         labels, ipoib_info.transmit_bytes)
+
             gauges.add_value("task_cpu_percent", container_labels,
                              stats["CPUPerc"])
             gauges.add_value("task_mem_usage_byte", container_labels,
@@ -771,7 +789,7 @@ class ContainerCollector(Collector):
                              stats["BlockIO"]["out"])
 
     def collect_container_metrics(self, stats_obj, gpu_infos, all_conns,
-                                  dcgm_infos):
+                                  dcgm_infos, infiniband_infos, ipoib_infos):
         if stats_obj is None:
             logger.warning("docker stats returns None")
             return None
@@ -781,7 +799,8 @@ class ContainerCollector(Collector):
         for container_id, stats in stats_obj.items():
             try:
                 self.process_one_container(container_id, stats, gpu_infos,
-                                           all_conns, gauges, dcgm_infos)
+                                           all_conns, gauges, dcgm_infos,
+                                           infiniband_infos, ipoib_infos)
             except Exception:
                 logger.exception(
                     "error when trying to process container %s with name %s",
@@ -1078,104 +1097,47 @@ class NVSMCollector(Collector):
 
 
 class InfinibandCollector(Collector):
-    """Include active Infiniband device count and active IPoIB count"""
-    ibstatus_histogram = Histogram("cmd_ibstatus_latency_seconds",
-                                   "Command call latency for ibstatus (seconds)")
-    ibstatus_timeout = 10
+    def __init__(self, name, sleep_time, atomic_ref, iteration_counter,
+                 infiniband_info_ref):
+        Collector.__init__(self, name, sleep_time, atomic_ref,
+                           iteration_counter)
+        self.infiniband_gauge_ref = AtomicRef(datetime.timedelta(seconds=0))
+        self.infiniband_handler = infiniband.InfinibandHandler(
+            10, self.infiniband_gauge_ref, infiniband_info_ref)
+        self.infiniband_handler.start()
 
-    ifconfig_histogram = Histogram("cmd_ifconfig_latency_seconds",
-                                   "Command call latency for ifconfig (seconds)")
-    ifconfig_timeout = 10
+    def collect_impl(self):
+        gauge = self.infiniband_gauge_ref.get(datetime.datetime.now())
+        if gauge is not None:
+            return [gauge]
 
+
+class IPoIBCollector(Collector):
     def __init__(self, name, sleep_time, atomic_ref, iteration_counter):
         Collector.__init__(self, name, sleep_time, atomic_ref,
                            iteration_counter)
 
     def collect_impl(self):
-        infiniband_gauge = gen_infiniband_gauge()
         ipoib_gauge = gen_ipoib_gauge()
-
         try:
-            output = self.call_ibstatus()
-            infiniband_count = self.parse_ibstatus_output(output)
+            ipoib_interfaces = infiniband.get_iboip_interfaces()
 
-            output = self.call_ifconfig()
-            ipoib_count = self.parse_ifconfig_output(output)
-
-            if infiniband_count is not None and ipoib_count is not None:
-                infiniband_gauge.add_metric([], infiniband_count)
-                ipoib_gauge.add_metric([], ipoib_count)
-                return infiniband_gauge, ipoib_gauge
-            else:
+            if len(ipoib_interfaces) == 0:
                 return None
+
+            for ipoib_interface in ipoib_interfaces:
+                if ipoib_interface.state == "UP":
+                    value = 1
+                else:
+                    value = 0
+                ipoib_gauge.add_metric(
+                    [ipoib_interface.name, ipoib_interface.state], value)
+
+            return [ipoib_gauge]
         except Exception:
-            logger.exception("collect infiniband metric failed")
+            logger.exception("collect ipoib metric failed")
 
         return None
-
-    def parse_ibstatus_output(self, output):
-        if output is None:
-            return None
-
-        # Try to count the active IB when IB driver is installed
-        return output.count("state:\t\t 4: ACTIVE")
-
-    def parse_ifconfig_output(self, output):
-        if output is None:
-            return None
-
-        ipoib_count = 0
-        for line in output.split("\n"):
-            line = line.strip()
-            if line.startswith("ib") and "mtu 2044" in line:
-                ipoib_count += 1
-        return ipoib_count
-
-    def call_ibstatus(self):
-        try:
-            return utils.exec_cmd(
-                ["chroot", "/host-fs", "ibstatus"],
-                histogram=InfinibandCollector.ibstatus_histogram,
-                stderr=subprocess.STDOUT, # also capture stderr output
-                timeout=InfinibandCollector.ibstatus_timeout)
-        except subprocess.TimeoutExpired as e:
-            logger.warning("ibstatus timeout")
-        except subprocess.CalledProcessError as e:
-            if e.returncode == 127:
-                self.sleep_time = 86400 # IB driver is not installed, not an IB cluster, sleep for 1 day to try again
-                logger.info(
-                    "IB driver is not installed, reset sleep_time to %s",
-                    self.sleep_time)
-                return None
-            else:
-                logger.warning("ibstatus returns %d, output %s", e.returncode,
-                               e.output)
-        except Exception:
-            logger.exception("call ibstatus failed")
-
-        return ""
-
-    def call_ifconfig(self):
-        try:
-            return utils.exec_cmd(
-                ["chroot", "/host-fs", "ifconfig"],
-                histogram=InfinibandCollector.ifconfig_histogram,
-                stderr=subprocess.STDOUT,  # also capture stderr output
-                timeout=InfinibandCollector.ifconfig_timeout)
-        except subprocess.TimeoutExpired as e:
-            logger.warning("ifconfig timeout")
-        except subprocess.CalledProcessError as e:
-            if e.returncode == 127:
-                logger.exception(
-                    "ifconfig is not installed on host. apt install net-tools.")
-                return None
-            else:
-                logger.warning("ifconfig returns %d, output %s",
-                               e.returncode, e.output)
-        except Exception:
-            logger.exception("call ifconfig failed")
-
-        return ""
 
 
 class NvPeerMemCollector(Collector):
