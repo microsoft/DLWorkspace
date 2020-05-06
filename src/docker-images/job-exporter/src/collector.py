@@ -687,6 +687,10 @@ class ContainerCollector(Collector):
             container_id, ContainerCollector.inspect_histogram,
             ContainerCollector.inspect_timeout)
 
+        if inspect_info is None:
+            logger.debug("ignore killed container %s", container_id)
+            return
+
         pid = inspect_info.pid
         job_name = inspect_info.job_name
 

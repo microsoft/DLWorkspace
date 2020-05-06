@@ -37,7 +37,17 @@ spec:
       - name: main
         image: {{ job["image"] }}
         imagePullPolicy: Always
-        command: ["sh", "-c", "printenv DLTS_LAUNCH_CMD > /pod/job_command.sh ; bash -x /pod/job_command.sh"]
+        command: ["sh", "-c",
+        "
+        printenv DLTS_LAUNCH_CMD > /job_command.sh ;
+        chmod +x /job_command.sh ;
+        mkdir -p /dlts-runtime/status ;
+        touch /dlts-runtime/status/READY ;
+        mkdir /dlts-runtime/env ;
+        bash /dlws-scripts/init_user.sh ;
+        runuser -s /bin/bash -l ${DLTS_USER_NAME} -c /job_command.sh ;
+        "
+        ]
         securityContext:
           runAsUser: {{ job["containerUserId"] }}
           capabilities:
@@ -60,7 +70,7 @@ spec:
         {% endif %}
         volumeMounts:
         - name: "dlws-scripts"
-          mountPath: /pod/scripts
+          mountPath: /dlws-scripts
           readOnly: true
         - name: ssh-volume
           mountPath: /home/{{ job["user"] }}/.ssh
@@ -122,9 +132,9 @@ spec:
           value: {{ job["vcName"] }}
         - name: DLTS_PREEMPTIBLE
         {% if job["preemptionAllowed"] %}
-          value: true
+          value: "true"
         {% else%}
-          value: false
+          value: "false"
         {% endif %}
         {% for env in job["envs"] %}
         - name: {{env.name}}
