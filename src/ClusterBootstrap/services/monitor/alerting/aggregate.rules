@@ -33,6 +33,10 @@ groups:
         expr: avg(task_dcgm_gpu_util) by (vc_name)
       - record: aggregate:vc:active_task_dcgm_gpu_util:avg
         expr: avg(task_dcgm_gpu_util > 0) by (vc_name)
+      - record: aggregate:vc:vc_allocated_gpu_second:avg
+        expr: avg(vc_allocated_gpu_second) by (vc, since, gpu_type)
+      - record: aggregate:vc:vc_unschedulable_gpu_second:avg
+        expr: avg(vc_unschedulable_gpu_second) by (vc, since, gpu_type)
       - record: aggregate:vc:vc_booked_gpu_second:avg
         expr: avg(vc_booked_gpu_second) by (vc, since, preemptible)
       - record: aggregate:vc:vc_idle_gpu_second:avg

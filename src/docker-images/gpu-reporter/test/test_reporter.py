@@ -96,7 +96,7 @@ class TestReporter(unittest.TestCase):
         self.assertEqual(1, len(target), "zero/multiple target %s" % (target))
         self.assertEqual(value, target[0].value)
 
-    def test_walk_exported_regiter(self):
+    def test_export_to_metric(self):
         step_seconds = 300
         idleness_threshold = 0
         end = datetime.datetime.fromtimestamp(1587768375)
@@ -106,8 +106,7 @@ class TestReporter(unittest.TestCase):
         raw = json.loads(self.load_data("data/raw.json"))
         obj = reporter.calculate(raw, calculator)
 
-        collector = reporter.CustomCollector(None)
-        metrics = collector.walk_exported_register(obj)
+        metrics = reporter.IdlenessExportable(obj).to_metrics()
         self.assert_metric_value(metrics, "cluster_booked_gpu_second", {
             "since": "31d",
             "preemptible": "false"
@@ -457,8 +456,7 @@ class TestReporter(unittest.TestCase):
         raw = json.loads(self.load_data("data/raw-with-preempitable.json"))
         obj = reporter.calculate(raw, calculator)
 
-        collector = reporter.CustomCollector(None)
-        metrics = collector.walk_exported_register(obj)
+        metrics = reporter.IdlenessExportable(obj).to_metrics()
         self.assert_metric_value(metrics, "cluster_booked_gpu_second", {
             "since": "31d",
             "preemptible": "true"
