@@ -143,8 +143,8 @@ class InfinibandHandler(object):
                 logger.exception("InfinibandHandler.run got exception")
 
     def get_infiniband_metric(self):
-        gauge = GaugeMetricFamily("infiniband_health_count",
-                                  "health count for infiniband devices",
+        gauge = GaugeMetricFamily("infiniband_up",
+                                  "Whether infiniband is up",
                                   labels=Infiniband.label_names)
         metric = [] # A list of Infiniband
 
@@ -201,7 +201,7 @@ def get_all_ipoib_and_state():
         if re.match(pattern, line):
             try:
                 device = line.split(":")[1].strip()
-                state = line.split(":")[-1].strip().split()
+                state = line.split(":")[-1].strip().split()[6]
                 ipoibs.append((device, state))
             except:
                 logger.warning("failed to parse ipoib from %s", line)
@@ -249,8 +249,8 @@ class IPoIBHandler(object):
                 logger.exception("IPoIBHandler.run got exception")
 
     def get_ipoib_metric(self):
-        gauge = GaugeMetricFamily("ipoib_health_count",
-                                  "health count for ipoib interfaces",
+        gauge = GaugeMetricFamily("ipoib_up",
+                                  "Whether ipoib interface is up",
                                   labels=IPoIBInterface.label_names)
         metric = [] # A list of IPoIBInterface
 
@@ -267,3 +267,41 @@ class IPoIBHandler(object):
         except:
             logger.exception("getting ipoib metric failed")
             return metric, gauge
+
+
+if __name__ == '__main__':
+    logging.basicConfig(
+        format=
+        "%(asctime)s - %(levelname)s - %(threadName)s - %(filename)s:%(lineno)s - %(message)s",
+        level="DEBUG")
+
+    import collector
+    import datetime
+
+    infiniband_gauge_ref = collector.AtomicRef(datetime.timedelta(seconds=60))
+    infiniband_metric_ref = collector.AtomicRef(datetime.timedelta(seconds=60))
+
+    infiniband_handler = InfinibandHandler(1, infiniband_gauge_ref,
+                                           infiniband_metric_ref)
+    infiniband_handler.start()
+
+    ipoib_gauge_ref = collector.AtomicRef(datetime.timedelta(seconds=60))
+    ipoib_metric_ref = collector.AtomicRef(datetime.timedelta(seconds=60))
+
+    ipoib_handler = IPoIBHandler(1, ipoib_gauge_ref, ipoib_metric_ref)
+    ipoib_handler.start()
+
+    for _ in range(10):
+        now = datetime.datetime.now()
+
+        infiniband_gauge = infiniband_gauge_ref.get(now)
+        infiniband_metric = infiniband_metric_ref.get(now)
+        ipoib_gauge = ipoib_gauge_ref.get(now)
+        ipoib_metric = ipoib_metric_ref.get(now)
+
+        logger.info("infiniband gauge is %s", infiniband_gauge)
+        logger.info("infiniband metric is %s", infiniband_metric)
+        logger.info("ipoib gauge is %s", ipoib_gauge)
+        logger.info("ipoib metric is %s", ipoib_metric)
+        time.sleep(2)
+

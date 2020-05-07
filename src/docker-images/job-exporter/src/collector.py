@@ -1112,36 +1112,26 @@ class InfinibandCollector(Collector):
 
     def collect_impl(self):
         gauge = self.infiniband_gauge_ref.get(datetime.datetime.now())
+        logger.info("infiniband collect_impl: %s", gauge)
         if gauge is not None:
             return [gauge]
 
 
 class IPoIBCollector(Collector):
-    def __init__(self, name, sleep_time, atomic_ref, iteration_counter):
+    def __init__(self, name, sleep_time, atomic_ref, iteration_counter,
+                 ipoib_info_ref):
         Collector.__init__(self, name, sleep_time, atomic_ref,
                            iteration_counter)
+        self.ipoib_gauge_ref = AtomicRef(datetime.timedelta(seconds=0))
+        self.ipoib_handler = infiniband.IPoIBHandler(10, self.ipoib_gauge_ref,
+                                                     ipoib_info_ref)
+        self.ipoib_handler.start()
 
     def collect_impl(self):
-        ipoib_gauge = gen_ipoib_gauge()
-        try:
-            ipoib_interfaces = infiniband.get_iboip_interfaces()
-
-            if len(ipoib_interfaces) == 0:
-                return None
-
-            for ipoib_interface in ipoib_interfaces:
-                if ipoib_interface.state == "UP":
-                    value = 1
-                else:
-                    value = 0
-                ipoib_gauge.add_metric(
-                    [ipoib_interface.name, ipoib_interface.state], value)
-
-            return [ipoib_gauge]
-        except Exception:
-            logger.exception("collect ipoib metric failed")
-
-        return None
+        gauge = self.ipoib_gauge_ref.get(datetime.datetime.now())
+        logger.info("ipoib collect_impl: %s", gauge)
+        if gauge is not None:
+            return [gauge]
 
 
 class NvPeerMemCollector(Collector):
@@ -1195,7 +1185,7 @@ class NvPeerMemCollector(Collector):
             logger.warning("service nv_peer_mem status timeout")
         except subprocess.CalledProcessError as e:
             if e.returncode == 4:
-                logger.info("nv_peer_mem service cannot be found")
+                logger.warning("nv_peer_mem service cannot be found")
                 return None
             else:
                 logger.warning("service nv_peer_mem status returns %d, output %s",
