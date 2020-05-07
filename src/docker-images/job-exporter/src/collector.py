@@ -36,6 +36,7 @@ import docker_stats
 import nvidia
 import ps
 import dcgm
+import infiniband
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,11 @@ def gen_nvsm_total_gauge():
                              "total metric count from nvsm show health")
 
 
+def gen_nv_peer_mem_gauge():
+    return GaugeMetricFamily("nv_peer_mem_count",
+                             "count of active nv_peer_mem (GPUDirect) module. 0 or 1")
+
+
 class ResourceGauges(object):
     def __init__(self):
         self.task_labels = [
@@ -140,6 +146,11 @@ class ResourceGauges(object):
         self.task_labels_gpu = copy.deepcopy(self.task_labels)
         self.task_labels_gpu.append("minor_number")
         self.task_labels_gpu.append("uuid")
+
+        self.task_labels_infiniband = copy.deepcopy(self.task_labels)
+        self.task_labels_infiniband.extend(infiniband.Infiniband.label_names)
+        self.task_labels_ipoib = copy.deepcopy(self.task_labels)
+        self.task_labels_ipoib.extend(infiniband.IPoIBInterface.label_names)
 
         self.gauges = {}
 
@@ -166,6 +177,19 @@ class ResourceGauges(object):
         self.add_gauge("task_gpu_mem_percent",
                        "how much percent of gpu memory this task used",
                        self.task_labels_gpu)
+
+        self.add_gauge("task_infiniband_receive_bytes_total",
+                       "how much data Infiniband receives",
+                       self.task_labels_infiniband)
+        self.add_gauge("task_infiniband_transmit_bytes_total",
+                       "how much data Infiniband transmits",
+                       self.task_labels_infiniband)
+        self.add_gauge("task_ipoib_receive_bytes_total",
+                       "how much data IPoIB receives",
+                       self.task_labels_ipoib)
+        self.add_gauge("task_ipoib_transmit_bytes_total",
+                       "how much data IPoIB transmits",
+                       self.task_labels_ipoib)
 
     def add_task_and_service_gauge(self, name_tmpl, desc_tmpl):
         self.add_gauge(name_tmpl.format("task"), desc_tmpl.format("task"),
@@ -570,7 +594,8 @@ class ContainerCollector(Collector):
             ]))
 
     def __init__(self, name, sleep_time, atomic_ref, iteration_counter,
-                 gpu_info_ref, stats_info_ref, interface, dcgm_info_ref):
+                 gpu_info_ref, stats_info_ref, interface, dcgm_info_ref,
+                 infiniband_info_ref, ipoib_info_ref):
         Collector.__init__(self, name, sleep_time, atomic_ref,
                            iteration_counter)
         self.gpu_info_ref = gpu_info_ref
@@ -581,6 +606,8 @@ class ContainerCollector(Collector):
             "found %s as potential network interface to listen network traffic",
             self.network_interface)
         self.dcgm_info_ref = dcgm_info_ref
+        self.infiniband_info_ref = infiniband_info_ref
+        self.ipoib_info_ref = ipoib_info_ref
 
         # k8s will prepend "k8s_" to pod name. There will also be a container name
         # prepend with "k8s_POD_" which is a docker container used to construct
@@ -599,14 +626,19 @@ class ContainerCollector(Collector):
         gpu_infos = self.gpu_info_ref.get(now)
         self.stats_info_ref.set(stats_obj, now)
         dcgm_infos = self.dcgm_info_ref.get(now)
+        infiniband_infos = self.infiniband_info_ref.get(now)
+        ipoib_infos = self.ipoib_info_ref.get(now)
 
         logger.debug("all_conns is %s", all_conns)
         logger.debug("gpu_info is %s", gpu_infos)
         logger.debug("stats_obj is %s", stats_obj)
         logger.debug("dcgm_infos is %s", dcgm_infos)
+        logger.debug("infiniband_infos is %s", infiniband_infos)
+        logger.debug("ipoib_infos is %s", ipoib_infos)
 
         return self.collect_container_metrics(stats_obj, gpu_infos, all_conns,
-                                              dcgm_infos)
+                                              dcgm_infos, infiniband_infos,
+                                              ipoib_infos)
 
     @staticmethod
     def parse_from_labels(inspect_info, gpu_infos):
@@ -664,7 +696,8 @@ class ContainerCollector(Collector):
         return None
 
     def process_one_container(self, container_id, stats, gpu_infos, all_conns,
-                              gauges, dcgm_infos):
+                              gauges, dcgm_infos, infiniband_infos,
+                              ipoib_infos):
         container_name = utils.walk_json_field_safe(stats, "name")
         pai_service_name = ContainerCollector.infer_service_name(container_name)
 
@@ -721,13 +754,31 @@ class ContainerCollector(Collector):
             if dcgm_infos:
                 for id in gpu_ids:
                     if dcgm_infos.get(id) is None:
-                        contine
+                        continue
                     dcgm_metric = dcgm_infos[id] # will be type of DCGMMetrics
                     uuid = dcgm_metric.uuid
                     labels = copy.deepcopy(container_labels)
                     labels["minor_number"] = id
                     labels["uuid"] = uuid
                     gauges.add_dcgm_metric(dcgm_metric, labels)
+
+            if is_host_network:
+                if infiniband_infos:
+                    for infiniband_info in infiniband_infos:
+                        labels = copy.deepcopy(container_labels)
+                        labels.update(infiniband_info.labels)
+                        gauges.add_value("task_infiniband_receive_bytes_total",
+                                         labels, infiniband_info.receive_bytes)
+                        gauges.add_value("task_infiniband_transmit_bytes_total",
+                                         labels, infiniband_info.transmit_bytes)
+                if ipoib_infos:
+                    for ipoib_info in ipoib_infos:
+                        labels = copy.deepcopy(container_labels)
+                        labels.update(ipoib_info.labels)
+                        gauges.add_value("task_ipoib_receive_bytes_total",
+                                         labels, ipoib_info.receive_bytes)
+                        gauges.add_value("task_ipoib_transmit_bytes_total",
+                                         labels, ipoib_info.transmit_bytes)
 
             gauges.add_value("task_cpu_percent", container_labels,
                              stats["CPUPerc"])
@@ -760,7 +811,7 @@ class ContainerCollector(Collector):
                              stats["BlockIO"]["out"])
 
     def collect_container_metrics(self, stats_obj, gpu_infos, all_conns,
-                                  dcgm_infos):
+                                  dcgm_infos, infiniband_infos, ipoib_infos):
         if stats_obj is None:
             logger.warning("docker stats returns None")
             return None
@@ -770,7 +821,8 @@ class ContainerCollector(Collector):
         for container_id, stats in stats_obj.items():
             try:
                 self.process_one_container(container_id, stats, gpu_infos,
-                                           all_conns, gauges, dcgm_infos)
+                                           all_conns, gauges, dcgm_infos,
+                                           infiniband_infos, ipoib_infos)
             except Exception:
                 logger.exception(
                     "error when trying to process container %s with name %s",
@@ -1062,5 +1114,101 @@ class NVSMCollector(Collector):
                                e.output)
         except Exception:
             logger.exception("call nvsm failed")
+
+        return ""
+
+
+class InfinibandCollector(Collector):
+    def __init__(self, name, sleep_time, atomic_ref, iteration_counter,
+                 infiniband_info_ref):
+        Collector.__init__(self, name, sleep_time, atomic_ref,
+                           iteration_counter)
+        self.infiniband_gauge_ref = AtomicRef(datetime.timedelta(seconds=0))
+        self.infiniband_handler = infiniband.InfinibandHandler(
+            10, self.infiniband_gauge_ref, infiniband_info_ref)
+        self.infiniband_handler.start()
+
+    def collect_impl(self):
+        gauge = self.infiniband_gauge_ref.get(datetime.datetime.now())
+        logger.info("infiniband collect_impl: %s", gauge)
+        if gauge is not None:
+            return [gauge]
+
+
+class IPoIBCollector(Collector):
+    def __init__(self, name, sleep_time, atomic_ref, iteration_counter,
+                 ipoib_info_ref):
+        Collector.__init__(self, name, sleep_time, atomic_ref,
+                           iteration_counter)
+        self.ipoib_gauge_ref = AtomicRef(datetime.timedelta(seconds=0))
+        self.ipoib_handler = infiniband.IPoIBHandler(10, self.ipoib_gauge_ref,
+                                                     ipoib_info_ref)
+        self.ipoib_handler.start()
+
+    def collect_impl(self):
+        gauge = self.ipoib_gauge_ref.get(datetime.datetime.now())
+        logger.info("ipoib collect_impl: %s", gauge)
+        if gauge is not None:
+            return [gauge]
+
+
+class NvPeerMemCollector(Collector):
+    # https://github.com/Mellanox/nv_peer_memory
+    cmd_histogram = Histogram("cmd_nv_peer_mem_latency_seconds",
+                              "Command call latency for nv_peer_mem (seconds)")
+    cmd_timeout = 10
+
+    def __init__(self, name, sleep_time, atomic_ref, iteration_counter):
+        Collector.__init__(self, name, sleep_time, atomic_ref,
+                           iteration_counter)
+
+    def collect_impl(self):
+        nv_peer_mem_gauge = gen_nv_peer_mem_gauge()
+
+        try:
+            output = self.call_nv_peer_mem()
+            value = self.parse_nv_peer_mem_output(output)
+
+            if value is not None:
+                nv_peer_mem_gauge.add_metric([], value)
+                return [nv_peer_mem_gauge]
+            else:
+                return None
+        except Exception:
+            logger.exception("collect nv_peer_memory metric failed")
+
+        return None
+
+    def parse_nv_peer_mem_output(self, output):
+        if output is None:
+            return None
+
+        signal_str = [
+            "Loaded: loaded (/etc/init.d/nv_peer_mem; generated)",
+            "Active: active (exited)",
+        ]
+        for s in signal_str:
+            if s not in output:
+                return 0
+        return 1
+
+    def call_nv_peer_mem(self):
+        try:
+            return utils.exec_cmd(
+                ["chroot", "/host-fs", "service", "nv_peer_mem", "status"],
+                histogram=NvPeerMemCollector.cmd_histogram,
+                stderr=subprocess.STDOUT,  # also capture stderr output
+                timeout=NvPeerMemCollector.cmd_timeout)
+        except subprocess.TimeoutExpired as e:
+            logger.warning("service nv_peer_mem status timeout")
+        except subprocess.CalledProcessError as e:
+            if e.returncode == 4:
+                logger.warning("nv_peer_mem service cannot be found")
+                return None
+            else:
+                logger.warning("service nv_peer_mem status returns %d, output %s",
+                               e.returncode, e.output)
+        except Exception:
+            logger.exception("call nv_peer_mem failed")
 
         return ""
