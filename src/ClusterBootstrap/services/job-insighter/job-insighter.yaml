@@ -4,6 +4,7 @@ metadata:
   name: job-insighter
   namespace: default
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: job-insighter
