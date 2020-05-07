@@ -273,6 +273,7 @@ default_config_parameters = {
         "nginx": "all",
         "storagemanager": "nfs_node",
         "user-synchronizer": "etcd_node_1",
+        "job-insighter": "etcd_node_1",
     },
 
     "default_kube_labels_by_node_role": {

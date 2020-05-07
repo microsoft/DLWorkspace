@@ -1015,6 +1015,40 @@ class JobPriority(Resource):
         return generate_response(job_priorities)
 
 
+@api.resource("/Insight")
+class Insight(Resource):
+    def __init__(self):
+        self.post_parser = reqparse.RequestParser()
+        self.post_parser.add_argument("jobId", required=True)
+        self.post_parser.add_argument("userName", required=True)
+
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobId", required=True)
+        self.get_parser.add_argument("userName", required=True)
+
+    def get(self):
+        args = self.get_parser.parse_args()
+        job_id = args.get("jobId")
+        username = args.get("userName")
+
+        resp, status_code = JobRestAPIUtils.get_job_insight(job_id, username)
+        if status_code != 200:
+            return resp, status_code
+        return generate_response(resp)
+
+    def post(self):
+        args = self.post_parser.parse_args()
+        job_id = args.get("jobId")
+        username = args.get("userName")
+        payload = request.get_json(force=True, silent=True)
+
+        resp, status_code = JobRestAPIUtils.set_job_insight(job_id, username,
+                                                            payload)
+        if status_code != 200:
+            return resp, status_code
+        return generate_response(resp)
+
+
 @app.route("/metrics")
 def metrics():
     return Response(prometheus_client.generate_latest(),

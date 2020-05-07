@@ -430,6 +430,7 @@ def post_job(rest_url, job_spec):
     logger.info("job %s created", jid)
     return jid
 
+
 def scale_job(rest_url, email, job_id, resourcegpu):
     args = urllib.parse.urlencode({
         "userName": email,
@@ -439,6 +440,26 @@ def scale_job(rest_url, email, job_id, resourcegpu):
     url = urllib.parse.urljoin(rest_url, "ScaleJob") + "?" + args
     resp = requests.get(url)
     return resp.json()
+
+
+def get_job_insight(rest_url, email, job_id):
+    args = urllib.parse.urlencode({
+        "jobId": job_id,
+        "userName": email,
+    })
+    url = urllib.parse.urljoin(rest_url, "/Insight") + "?" + args
+    resp = requests.get(url)
+    return resp.json()
+
+
+def set_job_insight(rest_url, email, job_id, insight):
+    args = urllib.parse.urlencode({
+        "jobId": job_id,
+        "userName": email,
+    })
+    url = urllib.parse.urljoin(rest_url, "/Insight") + "?" + args
+    resp = requests.post(url, data=json.dumps(insight))
+    return resp
 
 
 class run_job(object):

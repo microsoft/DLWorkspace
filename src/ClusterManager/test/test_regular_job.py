@@ -756,3 +756,23 @@ def test_regular_job_mountpoints(args):
         for mp in ib_mps:
             assert not utils.mountpoint_in_pod(mp, pod), \
                 "infiniband mountpoint %s in regular job %s" % (mp, job.jid)
+
+
+@utils.case()
+def test_job_insight(args):
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        payload = {"messages": ["dummy"]}
+        resp = utils.set_job_insight(args.rest, args.email, job.jid, payload)
+        assert resp.status_code == 200
+
+        insight = utils.get_job_insight(args.rest, args.email, job.jid)
+        assert payload == insight
