@@ -159,7 +159,7 @@ def GetPod(selector):
 def GetLog(jobId, tail=None):
     # assume our job only one container per pod.
 
-    selector = "run=" + jobId
+    selector = "jobId=" + jobId
     podInfo = GetPod(selector)
     logs = []
 
