@@ -91,7 +91,6 @@ def get_infinibands():
             # Example error:
             #   ~$ cat /sys/class/infiniband/mlx4_0/ports/1/counters/port_rcv_data
             #   cat: /sys/class/infiniband/mlx4_0/ports/1/counters/port_rcv_data: Invalid argument
-            # To prevent
             try:
                 # Ref https://github.com/prometheus/node_exporter/pull/579/files
                 # According to Mellanox, the following metrics "are divided by
