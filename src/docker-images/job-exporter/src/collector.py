@@ -147,6 +147,11 @@ class ResourceGauges(object):
         self.task_labels_gpu.append("minor_number")
         self.task_labels_gpu.append("uuid")
 
+        self.task_labels_infiniband = copy.deepcopy(self.task_labels)
+        self.task_labels_infiniband.extend(infiniband.Infiniband.label_names)
+        self.task_labels_ipoib = copy.deepcopy(self.task_labels)
+        self.task_labels_ipoib.extend(infiniband.IPoIBInterface.label_names)
+
         self.gauges = {}
 
         self.add_task_and_service_gauge(
@@ -172,6 +177,19 @@ class ResourceGauges(object):
         self.add_gauge("task_gpu_mem_percent",
                        "how much percent of gpu memory this task used",
                        self.task_labels_gpu)
+
+        self.add_gauge("task_infiniband_receive_bytes_total",
+                       "how much data Infiniband receives",
+                       self.task_labels_infiniband)
+        self.add_gauge("task_infiniband_transmit_bytes_total",
+                       "how much data Infiniband transmits",
+                       self.task_labels_infiniband)
+        self.add_gauge("task_ipoib_receive_bytes_total",
+                       "how much data IPoIB receives",
+                       self.task_labels_ipoib)
+        self.add_gauge("task_ipoib_transmit_bytes_total",
+                       "how much data IPoIB transmits",
+                       self.task_labels_ipoib)
 
     def add_task_and_service_gauge(self, name_tmpl, desc_tmpl):
         self.add_gauge(name_tmpl.format("task"), desc_tmpl.format("task"),
