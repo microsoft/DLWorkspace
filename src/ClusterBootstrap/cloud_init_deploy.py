@@ -942,11 +942,12 @@ def render_for_infra_generic(config, args):
         config["basic_auth"] = create_basic_auth_4_k8s(regenerate_key)
 
     config = GetCertificateProperty(config)
-    utils.render_template_directory(
-        "./template/ssl", "./deploy/ssl", config, verbose=True)
-
+    
     gen_dns_config_script(config)
+
     if gen_new_key:
+        utils.render_template_directory(
+        "./template/ssl", "./deploy/ssl", config, verbose=True)
         gen_CA_certificates(config)
         gen_worker_certificates(config)
         gen_master_certificates(config)
