@@ -601,7 +601,8 @@ def render_nfs_node_specific(config, args):
 def render_mdt_node_specific(config, args):
     """could only be invoked in render_lustre_node_specific, otherwise add file_modules"""
     config["mdt_id"] = 0
-    lustre_disk_id = 1
+    if "mdt_node" not in config or len(config["mdt_node"]) == 0:
+        return config
     mdt_node_name = config["mdt_node"][0].split(".")[0]
     mdt_spec = config["machines"][mdt_node_name]
     config["data_disk_mnt_path"] = mdt_spec["data_disk_mnt_path"]
@@ -614,6 +615,7 @@ def render_mdt_node_specific(config, args):
 
 def render_oss_node_specific(config, args):
     """could only be invoked in render_lustre_node_specific, otherwise add file_modules"""
+    lustre_disk_id = 1
     for oss in config.get("oss_node", []):
         oss_machine_name = oss.split(".")[0]
         oss_spec = config["machines"][oss_machine_name]
