@@ -4,6 +4,7 @@ import { BrowserRouter, Redirect, Route, RouteComponentProps, Switch } from "rea
 
 import 'typeface-roboto';
 import 'typeface-roboto-mono';
+import 'material-design-icons/iconfont/material-icons.css';
 
 import Helmet from 'react-helmet';
 import { Typography } from '@material-ui/core';
