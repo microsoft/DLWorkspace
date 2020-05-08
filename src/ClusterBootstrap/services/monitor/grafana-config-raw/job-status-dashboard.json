@@ -47,7 +47,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1588881952699,
+  "iteration": 1588910468210,
   "links": [],
   "panels": [
     {
@@ -755,7 +755,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(task_infiniband_receive_bytes_total{job_name=\"$job_name\", link_layer=\"InfiniBand\"}[5m])) by (instance, device, port)",
+          "expr": "sum(rate(task_infiniband_receive_bytes_total{job_name=\"$job_name\", link_layer=\"InfiniBand\", role_name=\"worker\"}[5m])) by (instance, device, port)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -763,7 +763,7 @@
           "refId": "A"
         },
         {
-          "expr": "sum(rate(task_infiniband_transmit_bytes_total{job_name=\"$job_name\", link_layer=\"InfiniBand\"}[5m])) by (instance, device, port)",
+          "expr": "sum(rate(task_infiniband_transmit_bytes_total{job_name=\"$job_name\", link_layer=\"InfiniBand\", role_name=\"worker\"}[5m])) by (instance, device, port)",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "{{instance}} {{device}}:{{port}} Outbound",
@@ -852,7 +852,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(task_ipoib_receive_bytes_total{job_name=\"$job_name\"}[5m])) by (instance, device)",
+          "expr": "sum(rate(task_ipoib_receive_bytes_total{job_name=\"$job_name\", role_name=\"worker\"}[5m])) by (instance, device)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -860,7 +860,7 @@
           "refId": "A"
         },
         {
-          "expr": "sum(rate(task_ipoib_transmit_bytes_total{job_name=\"$job_name\"}[5m])) by (instance, device)",
+          "expr": "sum(rate(task_ipoib_transmit_bytes_total{job_name=\"$job_name\", role_name=\"worker\"}[5m])) by (instance, device)",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "{{instance}} {{device}} Outbound",
@@ -965,5 +965,5 @@
   "timezone": "browser",
   "title": "Job Status",
   "uid": "job-status",
-  "version": 6
+  "version": 2
 }
