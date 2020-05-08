@@ -20,3 +20,8 @@ if [ ! -z "$MNT_N_LNK" ]; then
 bash ./fileshare_install.sh
 bash ./mnt_fs_svc.sh
 fi
+
+IFS=';' read -ra script_modules <<< $SCRIPT_MODULES
+if [[ "${script_modules[@]}" =~ "IB" ]]; then
+    bash ./install_ib_on_sriov_az_cluster.sh
+fi

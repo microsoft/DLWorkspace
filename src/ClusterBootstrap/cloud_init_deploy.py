@@ -550,6 +550,11 @@ def render_worker_node_specific(config, args):
     config = get_stat_of_sku(config)
     default_worker_f2cp = ["kubernetes_common", "kubelet_worker", "nfs_client"]
     for sku in config["worker_sku_cnt"]:
+        config["script_modules"] = []
+        need_IB = config.get("sku_mapping", {}).get(
+            sku, {}).get("IB", False)
+        if need_IB:
+            config["script_modules"].append("IB")
         gpu_type = config.get("sku_mapping", {}).get(
             sku, {}).get("gpu-type", "None")
         config["kube_labels"] = common_worker_labels + \
@@ -559,6 +564,7 @@ def render_worker_node_specific(config, args):
             config["file_modules_2_copy"].append("gpu_docker_daemon")
         utils.render_template("./template/cloud-config/cloud_init_worker.txt.template",
                               "./deploy/cloud-config/cloud_init_worker_{}.txt".format(sku), config)
+        config.pop("script_modules")
 
 
 def render_elasticsearch_node_specific(config, args):

@@ -736,6 +736,7 @@ default_config_parameters = {
         "repairmanager": ["repairmanager, repairmanageretcd"],
         "storagemanager": ["storagemanager"],
         "user-synchronizer": ["user-synchronizer"],
+        "logging": ["azure-blob-adapter"]
     },
     "infiniband_mounts": [],
     "custom_mounts": [],

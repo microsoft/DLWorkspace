@@ -45,7 +45,7 @@ def load_config_based_on_command(command):
     config_file_list = args.config
     if not args.config:
         config_file_list = [ENV_CNF_YAML]
-        if command in ["deploy", "addmachines"]:
+        if command in ["deploy", "addmachines", "deployframework"]:
             config_file_list.append(ACTION_YAML)
         if command in ["delete_nodes", "dynamic_around", "interconnect"]:
             config_file_list.append(STATUS_YAML)
@@ -246,6 +246,23 @@ def deploy_cluster(config, args):
     create_availability_set(config, args)
     create_nsg(config, args)
     create_nfs_nsg(config, args)
+    need_logging = False
+    for spec in config.get("machines", {}).values():
+        if "kube_services" in spec and "logging" in spec["kube_services"]:
+            need_logging = True
+            break
+    if need_logging:
+        create_logging_storage_account(config, args)
+        create_logging_container(config, args)    
+        if args.dryrun:
+            print("Warining: dry-run mode, later please manually add logging" \
+                "storage connection_string to config.")
+        else:
+            get_connection_string_for_logging_storage_account(config, args)
+            # TODO we don't load and dump here since it would break the orders
+            # check whether we could do it more formally
+            os.system("cat logging_config.yaml >> {}".format(ENV_CNF_YAML))
+
     if args.output and os.path.exists(args.output):
         os.system('chmod +x ' + args.output)
 
@@ -641,9 +658,13 @@ def get_deployed_cluster_info(config, args):
     # merge and dump, based on az_cli_config(that's the real-time accurate info)
     updated_info = {}
     for vm_name, vm_spec in brief.items():
-        merge_config(vm_spec, existing_info.get(vm_name, {}))
-        merge_config(vm_spec, action_info.get(vm_name, {}))
-        updated_info[vm_name] = vm_spec
+        new_spec = {}
+        # fill static info that already exist or have been updated in action.yaml
+        merge_config(new_spec, existing_info.get(vm_name, {}))
+        merge_config(new_spec, action_info.get(vm_name, {}))
+        # fill dynamic info such as ip
+        merge_config(new_spec, vm_spec)
+        updated_info[vm_name] = new_spec
     for vm_name, vm_spec in existing_info.items():
         if "samba" in vm_spec["role"]:
             updated_info[vm_name] = vm_spec
