@@ -738,7 +738,7 @@ default_config_parameters = {
         "monitor": ["watchdog", "gpu-reporter", "reaper", "job-exporter"],
         "dashboard": ["dashboard"],
         "restfulapi": ["restfulapi"],
-        "repairmanager": ["repairmanager, repairmanageretcd"],
+        "repairmanager": ["repairmanager", "repairmanageretcd"],
         "storagemanager": ["storagemanager"],
         "user-synchronizer": ["user-synchronizer"],
         "logging": ["azure-blob-adapter"]
