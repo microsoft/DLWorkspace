@@ -695,6 +695,11 @@ default_config_parameters = {
     },
 
     "cloud_config_nsg_rules": {
+        "corpnet_dev_ports": "22 80 1443 3000 3306 5000 9091",
+        "inter_connect_ports": "1443 2379 2382 3306 5000 10250 10255",
+        "corpnet_user_ports": "30000-49999",
+        "nfs_ports": "'*'", 
+        # all of below except for default_admin_username deprecated after fixing port rules
         "vnet_range": "192.168.0.0/16",
         "default_admin_username": "core",
         "tcp_port_ranges": "80 443 30000-49999 25826 3000 22222 9091 9092",
