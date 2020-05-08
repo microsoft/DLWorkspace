@@ -158,7 +158,7 @@ class Calculator(object):
         pass
 
     def name(self):
-        pass
+        return self.__class__.__name__
 
     def export(self):
         pass
@@ -180,9 +180,6 @@ class IdlenessCalculator(Calculator):
         self.since_one_month = Register(None)
         self.since_fourteen_days = Register(None)
         self.since_seven_days = Register(None)
-
-    def name(self):
-        return "IdlenessCalculator"
 
     def calculate_increment(self, util):
         booked = self.step_seconds
@@ -262,9 +259,6 @@ class VCDataCalculator(Calculator):
         self.since_fourteen_days = collections.defaultdict(lambda: 0)
         self.since_one_month = collections.defaultdict(lambda: 0)
 
-    def name(self):
-        return "VCDataCalculator"
-
     def observe_metric(self, metric):
         vc_name = walk_json_field_safe(metric, "metric", "vc_name")
         gpu_type = walk_json_field_safe(metric, "metric", "gpu_type")
@@ -325,7 +319,7 @@ def calculate(obj, calculator):
 
 
 class Exportable(object):
-    """ object exchanged in AtomicRef, have an export method to generate Metrics
+    """ object exchanged in AtomicRef, have a to_metrics method to generate Metrics
     for Collector to consume """
     def to_metrics(self):
         pass
