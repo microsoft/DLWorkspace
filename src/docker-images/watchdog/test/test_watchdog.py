@@ -64,8 +64,8 @@ class TestWatchdog(unittest.TestCase):
     def test_parse_pods_status(self):
         obj = json.loads(self.get_data_test_input("data/pods_list.json"))
 
-        pod_gauge = watchdog.gen_pai_pod_gauge()
-        container_gauge = watchdog.gen_pai_container_gauge()
+        pod_gauge = watchdog.gen_k8s_pod_gauge()
+        container_gauge = watchdog.gen_k8s_container_gauge()
         pod_info = collections.defaultdict(lambda: [])
 
         watchdog.process_pods_status(obj, pod_gauge, container_gauge, pod_info,
@@ -88,8 +88,8 @@ class TestWatchdog(unittest.TestCase):
     def test_process_pods_with_no_condition(self):
         obj = json.loads(self.get_data_test_input("data/no_condtion_pod.json"))
 
-        pod_gauge = watchdog.gen_pai_pod_gauge()
-        container_gauge = watchdog.gen_pai_container_gauge()
+        pod_gauge = watchdog.gen_k8s_pod_gauge()
+        container_gauge = watchdog.gen_k8s_container_gauge()
         pod_info = collections.defaultdict(lambda: [])
 
         watchdog.process_pods_status(obj, pod_gauge, container_gauge, pod_info,
@@ -103,8 +103,8 @@ class TestWatchdog(unittest.TestCase):
 
         class CustomCollector(object):
             def collect(self):
-                pod_gauge = watchdog.gen_pai_pod_gauge()
-                container_gauge = watchdog.gen_pai_container_gauge()
+                pod_gauge = watchdog.gen_k8s_pod_gauge()
+                container_gauge = watchdog.gen_k8s_container_gauge()
                 pod_info = collections.defaultdict(lambda: [])
 
                 watchdog.process_pods_status(obj, pod_gauge, container_gauge,
@@ -160,7 +160,7 @@ class TestWatchdog(unittest.TestCase):
 
         self.assertEqual(5, len(gauges))
 
-        self.assertEqual("pai_node_count", gauges[0].name)
+        self.assertEqual("k8s_node_count", gauges[0].name)
         self.assertEqual(1, len(gauges[0].samples))
         self.assertEqual("true", gauges[0].samples[0].labels["unschedulable"])
         self.assertEqual("k8s_node_gpu_available", gauges[1].name)
@@ -465,8 +465,8 @@ class TestWatchdog(unittest.TestCase):
         obj = json.loads(
             self.get_data_test_input("data/dlts_non_preemptable_pod.json"))
 
-        pod_gauge = watchdog.gen_pai_pod_gauge()
-        container_gauge = watchdog.gen_pai_container_gauge()
+        pod_gauge = watchdog.gen_k8s_pod_gauge()
+        container_gauge = watchdog.gen_k8s_container_gauge()
         pod_info = collections.defaultdict(lambda: [])
 
         vc_usage = watchdog.VcUsage()
@@ -509,8 +509,8 @@ class TestWatchdog(unittest.TestCase):
             self.get_data_test_input(
                 "data/pods_with_response_time_monitor.json"))
 
-        pod_gauge = watchdog.gen_pai_pod_gauge()
-        container_gauge = watchdog.gen_pai_container_gauge()
+        pod_gauge = watchdog.gen_k8s_pod_gauge()
+        container_gauge = watchdog.gen_k8s_container_gauge()
         pod_info = collections.defaultdict(lambda: [])
 
         endpoints = []
@@ -543,8 +543,8 @@ class TestWatchdog(unittest.TestCase):
         objs = json.loads(
             self.get_data_test_input("data/dlts_unscheduled_pods.json"))
 
-        pod_gauge = watchdog.gen_pai_pod_gauge()
-        container_gauge = watchdog.gen_pai_container_gauge()
+        pod_gauge = watchdog.gen_k8s_pod_gauge()
+        container_gauge = watchdog.gen_k8s_container_gauge()
         pods_info = collections.defaultdict(lambda: [])
 
         vc_usage = watchdog.VcUsage()
