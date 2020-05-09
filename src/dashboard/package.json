@@ -24,6 +24,7 @@
     "koa-static": "^5.0.0",
     "lodash": "^4.17.15",
     "luxon": "^1.17.2",
+    "material-design-icons": "^3.0.1",
     "material-table": "^1.49.0",
     "node-fetch": "^2.6.0",
     "notistack": "^0.9.7",
