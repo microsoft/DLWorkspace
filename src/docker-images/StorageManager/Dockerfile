@@ -1,6 +1,6 @@
 FROM python:3.7
 
-RUN pip3 install requests==2.22.0 pyyaml==5.2
+RUN pip3 install requests==2.22.0 pyyaml==5.2 flask prometheus_client flask-cors
 
 ADD StorageManager /DLWorkspace/src/StorageManager
 

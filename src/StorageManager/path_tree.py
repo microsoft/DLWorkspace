@@ -1,8 +1,15 @@
 import os
 import logging
+import collections
 
 from path_node import PathNode
 from datetime import datetime, timedelta
+
+
+def get_alias(user):
+    if user == "":
+        return "N/A"
+    return user.split("@")[0]
 
 
 class PathTree(object):
@@ -42,6 +49,9 @@ class PathTree(object):
 
         self.hardlink_ino = set()
 
+        # Record storage usage by user. user alias -> usage in bytes
+        self.usage_by_user = collections.defaultdict(lambda: 0)
+
         self.overweight_boundary_nodes = []
         self.expired_boundary_nodes = []
         self.expired_boundary_nodes_to_delete = []
@@ -74,6 +84,7 @@ class PathTree(object):
 
         try:
             root_node = PathNode(root, uid_to_user=self.uid_to_user)
+            self.usage_by_user[get_alias(root_node.owner)] += root_node.size
         except:
             self.logger.warning("Ignore path %s due to exception", root,
                                 exc_info=True)
@@ -119,6 +130,7 @@ class PathTree(object):
             child_file = os.path.join(root, pathname)
             try:
                 path_node = PathNode(child_file, uid_to_user=self.uid_to_user)
+                self.usage_by_user[get_alias(path_node.owner)] += path_node.size
             except:
                 continue
             children.append(path_node)
