@@ -76,7 +76,7 @@ def gen_k8s_pod_gauge():
                              labels=[
                                  "service_name", "name", "namespace", "phase",
                                  "host_ip", "initialized", "pod_scheduled",
-                                 "ready"
+                                 "ready", "type"
                              ])
 
 
@@ -356,18 +356,37 @@ def parse_pod_item(pod, k8s_pod_gauge, k8s_container_gauge, pods_info,
 
     # get service name from label
     service_name = labels.get("app") or labels.get("jobId")
+    if labels.get("app") is not None:
+        pod_type = "service"
+    else:
+        pod_type = "job"
 
     annotations = walk_json_field_safe(pod, "metadata", "annotations") or {}
     if host_ip != "unscheduled":
         process_service_endpoints(service_name, host_ip, annotations,
                                   service_endpoints)
 
+    deletion_timestamp = walk_json_field_safe(pod, "metadata",
+                                              "deletionTimestamp")
+    grace_period = walk_json_field_safe(pod, "metadata",
+                                        "deletionGracePeriodSeconds") or 0
+
     status = pod["status"]
 
-    if status.get("phase") is not None:
-        phase = status["phase"].lower()
+    if deletion_timestamp is not None:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        end = datetime.datetime.strptime(
+            deletion_timestamp,
+            "%Y-%m-%dT%H:%M:%S%z") + datetime.timedelta(seconds=grace_period)
+        if end < now:
+            phase = "terminating-timeout"
+        else:
+            phase = "terminating"
     else:
-        phase = "unknown"
+        if status.get("phase") is not None:
+            phase = status["phase"].lower()
+        else:
+            phase = "unknown"
 
     initialized = pod_scheduled = ready = "unknown"
 
@@ -390,7 +409,7 @@ def parse_pod_item(pod, k8s_pod_gauge, k8s_container_gauge, pods_info,
 
     k8s_pod_gauge.add_metric([
         service_name, pod_name, namespace, phase, host_ip, initialized,
-        pod_scheduled, ready
+        pod_scheduled, ready, pod_type
     ], 1)
 
     # generate k8s_containers
