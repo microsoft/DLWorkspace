@@ -58,15 +58,15 @@ class StorageManager(object):
     def run(self):
         """Runs a while loop to monitor scan_points."""
 
-        # Prefix with host-fs since storages mount can use any path on host
+        # Prefix with host-fs since storage mounts can use any path on host
         for sp in self.scan_points:
             sp["path"] = os.path.join("/host-fs", sp["path"].lstrip("/"))
 
+        self.last_now = time.time()
+        first_time = True
+
         while True:
             try:
-                if self.last_now is None:
-                    self.last_now = time.time()
-
                 # Scan all scan points to collect storage information
                 self.scan()
 
@@ -74,9 +74,15 @@ class StorageManager(object):
                 self.gen_usage_by_user_from_trees()
 
                 # Apply rules and send alert emails when time is up.
-                self.apply_rules()
-
-                self.last_now = time.time()
+                if not first_time and \
+                        self.last_now + self.execution_interval > time.time():
+                    logger.info("Time is not up for applying rules.")
+                else:
+                    if first_time:
+                        first_time = False
+                    logger.info("Applying rules ...")
+                    self.apply_rules()
+                    self.last_now = time.time()
             except Exception as e:
                 logger.exception("StorageManager.run failed")
 
@@ -99,7 +105,7 @@ class StorageManager(object):
             if sp.get("path") not in ancestors:
                 continue
 
-            vc = sp.get("vc") or "N/A"
+            vc = sp.get("vc") or "cluster"
             mountpoint = sp.get("alias") or "N/A"
             tree = sp.get("tree")
             if tree is None:
@@ -112,10 +118,6 @@ class StorageManager(object):
 
     def apply_rules(self):
         """Only apply rules when time is up"""
-        if self.last_now + self.execution_interval > time.time():
-            logger.info("Time is not up for applying rules on path trees")
-            return
-
         for scan_point in self.scan_points:
             tree = scan_point.get("tree")
             if tree is None:
@@ -175,7 +177,8 @@ class StorageManager(object):
         if used_percent is None:
             logger.warning("used_percent cannot be retrieved.")
         else:
-            logger.info("%s used percent is %s", scan_point, used_percent)
+            logger.info("%s used percent is %s", scan_point["path"], 
+                        used_percent)
 
         if "overweight_threshold" not in scan_point:
             logger.info("overweight_threshold does not exist in %s. "
