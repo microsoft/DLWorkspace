@@ -59,7 +59,7 @@ default_config_parameters = {
     },
 
     "storage-manager": {
-        "port": 9092
+        "port": 9094
     },
 
     "repair-manager": { 
