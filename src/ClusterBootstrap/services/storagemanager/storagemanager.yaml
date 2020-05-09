@@ -18,7 +18,7 @@ spec:
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/metrics"
-        prometheus.io/port: '{{cnf["storage-manager"]["port"]}}'
+        prometheus.io/port: "{{cnf["storage-manager"]["port"]}}"
     spec:
       {% if cnf["dnsPolicy"] %}
       dnsPolicy: {{cnf["dnsPolicy"]}}
@@ -37,9 +37,12 @@ spec:
           name: storagemanager-log
         - mountPath: /host-fs
           name: host-fs
+        env:
+        - name: PROMETHEUS_IO_PORT
+          value: "{{cnf["storage-manager"]["port"]}}"
         ports:
         - name: reporter
-          containerPort: '{{cnf["storage-manager"]["port"]}}'
+          containerPort: {{cnf["storage-manager"]["port"]}}
       {% if cnf["private_docker_registry_username"] %}
       imagePullSecrets:
       - name: svccred

@@ -38,42 +38,42 @@ def stat_side_effect(value):
 
     if value == TEST_DIR:
         node.st_size = EMPTY_DIR_SIZE
-        node.uid = 1000
+        node.st_uid = 1000
     elif value == DIR1:
         node.st_ino = 2
         node.st_size = EMPTY_DIR_SIZE
-        node.uid = 1001
+        node.st_uid = 1001
     elif value == DIR2:
         node.st_ino = 3
         node.st_size = EMPTY_DIR_SIZE
         node.st_mtime -= 3 * DAY
-        node.uid = 1002
+        node.st_uid = 1002
     elif value == FILE2_1:
         node.st_ino = 4
         node.st_nlink = 2
         node.st_size = FILE2_1_LEN
         node.st_atime -= 2 * DAY
         node.st_mtime -= 14 * DAY
-        node.uid = 1002
+        node.st_uid = 1002
     elif value == FILE2_2:
         node.st_ino = 5
         node.st_size = FILE2_2_LEN
         node.st_atime -= 7 * DAY
         node.st_mtime -= 5 * DAY
-        node.uid = 1002
+        node.st_uid = 1002
     elif value == FILE2_3:
         node.st_ino = 4
         node.st_nlink = 2
         node.st_size = FILE2_3_LEN
         node.st_atime -= 2 * DAY
         node.st_mtime -= 14 * DAY
-        node.uid = 1000
+        node.st_uid = 1000
     elif value == FILE1:
         node.st_ino = 6
         node.st_size = FILE1_LEN
         node.st_atime -= 3 * DAY
         node.st_mtime -= 3 * DAY
-        node.uid = 1001
+        node.st_uid = 1001
 
     return node
 
@@ -88,7 +88,7 @@ def listdir_side_effect(value):
     elif value == DIR1:
         return []
     elif value == DIR2:
-        return ["file2_1", "file2_2"]
+        return ["file2_1", "file2_2", "file2_3"]
     return []
 
 
@@ -126,7 +126,7 @@ class TestPathTree(TestCase):
             "now": 1574203167,
             "regex_whitelist": ["^%s$" % FILE2_2]
         }
-        uid_to_user = {"user1": 1001, "user2": 1002}
+        uid_to_user = {1001: "user1", 1002: "user2"}
         tree = PathTree(config, uid_to_user=uid_to_user)
         tree.walk()
 

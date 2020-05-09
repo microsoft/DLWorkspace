@@ -60,7 +60,7 @@ class StorageManager(object):
 
         # Prefix with host-fs since storages mount can use any path on host
         for sp in self.scan_points:
-            sp["path"] = os.path.join("/host-fs", sp["path"].lstrip())
+            sp["path"] = os.path.join("/host-fs", sp["path"].lstrip("/"))
 
         while True:
             try:
@@ -84,7 +84,6 @@ class StorageManager(object):
         """Scans each scan_point. Sends alert when time is up."""
         uid_to_user = get_uid_to_user(self.restful_url)
         for scan_point in self.scan_points:
-            logger.info("Scanning scan_point: %s", scan_point)
             self.scan_a_point(scan_point, uid_to_user=uid_to_user)
 
     def gen_usage_by_user_from_trees(self):
@@ -102,7 +101,11 @@ class StorageManager(object):
 
             vc = sp.get("vc") or "N/A"
             mountpoint = sp.get("alias") or "N/A"
-            for user, usage in sp.usage_by_user.items():
+            tree = sp.get("tree")
+            if tree is None:
+                continue
+
+            for user, usage in tree.usage_by_user.items():
                 usage_gauge.add_metric([vc, mountpoint, user], usage)
 
         self.atomic_ref.set(usage_gauge)
@@ -110,7 +113,7 @@ class StorageManager(object):
     def apply_rules(self):
         """Only apply rules when time is up"""
         if self.last_now + self.execution_interval > time.time():
-            logger.info("time is not up for applying rules on path tree %s")
+            logger.info("Time is not up for applying rules on path trees")
             return
 
         for scan_point in self.scan_points:
@@ -166,12 +169,11 @@ class StorageManager(object):
         scan_point["used_percent_alert_threshold"] = \
             float(scan_point["used_percent_alert_threshold"])
 
-        # Only scan if alert threshold is reached
+        # Check used percent
         used_percent = df(scan_point["path"])
         scan_point["used_percent"] = used_percent
         if used_percent is None:
-            logger.warning("used_percent is None. Skip.")
-            return False
+            logger.warning("used_percent cannot be retrieved.")
         else:
             logger.info("%s used percent is %s", scan_point, used_percent)
 

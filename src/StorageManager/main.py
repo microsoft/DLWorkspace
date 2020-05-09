@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import argparse
 import faulthandler
 import os
 import yaml
@@ -68,7 +67,13 @@ def storage_manager_runner(sm_config, smtp, cluster_name, atomic_ref):
             logger.exception("storage_manager_runner failed")
 
 
-def serve(port):
+def serve():
+    # Get port for Prometheus scraping
+    port = os.getenv("PROMETHEUS_IO_PORT")
+    if port is None:
+        logger.error("Environment variable PROMETHEUS_IO_PORT is missing!")
+        return
+
     # Get config for storage manager
     sm_config = config.get("storage_manager", None)
     if sm_config is None:
@@ -103,14 +108,11 @@ def register_stack_trace_dump():
     faulthandler.register(signal.SIGTRAP, all_threads=True, chain=False)
 
 
-def main(params):
+def main():
     register_stack_trace_dump()
-    serve(params.port)
+    serve()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=9092, help="port to listen")
-    args = parser.parse_args()
-    main(args)
+    main()
 
