@@ -20,6 +20,11 @@ spec:
         userName: {{ job["user"] }}
         vcName: {{ job["vcName"] }}
         type: job
+      {% if "gpuType" in job %}
+        {% if job["gpuType"]|length > 0 %}
+        gpuType: {{ job["gpuType"] }}
+        {% endif %}
+      {% endif %}
     affinity:
       podAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:
