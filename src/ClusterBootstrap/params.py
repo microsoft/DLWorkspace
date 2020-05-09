@@ -58,6 +58,10 @@ default_config_parameters = {
         }
     },
 
+    "storage-manager": {
+        "port": 9092
+    },
+
     "repair-manager": { 
         "prometheus-ip": "localhost",
         "prometheus-port": 9091,

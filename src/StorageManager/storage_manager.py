@@ -5,9 +5,11 @@ import logging.config
 import time
 import os
 
+from prometheus_client import Histogram
+from prometheus_client.core import GaugeMetricFamily
 from path_tree import PathTree
 from rule import OverweightRule, ExpiredRule, ExpiredToDeleteRule, EmptyRule
-from utils import G, df, get_uid_to_user
+from utils import G, df, get_uid_to_user, keep_ancestor_paths
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +20,7 @@ class StorageManager(object):
 
     Attributes:
         config: Configuration for StorageManager.
-        execution_interval: Number of seconds in between for consecutive runs.
+        execution_interval: Number of seconds between applying rules.
         last_now: The unix epoch time in seconds.
         scan_points: A list of scan point configurations.
         overweight_threshold: The threshold for deciding an overweight path
@@ -26,16 +28,18 @@ class StorageManager(object):
         expiry_days: Number of days to expire.
         days_to_delete_after_expiry: Days to delete after expiration.
     """
-    def __init__(self, config, smtp, cluster_name):
+    def __init__(self, config, smtp, cluster_name, atomic_ref):
         self.config = config
         self.smtp = smtp
         self.cluster_name = cluster_name
+        self.atomic_ref = atomic_ref
 
         default_restful_url = "http://192.168.255.1:5000"
         self.restful_url = self.config.get("restful_url", default_restful_url)
 
         self.execution_interval = self.config.get("execution_interval", 86400)
         self.last_now = None
+
         self.scan_points = self.config.get("scan_points", [])
         assert isinstance(self.scan_points, list)
 
@@ -53,29 +57,75 @@ class StorageManager(object):
 
     def run(self):
         """Runs a while loop to monitor scan_points."""
+
+        # Prefix with host-fs since storages mount can use any path on host
+        for sp in self.scan_points:
+            sp["path"] = os.path.join("/host-fs", sp["path"].lstrip())
+
         while True:
-            if self.last_now is None:
-                self.last_now = time.time()
-
             try:
+                if self.last_now is None:
+                    self.last_now = time.time()
+
+                # Scan all scan points to collect storage information
                 self.scan()
+
+                # Generate usage info
+                self.gen_usage_by_user_from_trees()
+
+                # Apply rules and send alert emails when time is up.
+                self.apply_rules()
+
+                self.last_now = time.time()
             except Exception as e:
-                logger.error("scan failed with exception %s", e)
-
-            next_scan_time = self.last_now + self.execution_interval
-            time2_next_scan = max(0, next_scan_time - time.time())
-            logger.info("Sleeping for %s sec before next scan.",
-                        time2_next_scan)
-            time.sleep(time2_next_scan)
-
-            self.last_now = time.time()
+                logger.exception("StorageManager.run failed")
 
     def scan(self):
-        """Scans each scan_point. Sends alert."""
+        """Scans each scan_point. Sends alert when time is up."""
         uid_to_user = get_uid_to_user(self.restful_url)
         for scan_point in self.scan_points:
             logger.info("Scanning scan_point: %s", scan_point)
             self.scan_a_point(scan_point, uid_to_user=uid_to_user)
+
+    def gen_usage_by_user_from_trees(self):
+        """Generate usage by user from all trees in scan points for scraping"""
+        ancestors = keep_ancestor_paths([
+            sp.get("path") for sp in self.scan_points
+            if sp.get("path") is not None])
+
+        usage_gauge = GaugeMetricFamily("storage_usage_in_bytes_by_user",
+                                        "storage usage by each user",
+                                        labels=["vc", "mountpoint", "user"])
+        for sp in self.scan_points:
+            if sp.get("path") not in ancestors:
+                continue
+
+            vc = sp.get("vc") or "N/A"
+            mountpoint = sp.get("alias") or "N/A"
+            for user, usage in sp.usage_by_user.items():
+                usage_gauge.add_metric([vc, mountpoint, user], usage)
+
+        self.atomic_ref.set(usage_gauge)
+
+    def apply_rules(self):
+        """Only apply rules when time is up"""
+        if self.last_now + self.execution_interval > time.time():
+            logger.info("time is not up for applying rules on path tree %s")
+            return
+
+        for scan_point in self.scan_points:
+            tree = scan_point.get("tree")
+            if tree is None:
+                logger.warning(
+                    "cannot apply rules to scan point %s for None tree.",
+                    scan_point)
+                continue
+
+            OverweightRule(scan_point, tree.overweight_boundary_nodes).process()
+            ExpiredRule(scan_point, tree.expired_boundary_nodes).process()
+            ExpiredToDeleteRule(
+                scan_point, tree.expired_boundary_nodes_to_delete).process()
+            EmptyRule(scan_point, tree.empty_boundary_nodes).process()
 
     def scan_a_point(self, scan_point, uid_to_user=None):
         if not self.valid_scan_point(scan_point):
@@ -85,17 +135,16 @@ class StorageManager(object):
 
         tree = PathTree(scan_point, uid_to_user=uid_to_user)
         tree.walk()
+        scan_point["tree"] = tree
 
+        # Log some info
         root = tree.root
         if root is not None:
             logger.info("Total number of paths under %s found: %d",
-                        tree.path,
-                        root.num_subtree_nodes)
+                        tree.path, root.num_subtree_nodes)
         else:
             logger.warning("Tree root for %s is None.", tree.path)
             return
-
-        self.process_tree(tree, scan_point)
 
     def valid_scan_point(self, scan_point):
         """scan_point is mutated"""
@@ -151,11 +200,3 @@ class StorageManager(object):
         scan_point["cluster_name"] = self.cluster_name
 
         return True
-
-    def process_tree(self, tree, scan_point):
-        c = scan_point
-        OverweightRule(c, tree.overweight_boundary_nodes).process()
-        ExpiredRule(c, tree.expired_boundary_nodes).process()
-        ExpiredToDeleteRule(c, tree.expired_boundary_nodes_to_delete).process()
-        EmptyRule(c, tree.empty_boundary_nodes).process()
-

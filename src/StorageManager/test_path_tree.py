@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 
 from unittest import TestCase
@@ -9,13 +11,13 @@ from testcase_utils import EMPTY_DIR_SIZE, DummyNodeStat
 
 """Test Example:
 
-test_dir
-  |- dir1
-  |- dir2
-  |   |- file2_1
-  |   |- file2_2
-  |   |- file2_3
-  |- file1
+test_dir (1000)
+  |- dir1 (1001)
+  |- dir2 (1002)
+  |   |- file2_1 (1002)
+  |   |- file2_2 (1002)
+  |   |- file2_3 (1000)
+  |- file1 (1001)
 """
 
 TEST_DIR = "test_dir"
@@ -36,35 +38,42 @@ def stat_side_effect(value):
 
     if value == TEST_DIR:
         node.st_size = EMPTY_DIR_SIZE
+        node.uid = 1000
     elif value == DIR1:
         node.st_ino = 2
         node.st_size = EMPTY_DIR_SIZE
+        node.uid = 1001
     elif value == DIR2:
         node.st_ino = 3
         node.st_size = EMPTY_DIR_SIZE
         node.st_mtime -= 3 * DAY
+        node.uid = 1002
     elif value == FILE2_1:
         node.st_ino = 4
         node.st_nlink = 2
         node.st_size = FILE2_1_LEN
         node.st_atime -= 2 * DAY
         node.st_mtime -= 14 * DAY
+        node.uid = 1002
     elif value == FILE2_2:
         node.st_ino = 5
         node.st_size = FILE2_2_LEN
         node.st_atime -= 7 * DAY
         node.st_mtime -= 5 * DAY
+        node.uid = 1002
     elif value == FILE2_3:
         node.st_ino = 4
         node.st_nlink = 2
         node.st_size = FILE2_3_LEN
         node.st_atime -= 2 * DAY
         node.st_mtime -= 14 * DAY
+        node.uid = 1000
     elif value == FILE1:
         node.st_ino = 6
         node.st_size = FILE1_LEN
         node.st_atime -= 3 * DAY
         node.st_mtime -= 3 * DAY
+        node.uid = 1001
 
     return node
 
@@ -117,8 +126,16 @@ class TestPathTree(TestCase):
             "now": 1574203167,
             "regex_whitelist": ["^%s$" % FILE2_2]
         }
-        tree = PathTree(config)
+        uid_to_user = {"user1": 1001, "user2": 1002}
+        tree = PathTree(config, uid_to_user=uid_to_user)
         tree.walk()
+
+        expected_usage_by_user1 = EMPTY_DIR_SIZE + FILE1_LEN
+        expected_usage_by_user2 = EMPTY_DIR_SIZE + FILE2_1_LEN + FILE2_2_LEN
+        expected_usage_by_na = EMPTY_DIR_SIZE + FILE2_3_LEN
+        self.assertEqual(expected_usage_by_user1, tree.usage_by_user["user1"])
+        self.assertEqual(expected_usage_by_user2, tree.usage_by_user["user2"])
+        self.assertEqual(expected_usage_by_na, tree.usage_by_user["N/A"])
 
         self.assertEqual(1, len(tree.overweight_boundary_nodes))
         self.assertEqual(2, len(tree.expired_boundary_nodes))

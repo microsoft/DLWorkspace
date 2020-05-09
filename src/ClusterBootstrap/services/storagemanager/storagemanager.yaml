@@ -15,6 +15,10 @@ spec:
       labels:
         storagemanager-node: pod
         app: storagemanager
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: '{{cnf["storage-manager"]["port"]}}'
     spec:
       {% if cnf["dnsPolicy"] %}
       dnsPolicy: {{cnf["dnsPolicy"]}}
@@ -31,8 +35,11 @@ spec:
           name: storagemanager-config
         - mountPath: /var/log/storagemanager
           name: storagemanager-log
-        - mountPath: /data/share
-          name: data-share
+        - mountPath: /host-fs
+          name: host-fs
+        ports:
+        - name: reporter
+          containerPort: '{{cnf["storage-manager"]["port"]}}'
       {% if cnf["private_docker_registry_username"] %}
       imagePullSecrets:
       - name: svccred
@@ -44,9 +51,9 @@ spec:
       - name: storagemanager-log
         hostPath:
           path: /var/log/storagemanager
-      - name: data-share
+      - name: host-fs
         hostPath:
-          path: /data/share
+          path: /
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists

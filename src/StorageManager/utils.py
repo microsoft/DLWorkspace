@@ -158,3 +158,30 @@ def bytes2human_readable(value):
     if value // K > 0:
         return "%dK" % (value // K)
     return "%d" % value
+
+
+def ancestor_exists(path, ancestors):
+    for ancestor in ancestors:
+        if path.startswith(ancestor):
+            return True
+    return False
+
+
+def remove_descendents(path, ancestors):
+    new_ancestors = set()
+    for ancestor in ancestors:
+        if ancestor.startswith(path):
+            continue
+        new_ancestors.add(ancestor)
+    new_ancestors.add(path)
+    return new_ancestors
+
+
+def keep_ancestor_paths(paths):
+    ancestors = set()
+    for path in paths:
+        if ancestor_exists(path, ancestors):
+            continue
+        ancestors = remove_descendents(path, ancestors)
+        ancestors.add(path)
+    return sorted(list(ancestors))
