@@ -131,7 +131,7 @@ def create_vnet(config, args):
 
 def create_main_nsg(config, args):
     """
-    create main nsg
+    create main nsg, which infra and worker nodes follow
     """
     # create service tag to allow corpnet machines
     main_nsg_name = config["azure_cluster"]["nsg_name"]
@@ -142,17 +142,17 @@ def create_main_nsg(config, args):
     cmd = """az network nsg create --resource-group {} --name {}""".format(
         resource_group, main_nsg_name)
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
-    priority = 100
+    priority = 1500
     # set nsg rules for devs
     for tag in service_tags:
         create_nsg_rule(resource_group, main_nsg_name, priority, 
-        "Main-Allow-Dev-{}".format(tag), dev_ports, tag, args)
+                        "Main-Allow-Dev-{}".format(tag), dev_ports, tag, args)
         priority += 1
     # set nsg rules for users
-    priority = 120
+    priority = 1600
     for tag in service_tags:
         create_nsg_rule(resource_group, main_nsg_name, priority, 
-        "Main-Allow-User-{}".format(tag), user_ports, tag, args)
+                        "Main-Allow-User-{}".format(tag), user_ports, tag, args)
         priority += 1
 
 
@@ -166,7 +166,7 @@ def create_nfs_nsg(config, args):
         cmd = """az network nsg create --resource-group {} --name {}""".format(
             resource_group, nfs_nsg_name)
         execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
-    priority = 130
+    priority = 1700
     # set nsg rules for devs, (and samba, since samba machines are all in corpnet)
     for tag in config["cloud_config_nsg_rules"]["service_tags"]:
         create_nsg_rule(resource_group, nfs_nsg_name, priority, 
@@ -519,7 +519,7 @@ def vm_interconnects(config, args):
     main_nsg_name = config["azure_cluster"]["nsg_name"]
     resource_group = config["azure_cluster"]["resource_group"]
     inter_conn_ports = config["cloud_config_nsg_rules"]["inter_connect_ports"]
-    priority = 110
+    priority = 1550
     create_nsg_rule(resource_group, main_nsg_name, priority, 
         "Allow-Interconnect", inter_conn_ports, allowed_incoming_ips, args)
 

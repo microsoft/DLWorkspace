@@ -551,10 +551,10 @@ def render_worker_node_specific(config, args):
     default_worker_f2cp = ["kubernetes_common", "kubelet_worker", "nfs_client"]
     for sku in config["worker_sku_cnt"]:
         config["script_modules"] = []
-        need_IB = config.get("sku_mapping", {}).get(
-            sku, {}).get("IB", False)
-        if need_IB:
-            config["script_modules"].append("IB")
+        need_infiniband = config.get("sku_mapping", {}).get(
+                                    sku, {}).get("infiniband", False)
+        if need_infiniband:
+            config["script_modules"].append("infiniband")
         gpu_type = config.get("sku_mapping", {}).get(
             sku, {}).get("gpu-type", "None")
         config["kube_labels"] = common_worker_labels + \

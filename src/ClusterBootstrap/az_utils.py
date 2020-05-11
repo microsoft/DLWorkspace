@@ -146,8 +146,7 @@ def delete_nsg_rule_whitelist(config, args):
 
 
 def create_nsg_rule(resource_group, nsg_name, priority, rule_name,
-                                     port_ranges, service_tag_or_ip,
-                                     args, protocol="tcp"):
+                    port_ranges, service_tag_or_ip, args, protocol="tcp"):
     cmd = """
         az network nsg rule create \
             --resource-group %s \
@@ -168,8 +167,7 @@ def create_nsg_rule(resource_group, nsg_name, priority, rule_name,
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
-def delete_nsg_rule(resource_group, nsg_name, rule_name,
-                                     args):
+def delete_nsg_rule(resource_group, nsg_name, rule_name, args):
     cmd = """
         az network nsg rule delete \
             --resource-group {} \
