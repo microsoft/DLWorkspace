@@ -27,13 +27,15 @@ class nv_host(object):
                     code, p.stdout.read(), p.stderr.read())
 
     def __exit__(self, type, value, traceback):
-        p = subprocess.Popen(["nv-hostengine", "--term"],
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-        code = p.wait(timeout=60)
-        logger.info("stop nv-hostengine exit with %s, stdout %s, stderr %s",
-                    code, p.stdout.read(), p.stderr.read())
+        return
 
+
+#        p = subprocess.Popen(["nv-hostengine", "--term"],
+#                             stdout=subprocess.PIPE,
+#                             stderr=subprocess.PIPE)
+#        code = p.wait(timeout=60)
+#        logger.info("stop nv-hostengine exit with %s, stdout %s, stderr %s",
+#                    code, p.stdout.read(), p.stderr.read())
 
 # Ref: https://github.com/NVIDIA/gpu-monitoring-tools/blob/9e2979804d297cf5a81640ba8a8e941365e58f14/dcgm-exporter/dcgm-exporter#L85
 mapping = [
@@ -84,15 +86,15 @@ mapping = [
     (391, "retired_pages_dbe",
      "Total number of retired pages due to double-bit errors."),
     (392, "retired_pages_pending", "Total number of pages pending retirement."),
-    (409, "nvlink_flit_crc_error_count_total",
-     "Total number of NVLink flow-control CRC errors."),
-    (419, "nvlink_data_crc_error_count_total",
-     "Total number of NVLink data CRC errors."),
-    (429, "nvlink_replay_error_count_total", "Total number of NVLink retries."),
-    (439, "nvlink_recovery_error_count_total",
-     "Total number of NVLink recovery errors."),
-    (449, "nvlink_bandwidth_total",
-     "Total number of NVLink bandwidth counters for all lanes"),
+    #    (409, "nvlink_flit_crc_error_count_total",
+    #     "Total number of NVLink flow-control CRC errors."),
+    #    (419, "nvlink_data_crc_error_count_total",
+    #     "Total number of NVLink data CRC errors."),
+    #    (429, "nvlink_replay_error_count_total", "Total number of NVLink retries."),
+    #    (439, "nvlink_recovery_error_count_total",
+    #     "Total number of NVLink recovery errors."),
+    #    (449, "nvlink_bandwidth_total",
+    #     "Total number of NVLink bandwidth counters for all lanes"),
 ]
 
 DCGMMetrics = collections.namedtuple("DCGMMetrics",
