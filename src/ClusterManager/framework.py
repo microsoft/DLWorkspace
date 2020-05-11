@@ -680,10 +680,6 @@ def transform_regular_job(params, cluster_config):
 
     labels = params.get("label", {})
     annotations = params.get("annotations", {})
-    if cluster_config["is_support_pod_priority"]:
-        priority_class = "job-priority"
-    else:
-        priority_class = None
 
     framework = Framework(
         params["init-container"],
@@ -705,7 +701,7 @@ def transform_regular_job(params, cluster_config):
         params.get("nodeSelector", {}),
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
-        priority_class,
+        params.get("priority_class"),
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
@@ -752,10 +748,6 @@ def transform_distributed_job(params, cluster_config):
 
     labels = params.get("label", {})
     annotations = params.get("annotations", {})
-    if cluster_config["is_support_pod_priority"]:
-        priority_class = "job-priority"
-    else:
-        priority_class = None
 
     framework = Framework(
         params["init-container"],
@@ -777,7 +769,7 @@ def transform_distributed_job(params, cluster_config):
         params.get("nodeSelector", {}),
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
-        priority_class,
+        params.get("priority_class"),
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
@@ -821,11 +813,6 @@ def transform_inference_job(params, cluster_config):
     labels = params.get("label", {})
     annotations = params.get("annotations", {})
 
-    if cluster_config["is_support_pod_priority"]:
-        priority_class = "inference-job-priority"
-    else:
-        priority_class = None
-
     framework = Framework(
         None, # init container
         labels,
@@ -846,7 +833,7 @@ def transform_inference_job(params, cluster_config):
         params.get("nodeSelector", {}),
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
-        priority_class,
+        params.get("priority_class"),
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),

@@ -202,4 +202,6 @@ spec:
       {% endif %}
       {% endfor %}
       {% endif %}
-      priorityClassName: inference-job-priority
+      {% if job["priority_class"] %}
+      priorityClassName: {{ job["priority_class"] }}
+      {% endif %}

@@ -335,4 +335,6 @@ spec:
   {% endif %}
   {% endfor %}
   {% endif %}
-  priorityClassName: job-priority
+  {% if job["priority_class"] %}
+  priorityClassName: {{ job["priority_class"] }}
+  {% endif %}
