@@ -10,7 +10,7 @@ app.use(require('./frontend'))
 if (require.main === module) {
   const http = require('http')
   const http2 = require('http2')
-  const fs = require('fs')
+  const liveSecureContext = require('live-secure-context')
 
   const {
     HOST,
@@ -21,12 +21,15 @@ if (require.main === module) {
 
   const server = SSL_KEY && SSL_CERT
     ? http2.createSecureServer({
-      allowHTTP1: true,
-      key: fs.readFileSync(SSL_KEY),
-      cert: fs.readFileSync(SSL_CERT)
+      allowHTTP1: true
     })
     : http.createServer()
-
+  if (SSL_KEY && SSL_CERT) {
+    liveSecureContext(server, {
+      key: SSL_KEY,
+      cert: SSL_CERT
+    })
+  }
   server.on('request', app.callback())
   server.listen(PORT, HOST)
 }
