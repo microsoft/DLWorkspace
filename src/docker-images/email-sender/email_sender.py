@@ -33,6 +33,8 @@ def run(args):
     smtp_url, smtp_from, smtp_user, smtp_pass, default_cc = load_smtp_config(
         args.smtp)
 
+    credentials = pika.PlainCredentials(args.mq_user, args.mq_pass)
+
     while True:
         try:
             with smtplib.SMTP(smtp_url) as smtp_conn:
@@ -40,7 +42,8 @@ def run(args):
                 smtp_conn.login(smtp_user, smtp_pass)
 
                 connection = pika.BlockingConnection(
-                    pika.ConnectionParameters(host=args.host))
+                    pika.ConnectionParameters(host=args.host,
+                                              credentials=credentials))
                 channel = connection.channel()
 
                 channel.queue_declare(queue=args.queue, durable=True)
@@ -70,6 +73,9 @@ def run(args):
                                       on_message_callback=callback)
 
                 channel.start_consuming()
+        except pika.exceptions.ProbableAuthenticationError:
+            logger.error("authorization failed")
+            return 1
         except Exception:
             logger.exception("catch exception when handling messages")
 
@@ -83,6 +89,8 @@ if __name__ == "__main__":
                         help="queue name of rabbitmq",
                         default="email")
     parser.add_argument("--host", help="rabbitmq host", required=True)
+    parser.add_argument("--mq_user", help="rabbitmq user", required=True)
+    parser.add_argument("--mq_pass", help="rabbitmq pass", required=True)
     parser.add_argument("--smtp", help="path to smtp config", required=True)
     args = parser.parse_args()
 

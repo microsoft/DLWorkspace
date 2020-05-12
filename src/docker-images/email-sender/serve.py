@@ -18,8 +18,13 @@ from flask_cors import CORS
 logger = logging.getLogger(__name__)
 
 
-def put_message(host, queue, payload):
-    connection = pika.BlockingConnection(pika.ConnectionParameters(host=host))
+def get_pika_connection(host, credentials):
+    return pika.BlockingConnection(
+        pika.ConnectionParameters(host=host, credentials=credentials))
+
+
+def put_message(host, credentials, queue, payload):
+    connection = get_pika_connection(host, credentials)
     channel = connection.channel()
 
     channel.queue_declare(queue=queue, durable=True)
@@ -39,13 +44,20 @@ def serve(args):
     app = Flask(__name__)
     CORS(app)
 
+    credentials = pika.PlainCredentials(args.mq_user, args.mq_pass)
+    try:
+        get_pika_connection(args.host, credentials)
+    except pika.exceptions.ProbableAuthenticationError:
+        logger.error("authorization failed")
+        return 1
+
     @app.route("/put_email", methods=["POST"])
     def put_email():
         params = request.get_json(force=True)
 
         try:
             data = payload.Payload.deserialize(params)
-            put_message(args.host, args.queue, data.serialize())
+            put_message(args.host, credentials, args.queue, data.serialize())
         except Exception as e:
             logger.exception("failed to process %s", params)
             return Response(str(e), status=400)
@@ -63,7 +75,9 @@ if __name__ == "__main__":
                         help="queue name of rabbitmq",
                         default="email")
     parser.add_argument("--host", help="rabbitmq host", required=True)
+    parser.add_argument("--mq_user", help="rabbitmq user", required=True)
+    parser.add_argument("--mq_pass", help="rabbitmq pass", required=True)
     parser.add_argument("--port", help="port to listen", type=int, default=9095)
     args = parser.parse_args()
 
-    serve(args)
+    sys.exit(serve(args))
