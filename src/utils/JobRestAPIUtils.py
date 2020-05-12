@@ -148,6 +148,8 @@ def populate_job_resource(params):
         if job_params.is_valid():
             logger.info("job_params %s is valid. Populating.", job_params)
             params["sku"] = job_params.sku
+            if job_params.gpu_type:
+                params["gpuType"] = job_params.gpu_type
             params["resourcegpu"] = job_params.gpu_limit
             params["cpurequest"] = job_params.cpu_request
             params["cpulimit"] = job_params.cpu_limit
