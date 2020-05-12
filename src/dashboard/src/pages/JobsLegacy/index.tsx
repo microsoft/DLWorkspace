@@ -12,7 +12,6 @@ import {red, green, blue} from "@material-ui/core/colors";
 import { DLTSTabPanel } from '../CommonComponents/DLTSTabPanel'
 import {Link} from "react-router-dom";
 import useFetch from "use-http";
-import MaterialTable from 'material-table';
 import useJobs from './useJobs';
 import _ from 'lodash';
 import ClusterContext from "../../contexts/Clusters";
@@ -37,6 +36,7 @@ import {checkObjIsEmpty, toLocalTime} from "../../utlities/ObjUtlities";
 import ReactJson from "react-json-view";
 import TablePagination from "@material-ui/core/TablePagination";
 import {checkFinishedJob} from "../../utlities/interactionUtlties";
+import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
 
 const variantIcon = {
   success: CheckCircleIcon,
@@ -481,7 +481,7 @@ const Jobs: React.FC = (props: any) => {
         <DLTSTabs value={value} setValue={setValue} titles={JobsTitles} setRefresh={setRefresh} />
         <DLTSTabPanel value={value} index={0}>
           <JobsSelectByCluster currentCluster={currentCluster} onClusterChange={onClusterChange} clusters={clusters}/>
-          {filterRunningJobs(jobs).length > 0 ? <MaterialTable
+          {filterRunningJobs(jobs).length > 0 ? <SvgIconsMaterialTable
             title="Running Jobs"
             columns={[
               {title: 'JobId', field: 'jobId',cellStyle: {
@@ -584,7 +584,7 @@ const Jobs: React.FC = (props: any) => {
               ,
             }}
           /> : null}
-          {filterQueuedJobs(jobs).length > 0 ? <MaterialTable
+          {filterQueuedJobs(jobs).length > 0 ? <SvgIconsMaterialTable
             title="Queued  Jobs"
             columns={[
               {title: 'JobId', field: 'jobId',cellStyle: {
@@ -670,7 +670,7 @@ const Jobs: React.FC = (props: any) => {
 
             }}
           /> : null}
-          {filterUnApprovedJobs(jobs).length > 0 ? <MaterialTable
+          {filterUnApprovedJobs(jobs).length > 0 ? <SvgIconsMaterialTable
             title="Unapproved  Jobs"
             columns={[
               {title: 'JobId', field: 'jobId',cellStyle: {
@@ -759,7 +759,7 @@ const Jobs: React.FC = (props: any) => {
 
             }}
           /> : null}
-          {filterPauseJobs(jobs).length > 0 ? <MaterialTable
+          {filterPauseJobs(jobs).length > 0 ? <SvgIconsMaterialTable
             title="Paused Jobs"
             columns={[
               { title: 'JobId', field: 'jobId',cellStyle: {
@@ -846,7 +846,7 @@ const Jobs: React.FC = (props: any) => {
 
             }}
           /> : null}
-          {filterFinishedJobs(jobs).length > 0 ? <MaterialTable
+          {filterFinishedJobs(jobs).length > 0 ? <SvgIconsMaterialTable
             title="Finished Jobs"
             columns={[
               { title: 'JobId', field: 'jobId',cellStyle: {
@@ -926,7 +926,7 @@ const Jobs: React.FC = (props: any) => {
           refresh ? allJobs &&
               <DLTSTabPanel value={value} index={1}>
                 <JobsSelectByCluster currentCluster={currentCluster} onClusterChange={onClusterChange} clusters={clusters}/>
-                {filterRunningJobs(allJobs).length > 0 ? <MaterialTable
+                {filterRunningJobs(allJobs).length > 0 ? <SvgIconsMaterialTable
                   title="Running Jobs"
                   columns={[
                     {title: 'JobId',cellStyle: {
@@ -1031,7 +1031,7 @@ const Jobs: React.FC = (props: any) => {
                     Action: (props: any)=> isAdmin ? renderActions(props) : null,
                   }}
                 /> : null}
-                {filterQueuedJobs(allJobs).length > 0 ? <MaterialTable
+                {filterQueuedJobs(allJobs).length > 0 ? <SvgIconsMaterialTable
                   title="Queued  Jobs"
                   columns={[
                     {title: 'JobId', field: 'jobId',cellStyle: {
@@ -1135,9 +1135,8 @@ const Jobs: React.FC = (props: any) => {
                     Action: (props: any)=>isAdmin ? renderActions(props) : null,
 
                   }}
-
                 /> : null}
-                {filterUnApprovedJobs(allJobs).length > 0 ? <MaterialTable
+                {filterUnApprovedJobs(allJobs).length > 0 ? <SvgIconsMaterialTable
                   title="Unapproved  Jobs"
                   columns={[
                     {title: 'JobId', field: 'jobId',cellStyle: {
@@ -1238,7 +1237,7 @@ const Jobs: React.FC = (props: any) => {
 
                   }}
                 /> : null}
-                {filterPauseJobs(allJobs).length > 0  ? <MaterialTable
+                {filterPauseJobs(allJobs).length > 0  ? <SvgIconsMaterialTable
                   title="Paused Jobs"
                   columns={[
                     { title: 'JobId',cellStyle: {
@@ -1330,7 +1329,7 @@ const Jobs: React.FC = (props: any) => {
 
                   }}
                 /> : null}
-                {filterFinishedJobs(allJobs).length > 0 ? <MaterialTable
+                {filterFinishedJobs(allJobs).length > 0 ? <SvgIconsMaterialTable
                   title="Finished Jobs"
                   columns={[
                     { title: 'JobId', field: 'jobId',cellStyle: {

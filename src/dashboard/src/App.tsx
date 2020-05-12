@@ -3,7 +3,6 @@ import { FunctionComponent } from 'react';
 
 import 'typeface-roboto';
 import 'typeface-roboto-mono';
-import 'material-design-icons/iconfont/material-icons.css';
 
 import { BrowserRouter } from 'react-router-dom';
 import Helmet from 'react-helmet';

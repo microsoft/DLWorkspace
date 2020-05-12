@@ -4,7 +4,8 @@ import {
   Switch,
   CircularProgress
 } from "@material-ui/core";
-import MaterialTable, {MTableToolbar} from "material-table";
+import {MTableToolbar} from "material-table";
+import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable';
 
 interface TeamUsr {
   userStatus: any;
@@ -19,7 +20,7 @@ export const TeamVCUserStatus = (props: TeamUsr) => {
     return (
       <>
         {
-          userStatus ?  <MaterialTable
+          userStatus ?  <SvgIconsMaterialTable
             title=""
             columns={[{title: 'Username', field: 'userName'},
               {title: 'Currently Allocated GPU', field: 'usedGPU',type:'numeric'},
@@ -50,7 +51,7 @@ export const TeamVCUserStatus = (props: TeamUsr) => {
   return (
     <>
       {
-        userStatus ?  <MaterialTable
+        userStatus ?  <SvgIconsMaterialTable
           title=""
           columns={[{title: 'Username', field: 'userName'},
             {title: 'Currently Allocated GPU', field: 'usedGPU',type:'numeric'},

@@ -23,13 +23,13 @@ import {
   Typography,
   makeStyles
 } from '@material-ui/core';
-import MaterialTable, {
+import {
   Column,
   Options,
   DetailPanel
 } from 'material-table';
 
-import SortArrow from '../../components/SortArrow';
+import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
 import TeamsContext from '../../contexts/Teams';
 import useTableData from '../../hooks/useTableData';
 import usePrometheus from '../../hooks/usePrometheus';
@@ -159,7 +159,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, o
   }, [config]);
 
   return (
-    <MaterialTable
+    <SvgIconsMaterialTable
       title={(
         <>
           Show Type: <Select value={filterType} onChange={handleSelectChange}>
@@ -174,7 +174,6 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, o
       columns={columns}
       options={options}
       detailPanel={detailPanel}
-      icons={{ SortArrow }}
     />
   );
 };

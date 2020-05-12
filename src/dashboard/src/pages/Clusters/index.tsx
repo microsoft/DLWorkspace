@@ -17,7 +17,7 @@ import {
   Typography
 } from '@material-ui/core';
 
-import MaterialTable, {
+import {
   Column,
   Options
 } from 'material-table';
@@ -25,7 +25,7 @@ import MaterialTable, {
 import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
 
-import SortArrow from '../../components/SortArrow';
+import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
 import TeamsContext from '../../contexts/Teams';
 import ClustersContext from '../../contexts/Clusters';
 import useTableData from '../../hooks/useTableData';
@@ -179,13 +179,12 @@ const Clusters: FunctionComponent = () => {
 
   return (
     <Container>
-      <MaterialTable
+      <SvgIconsMaterialTable
         title="Clusters"
         data={data}
         columns={columns}
         options={options}
         parentChildData={parentChildData}
-        icons={{ SortArrow }}
       />
     </Container>
   )

@@ -16,12 +16,12 @@ import {
   Tooltip,
   Typography
 } from '@material-ui/core';
-import MaterialTable, {
+import {
   Column,
   Options
 } from 'material-table';
 
-import SortArrow from '../../components/SortArrow';
+import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
 import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
 import TeamsContext from '../../contexts/Teams';
@@ -138,7 +138,7 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers }, query }) =>
   }), [query]);
 
   return (
-    <MaterialTable
+    <SvgIconsMaterialTable
       title={
         <Button variant="outlined" onClick={handleButtonClick}>
           {filterCurrentTeam ? 'Show Pods in All Teams' : 'Show Current Team Only'}
@@ -147,7 +147,6 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers }, query }) =>
       data={tableData}
       columns={columns}
       options={options}
-      icons={{ SortArrow }}
     />
   );
 };

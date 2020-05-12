@@ -18,12 +18,12 @@ import {
 import {
   AccountBox
 } from '@material-ui/icons';
-import MaterialTable, {
+import {
   Column,
   Options
 } from 'material-table';
 
-import SortArrow from '../../components/SortArrow';
+import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
 import TeamsContext from '../../contexts/Teams';
 import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
@@ -217,7 +217,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods
   }, []);
 
   return (
-    <MaterialTable
+    <SvgIconsMaterialTable
       title={
         <Button variant="outlined" onClick={handleButtonClick}>
           { filterCurrent ? "Show All Users" : "Show Current Users Only" }
@@ -227,7 +227,6 @@ const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods
       columns={columns}
       options={options}
       parentChildData={parentChildData}
-      icons={{ SortArrow }}
     />
   )
 };

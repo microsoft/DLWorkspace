@@ -5,10 +5,10 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import MaterialTable, { Options, MaterialTableProps } from 'material-table';
+import { Options, MaterialTableProps } from 'material-table';
 import { zipWith } from 'lodash';
 
-import SortArrow from '../../../components/SortArrow';
+import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable';
 
 import { Job } from '../utils';
 
@@ -70,7 +70,7 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({
   }, [jobs])
 
   return (
-    <MaterialTable
+    <SvgIconsMaterialTable
       data={data}
       options={options}
       detailPanel={detailPanel}
@@ -88,7 +88,6 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({
       }}
       onChangeRowsPerPage={handleChangeRowsPerPage}
       onChangePage={handleChangePage}
-      icons={{ SortArrow }}
       {...props}
     />
   );
