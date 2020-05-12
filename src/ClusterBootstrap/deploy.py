@@ -2733,31 +2733,6 @@ def get_machines_by_roles(roles, cnf):
     return machines_by_roles
 
 
-def get_sku_meta(cnf):
-    """Get SKU meta information from cnf.
-
-    Args:
-        cnf: Configuration dictionary containing machines.
-
-    Returns:
-        SKU meta dictionary from configuration.
-    """
-    return cnf.get("sku_meta", {})
-
-
-def kubernetes_label_cpuworker():
-    """Label kubernetes nodes with cpuworker=active."""
-    label = "cpuworker=active"
-    sku_meta = get_sku_meta(config)
-    workers = get_machines_by_roles("worker", config)
-
-    for machine_name, machine_info in list(workers.items()):
-        if "sku" in machine_info and machine_info["sku"] in sku_meta:
-            sku = machine_info["sku"]
-            if "gpu" not in sku_meta[sku]:
-                kubernetes_label_node("--overwrite", machine_name, label)
-
-
 def kubernetes_label_sku():
     """Label kubernetes nodes with sku=<sku_value>"""
     machines = get_machines_by_roles("all", config)
@@ -3531,9 +3506,6 @@ def run_command(args, command, nargs, parser):
     elif command == "gpulabel":
         kubernetes_label_GpuTypes()
 
-    elif command == "labelcpuworker":
-        kubernetes_label_cpuworker()
-
     elif command == "labelsku":
         kubernetes_label_sku()
 
@@ -3879,9 +3851,7 @@ Command:
   upgrade_masters Upgrade the master nodes.
   upgrade_workers [nodes] Upgrade the worker nodes. If no additional node is specified, all nodes will be updated.
   upgrade [nodes] Upgrade the cluster and nodes. If no additional node is specified, all nodes will be updated.
-  labelcpuworker Label CPU nodes with "worker" role with cpuworker=active if their SKU is defined in sku_meta.
-  labelsku       Label nodes with "sku=<sku_value>" if their SKU is defined in sku_meta. In order to run distributed
-                 CPU jobs, ./deploy.py labelcpuworker must be executed as well.
+  labelsku       Label nodes with "sku=<sku_value>".
   labelvc        Label nodes with "vc=<vc_value>" if vc is defined in machine's property in machines sections in config.
                  Default to "vc=default".
   '''))
