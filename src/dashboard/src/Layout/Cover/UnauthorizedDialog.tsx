@@ -26,10 +26,10 @@ const UnauthorizedDialog: FunctionComponent = () => {
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button component="a" href={addGroup} target="_blank" rel="noopener noreferrer">
+        <Button component="a" href={addGroup} target="_blank" rel="noopener noreferrer" color="primary">
           Join Security Groups
         </Button>
-        <Button href="/api/authenticate/logout">Sign Out</Button>
+        <Button href="/api/authenticate/logout" color="secondary">Sign Out</Button>
       </DialogActions>
     </Dialog>
   );
