@@ -420,9 +420,10 @@ def UpdateJobStatus(redis_conn,
 
     elif result == "Pending":
         _, detail = k8sUtils.GetJobStatus(job["jobId"])
-        dataHandler.UpdateJobTextFields(
-            {"jobId": job["jobId"]},
-            {"jobStatusDetail": b64encode(json.dumps(detail))})
+        dataHandler.UpdateJobTextFields({"jobId": job["jobId"]}, {
+            "jobStatusDetail": b64encode(json.dumps(detail)),
+            "jobStatus": "scheduling",
+        })
 
     if result != "Unknown" and result != "NotFound" and job[
             "jobId"] in UnusualJobs:
