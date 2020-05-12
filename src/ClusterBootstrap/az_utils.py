@@ -145,6 +145,40 @@ def delete_nsg_rule_whitelist(config, args):
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
+def create_nsg_rule(resource_group, nsg_name, priority, rule_name,
+                    port_ranges, service_tag_or_ip, args, protocol="tcp"):
+    cmd = """
+        az network nsg rule create \
+            --resource-group %s \
+            --nsg-name %s \
+            --name %s \
+            --protocol %s \
+            --priority %s \
+            --destination-port-ranges %s \
+            --source-address-prefixes %s \
+            --access allow
+        """ % (resource_group,
+               nsg_name,
+               rule_name,
+               protocol,
+               priority,
+               port_ranges,
+               service_tag_or_ip)
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+
+
+def delete_nsg_rule(resource_group, nsg_name, rule_name, args):
+    cmd = """
+        az network nsg rule delete \
+            --resource-group {} \
+            --nsg-name {} \
+            --name {}
+        """.format(resource_group,
+               nsg_name, rule_name)
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+
+
+# deprecated after updating port of nsg rules and converting configs
 def create_nsg_rule_with_service_tag(resource_group, nsg_name, priority,
                                      port_ranges, service_tag, args,
                                      protocol="tcp"):
@@ -168,6 +202,7 @@ def create_nsg_rule_with_service_tag(resource_group, nsg_name, priority,
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
+# deprecated after updating port of nsg rules and converting configs
 def delete_nsg_rule_with_service_tag(resource_group, nsg_name, service_tag,
                                      args):
     cmd = """

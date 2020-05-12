@@ -223,6 +223,8 @@ def remote_config_update(config, args, check_module=False):
     with open(FILE_MAP_PATH) as f:
         file_map = yaml.load(f)
     for module in args.nargs[1:]:
+        if module == "jobmanager":
+            module = "restfulapi"
         if module in ["restfulapi", "dashboard", "repairmanager"]:
             render_func = eval("render_{}".format(module))
             render_func(config)

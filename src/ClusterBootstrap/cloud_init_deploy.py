@@ -550,6 +550,11 @@ def render_worker_node_specific(config, args):
     config = get_stat_of_sku(config)
     default_worker_f2cp = ["kubernetes_common", "kubelet_worker", "nfs_client"]
     for sku in config["worker_sku_cnt"]:
+        config["script_modules"] = []
+        need_infiniband = config.get("sku_mapping", {}).get(
+                                    sku, {}).get("infiniband", False)
+        if need_infiniband:
+            config["script_modules"].append("infiniband")
         gpu_type = config.get("sku_mapping", {}).get(
             sku, {}).get("gpu-type", "None")
         config["kube_labels"] = common_worker_labels + \
@@ -559,6 +564,7 @@ def render_worker_node_specific(config, args):
             config["file_modules_2_copy"].append("gpu_docker_daemon")
         utils.render_template("./template/cloud-config/cloud_init_worker.txt.template",
                               "./deploy/cloud-config/cloud_init_worker_{}.txt".format(sku), config)
+        config.pop("script_modules")
 
 
 def render_elasticsearch_node_specific(config, args):
@@ -601,7 +607,8 @@ def render_nfs_node_specific(config, args):
 def render_mdt_node_specific(config, args):
     """could only be invoked in render_lustre_node_specific, otherwise add file_modules"""
     config["mdt_id"] = 0
-    lustre_disk_id = 1
+    if "mdt_node" not in config or len(config["mdt_node"]) == 0:
+        return config
     mdt_node_name = config["mdt_node"][0].split(".")[0]
     mdt_spec = config["machines"][mdt_node_name]
     config["data_disk_mnt_path"] = mdt_spec["data_disk_mnt_path"]
@@ -614,6 +621,7 @@ def render_mdt_node_specific(config, args):
 
 def render_oss_node_specific(config, args):
     """could only be invoked in render_lustre_node_specific, otherwise add file_modules"""
+    lustre_disk_id = 1
     for oss in config.get("oss_node", []):
         oss_machine_name = oss.split(".")[0]
         oss_spec = config["machines"][oss_machine_name]
@@ -934,11 +942,12 @@ def render_for_infra_generic(config, args):
         config["basic_auth"] = create_basic_auth_4_k8s(regenerate_key)
 
     config = GetCertificateProperty(config)
-    utils.render_template_directory(
-        "./template/ssl", "./deploy/ssl", config, verbose=True)
-
+    
     gen_dns_config_script(config)
+
     if gen_new_key:
+        utils.render_template_directory(
+        "./template/ssl", "./deploy/ssl", config, verbose=True)
         gen_CA_certificates(config)
         gen_worker_certificates(config)
         gen_master_certificates(config)
