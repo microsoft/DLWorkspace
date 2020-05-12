@@ -21,7 +21,7 @@ import {
   Group
 } from '@material-ui/icons';
 
-import TeamsContext from '../../contexts/Teams';
+import TeamContext from '../../contexts/Team';
 
 const useButtonStyles = makeStyles(() => createStyles({
   root: {
@@ -30,7 +30,7 @@ const useButtonStyles = makeStyles(() => createStyles({
 }))
 
 const TeamMenuButton: FunctionComponent = () => {
-  const { teams, saveSelectedTeam, selectedTeam } = useContext(TeamsContext);
+  const { teams, setCurrentTeamId, currentTeamId } = useContext(TeamContext);
 
   const [open, setOpen] = useState(false);
 
@@ -40,10 +40,10 @@ const TeamMenuButton: FunctionComponent = () => {
 
   const handleButtonClick = useCallback(() => setOpen(true), [setOpen]);
   const handleMenuClose = useCallback(() => setOpen(false), [setOpen]);
-  const handleMenuItemClick = useCallback(team => () => {
-    saveSelectedTeam(team);
+  const handleMenuItemClick = useCallback((teamId: string) => () => {
+    setCurrentTeamId(teamId);
     setOpen(false);
-  }, [saveSelectedTeam, setOpen]);
+  }, [setCurrentTeamId, setOpen]);
 
   if (teams == null) return null;
   if (teams.length === 0) return null;
@@ -58,17 +58,17 @@ const TeamMenuButton: FunctionComponent = () => {
         startIcon={<Group/>}
         onClick={handleButtonClick}
       >
-        {selectedTeam}
+        {currentTeamId}
       </Button>
       <Menu anchorEl={button.current} open={open} onClose={handleMenuClose}>
         {teams.map(({ id }: { id: string }) => (
           <MenuItem
             key={id}
-            disabled={id === selectedTeam}
+            disabled={id === currentTeamId}
             onClick={handleMenuItemClick(id)}
           >
             <ListItemIcon>
-              {id === selectedTeam ? <Check/> : <Group/>}
+              {id === currentTeamId ? <Check/> : <Group/>}
             </ListItemIcon>
             <Typography variant="inherit">{id}</Typography>
           </MenuItem>

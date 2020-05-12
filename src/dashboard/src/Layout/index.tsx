@@ -7,7 +7,7 @@ import {
 import { Box, CircularProgress } from '@material-ui/core';
 
 import UserContext from '../contexts/User';
-import TeamsContext from '../contexts/Teams';
+import TeamContext from '../contexts/Team';
 
 import AppBar from './AppBar';
 import Content from './Content';
@@ -20,7 +20,7 @@ import NavigationList from './NavigationList';
 
 const LayoutContent: FunctionComponent = ({ children }) => {
   const { email } = useContext(UserContext);
-  const { teams } = useContext(TeamsContext);
+  const { teams, currentTeamId } = useContext(TeamContext);
 
   if (email == null) {
     return (
@@ -51,7 +51,7 @@ const LayoutContent: FunctionComponent = ({ children }) => {
       <Drawer>
         <NavigationList/>
       </Drawer>
-      <Content>
+      <Content key={currentTeamId}>
         {children}
       </Content>
     </LayoutProvider>

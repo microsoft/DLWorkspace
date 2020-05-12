@@ -35,7 +35,7 @@ import { join } from 'path';
 import ClusterSelectField from "./components/ClusterSelectField";
 import UserContext from "../../contexts/User";
 import ClustersContext from '../../contexts/Clusters';
-import TeamsContext from "../../contexts/Teams";
+import TeamContext from "../../contexts/Team";
 import theme, { Provider as MonospacedThemeProvider } from "../../contexts/MonospacedTheme";
 import {BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList} from "recharts";
 import Paper, { PaperProps } from '@material-ui/core/Paper';
@@ -73,9 +73,10 @@ const sanitizePath = (path: string) => {
   return path;
 }
 const Training: React.ComponentClass = withRouter(({ history }) => {
-  const { selectedCluster,saveSelectedCluster } = React.useContext(ClustersContext);
+  const { clusters } = React.useContext(ClustersContext);
+  const [ selectedCluster,saveSelectedCluster ] = React.useState(() => clusters[0].id);
   const { email } = React.useContext(UserContext);
-  const { teams, selectedTeam }= React.useContext(TeamsContext);
+  const { currentTeamId }= React.useContext(TeamContext);
   //const team = 'platform';
   const [showGPUFragmentation, setShowGPUFragmentation] = React.useState(false)
   const [grafanaUrl, setGrafanaUrl] = React.useState('');
@@ -87,16 +88,10 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     },
     [setName]
   );
-  const team = React.useMemo(() => {
-    if (teams == null) return;
-    if (selectedTeam == null) return;
-    return teams.filter((team: any) => team.id === selectedTeam)[0];
-  }, [teams, selectedTeam]);
   const cluster = React.useMemo(() => {
-    if (team == null) return;
     if (selectedCluster == null) return;
-    return team.clusters.filter((cluster: any) => cluster.id === selectedCluster)[0];
-  }, [team, selectedCluster]);
+    return clusters.filter((cluster: any) => cluster.id === selectedCluster)[0];
+  }, [clusters, selectedCluster]);
   const gpuModel = React.useMemo(() => {
     if (cluster == null) return;
     return Object.keys(cluster.gpus)[0];
@@ -111,8 +106,8 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     get: getTemplates,
   } = useFetch('/api');
   React.useEffect(() => {
-    getTemplates(`/teams/${selectedTeam}/templates`);
-  }, [selectedTeam]);
+    getTemplates(`/teams/${currentTeamId}/templates`);
+  }, [currentTeamId]);
 
   const [type, setType] = React.useState("RegularJob");
   const onTypeChange = React.useCallback(
@@ -360,7 +355,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const [gpus, setGpus] = React.useState(0);
   const submittable = React.useMemo(() => {
     if (!gpuModel) return false;
-    if (!selectedTeam) return false;
+    if (!currentTeamId) return false;
     if (!name) return false;
     if (!image) return false;
     if (!command.trim()) return false;
@@ -368,7 +363,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     if (/^\d+$/.test(name)) return false;
 
     return true;
-  }, [gpuModel, selectedTeam, name, image, command, type, gpus, gpusPerNode]);
+  }, [gpuModel, currentTeamId, name, image, command, type, gpus, gpusPerNode]);
   const onSaveTemplateClick = async () => {
     try {
       let plugins: any = {};
@@ -408,7 +403,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         tensorboard,
         plugins
       };
-      const url = `/teams/${selectedTeam}/templates/${saveTemplateName}?database=${saveTemplateDatabase}`;
+      const url = `/teams/${currentTeamId}/templates/${saveTemplateName}?database=${saveTemplateDatabase}`;
       await saveTemplate(url, template);
       setSaveTemplate(true)
       window.location.reload()
@@ -453,7 +448,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         tensorboard,
         plugins,
       };
-      const url = `/teams/${selectedTeam}/templates/${saveTemplateName}?database=${saveTemplateDatabase}`;
+      const url = `/teams/${currentTeamId}/templates/${saveTemplateName}?database=${saveTemplateDatabase}`;
       await deleteTemplate(url);
       setShowDeleteTemplate(true)
       window.location.reload()
@@ -605,7 +600,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       userName: email,
       jobType: 'training',
       gpuType: gpuModel,
-      vcName: selectedTeam,
+      vcName: currentTeamId,
       containerUserId: 0,
       jobName: name,
       jobtrainingtype: type,
@@ -683,9 +678,9 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     if (endpoints.length > 0) {
       postEndpoints(`/clusters/${selectedCluster}/jobs/${jobId.current}/endpoints`, { endpoints });
     } else {
-      history.push(`/job/${selectedTeam}/${selectedCluster}/${jobId.current}`);
+      history.push(`/job/${currentTeamId}/${selectedCluster}/${jobId.current}`);
     }
-  }, [postJobData, ssh, ipython, tensorboard, interactivePorts, history, selectedCluster, postEndpoints, selectedTeam]);
+  }, [postJobData, ssh, ipython, tensorboard, interactivePorts, history, selectedCluster, postEndpoints, currentTeamId]);
   const fetchGrafanaUrl = `/api/clusters`;
   const request = useFetch(fetchGrafanaUrl);
   const fetchGrafana = async () => {
@@ -701,11 +696,11 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     if (postEndpointsData) {
       setOpen(true);
       setTimeout(()=>{
-        history.push(`/job/${selectedTeam}/${selectedCluster}/${jobId.current}`);
+        history.push(`/job/${currentTeamId}/${selectedCluster}/${jobId.current}`);
       }, 2000)
 
     }
-  }, [history, postEndpointsData, selectedCluster, selectedTeam])
+  }, [history, postEndpointsData, selectedCluster, currentTeamId])
 
   React.useEffect(() => {
     if (postJobError) {
@@ -981,7 +976,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                 container
                 wrap="wrap"
                 spacing={1}
-                align-items-xs-baseline
               >
                 <Grid item xs={12}>
                   <TextField
@@ -1036,7 +1030,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                 container
                 wrap="wrap"
                 spacing={1}
-                align-items-xs-baseline
               >
                 <Grid item xs={12}>
                   <TextField

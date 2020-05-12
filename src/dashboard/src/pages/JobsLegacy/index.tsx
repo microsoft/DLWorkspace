@@ -31,7 +31,7 @@ import {
   SUCESSFULKILLED
 } from "../../Constants/WarnConstants";
 import {JobsSelectByCluster} from "./components/JobsSelectByCluster";
-import TeamContext from "../../contexts/Teams";
+import TeamContext from "../../contexts/Team";
 import {checkObjIsEmpty, toLocalTime} from "../../utlities/ObjUtlities";
 import ReactJson from "react-json-view";
 import TablePagination from "@material-ui/core/TablePagination";
@@ -463,7 +463,7 @@ const Jobs: React.FC = (props: any) => {
       </React.Fragment>
     )
   }
-  const { selectedTeam } = React.useContext(TeamContext);
+  const { currentTeamId } = React.useContext(TeamContext);
   const generatePageSize = (jobs: any) => {
     return jobs.length < 10 ? jobs.length : 10;
   }
@@ -488,7 +488,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'3',
-              },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>  },
+              },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>  },
               {title: 'Job Name', field: 'jobName',cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
@@ -591,7 +591,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'3',
-              },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>  },
+              },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>  },
               {title: 'Job Name', field: 'jobName',cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
@@ -677,7 +677,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'center',
                 flexDirection: 'row',
                 padding:'0',
-              }, render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
+              }, render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
               {title: 'Job Name', field: 'jobName',cellStyle: {
                 textAlign:'center',
                 flexDirection: 'row',
@@ -766,7 +766,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'3',
-              }, render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
+              }, render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
               { title: 'Job Name', cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
@@ -853,7 +853,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'3'
-              },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
+              },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
               { title: 'Job Name', cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
@@ -933,7 +933,7 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'3',
-                    }, field: 'jobId',render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
+                    }, field: 'jobId',render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
                     {title: 'Job Name',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
@@ -1038,7 +1038,7 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'3',
-                    }, render: rowData =>  <Link  className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
+                    }, render: rowData =>  <Link  className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
                     {title: 'Job Name',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
@@ -1143,7 +1143,7 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'3',
-                    },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link>},
+                    },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}/${currentTeamId}`}>{rowData.jobId}</Link>},
                     {title: 'Job Name',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
@@ -1244,7 +1244,7 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'3',
-                    },field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link> },
+                    },field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}/${currentTeamId}`}>{rowData.jobId}</Link> },
                     { title: 'Job Name',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
@@ -1336,7 +1336,7 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'3'
-                    },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
+                    },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
                     { title: 'Job Name', cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',

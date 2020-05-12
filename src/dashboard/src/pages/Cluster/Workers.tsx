@@ -30,7 +30,7 @@ import {
 } from 'material-table';
 
 import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
-import TeamsContext from '../../contexts/Teams';
+import TeamContext from '../../contexts/Team';
 import useTableData from '../../hooks/useTableData';
 import usePrometheus from '../../hooks/usePrometheus';
 
@@ -48,13 +48,13 @@ const useLinkStyles = makeStyles({
 });
 
 const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, onSearchPods }) => {
-  const { selectedTeam } = useContext(TeamsContext);
+  const { currentTeamId } = useContext(TeamContext);
 
   const linkStyles = useLinkStyles();
 
   const [filterType, setFilterType] = useState<string>('__all__');
 
-  const metrics = usePrometheus(config['grafana'], `avg(task_gpu_percent{vc_name="${selectedTeam}"}) by (instance)`);
+  const metrics = usePrometheus(config['grafana'], `avg(task_gpu_percent{vc_name="${currentTeamId}"}) by (instance)`);
   const workersGPUUtilization = useMemo(() => {
     const workersGPUUtilization: { [workerName: string]: number } = Object.create(null);
     if (metrics) {
@@ -129,7 +129,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, o
       render: ({ gpuUtilization }) => gpuUtilization && <>{Number(gpuUtilization).toFixed(2)}%</>
     });
     return columns;
-  }, [resourceColumns, handleWorkerClick]);
+  }, [resourceColumns, handleWorkerClick, linkStyles]);
 
   const options = useRef<Options>({
     padding: 'dense',

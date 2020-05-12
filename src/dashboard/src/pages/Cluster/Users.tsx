@@ -24,7 +24,7 @@ import {
 } from 'material-table';
 
 import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
-import TeamsContext from '../../contexts/Teams';
+import TeamContext from '../../contexts/Team';
 import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
 import { humanBytes } from '../Clusters/useResourceColumns';
@@ -43,11 +43,11 @@ interface Props {
 }
 
 const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods }) => {
-  const { selectedTeam } = useContext(TeamsContext);
+  const { currentTeamId } = useContext(TeamContext);
 
   const [filterCurrent, setFilterCurrent] = useState(true);
 
-  const gpuIdleMetrics = usePrometheus(config.grafana, `count (task_gpu_percent{vc_name="${selectedTeam}"} == 0) by (username)`);
+  const gpuIdleMetrics = usePrometheus(config.grafana, `count (task_gpu_percent{vc_name="${currentTeamId}"} == 0) by (username)`);
 
   const handleButtonClick = useCallback(() => {
     setFilterCurrent((filterCurrent) => !filterCurrent);

@@ -18,7 +18,7 @@ import {
 import ConfigContext, { Provider as ConfigProvider } from "./contexts/Config";
 import UserContext, { Provider as UserProvider } from "./contexts/User";
 import { Provider as ClustersProvider } from "./contexts/Clusters";
-import { Provider as TeamProvider } from './contexts/Teams';
+import { Provider as TeamProvider } from './contexts/Team';
 
 import { ConfirmProvider } from './hooks/useConfirm';
 

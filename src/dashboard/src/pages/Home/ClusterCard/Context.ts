@@ -9,7 +9,7 @@ import useFetch from 'use-http-2';
 
 import { useSnackbar } from 'notistack';
 
-import TeamsContext from '../../../contexts/Teams';
+import TeamContext from '../../../contexts/Team';
 
 interface ClusterContextValue {
   id: string;
@@ -23,13 +23,13 @@ interface ClusterProviderProps {
 }
 
 const ClusterProvider: FunctionComponent<ClusterProviderProps> = ({ id, children }) => {
-  const { selectedTeam } = useContext(TeamsContext);
+  const { currentTeamId } = useContext(TeamContext);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const { data: status, loading, error, get } = useFetch(
-    `/api/v2/teams/${selectedTeam}/clusters/${id}`,
+    `/api/v2/teams/${currentTeamId}/clusters/${id}`,
     undefined,
-    [id, selectedTeam]);
+    [id, currentTeamId]);
 
   useEffect(() => {
     if (loading) return;
