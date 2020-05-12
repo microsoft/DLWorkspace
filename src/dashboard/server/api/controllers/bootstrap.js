@@ -13,6 +13,7 @@ const frontendConfig = config.has('frontend')
 module.exports = (context) => {
   const { user } = context.state
   const parameter = { config: frontendConfig, user }
+  context.set('Cache-Control', 'no-cache, no-store, must-revalidate')
   context.type = 'js'
   context.body = `bootstrap(${JSON.stringify(parameter)})`
 }
