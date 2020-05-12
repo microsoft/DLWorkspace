@@ -28,14 +28,14 @@ const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps>
     return response;
   }
   const onChange = React.useCallback(
-    (event: React.ChangeEvent<HTMLSelectElement>) => {
+    (event: React.ChangeEvent<HTMLInputElement>) => {
       saveSelectedCluster(event.target.value);
     },
     [saveSelectedCluster]
   );
   const isEmpty = (obj: object) => {
     if (obj === undefined) return true;
-    for(let key in obj) {
+    for(const key in obj) {
       if(obj.hasOwnProperty(key))
         return false;
     }
@@ -65,10 +65,10 @@ const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps>
       select
       label="Cluster"
       helperText={helperText}
-      value={cluster}
-      onChange={onChange}
       variant="filled"
       {...props}
+      value={cluster}
+      onChange={onChange}
     >
       {//const filterclusters = clusters.filter((cluster)=>(boolean)cluster["admin"]);
         clusters && _.map(clusters,'id').map(cluster => (

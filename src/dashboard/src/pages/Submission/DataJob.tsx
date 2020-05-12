@@ -36,7 +36,7 @@ const useStyles = makeStyles(() =>
   })
 );
 
-const Transition = React.forwardRef<unknown, TransitionProps>(function Transition(props, ref) {
+const Transition = React.forwardRef<unknown, TransitionProps & { children?: React.ReactElement }>(function Transition(props, ref) {
   return <Slide direction="down" ref={ref} {...props} />;
 });
 
