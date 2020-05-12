@@ -9,6 +9,7 @@ docker kill rabbitmq
 docker rm rabbitmq
 
 docker run -d \
+    --restart=always \
     --hostname rabbit1 \
     --name rabbitmq \
     --net=host \
