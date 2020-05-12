@@ -769,9 +769,9 @@ default_config_parameters = {
     },
     "cloud_config_nsg_rules": {
         "corpnet_dev_ports": "22 80 1443 3000 3306 5000 9091",
-        "inter_connect_ports": "1443 2379 2382 3306 5000 10250 10255",
+        "inter_connect_ports": "1443 2379 2382 3306 5000 9095 10250 10255",
         "corpnet_user_ports": "30000-49999",
-        "nfs_ports": "'*'", 
+        "nfs_ports": "'*'",
         # all of below except for default_admin_username deprecated after fixing port rules
         "vnet_range": "192.168.0.0/16",
         "default_admin_username": "core",
@@ -780,7 +780,7 @@ default_config_parameters = {
         #"udp_port_ranges": "25826",
         "inter_connect": {
             "tcp_port_ranges":
-                "22 1443 2379 2382 3306 5000 8086 9092 9114 9200 9300 10250 30000-49999",
+                "22 1443 2379 2382 3306 5000 8086 9095 9092 9114 9200 9300 10250 30000-49999",
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         },
