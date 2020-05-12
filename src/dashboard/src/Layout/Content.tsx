@@ -31,7 +31,7 @@ const Content: FunctionComponent = ({ children }) => {
   const styles = useStyles({ drawerOpen });
 
   return (
-    <Box flex={1} className={styles.root}>
+    <Box flex={1} py={3} className={styles.root}>
       <Toolbar disableGutters/>
       {children}
     </Box>
