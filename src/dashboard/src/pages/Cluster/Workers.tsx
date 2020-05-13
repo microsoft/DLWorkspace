@@ -35,10 +35,10 @@ import useTableData from '../../hooks/useTableData';
 import usePrometheus from '../../hooks/usePrometheus';
 
 import useResourceColumns, { ResourceKind } from '../Clusters/useResourceColumns';
+import QueryContext from './QueryContext';
 
 interface Props {
   data: any;
-  onSearchPods: (query: string) => void;
 }
 
 const useLinkStyles = makeStyles({
@@ -47,8 +47,9 @@ const useLinkStyles = makeStyles({
   }
 });
 
-const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, onSearchPods }) => {
+const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } }) => {
   const { currentTeamId } = useContext(TeamContext);
+  const { setQuery } = useContext(QueryContext);
 
   const linkStyles = useLinkStyles();
 
@@ -86,8 +87,8 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, o
   const tableData = useTableData(data, { isTreeExpanded: true });
 
   const handleWorkerClick = useCallback((workerName: string) => () => {
-    onSearchPods(workerName);
-  }, [onSearchPods]);
+    setQuery(workerName);
+  }, [setQuery]);
 
   const resourceKinds = useRef<ResourceKind[]>(
     ['total', 'unschedulable', 'used', 'preemptable', 'available']

@@ -25,6 +25,7 @@ import { useSnackbar } from 'notistack';
 import TeamContext from '../../contexts/Team';
 import Loading from '../../components/Loading';
 
+import { QueryProvider } from './QueryContext';
 import Users from './Users';
 import Workers from './Workers';
 import Pods from './Pods';
@@ -50,7 +51,6 @@ interface TabViewProps {
 
 const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
   const [index, setIndex] = useState(0);
-  const [query, setQuery] = useState<{ current: string }>();
 
   const handleChange = useCallback((event: ChangeEvent<{}>, value: number) => {
     setIndex(value);
@@ -59,40 +59,36 @@ const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
     setIndex(index);
   }, [setIndex]);
 
-  const handleSearchPods = useCallback((query: string) => {
-    setQuery({ current: query });
-  }, [setQuery]);
-
-  useEffect(() => {
-    if (query !== undefined) {
-      setIndex(2); // Pods
-    }
-  }, [query]);
+  const handleQueryChanged = useCallback(() => {
+    setIndex(2);
+  }, [setIndex]);
 
   return (
-    <Paper elevation={2}>
-      <Tabs
-        value={index}
-        variant="fullWidth"
-        textColor="primary"
-        indicatorColor="primary"
-        onChange={handleChange}
-      >
-        <Tab label="Users"/>
-        <Tab label="Workers"/>
-        <Tab label="Pods"/>
-        <Tab label="Metrics"/>
-      </Tabs>
-      <SwipeableViews
-        index={index}
-        onChangeIndex={handleChangeIndex}
-      >
-        {index === 0 ? <Users data={data} onSearchPods={handleSearchPods}/> : <div/>}
-        {index === 1 ? <Workers data={data} onSearchPods={handleSearchPods}/> : <div/>}
-        {index === 2 ? <Pods data={data} query={query && query.current}/> : <div/>}
-        {index === 3 ? <Metrics data={data}/> : <div/>}
-      </SwipeableViews>
-    </Paper>
+    <QueryProvider onQueryChanged={handleQueryChanged}>
+      <Paper elevation={2}>
+        <Tabs
+          value={index}
+          variant="fullWidth"
+          textColor="primary"
+          indicatorColor="primary"
+          onChange={handleChange}
+        >
+          <Tab label="Users"/>
+          <Tab label="Workers"/>
+          <Tab label="Pods"/>
+          <Tab label="Metrics"/>
+        </Tabs>
+        <SwipeableViews
+          index={index}
+          onChangeIndex={handleChangeIndex}
+        >
+          {index === 0 ? <Users data={data}/> : <div/>}
+          {index === 1 ? <Workers data={data}/> : <div/>}
+          {index === 2 ? <Pods data={data}/> : <div/>}
+          {index === 3 ? <Metrics data={data}/> : <div/>}
+        </SwipeableViews>
+      </Paper>
+    </QueryProvider>
   )
 }
 

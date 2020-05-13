@@ -27,14 +27,16 @@ import useTableData from '../../hooks/useTableData';
 import TeamContext from '../../contexts/Team';
 import { formatBytes, formatPercent } from '../../utils/formats';
 
+import QueryContext from './QueryContext';
+
 interface Props {
   data: any;
-  query?: string;
 }
 
-const Pods: FunctionComponent<Props> = ({ data: { config, workers }, query }) => {
+const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
   const { clusterId } = useParams();
   const { currentTeamId } = useContext(TeamContext);
+  const { query } = useContext(QueryContext);
 
   const gpuUtilizationMetrics = usePrometheus(config['grafana'], `avg(task_gpu_percent {vc_name="${currentTeamId}"}) by (pod_name)`);
   const gpuIdleMetrics = usePrometheus(config['grafana'], `count(task_gpu_percent {vc_name="${currentTeamId}"} == 0) by (pod_name)`);

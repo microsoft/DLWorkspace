@@ -28,6 +28,8 @@ import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
 import { formatBytes, formatPercent, formatHours } from '../../utils/formats';
 
+import QueryContext from './QueryContext';
+
 const humanHours = (seconds: number) => {
   if (typeof seconds !== 'number') return seconds;
   return formatHours(seconds);
@@ -35,11 +37,11 @@ const humanHours = (seconds: number) => {
 
 interface Props {
   data: any;
-  onSearchPods: (query: string) => void;
 }
 
-const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods }) => {
+const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
   const { currentTeamId } = useContext(TeamContext);
+  const { setQuery } = useContext(QueryContext);
 
   const [filterCurrent, setFilterCurrent] = useState(true);
 
@@ -97,8 +99,8 @@ const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods
   const tableData = useTableData(data);
 
   const handleUserClick = useCallback((userName: string) => () => {
-    onSearchPods(userName);
-  }, [onSearchPods]);
+    setQuery(userName);
+  }, [setQuery]);
 
   const columns = useRef<Column<any>[]>([{
     field: 'id',
