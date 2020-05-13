@@ -10,7 +10,7 @@ import {
   CircularProgress,
 } from "@material-ui/core";
 import { DLTSTabPanel } from '../CommonComponents/DLTSTabPanel'
-import TeamContext from "../../contexts/Teams";
+import TeamContext from "../../contexts/Team";
 import ClusterContext from '../../contexts/Clusters';
 import useFetch from "use-http";
 
@@ -31,7 +31,7 @@ const ClusterStatus: FC = () => {
   const theme = useTheme();
   const [value, setValue] = React.useState(0);
   const {clusters} = React.useContext(ClusterContext);
-  const { selectedTeam } = React.useContext(TeamContext);
+  const { currentTeamId } = React.useContext(TeamContext);
   const [selectedValue, setSelectedValue] = useState("");
   const [vcStatus, setVcStatus] = useState([]);
   const [userStatus, setUserStatus] = useState(Array());
@@ -52,7 +52,7 @@ const ClusterStatus: FC = () => {
   const request = useFetch(fetchVcStatusUrl,options);
   const requestGrafana = useFetch(fetchiGrafanaUrl, options);
   const fetchVC = async (cluster: string) => {
-    const response = await request.get(`/teams/${selectedTeam}/clusters/${cluster}`);
+    const response = await request.get(`/teams/${currentTeamId}/clusters/${cluster}`);
     const responseUrls = await requestGrafana.get(`/${cluster}`);
     if (!response || !responseUrls) {
       return;
@@ -63,13 +63,13 @@ const ClusterStatus: FC = () => {
     response['getIdleGPUPerUserUrl'] = getIdleGPUPerUser;
     response['ClusterName'] = cluster;
     response['GranaUrl'] = `${grafana}/dashboard/db/gpu-usage?refresh=30s&orgId=1&_=${Date.now()}`;
-    response['GPUStatisticPerVC'] = `${grafana}/dashboard/db/per-vc-gpu-statistic?var-vc_name=${selectedTeam}&_=${Date.now()}`;
+    response['GPUStatisticPerVC'] = `${grafana}/dashboard/db/per-vc-gpu-statistic?var-vc_name=${currentTeamId}&_=${Date.now()}`;
     return response;
   }
   const fetchClusterStatus = (mount: boolean) => {
     if (clusters && mount) {
       const params = new URLSearchParams({
-        query:`count (task_gpu_percent{vc_name="${selectedTeam}"} == 0) by (username)`,
+        query:`count (task_gpu_percent{vc_name="${currentTeamId}"} == 0) by (username)`,
       });
       const filterclusters = convertToArrayByKey(clusters, 'id');
       setSelectedValue(filterclusters[0]);
@@ -218,7 +218,7 @@ const ClusterStatus: FC = () => {
       mount = false;
       clearTimeout(timeout)
     }
-  },[clusters, selectedTeam])
+  },[clusters, currentTeamId])
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>, mount: boolean) => {
     setSelectedValue(event.target.value);
     localStorage.setItem('selectedCluster', event.target.value);

@@ -1,43 +1,32 @@
-import React from "react";
-import TeamContext from "./Teams";
-import _ from 'lodash';
-interface Context {
-  clusters: any [];
-  selectedCluster?: string;
-  saveSelectedCluster(team: React.SetStateAction<string>): void;
+import * as React from 'react';
+import {
+  FunctionComponent,
+  createContext,
+  useContext,
+  useMemo
+} from "react";
+
+import { find } from 'lodash';
+
+import TeamContext from "./Team";
+interface ClustersContext {
+  clusters: any[];
 }
 
-const Context = React.createContext<Context>({
-  clusters: [],
-  selectedCluster: '',
-  saveSelectedCluster: function(team: React.SetStateAction<string>) {}
-});
+const ClustersContext = createContext<ClustersContext>({ clusters: [] });
 
-export default Context;
+export default ClustersContext;
 
-export const Provider: React.FC = ({ children }) => {
-  const { teams,selectedTeam } = React.useContext(TeamContext);
-  const [clusters, setClusters] = React.useState<string[]>([]);
-  const [selectedCluster, setSelectedCluster] = React.useState<string>('');
-  const saveSelectedCluster = (cluster: React.SetStateAction<string>) => {
-    setSelectedCluster(cluster);
-  };
-  React.useEffect( ()=>{
-    if (teams && selectedTeam) {
-      const filterClusters = teams.filter((team: any) => team.id === selectedTeam);
+export const Provider: FunctionComponent = ({ children }) => {
+  const { teams, currentTeamId } = useContext(TeamContext);
 
-      for (let filterCluster of filterClusters) {
-        setClusters(filterCluster.clusters)
-        setSelectedCluster(_.map((filterCluster.clusters),'id')[0]);
-      }
-    }
-
-  },[selectedTeam, teams]);
+  const clusters = useMemo(() => {
+    const team = find(teams, ({ id }) => id === currentTeamId);
+    if (team === undefined) return [];
+    return team['clusters'];
+  }, [teams, currentTeamId])
 
   return (
-    <Context.Provider
-      value={{ clusters, selectedCluster, saveSelectedCluster}}
-      children={children}
-    />
+    <ClustersContext.Provider value={{ clusters }} children={children}/>
   );
 };

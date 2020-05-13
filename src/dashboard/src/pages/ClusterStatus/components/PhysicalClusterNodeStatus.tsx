@@ -9,7 +9,7 @@ import {checkObjIsEmpty, sumValues} from "../../../utlities/ObjUtlities";
 import {red} from "@material-ui/core/colors";
 import Tooltip from "@material-ui/core/Tooltip";
 import IconButton from "@material-ui/core/IconButton";
-import MaterialTable, {MTableToolbar} from "material-table";
+import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable';
 
 interface PhClusterNSType {
   nodeStatus: any;
@@ -33,7 +33,7 @@ export const PhysicalClusterNodeStatus = (props: PhClusterNSType) => {
   return (
     <MuiThemeProvider theme={useCheckIsDesktop ? theme : tableTheme}>
       {
-        nodeStatus ?  <MaterialTable
+        nodeStatus ?  <SvgIconsMaterialTable
           title=""
           columns={[
             {title: 'Node Name', field: 'name'},

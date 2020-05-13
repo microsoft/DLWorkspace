@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import useFetch from "use-http";
-import TeamContext from "../../contexts/Teams";
+import TeamContext from "../../contexts/Team";
 
 type Jobs = object;
 type UseJob = [Jobs | undefined, Error | undefined];
 const useJobs = (): UseJob => {
-  const { selectedTeam } = React.useContext(TeamContext);
+  const { currentTeamId } = React.useContext(TeamContext);
   const [jobs, setJobs] = useState<Jobs>();
   const resp = useFetch<Jobs>('/api');
   const { data, error, get } = resp;
@@ -16,23 +16,23 @@ const useJobs = (): UseJob => {
     if (data == null) return;
     setJobs(data);
     const timeout = setTimeout(() => {
-      get(`/teams/${selectedTeam}/jobs?${params}`);
+      get(`/teams/${currentTeamId}/jobs?${params}`);
     }, 3000);
     return () => {
       clearTimeout(timeout);
       setJobs([]);
       resp.abort()
     }
-  }, [data, selectedTeam]);
+  }, [data, currentTeamId]);
 
   useEffect(() => {
     setJobs(undefined);
-    get(`/teams/${selectedTeam}/jobs?${params}`);
+    get(`/teams/${currentTeamId}/jobs?${params}`);
     return () => {
       setJobs([]);
       resp.abort();
     }
-  }, [selectedTeam]);
+  }, [currentTeamId]);
 
   if (jobs !== undefined) {
     return [jobs, undefined];

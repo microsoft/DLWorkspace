@@ -13,10 +13,10 @@ import {
 import {checkObjIsEmpty, sumValues} from "../../../utlities/ObjUtlities";
 import { TeamVCTitles } from "../../../Constants/TabsContants";
 import useCheckIsDesktop from "../../../utlities/layoutUtlities";
-import MaterialTable from "material-table";
 import Tooltip from "@material-ui/core/Tooltip";
 import IconButton from "@material-ui/core/IconButton";
 import {red} from "@material-ui/core/colors";
+import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable';
 
 interface TeamVC {
   children?: React.ReactNode;
@@ -55,7 +55,7 @@ export const TeamVirtualClusterStatus = (props: TeamVC) => {
   return (
     <MuiThemeProvider theme={useCheckIsDesktop ? theme : tableTheme}>
       {
-        vcStatus.length > 0 ?  <MaterialTable
+        vcStatus.length > 0 ?  <SvgIconsMaterialTable
           title=""
           columns={[
             {title: 'Name', field: 'ClusterName', render:(rowData: any)=><div><Radio

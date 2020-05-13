@@ -18,13 +18,13 @@ import {
 import {
   AccountBox
 } from '@material-ui/icons';
-import MaterialTable, {
+import {
   Column,
   Options
 } from 'material-table';
 
-import SortArrow from '../../components/SortArrow';
-import TeamsContext from '../../contexts/Teams';
+import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
+import TeamContext from '../../contexts/Team';
 import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
 import { humanBytes } from '../Clusters/useResourceColumns';
@@ -43,11 +43,11 @@ interface Props {
 }
 
 const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods }) => {
-  const { selectedTeam } = useContext(TeamsContext);
+  const { currentTeamId } = useContext(TeamContext);
 
   const [filterCurrent, setFilterCurrent] = useState(true);
 
-  const gpuIdleMetrics = usePrometheus(config.grafana, `count (task_gpu_percent{vc_name="${selectedTeam}"} == 0) by (username)`);
+  const gpuIdleMetrics = usePrometheus(config.grafana, `count (task_gpu_percent{vc_name="${currentTeamId}"} == 0) by (username)`);
 
   const handleButtonClick = useCallback(() => {
     setFilterCurrent((filterCurrent) => !filterCurrent);
@@ -217,7 +217,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods
   }, []);
 
   return (
-    <MaterialTable
+    <SvgIconsMaterialTable
       title={
         <Button variant="outlined" onClick={handleButtonClick}>
           { filterCurrent ? "Show All Users" : "Show Current Users Only" }
@@ -227,7 +227,6 @@ const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods
       columns={columns}
       options={options}
       parentChildData={parentChildData}
-      icons={{ SortArrow }}
     />
   )
 };

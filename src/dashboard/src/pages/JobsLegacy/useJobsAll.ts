@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import useFetch from "use-http";
-import TeamContext from "../../contexts/Teams";
+import TeamContext from "../../contexts/Team";
 type Jobs = object;
 type useJobsAll = [Jobs | undefined, Error | undefined];
 
 const useJobsAll = (openKillWarn?: boolean,openApproveWan?: boolean): useJobsAll => {
   const [jobsAll, setJobsAll] = useState<Jobs>();
-  const { selectedTeam } = React.useContext(TeamContext);
+  const { currentTeamId } = React.useContext(TeamContext);
   const params = new URLSearchParams({
     user:'all',
     limit:'100'
@@ -19,7 +19,7 @@ const useJobsAll = (openKillWarn?: boolean,openApproveWan?: boolean): useJobsAll
     setJobsAll(data);
 
     const timeout = setTimeout(() => {
-      get(`/teams/${selectedTeam}/jobs?${params}`);
+      get(`/teams/${currentTeamId}/jobs?${params}`);
     }, 3000);
     return () => {
       clearTimeout(timeout);
@@ -30,12 +30,12 @@ const useJobsAll = (openKillWarn?: boolean,openApproveWan?: boolean): useJobsAll
 
   useEffect(() => {
     setJobsAll(undefined);
-    get(`/teams/${selectedTeam}/jobs?${params}`);
+    get(`/teams/${currentTeamId}/jobs?${params}`);
     return () => {
       setJobsAll([])
       resp.abort()
     }
-  }, [selectedTeam]);
+  }, [currentTeamId]);
 
 
   if (jobsAll !== undefined) {
