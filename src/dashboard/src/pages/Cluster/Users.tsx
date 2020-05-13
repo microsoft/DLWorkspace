@@ -114,7 +114,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
           <Link
             component="button"
             variant="subtitle2"
-            style={{ textAlign: 'left' }}
+            style={{ textAlign: 'left', whiteSpace: 'nowrap' }}
             onClick={handleUserClick(row.id)}
           >
             <AccountBox fontSize="inherit"/>
