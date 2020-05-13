@@ -96,6 +96,7 @@ class JobParams(object):
         self.policy = None
 
         self.sku = None
+        self.gpu_type = None
         self.gpu_limit = None
         self.cpu_request = None
         self.cpu_limit = None
@@ -106,6 +107,7 @@ class JobParams(object):
 
     def generate(self):
         self.gen_sku()
+        self.gen_gpu_type()
         self.gen_gpu()
         # Job resource policy is dependent on sku and gpu
         self.gen_policy()
@@ -135,6 +137,11 @@ class JobParams(object):
         sku_list = self.get_sku_list()
         if len(sku_list) > 0:
             self.sku = sku_list[0]
+
+    def gen_gpu_type(self):
+        """Must be called after gen_sku"""
+        self.gpu_type = \
+            self.metadata.get("gpu", {}).get(self.sku, {}).get("gpu_type")
 
     @override
     def gen_gpu(self):

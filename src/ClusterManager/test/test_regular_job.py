@@ -776,3 +776,23 @@ def test_job_insight(args):
 
         insight = utils.get_job_insight(args.rest, args.email, job.jid)
         assert payload == insight
+
+
+@utils.case()
+def test_gpu_type_override(args):
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc)
+    # wrong gpu type
+    job_spec["gpuType"] = "V100"
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = job.block_until_state_not_in({"unapproved", "queued"})
+        assert state in ["scheduling", "running"]
+
+        pod = utils.kube_get_pods(args.config, "default",
+                                  "jobId=%s" % job.jid)[0]
+
+        # gpu type should be overriden by the correct one
+        assert pod.metadata.labels.get("gpuType") == "P40"
