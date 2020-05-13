@@ -55,7 +55,7 @@ spec:
           - '{{ cnf["alert-manager"]["email-sender"]["port"] }}'
         ports:
         - name: alert-manager
-          containerPort: {{ cnf["alert-manager"]["port"] }}
+          containerPort: {{ cnf["alert-manager"]["email-sender"]["port"] }}
       {% if cnf["alert-manager"]["reaper"] %}
       - name: reaper
         image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/reaper:{{cnf["dockertag"]}}
