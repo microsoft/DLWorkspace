@@ -848,7 +848,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   onChange={onTypeChange}
                 >
                   <MenuItem value="RegularJob">Regular Job</MenuItem>
-                  <MenuItem value="PSDistJob">Distirbuted Job</MenuItem>
+                  <MenuItem value="PSDistJob">Distributed Job</MenuItem>
                   <MenuItem value="InferenceJob">Inference Job</MenuItem>
                 </TextField>
               </Grid>
