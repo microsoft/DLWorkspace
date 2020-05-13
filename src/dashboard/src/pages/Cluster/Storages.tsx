@@ -15,7 +15,7 @@ import {
   Box,
   MenuItem,
   Select,
-  colors
+  useTheme
 } from '@material-ui/core';
 
 import {
@@ -36,27 +36,6 @@ import { formatBytes } from '../../utils/formats';
 import Loading from '../../components/Loading';
 
 const compareString = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
-const cellColors = [
-  colors.amber['900'],
-  colors.blue['900'],
-  colors.blueGrey['900'],
-  colors.brown['900'],
-  colors.cyan['900'],
-  colors.deepOrange['900'],
-  colors.deepPurple['900'],
-  colors.green['900'],
-  colors.grey['900'],
-  colors.indigo['900'],
-  colors.lightBlue['900'],
-  colors.lightGreen['900'],
-  colors.lime['900'],
-  colors.orange['900'],
-  colors.pink['900'],
-  colors.purple['900'],
-  colors.red['900'],
-  colors.teal['900'],
-  colors.yellow['900']
-]
 
 interface StoragesContentProps {
   data: {
@@ -91,7 +70,8 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data }) => {
   const options = useRef<Options>({
     padding: 'dense',
     search: false,
-    paging: false
+    paging: false,
+    draggable: false
   }).current
 
   const valueAccessor = useCallback(({ percent, user }) => {
@@ -99,7 +79,9 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data }) => {
       return null;
     }
     return user;
-  }, [])
+  }, []);
+
+  const theme = useTheme();
 
   return (
     <Box display="flex" alignItems="stretch">
@@ -129,7 +111,7 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data }) => {
             {mountpoint.map(({ user }, index) => (
               <Cell
                 key={user}
-                fill={cellColors[index % cellColors.length]}
+                fill={theme.palette.primary.dark}
               />
             ))}
             <LabelList
