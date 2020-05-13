@@ -25,8 +25,7 @@ import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
 import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
 import TeamContext from '../../contexts/Team';
-
-import { humanBytes } from '../Clusters/useResourceColumns';
+import { formatBytes, formatPercent } from '../../utils/formats';
 
 interface Props {
   data: any;
@@ -114,13 +113,13 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers }, query }) =>
     title: 'Memory',
     field: 'memoty',
     type: 'numeric',
-    render: ({ memory }) => <>{humanBytes(memory)}</>,
+    render: ({ memory }) => <>{formatBytes(memory)}</>,
     width: 'auto'
   } as Column<any>, {
     title: 'Assigned GPU Utilization',
     field: 'gpuMetrics.utilization',
     type: 'numeric',
-    render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && <>{Number(gpuMetrics.utilization).toFixed(2)}%</>
+    render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && <>{formatPercent(Number(gpuMetrics.utilization))}</>
   } as Column<any>, {
     title: 'GPU Idle',
     field: 'gpuMetrics.idle',

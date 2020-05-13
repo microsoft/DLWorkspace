@@ -7,7 +7,6 @@ import React, {
   useState
 } from 'react';
 import { entries, find, get, set } from 'lodash';
-import { formatDistanceStrict } from 'date-fns';
 
 import {
   Button,
@@ -27,14 +26,11 @@ import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
 import TeamContext from '../../contexts/Team';
 import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
-import { humanBytes } from '../Clusters/useResourceColumns';
+import { formatBytes, formatPercent, formatHours } from '../../utils/formats';
 
 const humanHours = (seconds: number) => {
   if (typeof seconds !== 'number') return seconds;
-  return formatDistanceStrict(seconds * 1000, 0, {
-    roundingMethod: 'round',
-    unit: 'hour'
-  });
+  return formatHours(seconds);
 }
 
 interface Props {
@@ -154,8 +150,8 @@ const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods
     tooltip: 'Used (Preemptable)',
     render: ({ status }) => status && (
       <>
-        {humanBytes(get(status, ['memory', 'used'], 0))}
-        {`(${humanBytes(get(status, ['memory', 'preemptable'], 0))})`}
+        {formatBytes(get(status, ['memory', 'used'], 0))}
+        {`(${formatBytes(get(status, ['memory', 'preemptable'], 0))})`}
       </>
     ),
     searchable: false,
@@ -194,12 +190,13 @@ const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods
 
       if (booked === 0) return <>N/A</>;
 
-      const percent = (idle / booked) * 100;
-      if (percent > 50) {
-        return <Typography variant="inherit" color="error">{percent.toFixed(1)}%</Typography>
+      const ratio = idle / booked;
+      const percent = formatPercent(ratio, 1)
+      if (ratio > .5) {
+        return <Typography variant="inherit" color="error">{percent}</Typography>
       }
 
-      return <>{percent.toFixed(1)}%</>;
+      return <>{percent}</>;
     },
     width: 'auto'
   } as Column<any>]).current;
