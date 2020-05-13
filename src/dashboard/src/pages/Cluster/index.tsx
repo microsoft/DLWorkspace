@@ -28,6 +28,7 @@ import Loading from '../../components/Loading';
 import { QueryProvider } from './QueryContext';
 import Users from './Users';
 import Workers from './Workers';
+import Storages from './Storages';
 import Pods from './Pods';
 import Metrics from './Metrics';
 
@@ -60,7 +61,7 @@ const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
   }, [setIndex]);
 
   const handleQueryChanged = useCallback(() => {
-    setIndex(2);
+    setIndex(3); // Pods
   }, [setIndex]);
 
   return (
@@ -75,6 +76,7 @@ const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
         >
           <Tab label="Users"/>
           <Tab label="Workers"/>
+          <Tab label="Storages"/>
           <Tab label="Pods"/>
           <Tab label="Metrics"/>
         </Tabs>
@@ -84,8 +86,9 @@ const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
         >
           {index === 0 ? <Users data={data}/> : <div/>}
           {index === 1 ? <Workers data={data}/> : <div/>}
-          {index === 2 ? <Pods data={data}/> : <div/>}
-          {index === 3 ? <Metrics data={data}/> : <div/>}
+          {index === 2 ? <Storages data={data}/> : <div/>}
+          {index === 3 ? <Pods data={data}/> : <div/>}
+          {index === 4 ? <Metrics data={data}/> : <div/>}
         </SwipeableViews>
       </Paper>
     </QueryProvider>
