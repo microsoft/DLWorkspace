@@ -217,12 +217,12 @@ Deploy VMs in the cluster:
 ./cloud_init_aztools.py -v addmachines
 ```
 
-List VMs in the cluster:
+List VMs in the cluster in `status.yaml` for cluster maintenance:
 ```
 ./cloud_init_aztools.py listcluster
 ```
 
-Generate a yaml file `status.yaml` for cluster maintenance:
+Make sure that all VMs in the cluster got connected:
 ```
 ./cloud_init_aztools.py interconnect
 ```
