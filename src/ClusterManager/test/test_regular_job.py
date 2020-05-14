@@ -796,3 +796,24 @@ def test_gpu_type_override(args):
 
         # gpu type should be overriden by the correct one
         assert pod.metadata.labels.get("gpuType") == "P40"
+
+
+@utils.case()
+def test_job_priority(args):
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc)
+    with utils.run_job(args.rest, job_spec) as job:
+        resp = utils.set_job_priorities(args.rest, "unauthorized_user",
+                                        {job.jid: 101})
+        assert resp.status_code == 403
+        # priority unchanged
+        priority = utils.get_job_priorities(args.rest)[job.jid]
+        assert priority == 100
+
+        resp = utils.set_job_priorities(args.rest, args.email, {job.jid: 101})
+        assert resp.status_code == 200
+        # priority changed by user
+        priority = utils.get_job_priorities(args.rest)[job.jid]
+        assert priority == 101
