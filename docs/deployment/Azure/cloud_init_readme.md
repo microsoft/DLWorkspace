@@ -93,8 +93,7 @@ To add more machines(multi-infra not supported now), either
 ./cloud_init_aztools.py prerender
 ```
 or 
-2.
-Edit `action.yaml` directly, keep only the machine items that you want to deploy for this time.
+2. Edit `action.yaml` directly, keep only the machine items that you want to deploy for this time.
 You may want to save the previous config files in advance.
 
 After reconfiguration, you may use below commands to finish the new deployment of several nodes to the existing cluster:
