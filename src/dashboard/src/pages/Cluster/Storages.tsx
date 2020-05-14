@@ -9,33 +9,35 @@ import {
   useState
 } from 'react';
 
-import { map, set } from 'lodash';
+import { clamp, each, map, set, sortBy } from 'lodash';
 
 import {
   Box,
   MenuItem,
   Select,
-  useTheme
+  colors
 } from '@material-ui/core';
 
 import {
-  LabelList,
   PieChart,
   Pie,
   ResponsiveContainer,
-  Cell
+  Cell,
+  LabelList
 } from 'recharts';
 
 import { Column, Options } from 'material-table';
 
+import Loading from '../../components/Loading';
 import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
 import TeamContext from '../../contexts/Team';
 import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
 import { formatBytes } from '../../utils/formats';
-import Loading from '../../components/Loading';
 
-const compareString = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
+const getPieColor = (ratio: number) => colors.deepOrange[
+  clamp(Math.floor(ratio * 10), .5, 9) * 100 as keyof typeof colors.deepOrange
+];
 
 interface StoragesContentProps {
   data: {
@@ -43,6 +45,7 @@ interface StoragesContentProps {
     data: {
       user: string;
       bytes: number;
+      ratio: number;
     }[];
   }[];
 }
@@ -72,16 +75,12 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data }) => {
     search: false,
     paging: false,
     draggable: false
-  }).current
+  }).current;
 
-  const valueAccessor = useCallback(({ percent, user }) => {
-    if (percent <= 0.01) {
-      return null;
-    }
-    return user;
+  const valueAccessor = useCallback(({ percent, payload }) => {
+    if (percent < 0.05) return null;
+    return payload.user;
   }, []);
-
-  const theme = useTheme();
 
   return (
     <Box display="flex" alignItems="stretch">
@@ -107,16 +106,23 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data }) => {
             nameKey="user"
             dataKey="bytes"
             isAnimationActive={false}
+            outerRadius={100}
           >
-            {mountpoint.map(({ user }, index) => (
-              <Cell
-                key={user}
-                fill={theme.palette.primary.dark}
-              />
-            ))}
+            {
+              map(mountpoint, ({ ratio }, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={getPieColor(ratio)}
+                />
+              ))
+            }
             <LabelList
-              position="inside"
+              position="outside"
               valueAccessor={valueAccessor}
+              // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+              // @ts-ignore
+              fill={colors.common.black}
+              stroke="transparent"
             />
           </Pie>
         </PieChart>
@@ -146,21 +152,18 @@ const Storages: FunctionComponent<Props> = ({ data: { config } }) => {
       set(mountpointUserBytes, [mountpoint, user], bytes);
     }
 
-    return map(mountpointUserBytes,
-      (userBytes, mountpoint) => ({
-        mountpoint,
-        data: map(userBytes,
-          (bytes: number, user) => ({
-            user,
-            bytes
-          })
-        ).sort(
-          ({ user: userA }, { user: userB }) => compareString(userA, userB)
-        )
-      })
-    ).sort(
-      ({ mountpoint: mountpointA }, { mountpoint: mountpointB }) => compareString(mountpointA, mountpointB)
-    )
+    return sortBy(map(mountpointUserBytes, (userBytes, mountpoint) => {
+      let sum = 0;
+
+      const data = sortBy(map(userBytes, (bytes: number, user) => {
+        sum += bytes;
+        return { user, bytes, ratio: 0 };
+      }), 'user')
+
+      each(data, (obj) => { obj.ratio = obj.bytes / sum });
+
+      return { mountpoint, data }
+    }), 'mountpoint')
   }, [metrics]);
 
   if (data === undefined) {
