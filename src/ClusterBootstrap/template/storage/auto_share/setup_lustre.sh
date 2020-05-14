@@ -1,3 +1,7 @@
+bash ./prepare_lustre_centos.sh
+bash ./dns.sh
+
+
 cat <<EOM >/etc/yum.repos.d/lustre.repo 
 [lustre-server]
 name=CentOS-$releasever - Lustre

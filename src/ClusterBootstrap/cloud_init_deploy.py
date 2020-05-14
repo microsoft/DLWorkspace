@@ -647,7 +647,8 @@ def render_oss_node_specific(config, args):
 def render_lustre_node_specific(config, args):
     assert config["priority"] in ["regular", "low"]
     config = escaped_etcd_end_point_and_k8s_api_server(config)
-    config["file_modules_2_copy"] = ["lustre_server"]
+    config["file_modules_2_copy"] = [
+        "kubernetes_common", "kubelet_worker", "lustre_server"]
     config = render_mdt_node_specific(config, args)
     config = render_oss_node_specific(config, args)
 
@@ -1025,7 +1026,7 @@ def render_kube_services(config):
     utils.render_template_directory(
         "./services/", "./deploy/services/", config)
     config['labels'] = ["{{cnf['labels'] | join(',')}}"]
-    for role in ["infra", "worker"]:
+    for role in ["infra", "worker", "lustre"]:
         utils.render_template("template/cloud-config/{}.kubelet.service.template".format(role),
                               "./deploy/cloud-config/{}.kubelet.service.template".format(role), config)
 

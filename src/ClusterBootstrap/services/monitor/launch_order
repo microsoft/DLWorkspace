@@ -7,3 +7,4 @@ grafana-config.yaml
 grafana.yaml
 alert-templates.yaml
 alert-manager.yaml
+lustre-exporter.yaml

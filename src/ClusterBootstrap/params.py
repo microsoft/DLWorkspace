@@ -42,6 +42,7 @@ default_config_parameters = {
     "prometheus": { "port": 9091, "reporter": {"port": 9092} },
     "job-exporter": { "port": 9102 },
     "node-exporter": { "port": 9100 },
+    "lustre-exporter": { "port": 9103 },
     "watchdog": { "port": 9101 },
     "grafana": { "port": 3000, "prometheus-ip": "localhost" },
     "alert-manager": {
@@ -308,6 +309,9 @@ default_config_parameters = {
             },
         'elasticsearch': {
             "elasticsearch": "active"
+        },
+        'lustre': {
+            "lustre": "active"
         },
     },
 
