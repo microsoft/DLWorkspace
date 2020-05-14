@@ -7,18 +7,23 @@ set -ex
 export DEBIAN_FRONTEND=noninteractive
 export STAGE_DIR=/tmp
 
+# Install dependencies
+sudo apt-get install debhelper autotools-dev
+
 sudo rm -rf ${STAGE_DIR}/nv_peer_memory
 sudo mkdir -p ${STAGE_DIR}
 sudo git clone https://github.com/Mellanox/nv_peer_memory.git ${STAGE_DIR}/nv_peer_memory
 cd ${STAGE_DIR}/nv_peer_memory
+# Use a fixed commit hash instead of branch/tag. Mellanox doesn't maintain an easy-to-follow versions
+sudo git checkout a5cbf195745c7a6f9a8e2713a274f55bc6b5f223
 sudo ./build_module.sh
 cd ${STAGE_DIR}
 sudo tar xzf ${STAGE_DIR}/nvidia-peer-memory_1.0.orig.tar.gz
 cd ${STAGE_DIR}/nvidia-peer-memory-1.0
 sudo apt-get install -y dkms
 sudo dpkg-buildpackage -us -uc
-sudo dpkg -i ${STAGE_DIR}/nvidia-peer-memory_1.0-8_all.deb
-sudo dpkg -i ${STAGE_DIR}/nvidia-peer-memory-dkms_1.0-8_all.deb
+sudo dpkg -i ${STAGE_DIR}/nvidia-peer-memory_1.0-9_all.deb
+sudo dpkg -i ${STAGE_DIR}/nvidia-peer-memory-dkms_1.0-9_all.deb
 
 sudo service nv_peer_mem restart
 sudo service nv_peer_mem status
