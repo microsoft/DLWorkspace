@@ -158,7 +158,7 @@ const Storages: FunctionComponent<Props> = ({ data: { config } }) => {
       const data = sortBy(map(userBytes, (bytes: number, user) => {
         sum += bytes;
         return { user, bytes, ratio: 0 };
-      }), 'user')
+      }), 'bytes').reverse()
 
       each(data, (obj) => { obj.ratio = obj.bytes / sum });
 
