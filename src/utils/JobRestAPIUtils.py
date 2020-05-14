@@ -1347,7 +1347,7 @@ def update_job_priorites(username, job_priorities):
 
         # Only job owner and VC admin can update job priority.
         # Fail job priority update if there is one unauthorized items.
-        pendingJobs = {}
+        pending_jobs = {}
         for job_id in job_priorities:
             priority = job_priorities[job_id]
             job = data_handler.GetJobTextFields(
@@ -1359,17 +1359,21 @@ def update_job_priorites(username, job_priorities):
                                                       job["vcName"],
                                                       Permission.Admin)
             if job["userName"] != username and (not vc_admin):
-                return False
+                msg = "Operation aborted. User %s is unauthorized to " \
+                      "update priority for job %s" % (job["userName"], job_id)
+                return msg, 403
 
             # Adjust priority based on permission
             permission = Permission.Admin if vc_admin else Permission.User
             job_priorities[job_id] = adjust_job_priority(priority, permission)
 
             if job["jobStatus"] in ACTIVE_STATUS:
-                pendingJobs[job_id] = job_priorities[job_id]
+                pending_jobs[job_id] = job_priorities[job_id]
 
-        ret_code = data_handler.update_job_priority(job_priorities)
-        return ret_code, pendingJobs
+        success = data_handler.update_job_priority(job_priorities)
+        if not success:
+            return "Internal DB error", 400
+        return pending_jobs, 200
 
     except Exception as e:
         logger.error("Exception when updating job priorities: %s" % e)
@@ -1377,6 +1381,8 @@ def update_job_priorites(username, job_priorities):
     finally:
         if data_handler is not None:
             data_handler.Close()
+
+    return "Internal server error", 400
 
 
 def get_job_insight(job_id, username):
