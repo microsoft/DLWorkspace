@@ -14,7 +14,7 @@ spec:
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/metrics"
-        prometheus.io/port: "{{cnf["luster_exporter"]["port"]}}"
+        prometheus.io/port: "{{cnf["lustre-exporter"]["port"]}}"
       name: lustre-exporter
     spec:
       nodeSelector:
@@ -23,10 +23,10 @@ spec:
       - image: dlws/lustre-exporter:v2.0.0
         imagePullPolicy: Always
         args:
-        - '--web.listen-address="{{cnf["luster_exporter"]["port"]}}"'
+        - '--web.listen-address="{{cnf["lustre-exporter"]["port"]}}"'
         readinessProbe:
           tcpSocket:
-            port: {{cnf["luster_exporter"]["port"]}}
+            port: {{cnf["lustre-exporter"]["port"]}}
           initialDelaySeconds: 3
           periodSeconds: 30
           timeoutSeconds: 10
@@ -35,8 +35,8 @@ spec:
             memory: "128Mi"
         name: lustre-exporter
         ports:
-        - containerPort: {{cnf["luster_exporter"]["port"]}}
-          hostPort: {{cnf["luster_exporter"]["port"]}}
+        - containerPort: {{cnf["lustre-exporter"]["port"]}}
+          hostPort: {{cnf["lustre-exporter"]["port"]}}
           name: scrape
         volumeMounts:
         - name: host-root

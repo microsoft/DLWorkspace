@@ -264,7 +264,15 @@ def load_default_config(config):
 
         "nfs": ["./scripts/cloud_init_nfs.sh"],
 
-        "lustre_server": ["./deploy/storage/auto_share/setup_lustre.sh"]}
+        "lustre_server": [
+            "./deploy/kubelet/" + config["preworkerdeploymentscript"],
+            "./deploy/kubelet/" + config["postworkerdeploymentscript"],
+            "./scripts/cloud_init_lustre.sh",
+            "./scripts/prepare_lustre_centos.sh",
+            "./deploy/storage/auto_share/setup_lustre.sh",
+            "./deploy/cloud-config/lustre.kubelet.service.template"
+        ]
+    }
 
     config["repair-manager"]["cluster_name"] = config["cluster_name"]
     config["prometheus"]["cluster_name"] = config["cluster_name"]
@@ -612,6 +620,8 @@ def render_mdt_node_specific(config, args):
     mdt_node_name = config["mdt_node"][0].split(".")[0]
     mdt_spec = config["machines"][mdt_node_name]
     config["data_disk_mnt_path"] = mdt_spec["data_disk_mnt_path"]
+    config["kube_labels"] = get_kube_labels_of_machine_name(
+        config, mdt_node_name)
     utils.render_template("./template/cloud-config/cloud_init_lustre.txt.template",
         "./deploy/cloud-config/cloud_init_{}.txt".format(mdt_node_name), config)
     config["mgs_node_private_ip"] = mdt_spec["private_ip"]

@@ -39,5 +39,5 @@ runcmd:
  - docker cp bootpack:/usr/cloudinit.tar ./
  - tar -xvf cloudinit.tar
  - cd cloudinit
- - sudo bash ./setup_lustre.sh
+ - sudo bash ./cloud_init_lustre.sh
 output: {all: '| tee -a /home/{{cnf["lustre_user"]}}/cloud-init-output.log'}

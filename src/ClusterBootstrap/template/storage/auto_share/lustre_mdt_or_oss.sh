@@ -1,5 +1,24 @@
 set -x
 source /home/{{cnf["lustre_user"]}}/boot.env
+
+# This section is moved from ./scripts/cloud_init_lustre.sh to here to avoid
+# extremely long latency in file system operations (cp, rm, etc.).
+# This section here takes ~1m7s to finish.
+#-----------------------------------------------------------------------------
+cd /home/{{cnf["lustre_user"]}}/cloudinit
+bash ./prepare_lustre_centos.sh
+bash ./dns.sh
+
+bash ./pre-worker-deploy.sh
+./cloud_init_mkdir_and_cp.py -p file_map.yaml -u $USER -m "kubernetes_common;kubelet_worker"
+
+./render_env_vars.sh kubelet_worker/deploy/kubelet/options.env.template /etc/flannel/options.env ETCD_ENDPOINTS
+./render_env_vars.sh kubelet_worker/deploy/kubelet/worker-kubeconfig.yaml.template /etc/kubernetes/worker-kubeconfig.yaml KUBE_API_SERVER
+./render_env_vars.sh lustre.kubelet.service.template /etc/systemd/system/kubelet.service KUBE_LABELS
+
+bash ./post-worker-deploy.sh
+#-----------------------------------------------------------------------------
+
 sudo modprobe -v lustre
 sudo modprobe -v ldiskfs
 # for on-premise machines, we need to get this file prepared in advance, maybe doesn't need to be unlabeled
