@@ -11,4 +11,3 @@ RUN go get github.com/HewlettPackard/lustre_exporter && \
 FROM centos:7
 
 COPY --from=builder /tmp/lustre_exporter /
-CMD /lustre_exporter

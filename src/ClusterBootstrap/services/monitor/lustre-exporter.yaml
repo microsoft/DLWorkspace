@@ -20,10 +20,11 @@ spec:
       nodeSelector:
         lustre: active
       containers:
-      - image: dlws/lustre-exporter:v2.0.0
+      - image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/lustre-exporter:{{cnf["dockertag"]}}
         imagePullPolicy: Always
         args:
-        - '--web.listen-address="{{cnf["lustre-exporter"]["port"]}}"'
+        - '/lustre_exporter'
+        - '--web.listen-address=:{{cnf["lustre-exporter"]["port"]}}'
         readinessProbe:
           tcpSocket:
             port: {{cnf["lustre-exporter"]["port"]}}

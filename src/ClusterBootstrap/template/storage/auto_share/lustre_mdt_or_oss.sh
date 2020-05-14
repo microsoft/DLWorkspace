@@ -31,6 +31,17 @@ sudo mkfs.lustre --fsname=lustrefs --mgs --mdt --index=$MDT_ID ${disk_list[0]}
 sudo mkdir -p $DATA_DISK_MNT_PATH
 echo "${disk_list[0]}                               $DATA_DISK_MNT_PATH               lustre  defaults,_netdev        0 0" | sudo tee -a /etc/fstab
 sudo mount $DATA_DISK_MNT_PATH
+
+# Lustre mount in jobs shows Permission denied even with drwxrwxrwx. E.g.
+# $ /lustre$ ls -l
+# ls: cannot open directory '.': Permission denied
+# The solution is to remove client identity check on lustre on all MDTs
+for path in $(ls -d /proc/fs/lustre/mdt/*); do
+    sudo lctl set_param -n mdt.$(basename $path).identity_upcall NONE 2>/dev/null;
+    identity_upcall_val=$(sudo lctl get_param -n "mdt.$(basename $path).identity_upcall")
+    echo "mdt.$(basename $path).identity_upcall: ${identity_upcall_val}"
+done
+
 elif [ ! -z "$OSS_ID" ]; then
 IFS=';' read -ra paths_2_mount <<< $DATA_DISK_MNT_PATH
 until ping -c 5 $MGS_NODE_PRIVATE_IP 2>&1 >/dev/null; do

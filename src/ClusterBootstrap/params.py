@@ -819,7 +819,13 @@ default_config_parameters = {
     "registry_credential": {},
     "priority": "regular",
     "service_2_docker_map": {
-        "monitor": ["watchdog", "gpu-reporter", "reaper", "job-exporter"],
+        "monitor": [
+            "watchdog",
+            "gpu-reporter",
+            "reaper",
+            "job-exporter",
+            "lustre-exporter"
+        ],
         "dashboard": ["dashboard"],
         "restfulapi": ["restfulapi"],
         "repairmanager": ["repairmanager", "repairmanageretcd"],
