@@ -2957,6 +2957,89 @@ def gen_warm_up_cluster_script():
                           "scripts/pre_download_images.sh", config)
 
 
+def map_old_config_to_cloud(nargs):
+    """
+        map old pipeline configs in src_dir to dst_dir in cloudinit format,
+        use general config settings in example_dir
+    """
+    old_Keys_in_use = ["default_cpurequest", "default_cpulimit", "default_memoryrequest",
+        "grafana", "system_envs", "default_memorylimit"]
+    old_keys_with_default = ["WebUIregisterGroups", "network", "elasticsearch", "Dashboards",
+                             "DeployAuthentications", "WebUIauthorizedGroups", "webuiport",
+                             "WebUIadminGroups", "infiniband_mounts"]
+    src_dir, example_dir, dst_dir = nargs[0], nargs[1], None
+    if len(nargs) > 2:
+        dst_dir = nargs[2]
+    utils.restore_keys_from_dir([src_dir])
+    cluster_file = os.path.join(src_dir, "cluster.yaml")
+    config_file = os.path.join(src_dir, "config.yaml")
+    example_cnf_file = os.path.join(example_dir, "config.yaml")
+    status_file = os.path.join(example_dir, "config.yaml")
+    # map machine list
+    with open(cluster_file) as f:
+        cluster_config = yaml.safe_load(f)
+    with open(status_file) as sf:
+        status_config = yaml.safe_load(sf)
+    example_nodes = {}
+    for role in ["infra", "worker", "nfs", "elasticsearch"]:
+        example_nodes[role] = {"kube_label_groups": [role], "role": [role]}
+    example_nodes["infra"]["kube_services"] = ["nvidia-device-plugin", 
+        "flexvolume", "mysql", "jobmanager", "restfulapi", "monitor",
+        "dashboard", "user-synchronizer", "storagemanager", "repairmanager"]
+    example_nodes["infra"]["role"] += ["kubernetes_master", "etcd"]
+    status_conf = {}
+    for node in cluster_config["machines"]:
+        status_conf[node] = {}
+        known_role = False
+        for role in ["infra", "worker", "nfs", "elasticsearch"]:
+            if role in node:
+                status_conf[node] = example_nodes[role]
+                known_role = True
+                break
+        if not known_role:
+            print("machine of unknown role: {}".format(node))
+    with open("status.yaml", "w") as f:
+        yaml.safe_dump({"machines": status_conf}, f)
+    # sshkey, ssl, clusterID, k8s auth
+    if dst_dir is not None:
+        os.system("mkdir -p {}".format(os.path.abspath(dst_dir)))
+        oldssh = os.path.abspath(os.path.join(src_dir, "sshkey"))
+        newssh = os.path.abspath(os.path.join(dst_dir, "sshkey"))
+        oldssl = os.path.abspath(os.path.join(src_dir, "ssl"))
+        newssl = os.path.abspath(os.path.join(dst_dir, "ssl"))
+        old_cls_ID = os.path.abspath(os.path.join(src_dir, "clusterID"))
+        new_cls_ID = os.path.abspath(os.path.join(dst_dir, "clusterID"))
+        os.system("cp -r {} {}".format(oldssh, newssh))
+        os.system("cp -r {} {}".format(oldssl, newssl))
+        os.system("cp -r {} {}".format(old_cls_ID, new_cls_ID))
+    with open(os.path.abspath(os.path.join("deploy", 
+              "k8s_basic_auth.yml")), "w") as f:
+        yaml.safe_dump({"basic_auth": cluster_config["basic_auth"]}, f)
+    # map general config
+    with open(config_file) as f:
+        general_config = yaml.safe_load(f)
+    with open(example_cnf_file) as f:
+        example_general_cnf = yaml.safe_load(f)
+    ky_traditional = set(general_config.keys())
+    ky_cloudinit = set(example_general_cnf.keys())
+    retired_old_keys = ky_traditional - ky_cloudinit - set(old_Keys_in_use)
+    retired_old_keys -= set(old_keys_with_default)
+    new_keys = ky_cloudinit - ky_traditional
+    for ky in retired_old_keys:
+        general_config.pop(ky)
+    for ky in new_keys:
+        general_config[ky] = example_general_cnf[ky]
+    cluster_file = os.path.join(src_dir, "cluster.yaml")
+    config_file = os.path.join(src_dir, "config.yaml")
+    new_config_fname = "new_config.yaml"
+    if dst_dir is None:
+        os.system("mv cluster.yaml deprecated.cluster.yaml")
+        os.system("mv config.yaml deprecated.config.yaml")
+        new_config_fname = "config.yaml"
+    with open(new_config_fname, "w") as wf:
+        yaml.safe_dump(general_config, wf, sort_keys=False)
+
+
 def run_command(args, command, nargs, parser):
     # If necessary, show parsed arguments.
     global discoverserver
@@ -2986,7 +3069,9 @@ def run_command(args, command, nargs, parser):
     elif command == "restorefromdir":
         utils.restore_keys_from_dir(nargs)
         exit()
-
+    elif command == "mapold2cld":
+        map_old_config_to_cloud(nargs)
+        exit()
     # Cluster Config
     config_cluster = os.path.join(dirpath, "cluster.yaml")
     if os.path.exists(config_cluster):

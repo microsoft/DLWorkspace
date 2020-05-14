@@ -630,7 +630,9 @@ def get_deployed_cluster_info(config, args):
         brief_spec["public_ip"] = spec["publicIps"]
         brief_spec["private_ip"] = spec["privateIps"]
         brief_spec["fqdns"] = spec["fqdns"]
-        brief_spec["role"] = spec["tags"]["role"].split('-')
+        if "tags" in spec and spec["tags"] is not None:
+            if "role" in spec["tags"]:
+                brief_spec["role"] = spec["tags"]["role"].split('-')
         brief[name] = brief_spec
     # load action yaml file
     action_info = {}
@@ -641,11 +643,15 @@ def get_deployed_cluster_info(config, args):
     # merge and dump, based on az_cli_config(that's the real-time accurate info)
     updated_info = {}
     for vm_name, vm_spec in brief.items():
-        merge_config(vm_spec, existing_info.get(vm_name, {}))
-        merge_config(vm_spec, action_info.get(vm_name, {}))
-        updated_info[vm_name] = vm_spec
+        new_spec = {}
+        # fill static info that already exist or have been updated in action.yaml
+        merge_config(new_spec, existing_info.get(vm_name, {}))
+        merge_config(new_spec, action_info.get(vm_name, {}))
+        # fill dynamic info such as ip
+        merge_config(new_spec, vm_spec)
+        updated_info[vm_name] = new_spec
     for vm_name, vm_spec in existing_info.items():
-        if "samba" in vm_spec["role"]:
+        if ("role" in vm_spec) and ("samba" in vm_spec["role"]):
             updated_info[vm_name] = vm_spec
     with open(output_file, "w") as wf:
         yaml.safe_dump({"machines": updated_info}, wf)
