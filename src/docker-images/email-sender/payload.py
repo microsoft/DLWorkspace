@@ -58,9 +58,9 @@ class Attachment(object):
 class Payload(object):
     """ payload exchanged in queue and http """
     def __init__(self, to, cc, bcc, subject, body, body_type, attachments):
-        self.to = to # , seperated list of receipt
-        self.cc = cc # , seperated list of receipt
-        self.bcc = bcc # , seperated list of receipt
+        self.to = to # , seperated list of receipt or None
+        self.cc = cc # , seperated list of receipt or None
+        self.bcc = bcc # , seperated list of receipt or None
         self.subject = subject # plain text
         self.body = body # plain or html text
         self.body_type = body_type # "plain" or "html"
@@ -77,12 +77,17 @@ class Payload(object):
             "Attachments": [a.serialize() for a in self.attachments],
         })
 
+    @staticmethod
+    def _is_empty(val):
+        return val is None or len(val) == 0
+
     @classmethod
     def deserialize(cls, payload):
         to = payload.get("To")
         cc = payload.get("CC")
         bcc = payload.get("BCC")
-        if to is None or cc is None:
+        if Payload._is_empty(to) and Payload._is_empty(
+                cc) and Payload._is_empty(bcc):
             raise RuntimeError("no To or CC or BCC provided %s" % (payload))
 
         subject = payload.get("Subject")
@@ -104,9 +109,12 @@ class Payload(object):
 
         msg = MIMEMultipart()
         msg["From"] = smtp_from
-        msg["To"] = self.to
-        msg["CC"] = cc
-        msg["BCC"] = self.bcc
+        if not Payload._is_empty(self.to):
+            msg["To"] = self.to
+        if not Payload._is_empty(self.cc):
+            msg["CC"] = cc
+        if not Payload._is_empty(self.bcc):
+            msg["BCC"] = self.bcc
         msg["Subject"] = self.subject
         body = MIMEText(self.body.encode(DEFAULT_ENCODING),
                         self.body_type,
