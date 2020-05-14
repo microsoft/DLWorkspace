@@ -8,6 +8,7 @@ import json
 import yaml
 import uuid
 import utils
+import time
 import textwrap
 import argparse
 
@@ -191,48 +192,12 @@ def load_node_list_by_role_from_config(config, roles, with_domain=True):
     return Nodes, config
 
 
-# Get the list of nodes for a particular service
-def get_node_lists_for_service(service, config):
-    if "etcd_node" not in config or "worker_node" not in config:
-        print("cluster not ready! nodes unknown!")
-    labels = fetch_config(config, ["kubelabels"])
-    nodetype = labels[service] if service in labels else labels["default"]
-    if nodetype == "worker_node":
-        nodes = config["worker_node"]
-    elif nodetype == "etcd_node":
-        nodes = config["etcd_node"]
-    elif nodetype.find("etcd_node_") >= 0:
-        nodenumber = int(nodetype[nodetype.find(
-            "etcd_node_") + len("etcd_node_"):])
-        if len(config["etcd_node"]) >= nodenumber:
-            nodes = [config["etcd_node"][nodenumber-1]]
-        else:
-            nodes = []
-    elif nodetype == "all":
-        nodes = config["worker_node"] + config["etcd_node"]
-    else:
-        machines = fetch_config(config, ["machines"])
-        if machines is None:
-            print("Service %s has a nodes type %s, but there is no machine configuration to identify node" % (
-                service, nodetype))
-            exit(-1)
-        allnodes = config["worker_node"] + config["etcd_node"]
-        nodes = []
-        for node in allnodes:
-            nodename = kubernetes_get_node_name(node)
-            if nodename in machines and nodetype in machines[nodename]:
-                nodes.append(node)
-    return nodes
-
-
 def load_default_config(config):
     apply_config_mapping(config, default_config_mapping)
     if ("mysql_node" not in config):
-        config["mysql_node"] = None if len(get_node_lists_for_service("mysql", config)) == 0 \
-            else get_node_lists_for_service("mysql", config)[0]
+        config["mysql_node"] = config["infra_node"][0]
     if ("host" not in config["prometheus"]):
-        config["prometheus"]["host"] = None if len(get_node_lists_for_service("prometheus", config)) == 0 \
-            else get_node_lists_for_service("prometheus", config)[0]
+        config["prometheus"]["host"] = config["infra_node"][0]
     config = update_docker_image_config(config)
     config["admin_username"] = config.get("admin_username", config["cloud_config_nsg_rules"]["default_admin_username"])
     config["api_servers"] = "https://" + \

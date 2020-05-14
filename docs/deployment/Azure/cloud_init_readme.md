@@ -74,13 +74,27 @@ If you run into a deployment issue, please check [here](FAQ.md) first.
 
 `./ctl.py` is the main file used for maintaining a cluster. It provides several handy tools that provide more convenient interface for developers. We introduce some commands below:
 
+## back up and restore cluster information
+```
+./ctl.py backuptodir <path> (e.g., ./ctl.py backuptodir ~/Deployment/Azure-EASTUS-V100)
+./ctl.py restorefromdir <path> (e.g., ./ctl.py restorefromdir ~/Deployment/Azure-EASTUS-V100)
+```
+Rendered files and binaries would often occupy quite some space on disk. We don't need most of those files after the deployment. We backup several yaml files: 
+  1. config.yaml, which describes the "fixed and firm" configuration of a cluster, such as NSG rules, alert email addresses, docker registry etc.
+  2. action.yaml, which describes one-time deployment action.
+  3. status.yaml, which describes the up-to-date machine info of the cluster. Whoever changed the cluster(added/removed machines, etc.) last would be responsible of updating this file and backup/let colleagues know.
+besides yamls, we also need a cluster ID, sshkey and k8s basic authentication. These are all fixed, and independent of later deployment.
+
 ## adding more machines
 This might be the only maintain task where need `cloud_init_aztools.py` instead of `ctl.py`.
-To add more machines (worker/elasticsearch nodes etc., NFS/infra nodes not supported), re-configure `azure_cluster.virtual_machines` in `config.yaml` and use below command:
+To add more machines(multi-infra not supported now), either 
+1. re-configure `azure_cluster.virtual_machines` in `config.yaml`, (leave/uncomment only the items corresponding to machines you want to add, delete/comment previously existing items that were used to generate machine list for previous deployment/maintanence) and use below command:
 ```
 ./cloud_init_aztools.py prerender
 ```
-to generate new machine list. You can also edit `az_complementary.yaml` directly.
+or 
+2.
+Edit `action.yaml` directly, keep only the machine items that you want to deploy for this time.
 You may want to save the previous config files in advance.
 
 After reconfiguration, you may use below commands to finish the new deployment of several nodes to the existing cluster:
@@ -107,17 +121,6 @@ Sometimes you might also want to add a new NFS node, which currently has not bee
 specify "dynamic_worker_num" in config.yaml, 
 and use `./cloud_init_aztools.py dynamic_around`.
 the monitoring frequency is specified by "monitor_again_after" in config.yaml
-
-## back up and restore cluster information
-```
-./ctl.py backuptodir <path> (e.g., ./ctl.py backuptodir ~/Deployment/Azure-EASTUS-V100)
-./ctl.py restorefromdir <path> (e.g., ./ctl.py restorefromdir ~/Deployment/Azure-EASTUS-V100)
-```
-Rendered files and binaries would often occupy quite some space on disk. We don't need most of those files after the deployment. We backup several yaml files: 
-  1. config.yaml, which describes the "fixed and firm" configuration of a cluster, such as NSG rules, alert email addresses, docker registry etc.
-  2. az_complementary.yaml, which describes one-time deployment action.
-  3. status.yaml, which describes the up-to-date machine info of the cluster. Whoever changed the cluster(added/removed machines, etc.) last would be responsible of updating this file and backup/let colleagues know.
-besides yamls, we also need a cluster ID, sshkey and k8s basic authentication. These are all fixed, and independent of later deployment.
 
 ## connect to nodes
 ```
@@ -170,24 +173,28 @@ this subcommand would retire after we use configmap to configure parameters for 
 Some advanced tricks are possible if you are familiar with options.
 In general, `-cnf` specifies what config files to use, we try our best to eliminating overlapping content, but if there's any confilict, the later loaded configuration would override the previous ones. `-s` specifies sudo mode, which should be used when you want to copy a certain file to sub directory of `/etc/` etc. on remote machines. `-v` is set to enable verbose mode. `-d` would mean `dryrun` -- az cli wouldn't be executed, only render some files. Dryrun mode would usually be used together when `-o` option is on so you can dump the commands to a file without actually executing them. For instance:
 ```
-./cloud_init_aztools.py -v -cnf config.yaml -cnf az_complementary.yaml -d -o scripts/addmachines.sh addmachines
+./cloud_init_aztools.py -v -cnf config.yaml -cnf action.yaml -d -o scripts/addmachines.sh addmachines
 ```
 
 # Details in deploy.sh
 
 We will explain the operations behind `deploy.sh` in this section. 
 
-Clean up existing binaries/certificates etc. and complementary yaml files:
+Clean up existing binaries/certificates etc. and action yaml files:
 ```
-#!/bin/bash
-rm -rf deploy/* cloudinit* az_complementary.yaml
+shopt -s extglob
+rm -rf deploy/!(bin) cloudinit* !(config).yaml
 ```
 
-Generate complementary yaml file `az_complementary.yaml` based on given configuration file `config.yaml` of a cluster (machine names are generated if not specified):
+Generate action yaml file `action.yaml` based on given configuration file `config.yaml` of a cluster (machine names are generated if not specified):
 ```
-# render
 ./cloud_init_deploy.py clusterID
 ./cloud_init_aztools.py prerender
+```
+
+Deploy the framework of a cluster, including everything but VMs.
+```
+./cloud_init_aztools.py -v deployframework
 ```
 
 Render templates, generate certificates and prepare binaries for cluster setup:
@@ -205,13 +212,17 @@ Push docker images that are required by services specified in configuration:
 ./cloud_init_deploy.py docker servicesprerequisite
 ```
 
-Deploy a cluster:
+Deploy VMs in the cluster:
 ```
-./cloud_init_aztools.py -v deploy
-./cloud_init_aztools.py interconnect
+./cloud_init_aztools.py -v addmachines
 ```
 
-Generate a yaml file `brief.yaml` for cluster maintenance:
+List VMs in the cluster:
 ```
 ./cloud_init_aztools.py listcluster
+```
+
+Generate a yaml file `status.yaml` for cluster maintenance:
+```
+./cloud_init_aztools.py interconnect
 ```
