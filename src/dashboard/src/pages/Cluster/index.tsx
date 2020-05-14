@@ -22,7 +22,7 @@ import {
 import useFetch from 'use-http-2';
 import { useSnackbar } from 'notistack';
 
-import TeamsContext from '../../contexts/Teams';
+import TeamContext from '../../contexts/Team';
 import Loading from '../../components/Loading';
 
 import Users from './Users';
@@ -99,12 +99,12 @@ const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
 const ClusterContent: FunctionComponent = () => {
   const { clusterId } = useParams();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const { selectedTeam } = useContext(TeamsContext);
+  const { currentTeamId } = useContext(TeamContext);
 
   const { data, error, loading, get } = useFetch(
-    `/api/v2/teams/${selectedTeam}/clusters/${clusterId}`,
+    `/api/v2/teams/${currentTeamId}/clusters/${clusterId}`,
     undefined,
-    [clusterId, selectedTeam]
+    [clusterId, currentTeamId]
   );
 
   useEffect(() => {

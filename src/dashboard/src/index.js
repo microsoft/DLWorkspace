@@ -14,7 +14,7 @@ window.onerror = (message, source, line, col, error) => {
   queries.push(`source=${encodeURIComponent(source)}`)
   queries.push(`line=${encodeURIComponent(line)}`)
   queries.push(`col=${encodeURIComponent(col)}`)
-  if (error.stack) {
+  if (error && error.stack) {
     queries.push(`stack=${encodeURIComponent(error.stack)}`)
   }
   image.src = `/api/error.gif?${queries.join('&')}`

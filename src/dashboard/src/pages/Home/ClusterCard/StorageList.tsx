@@ -30,7 +30,7 @@ import {
 } from 'lodash';
 
 import usePrometheus from '../../../hooks/usePrometheus';
-import TeamsContext from '../../../contexts/Teams';
+import TeamContext from '../../../contexts/Team';
 import UserContext from '../../../contexts/User';
 import { useCluster } from './Context';
 
@@ -49,7 +49,7 @@ const joinPath = (...paths: string[]) => paths
 
 const StorageList: FunctionComponent = () => {
   const { email } = useContext(UserContext);
-  const { selectedTeam } = useContext(TeamsContext);
+  const { currentTeamId } = useContext(TeamContext);
   const { enqueueSnackbar } = useSnackbar();
   const { status } = useCluster();
 
@@ -65,10 +65,10 @@ const StorageList: FunctionComponent = () => {
     if (!mountpoint) return;
     if (endsWith(mountpoint, '/mntdlws/nfs')) return '~';
     const directories = mountpoint.split('/');
-    if (includes(directories, selectedTeam)) {
+    if (includes(directories, currentTeamId)) {
       return '/' + last(directories);
     }
-  }, [selectedTeam]);
+  }, [currentTeamId]);
 
   const workStorage = useMemo(() => {
     if (status == null) return;
@@ -82,8 +82,8 @@ const StorageList: FunctionComponent = () => {
   const getMountpointUrl = useCallback((containerPath: string) => {
     if (!containerPath) return;
     if (containerPath === '~') return joinPath(workStorage, userName);
-    return joinPath(workStorage, selectedTeam, containerPath);
-  }, [workStorage, userName, selectedTeam]);
+    return joinPath(workStorage, currentTeamId, containerPath);
+  }, [workStorage, userName, currentTeamId]);
 
   const mountpoints = useMemo(() => {
     const mountpointMap = Object.create(null);

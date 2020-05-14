@@ -16,7 +16,7 @@ import ClusterSelectField from "./components/ClusterSelectField";
 import { DirectoryPathTextField } from './components/GPUCard'
 import ClustersContext from "../../contexts/Clusters";
 import UserContext from "../../contexts/User";
-import TeamsContext from "../../contexts/Teams";
+import TeamContext from "../../contexts/Team";
 import {Link} from "react-router-dom";
 import Slide from "@material-ui/core/Slide";
 import {green} from "@material-ui/core/colors";
@@ -36,7 +36,7 @@ const useStyles = makeStyles(() =>
   })
 );
 
-const Transition = React.forwardRef<unknown, TransitionProps>(function Transition(props, ref) {
+const Transition = React.forwardRef<unknown, TransitionProps & { children?: React.ReactElement }>(function Transition(props, ref) {
   return <Slide direction="down" ref={ref} {...props} />;
 });
 
@@ -48,21 +48,16 @@ const DataJob: React.FC = (props: any) => {
   const[dialogContentText, setDialogContentText] = useState('');
   const [submittable, setSubmittable] = useState(true);
   const {email} = React.useContext(UserContext);
-  const {teams, selectedTeam} = React.useContext(TeamsContext);
-  const { selectedCluster,saveSelectedCluster } = React.useContext(ClustersContext);
+  const {currentTeamId} = React.useContext(TeamContext);
+  const {clusters} = React.useContext(ClustersContext);
+  const [ selectedCluster,saveSelectedCluster ] = React.useState(() => clusters[0].id);
   const [workStorage, setWorkStorage ] = useState('');
   const [dataStorage, setDataStorage] = useState('');
 
-  const team = React.useMemo(() => {
-    if (teams == null) return;
-    if (selectedTeam == null) return;
-    return teams.filter((team: any) => team.id === selectedTeam)[0];
-  }, [teams, selectedTeam]);
   const cluster = React.useMemo(() => {
-    if (team == null) return;
     if (selectedCluster == null) return;
-    return team.clusters.filter((cluster: any) => cluster.id === selectedCluster)[0];
-  }, [team, selectedCluster]);
+    return clusters.filter((cluster: any) => cluster.id === selectedCluster)[0];
+  }, [clusters, selectedCluster]);
   const gpuModel = React.useMemo(() => {
     if (cluster == null) return;
     return Object.keys(cluster.gpus)[0];
@@ -127,7 +122,7 @@ const DataJob: React.FC = (props: any) => {
     return folder;
   }
   const covert = (dataJob: any) => {
-    dataJob.vcName = selectedTeam;
+    dataJob.vcName = currentTeamId;
     dataJob.jobName = "Data Job @ " + new Date().toISOString();
     if (azureDataStorage) {dataJob.fromFolder = azureDataStorage;}
     if (nfsDataStorage) {dataJob.toFolder = nfsDataStorage;}
@@ -234,7 +229,7 @@ const DataJob: React.FC = (props: any) => {
           </DialogContentText>
           <DialogActions>
             <Button component={Link}
-              to={ `/job/${selectedTeam}/${selectedCluster}/${currentJobId}` }
+              to={ `/job/${currentTeamId}/${selectedCluster}/${currentJobId}` }
               color="secondary"
             >
                   ok

@@ -248,7 +248,7 @@ def load_default_config(config):
                    "./scripts/prepare_vm_disk.sh", "./scripts/prepare_ubuntu.sh",
                    "./scripts/disable_kernel_auto_updates.sh", "./scripts/docker_network_gc_setup.sh",
                    "./deploy/scripts/dns.sh", "./deploy/etcd/init_network.sh", "scripts/render_env_vars.sh",
-                   "scripts/fileshare_install.sh", "scripts/mnt_fs_svc.sh"],
+                   "scripts/fileshare_install.sh", "scripts/mnt_fs_svc.sh", "scripts/build_lustre_client.sh"],
 
         "infra": ["./deploy/master/" + config["premasterdeploymentscript"],
                   "./deploy/master/" +

@@ -1,12 +1,19 @@
 # These are the default configuration parameter
 default_config_parameters = {
     "supported_platform": ["azure_cluster", "onpremise"],
-    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev", "etcd", "kubernetes_master", "mysqlserver", "elasticsearch", "samba", "lustre", "mdt", "oss"},
+    "allroles": {
+        "infra", "infrastructure", "worker", "nfs", "sql", "dev", "etcd",
+        "kubernetes_master", "mysqlserver", "elasticsearch", "samba", "lustre",
+        "mdt", "oss"
+    },
     # Kubernetes setting
     "service_cluster_ip_range": "10.3.0.0/16",
     "pod_ip_range": "10.2.0.0/16",
-    "ssl_localhost_ips": [ "127.0.0.1", "127.0.1.1" ],
-    "dns_server": {"azure_cluster": '8.8.8.8', 'onpremise':'10.50.10.50'},
+    "ssl_localhost_ips": ["127.0.0.1", "127.0.1.1"],
+    "dns_server": {
+        "azure_cluster": '8.8.8.8',
+        'onpremise': '10.50.10.50'
+    },
     # Home in server, to aide Kubernete setup
     "homeinserver": "http://dlws-clusterportal.westus.cloudapp.azure.com:5000",
     "cloud_influxdb_node": "dlws-influxdb.westus.cloudapp.azure.com",
@@ -14,9 +21,9 @@ default_config_parameters = {
     "cloud_influxdb_tp_port": "25826",
     "cloud_elasticsearch_node": "dlws-influxdb.westus.cloudapp.azure.com",
     "cloud_elasticsearch_port": "9200",
-
-    "fluent_bit": { "port": 2020 },
-
+    "fluent_bit": {
+        "port": 2020
+    },
     "elasticsearch": {
         "enabled": False,
         "port": {
@@ -26,25 +33,38 @@ default_config_parameters = {
             "kibana": 5601,
         },
     },
-
     "azure_blob_log": {
         "enabled": False,
         "port": {
             "adapter": 6200
         }
     },
-
     "influxdb_port": "8086",
     "influxdb_tp_port": "25826",
     "influxdb_rpc_port": "8088",
     "influxdb_data_path": "/var/lib/influxdb",
-
-    "prometheus": { "port": 9091, "reporter": {"port": 9092} },
-    "job-exporter": { "port": 9102 },
-    "node-exporter": { "port": 9100 },
-    "lustre-exporter": { "port": 9103 },
-    "watchdog": { "port": 9101 },
-    "grafana": { "port": 3000, "prometheus-ip": "localhost" },
+    "prometheus": {
+        "port": 9091,
+        "reporter": {
+            "port": 9092
+        }
+    },
+    "job-exporter": {
+        "port": 9102
+    },
+    "node-exporter": {
+        "port": 9100
+    },
+    "lustre-exporter": {
+        "port": 9103
+    },
+    "watchdog": {
+        "port": 9101
+    },
+    "grafana": {
+        "port": 3000,
+        "prometheus-ip": "localhost"
+    },
     "alert-manager": {
         "port": 9093,
         "configured": False,
@@ -56,14 +76,15 @@ default_config_parameters = {
             "dry-run": True,
             "port": "9500",
             "restful-url": "http://localhost:5000",
+        },
+        "email-sender": {
+            "port": 9095
         }
     },
-
     "storage-manager": {
         "port": 9094
     },
-
-    "repair-manager": { 
+    "repair-manager": {
         "prometheus-ip": "localhost",
         "prometheus-port": 9091,
         "etcd": {
@@ -72,22 +93,19 @@ default_config_parameters = {
             "client-port": 2382
         }
     },
-
     "mysql_port": "3306",
     "mysql_username": "root",
     "mysql_data_path": "/var/lib/mysql",
-
     "datasource": "MySQL",
     "defalt_virtual_cluster_name": "platform",
     # Discover server is used to find IP address of the host, it need to be a well-known IP address
     # that is pingable.
     "discoverserver": "4.2.2.1",
     "homeininterval": "600",
-
-    "etcd3port1": "2379",  # Etcd3port1 will be used by App to call Etcd
-    "etcd3port2": "4001",  # Etcd3port2 is established for legacy purpose.
-    "etcd3portserver": "2380",  # Server port for etcd
-    "k8sAPIport": "1443",  # Server port for apiserver
+    "etcd3port1": "2379", # Etcd3port1 will be used by App to call Etcd
+    "etcd3port2": "4001", # Etcd3port2 is established for legacy purpose.
+    "etcd3portserver": "2380", # Server port for etcd
+    "k8sAPIport": "1443", # Server port for apiserver
     "nvidiadriverversion": "375.20",
     # Default port for WebUI, Restful API,
     # Port webUI will run upon, nginx will forward to this port.
@@ -112,7 +130,6 @@ default_config_parameters = {
     "physical-mount-path": "/mntdlws",
     # the path of where local device is mounted.
     "local-mount-path": "/mnt",
-
     "physical-mount-path-vc": "/mntdlts/nfs",
 
     # required storage folder under storage-mount-path
@@ -125,8 +142,6 @@ default_config_parameters = {
     "systemdisk": "/dev/sda",
     "data-disk": "/dev/[sh]d[^a]",
     "partition-configuration": ["1"],
-
-
     "render-exclude": {
         "GlusterFSUtils.pyc": True,
         "launch_glusterfs.pyc": True,
@@ -181,10 +196,8 @@ default_config_parameters = {
             "su": True,
             "options": "--net=host",
         },
-
     },
     "mountpoints": {},
-
     "build-docker-via-config": {
         "hdfs": True,
         "spark": True,
@@ -192,57 +205,75 @@ default_config_parameters = {
     },
     #"render-by-line": { "preseed.cfg": True, },
     # glusterFS parameter
-    "glusterFS": {"dataalignment": "1280K",
-                  "physicalextentsize": "128K",
-                  "volumegroup": "gfs_vg",
-                  # metasize is total_capacity / physicalextentsize * 64
-                  "metasize": "16776960K",
-                  # Volume needs to leave room for metadata and thinpool
-                  # provisioning, 98%FREE is doable for a 1TB drive.
-                  "volumesize": "98%FREE",
-                  "metapoolname": "gfs_pool_meta",
-                  "datapoolname": "gfs_pool",
-                  "volumename": "gfs_lv",
-                  "chunksize": "1280K",
-                  "mkfs.xfs.options": "-f -i size=512 -n size=8192 -d su=128k,sw=10",
-                  "mountpoint": "/mnt/glusterfs/localvolume",
-                  # GlusterFS volume to be constructed.
-                  "glustefs_nodes_yaml": "./deploy/docker-images/glusterfs/glusterfs_config.yaml",
-                  "glusterfs_docker": "glusterfs",
-                  # File system should always be accessed from the symbolic
-                  # link, not from the actual mountpoint
-                  "glusterfs_mountpoint": "/mnt/glusterfs/private",
-                  "glusterfs_symlink": "/mnt/glusterfs",
-                  # Spell out a number of glusterFS volumes to be created on the cluster.
-                  # Please refer to https://access.redhat.com/documentation/en-US/Red_Hat_Storage/2.1/html/Administration_Guide/sect-User_Guide-Setting_Volumes-Distributed_Replicated.html
-                  # for proper volumes in glusterFS.
-                  # By default, all worker nodes with glusterFS installed will be placed in the default group.
-                  # The behavior can be modified by spell out the group that the node is expected to be in.
-                  # E.g.,
-                  # node01:
-                  #   gluterfs: 1
-                  # will place node01 into a glusterfs group 1. The nodes in each glusterfs group will form separate volumes
-                  #
-                  "gluster_volumes": {
-                      "default": {
-                          "netvolume": {
-                                "property": "replica 3",
-                                "transport": "tcp,rdma",
-                                # of nodes that can fail before the volume will
-                                # become unaccessible.
-                                "tolerance": 2,
-                              # number of bricks need to be a multiple of this
-                              "multiple": 3,
-                          },
-                      },
-                  },
-                  # These parameters are required for every glusterfs volumes
-                  "gluster_volumes_required_param": ["property", "transport", "tolerance", "multiple"],
-                  # To use glusterFS, you will configure the partitions parameter
-                  # partitions: /dev/sd[^a]
-                  # which is a regular expression calls out all partition
-                  # that will be deployed with glusterfs
-                  },
+    "glusterFS": {
+        "dataalignment":
+            "1280K",
+        "physicalextentsize":
+            "128K",
+        "volumegroup":
+            "gfs_vg",
+        # metasize is total_capacity / physicalextentsize * 64
+        "metasize":
+            "16776960K",
+        # Volume needs to leave room for metadata and thinpool
+        # provisioning, 98%FREE is doable for a 1TB drive.
+        "volumesize":
+            "98%FREE",
+        "metapoolname":
+            "gfs_pool_meta",
+        "datapoolname":
+            "gfs_pool",
+        "volumename":
+            "gfs_lv",
+        "chunksize":
+            "1280K",
+        "mkfs.xfs.options":
+            "-f -i size=512 -n size=8192 -d su=128k,sw=10",
+        "mountpoint":
+            "/mnt/glusterfs/localvolume",
+        # GlusterFS volume to be constructed.
+        "glustefs_nodes_yaml":
+            "./deploy/docker-images/glusterfs/glusterfs_config.yaml",
+        "glusterfs_docker":
+            "glusterfs",
+        # File system should always be accessed from the symbolic
+        # link, not from the actual mountpoint
+        "glusterfs_mountpoint":
+            "/mnt/glusterfs/private",
+        "glusterfs_symlink":
+            "/mnt/glusterfs",
+        # Spell out a number of glusterFS volumes to be created on the cluster.
+        # Please refer to https://access.redhat.com/documentation/en-US/Red_Hat_Storage/2.1/html/Administration_Guide/sect-User_Guide-Setting_Volumes-Distributed_Replicated.html
+        # for proper volumes in glusterFS.
+        # By default, all worker nodes with glusterFS installed will be placed in the default group.
+        # The behavior can be modified by spell out the group that the node is expected to be in.
+        # E.g.,
+        # node01:
+        #   gluterfs: 1
+        # will place node01 into a glusterfs group 1. The nodes in each glusterfs group will form separate volumes
+        #
+        "gluster_volumes": {
+            "default": {
+                "netvolume": {
+                    "property": "replica 3",
+                    "transport": "tcp,rdma",
+                    # of nodes that can fail before the volume will
+                    # become unaccessible.
+                    "tolerance": 2,
+                    # number of bricks need to be a multiple of this
+                    "multiple": 3,
+                },
+            },
+        },
+        # These parameters are required for every glusterfs volumes
+        "gluster_volumes_required_param": [
+            "property", "transport", "tolerance", "multiple"
+        ],
+        # To use glusterFS, you will configure the partitions parameter
+        # partitions: /dev/sd[^a]
+        # which is a regular expression calls out all partition
+        # that will be deployed with glusterfs
+    },
     # Options to run in glusterfs
     "launch-glusterfs-opt": "run",
 
@@ -280,7 +311,6 @@ default_config_parameters = {
         "user-synchronizer": "etcd_node_1",
         "job-insighter": "etcd_node_1",
     },
-
     "default_kube_labels_by_node_role": {
         'infra': {
             "infrastructure": "active",
@@ -295,18 +325,18 @@ default_config_parameters = {
             "user-synchronizer": "active",
             "alert-manager": "active",
             "beta.kubernetes.io/os": "linux"
-            },
+        },
         'worker': {
             "worker": "active",
             "beta.kubernetes.io/os": "linux",
             "repairmanageragent": "active"
-            },
+        },
         'mysqlserver': {
             "mysql-server": "active"
-            },
+        },
         'nfs': {
             "storagemanager": "active"
-            },
+        },
         'elasticsearch': {
             "elasticsearch": "active"
         },
@@ -314,7 +344,6 @@ default_config_parameters = {
             "lustre": "active"
         },
     },
-
     "kube_services_2_start": [
         "nvidia-device-plugin",
         "flexvolume",
@@ -325,9 +354,7 @@ default_config_parameters = {
         "dashboard",
         "user-synchronizer",
     ],
-
     "kubemarks": ["rack", "sku"],
-
     "network": {
         "trusted-domains": {
             "*.redmond.corp.microsoft.com": True,
@@ -335,8 +362,6 @@ default_config_parameters = {
         },
         "container-network-iprange": "192.168.0.1/24",
     },
-
-
     "localdisk": {
         # The following pair of options control how local disk is formated and
         # mounted
@@ -346,7 +371,6 @@ default_config_parameters = {
 
     # optional hdfs_cluster_name: if not inherit cluster_name from cluster
     # "hdfs_cluster_name": cluster_name for HDFS
-
     "hdfsconfig": {
         # Launch options for formatting, etc..
         "formatoptions": "",
@@ -380,22 +404,25 @@ default_config_parameters = {
     "ubuntuconfig": {
         "version": "16.04.1",
         "16.04.2": {
-            "ubuntuImageUrl": "http://releases.ubuntu.com/16.04/ubuntu-16.04.2-server-amd64.iso",
-            "ubuntuImageName": "ubuntu-16.04.2-server-amd64.iso",
+            "ubuntuImageUrl":
+                "http://releases.ubuntu.com/16.04/ubuntu-16.04.2-server-amd64.iso",
+            "ubuntuImageName":
+                "ubuntu-16.04.2-server-amd64.iso",
         },
         "16.04.1": {
-            "ubuntuImageUrl": "http://old-releases.ubuntu.com/releases/16.04.1/ubuntu-16.04.1-server-amd64.iso",
-            "ubuntuImageName": "ubuntu-16.04.1-server-amd64.iso",
+            "ubuntuImageUrl":
+                "http://old-releases.ubuntu.com/releases/16.04.1/ubuntu-16.04.1-server-amd64.iso",
+            "ubuntuImageName":
+                "ubuntu-16.04.1-server-amd64.iso",
         },
     },
-
     "acskubeconfig": "acs_kubeclusterconfig",
     "isacs": False,
     "acsagentsize": "Standard_NC12",
-
     "mountconfig": {
         "azurefileshare": {
-            "options": "vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino",
+            "options":
+                "vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino",
         },
         "glusterfs": {
             "options": "defaults,_netdev",
@@ -407,34 +434,35 @@ default_config_parameters = {
             "fstaboptions": "allow_other,usetrash,rw 2 0",
             "options": "rw -ousetrash -obig_writes -oinitchecks",
         },
-
     },
-
     "mountdescription": {
-        "azurefileshare": "Azure file storage",
-        "glusterfs": "GlusterFS (replicated distributed storage)",
-        "nfs": "NFS (remote file share)",
-        "hdfs": "Hadoop file system (replicated distribute storage).",
-        "local": "Local SSD. ",
-        "localHDD": "Local HDD. ",
-        "emptyDir": "Kubernetes emptyDir (folder will be erased after job termination).",
+        "azurefileshare":
+            "Azure file storage",
+        "glusterfs":
+            "GlusterFS (replicated distributed storage)",
+        "nfs":
+            "NFS (remote file share)",
+        "hdfs":
+            "Hadoop file system (replicated distribute storage).",
+        "local":
+            "Local SSD. ",
+        "localHDD":
+            "Local HDD. ",
+        "emptyDir":
+            "Kubernetes emptyDir (folder will be erased after job termination).",
     },
-
     "mountsupportedbycoreos": {
         "nfs": True,
         "local": True,
         "localHDD": True,
         "emptyDir": True,
     },
-
     "k8Sdaemon": {
         # Specify k8S daemon related policy, e.g., dnsPolicy here.
     },
-
     "mounthomefolder": "yes",
     # Mount point to be deployed to container.
     "deploymounts": [],
-
 
     # folder where automatic share script will be located
     "folder_auto_share": "/opt/auto_share",
@@ -446,7 +474,6 @@ default_config_parameters = {
     # "ubuntu": ubuntu cluster
     "platform-scripts": "ubuntu",
 
-
     # Default usergroup for the WebUI portal
     # Default setting will allow all Microsoft employees to access the cluster,
     # You should override this setting if you have concern.
@@ -455,7 +482,12 @@ default_config_parameters = {
         "CCSAdmins": {
             # The match is in C# Regex Language, please refer to :
             # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
-            "Allowed": ["hongzl@microsoft.com", "anbhu@microsoft.com", "jachzh@microsoft.com","zhexu@microsoft.com","dixu@microsoft.com","qixcheng@microsoft.com","jingzhao@microsoft.com","hayua@microsoft.com"],
+            "Allowed": [
+                "hongzl@microsoft.com", "anbhu@microsoft.com",
+                "jachzh@microsoft.com", "zhexu@microsoft.com",
+                "dixu@microsoft.com", "qixcheng@microsoft.com",
+                "jingzhao@microsoft.com", "hayua@microsoft.com"
+            ],
             "uid": "900000000-999999999",
             "gid": "508953967"
         },
@@ -481,9 +513,8 @@ default_config_parameters = {
             "gid": "508953967"
         },
     },
-
     "WebUIregisterGroups": ["MicrosoftUsers", "Live", "Gmail"],
-    "WebUIauthorizedGroups": [],  # [ "MicrosoftUsers", "Live", "Gmail" ],
+    "WebUIauthorizedGroups": [], # [ "MicrosoftUsers", "Live", "Gmail" ],
     "WebUIadminGroups": ["CCSAdmins"],
 
     # Selectively deploy (turn on) one or more authenticatin methods.
@@ -495,13 +526,12 @@ default_config_parameters = {
     # UserGroups for authentication.
     "workFolderAccessPoint": "/",
     "dataFolderAccessPoint": "/",
-
     "kube_configchanges": ["/opt/addons/kube-addons/weave.yaml"],
-    "kube_addons": ["/opt/addons/kube-addons/dashboard.yaml",
-                    "/opt/addons/kube-addons/dns-addon.yaml",
-                    "/opt/addons/kube-addons/kube-proxy.json",
-                    ],
-
+    "kube_addons": [
+        "/opt/addons/kube-addons/dashboard.yaml",
+        "/opt/addons/kube-addons/dns-addon.yaml",
+        "/opt/addons/kube-addons/kube-proxy.json",
+    ],
     "k8s-bld": "k8s-temp-bld",
     "k8s-gitrepo": "kubernetes/kubernetes",
     "k8s-gitbranch": "v1.9.1",
@@ -510,7 +540,6 @@ default_config_parameters = {
     "kube_custom_cri": False,
     "kube_custom_scheduler": False,
     "kubepresleep": 60,
-
     "Authentications": {
         "Live-login-windows": {
             "DisplayName": "Microsoft Account (live.com)",
@@ -550,7 +579,7 @@ default_config_parameters = {
             "AuthorityFormat": "https://login.microsoftonline.com/{0}",
             "RedirectUri": "",
             "GraphBaseEndpoint": "https://graph.windows.net",
-            "GraphApiVersion": "1.6",  # API version,
+            "GraphApiVersion": "1.6", # API version,
             "Scope": "User.Read",
             "Domains": ["live.com", "hotmail.com", "outlook.com"]
         },
@@ -562,7 +591,7 @@ default_config_parameters = {
             "AuthorityFormat": "https://login.windows.net/common",
             "RedirectUri": "",
             "GraphBaseEndpoint": "https://graph.windows.net",
-            "GraphApiVersion": "1.6",  # API version,
+            "GraphApiVersion": "1.6", # API version,
             # "Scope": "User.Read",
             "Domains": ["live.com", "hotmail.com", "outlook.com"]
         },
@@ -577,7 +606,7 @@ default_config_parameters = {
             "RedirectUri": "",
             "Scope": "User.Read",
             "GraphBaseEndpoint": "https://graph.windows.net",
-            "GraphApiVersion": "1.6",  # API version,
+            "GraphApiVersion": "1.6", # API version,
             "Domains": ["microsoft.com"]
         },
         "Live-Microsoft": {
@@ -588,7 +617,6 @@ default_config_parameters = {
             "AuthorityFormat": "https://login.microsoftonline.com/{0}",
             "Domains": ["live.com", "hotmail.com", "outlook.com"]
         },
-
         "Corp": {
             "DisplayName": "@microsoft.com corpnet sign in",
             "UseAadGraph": "false",
@@ -598,21 +626,25 @@ default_config_parameters = {
             "AuthorityFormat": "https://login.microsoftonline.com/{0}",
             "RedirectUri": "",
             "GraphBaseEndpoint": "https://graph.windows.net",
-            "GraphApiVersion": "1.6",  # API version,
+            "GraphApiVersion": "1.6", # API version,
             "Domains": ["microsoft.com"]
         },
         "Gmail": {
-            "DisplayName": "Gmail",
-            "Tenant": "dlws-auth",
-            "ClientId": "79875480060-jrs8a1rqe6a4kv82jh4d2nqgq8t6ap6k.apps.googleusercontent.com",
-            "ClientSecret": "L6XfKLzIbiy7jT7s416CBamz",
-            "AuthorityFormat": "https://accounts.google.com",
-            "Scope": "openid email",
+            "DisplayName":
+                "Gmail",
+            "Tenant":
+                "dlws-auth",
+            "ClientId":
+                "79875480060-jrs8a1rqe6a4kv82jh4d2nqgq8t6ap6k.apps.googleusercontent.com",
+            "ClientSecret":
+                "L6XfKLzIbiy7jT7s416CBamz",
+            "AuthorityFormat":
+                "https://accounts.google.com",
+            "Scope":
+                "openid email",
             "Domains": ["gmail.com"]
         },
-
     },
-
     "Dashboards": {
         "influxDB": {
             "dbName": "WebUI",
@@ -634,7 +666,10 @@ default_config_parameters = {
     # There are two docker registries, one for infrastructure (used for pre-deployment)
     # and one for worker docker (pontentially in cluser)
     # A set of infrastructure-dockers
-    "infrastructure-dockers": {"pxe": True, "pxe-ubuntu": True, },
+    "infrastructure-dockers": {
+        "pxe": True,
+        "pxe-ubuntu": True,
+    },
     "dockerprefix": "",
     "dockertag": "latest",
 
@@ -672,26 +707,63 @@ default_config_parameters = {
         },
         "external": {
             # These dockers are to be built by additional add ons.
-            "hyperkube": {"fullname":"gcr.io/google-containers/hyperkube:v1.15.2"},
-            "freeflow": {"fullname":"dlws/freeflow:0.18"},
-            "podinfra": {"fullname":"dlws/pause-amd64:3.0"},
-            "nvidiadriver": {"fullname":"dlws/nvidia_driver:375.20"},
-            "weave":{"fullname":"docker.io/weaveworks/weave-kube:2.5.2"},
-            "weave-npc":{"fullname":"docker.io/weaveworks/weave-npc:2.5.2"},
-            "k8s-dashboard":{"fullname":"dlws/kubernetes-dashboard-amd64:v1.5.1"},
-            "kube-dns":{"fullname":"dlws/k8s-dns-kube-dns-amd64:1.14.8"},
-            "kube-dnsmasq":{"fullname":"dlws/k8s-dns-dnsmasq-nanny-amd64:1.14.8"},
-            "kube-dns-sidecar":{"fullname":"dlws/k8s-dns-sidecar-amd64:1.14.8"},
-            "heapster":{"fullname":"dlws/heapster-amd64:v1.4.0"},
-            "etcd":{"fullname":"dlws/etcd:3.1.10"},
-            "mysql":{"fullname":"dlws/mysql:5.6"},
-            "phpmyadmin":{"fullname":"dlws/phpmyadmin:4.7.6"},
-            "elasticsearch":{"fullname":"dlws/elasticsearch:6.8.5"},
-            "elasticsearch-exporter":{"fullname":"dlws/elasticsearch-exporter:1.1.0"},
-            "kibana":{"fullname":"dlws/kibana:6.8.5"},
-            "fluentd-elasticsearch":{"fullname":"dlws/fluentd-elasticsearch:v2.0.2"},
-            "binstore":{"fullname":"dlws/binstore:v1.0"},
-
+            "hyperkube": {
+                "fullname": "gcr.io/google-containers/hyperkube:v1.15.2"
+            },
+            "freeflow": {
+                "fullname": "dlws/freeflow:0.18"
+            },
+            "podinfra": {
+                "fullname": "dlws/pause-amd64:3.0"
+            },
+            "nvidiadriver": {
+                "fullname": "dlws/nvidia_driver:375.20"
+            },
+            "weave": {
+                "fullname": "docker.io/weaveworks/weave-kube:2.5.2"
+            },
+            "weave-npc": {
+                "fullname": "docker.io/weaveworks/weave-npc:2.5.2"
+            },
+            "k8s-dashboard": {
+                "fullname": "dlws/kubernetes-dashboard-amd64:v1.5.1"
+            },
+            "kube-dns": {
+                "fullname": "dlws/k8s-dns-kube-dns-amd64:1.14.8"
+            },
+            "kube-dnsmasq": {
+                "fullname": "dlws/k8s-dns-dnsmasq-nanny-amd64:1.14.8"
+            },
+            "kube-dns-sidecar": {
+                "fullname": "dlws/k8s-dns-sidecar-amd64:1.14.8"
+            },
+            "heapster": {
+                "fullname": "dlws/heapster-amd64:v1.4.0"
+            },
+            "etcd": {
+                "fullname": "dlws/etcd:3.1.10"
+            },
+            "mysql": {
+                "fullname": "dlws/mysql:5.6"
+            },
+            "phpmyadmin": {
+                "fullname": "dlws/phpmyadmin:4.7.6"
+            },
+            "elasticsearch": {
+                "fullname": "dlws/elasticsearch:6.8.5"
+            },
+            "elasticsearch-exporter": {
+                "fullname": "dlws/elasticsearch-exporter:1.1.0"
+            },
+            "kibana": {
+                "fullname": "dlws/kibana:6.8.5"
+            },
+            "fluentd-elasticsearch": {
+                "fullname": "dlws/fluentd-elasticsearch:v2.0.2"
+            },
+            "binstore": {
+                "fullname": "dlws/binstore:v1.0"
+            },
         },
         "infrastructure": {
             "pxe-ubuntu": {},
@@ -701,12 +773,11 @@ default_config_parameters = {
         # config["dockers"]["container"]["name"]
         "container": {},
     },
-
     "cloud_config_nsg_rules": {
         "corpnet_dev_ports": "22 80 1443 3000 3306 5000 9091",
-        "inter_connect_ports": "1443 2379 2382 3306 5000 10250 10255",
+        "inter_connect_ports": "1443 2379 2382 3306 5000 9095 10250 10255",
         "corpnet_user_ports": "30000-49999",
-        "nfs_ports": "'*'", 
+        "nfs_ports": "'*'",
         # all of below except for default_admin_username deprecated after fixing port rules
         "vnet_range": "192.168.0.0/16",
         "default_admin_username": "core",
@@ -714,12 +785,14 @@ default_config_parameters = {
         # There is no udp port requirement for now
         #"udp_port_ranges": "25826",
         "inter_connect": {
-            "tcp_port_ranges": "22 1443 2379 2382 3306 5000 8086 9092 9114 9200 9300 10250 30000-49999",
+            "tcp_port_ranges":
+                "22 1443 2379 2382 3306 5000 8086 9095 9092 9114 9200 9300 10250 30000-49999",
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         },
         "dev_network": {
-            "tcp_port_ranges": "22 1443 2379 3306 5000 8086 5601 10250 10255 22222",
+            "tcp_port_ranges":
+                "22 1443 2379 3306 5000 8086 5601 10250 10255 22222",
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         },
@@ -727,18 +800,21 @@ default_config_parameters = {
             "tcp_port_ranges": "10250",
         },
     },
-
     "nfs_client_CIDR": {
         "node_range": ["192.168.0.0/16"],
         "samba_range": [],
     },
-
-    "nfs_mnt_setup": [
-          {
-            "mnt_point": {"rootshare":{"curphysicalmountpoint":"/mntdlws/infranfs","filesharename":"/infradata/share","mountpoints":""}}}
-    ],
-    "vc_config":{
-        "VC-Default":["*"],
+    "nfs_mnt_setup": [{
+        "mnt_point": {
+            "rootshare": {
+                "curphysicalmountpoint": "/mntdlws/infranfs",
+                "filesharename": "/infradata/share",
+                "mountpoints": ""
+            }
+        }
+    }],
+    "vc_config": {
+        "VC-Default": ["*"],
     },
     "registry_credential": {},
     "priority": "regular",
@@ -755,28 +831,7 @@ default_config_parameters = {
     "custom_mounts": [],
     "enable_blobfuse": False,
 
-    # To use CPU nodes,
-    # 1. CPU nodes must have node label cpuworker=active
-    # 2. enable_cpuworker is set to True
-    # 3. default_cpu_sku is set to a valid value that exists in sku_meta
-    "enable_cpuworker": False,
     "enable_custom_registry_secrets": False,
-    "default_cpu_sku": "Standard_D2s_v3",
-
-    # SKU meta defines different types of resources for each SKU
-    # and their allowed usage ratio by user applications.
-    "sku_meta": {
-        "default": {
-            "cpu_ratio": 0.8,
-            "memory_ratio": 0.8
-        },
-        "Standard_D2s_v3": {
-            "cpu": 2,
-            "cpu_ratio": 0.9,
-            "memory": 8,
-            "memory_ratio": 0.9
-        }
-    },
 }
 
 # These are super scripts
@@ -863,20 +918,15 @@ scriptblocks = {
         "kubernetes start nginx",
     ],
     "add_worker": [
-        "sshkey install",
-        "runscriptonall ./scripts/prepare_vm_disk.sh",
-        "runscriptonall ./scripts/prepare_ubuntu.sh",
-        "mount",
-        "-y updateworker",
-        "-y kubernetes labels",
+        "sshkey install", "runscriptonall ./scripts/prepare_vm_disk.sh",
+        "runscriptonall ./scripts/prepare_ubuntu.sh", "mount",
+        "-y updateworker", "-y kubernetes labels",
         "-y kubernetes patchprovider aztools"
     ],
     "add_scaled_worker": [
         "runscriptonall ./scripts/prepare_vm_disk.sh",
-        "runscriptonscaleup ./scripts/prepare_ubuntu.sh",
-        "mount",
-        "-y updatescaledworker",
-        "-y kubernetes labels",
+        "runscriptonscaleup ./scripts/prepare_ubuntu.sh", "mount",
+        "-y updatescaledworker", "-y kubernetes labels",
         "-y kubernetes patchprovider aztools True"
     ],
     "redeploy": [

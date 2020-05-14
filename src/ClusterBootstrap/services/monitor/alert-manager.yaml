@@ -40,6 +40,22 @@ spec:
           mountPath: /alertmanager
         - name: templates-volume
           mountPath: /etc/alertmanager/template
+      - name: email-sender
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/email-sender:{{cnf["dockertag"]}}
+        command:
+          - 'python'
+          - '/email-sender/serve.py'
+          - '--host'
+          - '{{ cnf["alert-manager"]["email-sender"]["mq-host"] }}'
+          - '--mq_user'
+          - '{{ cnf["alert-manager"]["email-sender"]["mq-user"] }}'
+          - '--mq_pass'
+          - '{{ cnf["alert-manager"]["email-sender"]["mq-pass"] }}'
+          - '--port'
+          - '{{ cnf["alert-manager"]["email-sender"]["port"] }}'
+        ports:
+        - name: alert-manager
+          containerPort: {{ cnf["alert-manager"]["email-sender"]["port"] }}
       {% if cnf["alert-manager"]["reaper"] %}
       - name: reaper
         image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/reaper:{{cnf["dockertag"]}}

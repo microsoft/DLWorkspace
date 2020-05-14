@@ -4,16 +4,21 @@ bash ./dns.sh
 
 cat <<EOM >/etc/yum.repos.d/lustre.repo 
 [lustre-server]
-name=CentOS-$releasever - Lustre
-baseurl=https://downloads.hpdd.intel.com/public/lustre/latest-feature-release/el7/server/
+name=lustre-server
+baseurl=https://downloads.whamcloud.com/public/lustre/latest-feature-release/el7/server
+# exclude=*debuginfo*
 gpgcheck=0
-[e2fsprogs]
-name=CentOS-$releasever - Ldiskfs
-baseurl=https://downloads.hpdd.intel.com/public/e2fsprogs/latest/el7/
-gpgcheck=0
+
 [lustre-client]
-name=CentOS-$releasever - Lustre
-baseurl=https://downloads.hpdd.intel.com/public/lustre/latest-feature-release/el7/client/
+name=lustre-client
+baseurl=https://downloads.whamcloud.com/public/lustre/latest-feature-release/el7/client
+# exclude=*debuginfo*
+gpgcheck=0
+
+[e2fsprogs-wc]
+name=e2fsprogs-wc
+baseurl=https://downloads.whamcloud.com/public/e2fsprogs/latest/el7
+# exclude=*debuginfo*
 gpgcheck=0
 EOM
 

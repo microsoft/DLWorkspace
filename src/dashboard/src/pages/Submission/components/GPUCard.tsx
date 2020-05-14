@@ -32,7 +32,7 @@ import { MoreVert, FileCopyRounded} from "@material-ui/icons";
 
 import {Cell, PieChart, Pie, ResponsiveContainer,Sector} from "recharts";
 import UserContext from "../../../contexts/User";
-import TeamsContext from '../../../contexts/Teams';
+import TeamContext from '../../../contexts/Team';
 import {
   green,
   lightGreen,
@@ -259,7 +259,7 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
   const [dataStorage, setDataStorage] = useState('');
   const [activate,setActivate] = useState(false);
   const { email } = React.useContext(UserContext);
-  const {selectedTeam} = React.useContext(TeamsContext);
+  const {currentTeamId} = React.useContext(TeamContext);
   const fetchDiretoryUrl = `api/clusters/${clusterId}`;
   const request = useFetch(fetchDiretoryUrl);
   const fetchDirectories = async () => {
@@ -273,7 +273,7 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
   const requestClusterStatus = useFetch(fetchClusterStatusUrl);
   const fetchClusterStatus = async () => {
     setActivate(false);
-    const data = await requestClusterStatus.get(`/teams/${selectedTeam}/clusters/${clusterId}`);
+    const data = await requestClusterStatus.get(`/teams/${currentTeamId}/clusters/${clusterId}`);
     return data;
   }
   const [nfsStorage, setNfsStorage] = useState([]);
@@ -338,10 +338,10 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
             return !(item["mountpointName"].indexOf("dlts") === -1 && item["mountpointName"].indexOf("dlws/nfs") === -1);
           })
           setNfsStorage(finalStorageRes.filter((store: any) => {
-            if (selectedTeam === 'MMBellevue' && store['mountpointName'].indexOf('/mntdlws/nfs') !== -1) {
+            if (currentTeamId === 'MMBellevue' && store['mountpointName'].indexOf('/mntdlws/nfs') !== -1) {
               return null;
             }
-            return store['mountpointName'].indexOf(selectedTeam) !== -1 || store['mountpointName'].indexOf("dlws/nfs") !== -1;
+            return store['mountpointName'].indexOf(currentTeamId) !== -1 || store['mountpointName'].indexOf("dlws/nfs") !== -1;
           }));
         });
       });
@@ -356,7 +356,7 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
       setActiveJobs((Number)(sumValues(res['AvaliableJobNum'])));
       setActivate(true);
     })
-  },[selectedTeam]); // eslint-disable-line react-hooks/exhaustive-deps
+  },[currentTeamId]); // eslint-disable-line react-hooks/exhaustive-deps
   const tableTheme = createMuiTheme({
     overrides: {
       MuiTableCell: {

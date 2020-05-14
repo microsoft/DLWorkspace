@@ -4,7 +4,7 @@ import { MenuItem, TextField } from "@material-ui/core";
 import { BaseTextFieldProps } from "@material-ui/core/TextField";
 
 import ClustersContext from "../../../contexts/Clusters";
-import TeamsContext from "../../../contexts/Teams";
+import TeamContext from "../../../contexts/Team";
 import useFetch from "use-http";
 import _ from "lodash";
 import {sumValues} from "../../../utlities/ObjUtlities";
@@ -17,25 +17,25 @@ interface ClusterSelectFieldProps {
 const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps> = (
   { cluster, onClusterChange, variant="standard", ...props }
 ) => {
-  const { clusters,selectedCluster, saveSelectedCluster } = React.useContext(ClustersContext);
-  const { selectedTeam } = React.useContext(TeamsContext);
+  const { clusters } = React.useContext(ClustersContext);
+  const { currentTeamId } = React.useContext(TeamContext);
   const fetchVcStatusUrl = `/api`;
   const[helperText, setHelperText] = React.useState('');
 
   const request = useFetch(fetchVcStatusUrl);
   const fetchVC = async () => {
-    const response = await request.get(`/teams/${selectedTeam}/clusters/${selectedCluster}`);
+    const response = await request.get(`/teams/${currentTeamId}/clusters/${cluster}`);
     return response;
   }
   const onChange = React.useCallback(
-    (event: React.ChangeEvent<HTMLSelectElement>) => {
-      saveSelectedCluster(event.target.value);
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      onClusterChange(event.target.value);
     },
-    [saveSelectedCluster]
+    [onClusterChange]
   );
   const isEmpty = (obj: object) => {
     if (obj === undefined) return true;
-    for(let key in obj) {
+    for(const key in obj) {
       if(obj.hasOwnProperty(key))
         return false;
     }
@@ -51,10 +51,10 @@ const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps>
       const gpuAvailable =  isEmpty(res) ? 0 : (String)(sumValues(res['gpu_avaliable']));
       setHelperText(`${clusterName} (${gpuAvailable} / ${gpuCapacity} to use)`);
     })
-    if (selectedCluster) {
-      onClusterChange(selectedCluster);
+    if (cluster) {
+      onClusterChange(cluster);
     }
-  }, [clusters, onClusterChange, selectedCluster]);
+  }, [clusters, onClusterChange, cluster]);
 
   if (cluster === undefined) {
     return null;
@@ -65,10 +65,10 @@ const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps>
       select
       label="Cluster"
       helperText={helperText}
-      value={cluster}
-      onChange={onChange}
       variant="filled"
       {...props}
+      value={cluster}
+      onChange={onChange}
     >
       {//const filterclusters = clusters.filter((cluster)=>(boolean)cluster["admin"]);
         clusters && _.map(clusters,'id').map(cluster => (
