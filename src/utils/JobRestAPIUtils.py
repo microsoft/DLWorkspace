@@ -1341,6 +1341,9 @@ def get_job_priorities():
 
 
 def update_job_priorites(username, job_priorities):
+    if job_priorities is None:
+        return "Invalid payload", 400
+
     data_handler = None
     try:
         data_handler = DataHandler()
@@ -1375,8 +1378,8 @@ def update_job_priorites(username, job_priorities):
             return "Internal DB error", 400
         return pending_jobs, 200
 
-    except Exception as e:
-        logger.error("Exception when updating job priorities: %s" % e)
+    except Exception:
+        logger.exception("Failed to update job priorities %s.", job_priorities)
 
     finally:
         if data_handler is not None:

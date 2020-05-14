@@ -805,15 +805,23 @@ def test_job_priority(args):
                                                  args.uid,
                                                  args.vc)
     with utils.run_job(args.rest, job_spec) as job:
+        # wait until running to avoid state change race
+        state = job.block_until_state_not_in({"unapproved", "queued"})
+        assert state in ["scheduling", "running"]
+
+        # invalid payload
+        resp = utils.set_job_priorities(args.rest, args.email, None)
+        assert resp.status_code == 400
+
+        # unauthorized user cannot change priority
         resp = utils.set_job_priorities(args.rest, "unauthorized_user",
                                         {job.jid: 101})
         assert resp.status_code == 403
-        # priority unchanged
         priority = utils.get_job_priorities(args.rest)[job.jid]
         assert priority == 100
 
+        # job owner can change priority
         resp = utils.set_job_priorities(args.rest, args.email, {job.jid: 101})
         assert resp.status_code == 200
-        # priority changed by user
         priority = utils.get_job_priorities(args.rest)[job.jid]
         assert priority == 101

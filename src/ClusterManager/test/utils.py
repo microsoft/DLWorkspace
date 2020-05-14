@@ -474,7 +474,7 @@ def set_job_priorities(rest_url, email, priorities):
         "userName": email,
     })
     url = urllib.parse.urljoin(rest_url, "/jobs/priorities") + "?" + args
-    resp = requests.post(url, data=json.dumps(priorities))
+    resp = requests.post(url, json=priorities)
     return resp
 
 
