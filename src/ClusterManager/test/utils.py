@@ -462,6 +462,22 @@ def set_job_insight(rest_url, email, job_id, insight):
     return resp
 
 
+def get_job_priorities(rest_url):
+    """This retrieves priorities of all active jobs"""
+    url = urllib.parse.urljoin(rest_url, "/jobs/priorities")
+    resp = requests.get(url)
+    return resp.json()
+
+
+def set_job_priorities(rest_url, email, priorities):
+    args = urllib.parse.urlencode({
+        "userName": email,
+    })
+    url = urllib.parse.urljoin(rest_url, "/jobs/priorities") + "?" + args
+    resp = requests.post(url, json=priorities)
+    return resp
+
+
 class run_job(object):
     def __init__(self, rest_url, job_spec):
         self.rest_url = rest_url
