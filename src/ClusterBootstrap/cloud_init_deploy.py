@@ -229,7 +229,15 @@ def load_default_config(config):
 
         "nfs": ["./scripts/cloud_init_nfs.sh"],
 
-        "lustre_server": ["./deploy/storage/auto_share/setup_lustre.sh"]}
+        "lustre_server": [
+            "./deploy/kubelet/" + config["preworkerdeploymentscript"],
+            "./deploy/kubelet/" + config["postworkerdeploymentscript"],
+            "./scripts/cloud_init_lustre.sh",
+            "./scripts/prepare_lustre_centos.sh",
+            "./deploy/storage/auto_share/setup_lustre.sh",
+            "./deploy/cloud-config/lustre.kubelet.service.template"
+        ]
+    }
 
     config["repair-manager"]["cluster_name"] = config["cluster_name"]
     config["prometheus"]["cluster_name"] = config["cluster_name"]
@@ -577,6 +585,8 @@ def render_mdt_node_specific(config, args):
     mdt_node_name = config["mdt_node"][0].split(".")[0]
     mdt_spec = config["machines"][mdt_node_name]
     config["data_disk_mnt_path"] = mdt_spec["data_disk_mnt_path"]
+    config["kube_labels"] = get_kube_labels_of_machine_name(
+        config, mdt_node_name)
     utils.render_template("./template/cloud-config/cloud_init_lustre.txt.template",
         "./deploy/cloud-config/cloud_init_{}.txt".format(mdt_node_name), config)
     config["mgs_node_private_ip"] = mdt_spec["private_ip"]
@@ -612,7 +622,8 @@ def render_oss_node_specific(config, args):
 def render_lustre_node_specific(config, args):
     assert config["priority"] in ["regular", "low"]
     config = escaped_etcd_end_point_and_k8s_api_server(config)
-    config["file_modules_2_copy"] = ["lustre_server"]
+    config["file_modules_2_copy"] = [
+        "kubernetes_common", "kubelet_worker", "lustre_server"]
     config = render_mdt_node_specific(config, args)
     config = render_oss_node_specific(config, args)
 
@@ -990,7 +1001,7 @@ def render_kube_services(config):
     utils.render_template_directory(
         "./services/", "./deploy/services/", config)
     config['labels'] = ["{{cnf['labels'] | join(',')}}"]
-    for role in ["infra", "worker"]:
+    for role in ["infra", "worker", "lustre"]:
         utils.render_template("template/cloud-config/{}.kubelet.service.template".format(role),
                               "./deploy/cloud-config/{}.kubelet.service.template".format(role), config)
 

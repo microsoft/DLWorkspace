@@ -25,7 +25,8 @@ runcmd:
  # pull docker and install Lustre service kits
  - curl -fsSL https://get.docker.com -o get-docker.sh; sh get-docker.sh
  - sudo usermod -aG docker {{cnf["lustre_user"]}}
- - sudo service docker start
+ - sudo systemctl start docker
+ - sudo systemctl enable docker
  - sudo setfacl -m user:{{cnf["lustre_user"]}}:rw /var/run/docker.sock
  {% if "private_docker_registry" in cnf and "cloudinit" in cnf["private_docker_registry"] %}
  {% set cldinit_regname = cnf["private_docker_registry"]["cloudinit"] %}
@@ -39,5 +40,5 @@ runcmd:
  - docker cp bootpack:/usr/cloudinit.tar ./
  - tar -xvf cloudinit.tar
  - cd cloudinit
- - sudo bash ./setup_lustre.sh
+ - sudo bash ./cloud_init_lustre.sh
 output: {all: '| tee -a /home/{{cnf["lustre_user"]}}/cloud-init-output.log'}

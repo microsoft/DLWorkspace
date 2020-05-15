@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: lustre-exporter
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: lustre-exporter
+  template:
+    metadata:
+      labels:
+        app: lustre-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "{{cnf["lustre-exporter"]["port"]}}"
+      name: lustre-exporter
+    spec:
+      nodeSelector:
+        lustre: active
+      containers:
+      - image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/lustre-exporter:{{cnf["dockertag"]}}
+        imagePullPolicy: Always
+        args:
+        - '/lustre_exporter'
+        - '--web.listen-address=:{{cnf["lustre-exporter"]["port"]}}'
+        readinessProbe:
+          tcpSocket:
+            port: {{cnf["lustre-exporter"]["port"]}}
+          initialDelaySeconds: 3
+          periodSeconds: 30
+          timeoutSeconds: 10
+        resources:
+          limits:
+            memory: "128Mi"
+        name: lustre-exporter
+        ports:
+        - containerPort: {{cnf["lustre-exporter"]["port"]}}
+          hostPort: {{cnf["lustre-exporter"]["port"]}}
+          name: scrape
+        volumeMounts:
+        - name: host-root
+          mountPath: /host-root/
+          readOnly: true
+      volumes:
+      - name: host-root
+        hostPath:
+          path: /
+      hostNetwork: true
+      tolerations:
+      - key: node.kubernetes.io/memory-pressure
+        operator: "Exists"
+      - key: node.kubernetes.io/disk-pressure
+        operator: "Exists"
+      - key: node-role.kubernetes.io/master
+        operator: "Exists"

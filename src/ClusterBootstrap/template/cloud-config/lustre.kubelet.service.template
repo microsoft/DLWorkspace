@@ -1,0 +1,50 @@
+[Unit]
+Description=Kubelet
+# don't wait for nvidia-driver and nvidia-docker when deploy on philly
+#After=network.target nvidia-driver.service 
+#Requires=nvidia-driver.service 
+{% if cnf["kube_custom_cri"] %}
+After=kubecri.service
+PartOf=kubecri.service
+{% endif %}
+
+[Service]
+# failed to work:Environment="KUBELET_EXTRA_ARGS=--node-labels=role=worker"
+TimeoutSec=60min
+ExecStartPre=/bin/bash -c 'mkdir -p /etc/kubernetes/manifests'
+ExecStartPre=/bin/bash -c 'mkdir -p /var/log/containers'
+# wait 60 seconds and then start kubelet - let system fully boot up. 
+ExecStartPre=/bin/bash -c 'sleep {{cnf["kubepresleep"]}}'
+# don't wait for nvidia-driver and nvidia-docker when deploy on philly
+ExecStartPre=/bin/bash -c 'if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VGA compatible) controller: NVIDIA Corporation.*" ; then  if [ -e /etc/systemd/system/nvidia-docker.service ] ; then until wget -q -O - http://localhost:3476/gpu/info ; do /bin/echo "waiting for nvidia-docker..." ; /bin/sleep 2 ; done fi fi'
+# 
+# https://github.com/kubernetes/kubernetes/issues/48937
+# Glusterfs currently need docker-disable-shared-pid option, will evaluate in future kubernete release
+# 
+# https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/
+#
+# On centos, --feature-gates="DevicePlugins=true,PodShareProcessNamespace=true" causes parsing error
+# invalid argument "\"DevicePlugins=true,PodShareProcessNamespace=true\"" for "--feature-gates" flag: invalid value of PodShareProcessNamespace: true", err: strconv.ParseBool: parsing "true\"": invalid syntax
+ExecStart=/opt/bin/kubelet \
+  --volume-plugin-dir=/etc/kubernetes/volumeplugins \
+  --container-runtime={{'remote' if cnf["kube_custom_cri"] else 'docker'}} \
+  --enable-server=true \
+  --register-node=true \
+  --fail-swap-on=false \
+  --pod-manifest-path=/etc/kubernetes/manifests \
+  --pod-infra-container-image={{cnf["dockers"]["container"]["podinfra"]["fullname"]}} \
+  --network-plugin=cni \
+  --node-labels=$KUBE_LABELS \
+  --cluster_dns={{cnf["dns-server-ip"]}} \
+  --cluster_domain=cluster.local \
+  --tls-cert-file=/etc/kubernetes/ssl/worker.pem \
+  --tls-private-key-file=/etc/kubernetes/ssl/worker-key.pem \
+  {{'--log-dir='~cnf["kubeletlogdir"]~'/kubelet --logtostderr=false' if "kubeletlogdir" in cnf}} \
+  {{'--v='~cnf["kubeletloglevel"] if "kubeletloglevel" in cnf}} \
+  --kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml
+
+#ExecStop=-/usr/bin/rkt stop --uuid-file=/var/run/kubelet-pod.uuid
+Restart=always
+RestartSec=10
+[Install]
+WantedBy=multi-user.target
