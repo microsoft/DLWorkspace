@@ -7,6 +7,7 @@ from email.mime.nonmultipart import MIMENonMultipart
 from email.charset import Charset, BASE64
 import logging
 import base64
+import quopri
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,14 @@ class Attachment(object):
             "ContentSubType": self.content_subtype,
             "FileName": self.filename
         }
+
+    @classmethod
+    def from_email_message(cls, msg):
+        content = msg.get_payload() # let it remain base64 enconde
+        main_type = msg.get_content_maintype()
+        sub_type = msg.get_content_subtype()
+        filename = msg.get_filename()
+        return cls(content, main_type, sub_type, filename)
 
     def to_email_message(self):
         att = MIMENonMultipart(self.content_type,
@@ -80,6 +89,32 @@ class Payload(object):
     @staticmethod
     def _is_empty(val):
         return val is None or len(val) == 0
+
+    @classmethod
+    def from_email_message(cls, msg): # msg is type of email.message.Message
+        to = msg["To"]
+        cc = msg["CC"]
+        bcc = msg["BCC"]
+        # ignore From
+        subject = msg["Subject"]
+
+        content = msg.get_payload()
+        body = content[0]
+        body_type = body.get_content_subtype()
+        charset = body.get_charset() or "utf-8"
+        encoding = body.get("Content-Transfer-Encoding")
+        if encoding == "base64":
+            actual_body = base64.b64decode(body.get_payload()).decode(charset)
+        elif encoding == "quoted-printable":
+            actual_body = quopri.decodestring(
+                body.get_payload()).decode(charset)
+        else:
+            actual_body = body.get_payload()
+
+        attachments = [
+            Attachment.from_email_message(att) for att in content[1:]
+        ]
+        return cls(to, cc, bcc, subject, actual_body, body_type, attachments)
 
     @classmethod
     def deserialize(cls, payload):
