@@ -35,8 +35,8 @@ import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
 import { formatBytes } from '../../utils/formats';
 
-const getPieColor = (ratio: number) => colors.deepOrange[
-  clamp(Math.floor(ratio * 10), .5, 9) * 100 as keyof typeof colors.deepOrange
+const getPieColor = (ratio: number) => colors.red[
+  clamp(Math.floor(ratio * 10), .5, 9) * 100 as keyof typeof colors.red
 ];
 
 interface StoragesContentProps {
