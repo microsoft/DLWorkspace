@@ -3,7 +3,7 @@ const _ = require('lodash')
 
 const {
   PUPPETEER_HEADLESS,
-  PUPPETEER_USER_DATA_DIR,
+  PUPPETEER_USER_DATA_DIR = '.puppeteer',
   DLTS_DASHBOARD_URL,
   DLTS_CLUSTER_ID
 } = process.env
