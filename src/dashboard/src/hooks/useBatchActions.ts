@@ -3,7 +3,7 @@ import { useSnackbar } from 'notistack';
 import { Action } from 'material-table';
 
 import useConfirm from './useConfirm';
-import { Check, Pause, PlayArrow } from '@material-ui/icons';
+import { Check, Clear, Pause, PlayArrow } from '@material-ui/icons';
 
 const APPROVABLE_STATUSES = [
   'unapproved'
@@ -162,7 +162,7 @@ const useBatchActions = (clusterId: string) => {
     const hidden = !Array.isArray(jobs) || jobs.some(job => KILLABLE_STATUSES.indexOf(job['jobStatus']) === -1);
     return {
       hidden,
-      icon: () => createElement(Pause),
+      icon: () => createElement(Clear),
       tooltip: 'Kill',
       onClick: onBatchKill
     }
