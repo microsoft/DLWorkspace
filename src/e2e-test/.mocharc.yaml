@@ -1,0 +1,4 @@
+require:
+- dotenv/config
+- should
+timeout: false
