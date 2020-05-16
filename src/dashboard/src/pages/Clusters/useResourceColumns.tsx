@@ -10,31 +10,10 @@ import { More } from '@material-ui/icons';
 import { Column } from 'material-table';
 import { capitalize, get } from 'lodash';
 
+import { formatBytes, formatFloat } from '../../utils/formats';
+
 export type ResourceType = 'cpu' | 'gpu' | 'memory';
 export type ResourceKind = 'total' | 'unschedulable' | 'used' | 'preemptable' | 'available';
-
-export const humanBytes = (bytes: number) => {
-  if (bytes >= 1024 * 1024 * 1024 * 1024) {
-    return (bytes / 1024 / 1024 / 1024 / 1024).toFixed(1) + ' TiB'
-  }
-  if (bytes >= 1024 * 1024 * 1024) {
-    return (bytes / 1024 / 1024 / 1024).toFixed(1) + ' GiB'
-  }
-  if (bytes >= 1024 * 1024) {
-    return (bytes / 1024 / 1024).toFixed(1) + ' MiB'
-  }
-  if (bytes >= 1024) {
-    return (bytes / 1024).toFixed(1) + ' KiB'
-  }
-  if (isNaN(bytes)) {
-    return '0 B'
-  }
-  return bytes + ' B'
-}
-
-export const humanFloat = (number: number) => {
-  return String(Math.floor(number * 100) / 100);
-}
 
 const useResourceColumns = (kinds: ResourceKind[]) => {
   const theme = useTheme();
@@ -54,7 +33,7 @@ const useResourceColumns = (kinds: ResourceKind[]) => {
 
     for (const title of ['CPU', 'GPU', 'Memory']) {
       const type = title.toLowerCase() as ResourceType;
-      const process = type === 'memory' ? humanBytes : humanFloat;
+      const process = type === 'memory' ? formatBytes : formatFloat;
       const style = { backgroundColor: typeColor[type] };
       columns.push({
         title: (

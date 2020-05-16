@@ -32,17 +32,10 @@ import {
 import usePrometheus from '../../../hooks/usePrometheus';
 import TeamContext from '../../../contexts/Team';
 import UserContext from '../../../contexts/User';
+import { formatBytes, formatPercent } from '../../../utils/formats';
 import { useCluster } from './Context';
 
 const LIST_ITEM_HEIGHT = 64;
-
-const humanBytes = (bytes: number) => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KiB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MiB`;
-  if (bytes < 1024 * 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GiB`;
-  return `${(bytes / 1024 / 1024 / 1024 / 1024).toFixed(2)} TiB`;
-};
 
 const joinPath = (...paths: string[]) => paths
   .filter(Boolean).map(path => path.replace(/^\/|\/$/g, '')).join('/')
@@ -134,18 +127,18 @@ const StorageList: FunctionComponent = () => {
         const href = getMountpointUrl(containerPath);
         const tooltipTitle = <><code>{href}</code><br/>Click to copy to clipboard</>;
         const primary = <code>{containerPath}</code>;
-        const percent = loading ? 0 : 100 - available * 100 / size;
+        const ratio = loading ? 0 : 1 - available / size;
         const secondary = (
           <>
             <LinearProgress
               variant="determinate"
-              value={percent}
-              color={percent > 80 ? 'secondary' : 'primary'}
+              value={ratio * 100}
+              color={ratio > .8 ? 'secondary' : 'primary'}
             />
             {
               loading
                 ? 'Loading...'
-                : `${humanBytes(size - available)} / ${humanBytes(size)} (${percent.toFixed(0)}%)`
+                : `${formatBytes(size - available)} / ${formatBytes(size)} (${formatPercent(ratio, 0)})`
             }
 
           </>
