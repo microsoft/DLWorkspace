@@ -112,9 +112,7 @@ def send_email(smtp, recipients, cc, subject, content, csv_reports):
     # Create the body of the message (a plain-text version).
     content = content.encode(ENCODING)
     content = MIMEText(content, "plain", _charset=ENCODING)
-    body = MIMEMultipart("alternative")
-    body.attach(content)
-    full_email.attach(body)
+    full_email.attach(content)
 
     # Create the attachment of the message in text/csv.
     for report in csv_reports:

@@ -6,10 +6,6 @@ import json
 import logging
 import smtpd
 import asyncore
-from email.parser import BytesParser
-import pickle # TODO
-
-import payload
 
 import pika
 
@@ -48,13 +44,7 @@ class CustomSMTPServer(smtpd.SMTPServer):
 
     def process_message(self, peer, mailfrom, rcpttos, data, **kwargs):
         try:
-            parser = BytesParser()
-            msg = parser.parsebytes(data)
-            pickle.dump(msg, open("save.p", "wb"))
-            load = payload.Payload.from_email_message(msg)
-
-            put_message(self.queue_host, self.queue_cred, self.queue_name,
-                        load.serialize())
+            put_message(self.queue_host, self.queue_cred, self.queue_name, data)
         except Exception:
             logger.exception("failed to handle email %s", data)
 
