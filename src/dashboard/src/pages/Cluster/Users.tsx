@@ -23,6 +23,7 @@ import {
 } from 'material-table';
 
 import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
+import CaptionColumnTitle from '../../components/CaptionColumnTitle';
 import TeamContext from '../../contexts/Team';
 import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
@@ -123,37 +124,34 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
         </Tooltip>
       )
   }, {
-    title: 'CPU',
+    title: <CaptionColumnTitle caption="Used (Preemptable)">CPU</CaptionColumnTitle>,
     field: 'status.cpu.used',
-    tooltip: 'Used (Preemptable)',
     render: ({ status }) => status && (
       <>
         {get(status, ['cpu', 'used'], 0)}
-        {`(${get(status, ['cpu', 'preemptable'], 0)})`}
+        {` (${get(status, ['cpu', 'preemptable'], 0)})`}
       </>
     ),
     searchable: false,
     width: 'auto'
   } as Column<any>, {
-    title: 'GPU',
+    title: <CaptionColumnTitle caption="Used (Preemptable)">GPU</CaptionColumnTitle>,
     field: 'status.gpu.used',
-    tooltip: 'Used (Preemptable)',
     render: ({ status }) => status && (
       <>
         {get(status, ['gpu', 'used'], 0)}
-        {`(${get(status, ['gpu', 'preemptable'], 0)})`}
+        {` (${get(status, ['gpu', 'preemptable'], 0)})`}
       </>
     ),
     searchable: false,
     width: 'auto'
   } as Column<any>, {
-    title: 'Memory',
+    title: <CaptionColumnTitle caption="Used (Preemptable)">Memory</CaptionColumnTitle>,
     field: 'status.memory.used',
-    tooltip: 'Used (Preemptable)',
     render: ({ status }) => status && (
       <>
         {formatBytes(get(status, ['memory', 'used'], 0))}
-        {`(${formatBytes(get(status, ['memory', 'preemptable'], 0))})`}
+        {` (${formatBytes(get(status, ['memory', 'preemptable'], 0))})`}
       </>
     ),
     searchable: false,
@@ -169,19 +167,13 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
     ),
     width: 'auto'
   } as Column<any>, {
-    title: 'Booked GPU Last 30 days',
+    title: <CaptionColumnTitle caption="Last 30 days">Booked GPU</CaptionColumnTitle>,
     field: 'gpu.booked',
     type: 'numeric',
     render: (data) => <>{humanHours(get(data, 'gpu.booked'))}</>,
     width: 'auto'
   } as Column<any>, {
-    title: 'Idle GPU Last 30 days',
-    field: 'gpu.idle',
-    type: 'numeric',
-    render: (data) => <>{humanHours(get(data, 'gpu.idle'))}</>,
-    width: 'auto'
-  } as Column<any>, {
-    title: 'Idle GPU % Last 30 days',
+    title: <CaptionColumnTitle caption="Last 30 days">Idle GPU (%)</CaptionColumnTitle>,
     field: 'gpu.idle',
     type: 'numeric',
     render: (data) => {
@@ -190,15 +182,21 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
       const booked = get(data, 'gpu.booked', 0);
       const idle = get(data, 'gpu.idle', 0);
 
-      if (booked === 0) return <>N/A</>;
+      if (booked === 0) return <>{humanHours(idle)}</>;
 
-      const ratio = idle / booked;
-      const percent = formatPercent(ratio, 1)
-      if (ratio > .5) {
-        return <Typography variant="inherit" color="error">{percent}</Typography>
+      const percent = (idle / booked) * 100;
+      if (percent > 50) {
+        return (
+          <>
+            {humanHours(idle)}
+            {" ("}
+            <Typography variant="inherit" color="error">{formatPercent(percent, 1)}%</Typography>
+            )
+          </>
+        );
       }
 
-      return <>{percent}</>;
+      return <>{humanHours(idle)}{" ("}{formatPercent(percent, 1)}%)</>;
     },
     width: 'auto'
   } as Column<any>]).current;

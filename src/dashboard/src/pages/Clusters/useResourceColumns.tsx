@@ -10,6 +10,7 @@ import { More } from '@material-ui/icons';
 import { Column } from 'material-table';
 import { capitalize, get } from 'lodash';
 
+import CaptionColumnTitle from '../../components/CaptionColumnTitle';
 import { formatBytes, formatFloat } from '../../utils/formats';
 
 export type ResourceType = 'cpu' | 'gpu' | 'memory';
@@ -40,12 +41,14 @@ const useResourceColumns = (kinds: ResourceKind[]) => {
           <TableSortLabel
             active
             IconComponent={More}
+            direction="desc"
             onClick={() => setExpandedResourceType(type)}
           >
-            {title}
+            <CaptionColumnTitle caption="Used/Total">
+              {title}
+            </CaptionColumnTitle>
           </TableSortLabel>
         ),
-        tooltip: 'Expand',
         hidden: !expandable || expandedResourceType === type,
         headerStyle: { whiteSpace: 'nowrap', ...style },
         cellStyle: { whiteSpace: 'nowrap', ...style },
@@ -58,13 +61,15 @@ const useResourceColumns = (kinds: ResourceKind[]) => {
         ),
         sorting: false,
         searchable: false,
-        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-        // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
         width: 'auto'
-      });
+      } as Column<any>);
       for (const kind of kinds) {
         columns.push({
-          title: `${title} ${capitalize(kind)}`,
+          title: (
+            <CaptionColumnTitle caption={capitalize(kind)}>
+              {title}
+            </CaptionColumnTitle>
+          ),
           type: 'numeric',
           field: `status.${type}.${kind}`,
           hidden: expandable && expandedResourceType !== type,
@@ -73,10 +78,8 @@ const useResourceColumns = (kinds: ResourceKind[]) => {
           ),
           headerStyle: style,
           cellStyle: style,
-          // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-          // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
           width: 'auto'
-        });
+        } as Column<any>);
       }
     }
     return columns;
