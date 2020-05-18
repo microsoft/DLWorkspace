@@ -1,4 +1,5 @@
-import React, {useEffect, useMemo, useState} from "react";
+import * as React from 'react';
+import {useEffect, useMemo, useState} from "react";
 import { Link } from "react-router-dom";
 import useFetch from "use-http";
 import Table from '@material-ui/core/Table';
@@ -44,7 +45,8 @@ import copy from 'clipboard-copy'
 import {checkObjIsEmpty, sumValues} from "../../../utlities/ObjUtlities";
 import {DLTSSnackbar} from "../../CommonComponents/DLTSSnackbar";
 
-import _ from "lodash";
+import * as _ from "lodash";
+
 const useStyles = makeStyles((theme: Theme) => createStyles({
   avatar: {
     backgroundColor: theme.palette.secondary.main,
@@ -400,10 +402,8 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
     },
   })(LinearProgress);
 
-  console.log(nfsStorage)
-
   const processedNfsStorage = useMemo(() => {
-    return _(nfsStorage).map((nfs: any) => {
+    return _.chain(nfsStorage).map((nfs: any) => {
       const {
         mountpointName,
         total,

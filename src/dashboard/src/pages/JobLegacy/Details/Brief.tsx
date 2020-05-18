@@ -1,4 +1,5 @@
-import React, {Fragment, useCallback, useContext, useState} from 'react';
+import * as React from 'react';
+import {Fragment, useCallback, useContext, useState} from 'react';
 import {
   Button,
   Card,

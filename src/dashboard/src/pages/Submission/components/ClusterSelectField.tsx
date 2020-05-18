@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from 'react';
 
 import { MenuItem, TextField } from "@material-ui/core";
 import { BaseTextFieldProps } from "@material-ui/core/TextField";
@@ -6,7 +6,7 @@ import { BaseTextFieldProps } from "@material-ui/core/TextField";
 import ClustersContext from "../../../contexts/Clusters";
 import TeamContext from "../../../contexts/Team";
 import useFetch from "use-http";
-import _ from "lodash";
+import * as _ from "lodash";
 import {sumValues} from "../../../utlities/ObjUtlities";
 
 interface ClusterSelectFieldProps {

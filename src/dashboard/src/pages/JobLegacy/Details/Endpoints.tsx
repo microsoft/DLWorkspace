@@ -1,4 +1,5 @@
-import React, { useContext, useEffect, useState, useCallback, useRef } from 'react';
+import * as React from 'react';
+import { useContext, useEffect, useState, useCallback, useRef } from 'react';
 
 import {
   Card,
@@ -133,7 +134,7 @@ const Controller: React.FC<ControllerProps> = ({ endpoints, post, status }) => {
   const [sshEnabled, setSshEnabled] = useState(false);
   const [ipythonEnabled, setIpythonEnabled] = useState(false);
   const [tensorboardEnabled, setTensorboardEnabled] = useState(false);
-  const [interactivePort, setInteractivePort] = useState();
+  const [interactivePort, setInteractivePort] = useState<number>();
 
   const onSshChange = useCallback((event: unknown, checked: boolean) => {
     if (checked) {
@@ -195,7 +196,7 @@ const Controller: React.FC<ControllerProps> = ({ endpoints, post, status }) => {
         required
         fullWidth
         variant="outlined"
-        error={interactivePort < 40000 || interactivePort > 49999 }
+        error={interactivePort !== undefined && (interactivePort < 40000 || interactivePort > 49999) }
         label="New Interactive Port (40000-49999)"
         value={interactivePort}
         onSubmit={submitInteractivePort}
