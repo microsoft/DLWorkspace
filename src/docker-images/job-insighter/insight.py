@@ -569,9 +569,9 @@ if __name__ == "__main__":
                         help="Prometheus url, eg: http://localhost:9091")
     parser.add_argument("--mins_ago",
                         "-a",
-                        default=1,
+                        default=15,
                         type=int,
-                        help="Collect metrics since hours ago. Default: 15")
+                        help="Collect metrics since minutes ago. Default: 15")
     parser.add_argument("--restful_url",
                         "-r",
                         required=True,
