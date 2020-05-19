@@ -1,6 +1,8 @@
-import React, {
+import * as React from 'react';
+import {
   FunctionComponent,
-  useContext} from 'react';
+  useContext
+} from 'react';
 
 import {
   Card,

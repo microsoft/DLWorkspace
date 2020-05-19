@@ -1,4 +1,5 @@
-import React, { useContext, FunctionComponent } from 'react';
+import * as React from 'react';
+import { useContext, FunctionComponent } from 'react';
 import { Column } from 'material-table';
 
 import JobStatus from '../../../../components/JobStatus';

@@ -1,4 +1,5 @@
-import React, { ReactElement, FunctionComponent, useMemo, useEffect } from 'react';
+import * as React from 'react';
+import { ReactElement, FunctionComponent, useMemo, useEffect } from 'react';
 import { capitalize, noop } from 'lodash';
 import {
   // colors,

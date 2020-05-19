@@ -1,4 +1,5 @@
-import React, {FC, useEffect, useState} from "react";
+import * as React from 'react';
+import {FC, useEffect, useState} from "react";
 import SwipeableViews from 'react-swipeable-views';
 import {
   Typography,
@@ -14,7 +15,7 @@ import TeamContext from "../../contexts/Team";
 import ClusterContext from '../../contexts/Clusters';
 import useFetch from "use-http";
 
-import _ from "lodash";
+import * as _ from "lodash";
 import { mergeTwoObjsByKey, convertToArrayByKey } from '../../utlities/ObjUtlities';
 import {handleChangeIndex} from "../../utlities/interactionUtlties";
 import {DLTSTabs} from "../CommonComponents/DLTSTabs";

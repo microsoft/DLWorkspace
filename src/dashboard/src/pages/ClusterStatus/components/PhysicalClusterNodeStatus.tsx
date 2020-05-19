@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from 'react';
 import {
   CircularProgress,
   createMuiTheme,
@@ -30,8 +30,9 @@ const tableTheme = createMuiTheme({
 export const PhysicalClusterNodeStatus = (props: PhClusterNSType) => {
   const theme = useTheme();
   const {nodeStatus} = props;
+  const checkIsDesktop = useCheckIsDesktop()
   return (
-    <MuiThemeProvider theme={useCheckIsDesktop ? theme : tableTheme}>
+    <MuiThemeProvider theme={checkIsDesktop ? theme : tableTheme}>
       {
         nodeStatus ?  <SvgIconsMaterialTable
           title=""
