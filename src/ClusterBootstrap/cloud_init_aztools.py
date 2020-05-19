@@ -212,12 +212,30 @@ def validate_machine_spec(config, spec):
         assert spec["number_of_instance"] <= 1, "cannot overwirte name for multiple machines one time!"
     if "nfs" in spec["role"]:
         assert spec["number_of_instance"] <= 1, "NFS machine spec must be configured one by one!"
+    if "lustre" in spec["role"]:
+        assert "managed_disks" in spec, "managed_disks must be specified for lustre nodes!"
+
+
+def get_lustre_init_ID():
+    if not os.path.exists(STATUS_YAML):
+        return 0
+    with open(STATUS_YAML) as f:
+        status_cnf = yaml.safe_load(f)
+    lustre_nodes, _ = load_node_list_by_role_from_config(status_cnf, "lustre", False)
+    start_id_and_disks_num = []
+    for node in lustre_nodes:
+        disk_specs = status_cnf["machines"][node]["managed_disks"]
+        # init_id = status_cnf["machines"][node]["lustre_init_disk_id"]
+        nums = [dsk["disk_num"] for dsk in disk_specs if "is_os" not in dsk]
+        start_id_and_disks_num += nums
+    return sum([0]+start_id_and_disks_num)
 
 
 def gen_machine_list_4_deploy_action(complementary_file_name, config):
     """based on info from config.yaml, generate the expected machine names etc."""
     cc = {}
     cc["machines"] = {}
+    lustre_init_ID = get_lustre_init_ID()
     for spec in config["azure_cluster"]["virtual_machines"]:
         validate_machine_spec(config, spec)
         for i in range(spec["number_of_instance"]):
@@ -240,6 +258,12 @@ def gen_machine_list_4_deploy_action(complementary_file_name, config):
                     if role in config["default_kube_labels_by_node_role"]:
                         cc["machines"][vmname]["kube_label_groups"].append(
                             role)
+            if "lustre" in spec["role"]:
+                cc["machines"][vmname]["init_disk_id"] = lustre_init_ID
+                disk_specs = spec["managed_disks"]
+                disks = [dsk["disk_num"] for dsk in disk_specs 
+                                            if "is_os" not in dsk]
+                lustre_init_ID += sum(disks)
     if complementary_file_name is not None:
         complementary_file_name = ACTION_YAML if complementary_file_name == '' else complementary_file_name
         with open(complementary_file_name, 'w') as outfile:

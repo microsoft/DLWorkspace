@@ -16,7 +16,15 @@ runcmd:
  - echo "export KUBE_API_SERVER='{{cnf["escaped_api_servers"]}}'" >> boot.env
  - echo "export MOD_2_CP='{{cnf["file_modules_2_copy"] | join(';')}}'" >> boot.env
  - echo "export MGS_NODE_PRIVATE_IP='{{cnf["mgs_node_private_ip"]}}'" >> boot.env
-{% if "mdt_id" in cnf %}
+ - echo "export LUSTRE_FS_NAME='{{cnf["lustre_fs"]}}'" >> boot.env
+{% if "mgs_id" in cnf or "mdt_id" in cnf %}
+ - echo "export SOFT_USR_QUOTA={{cnf["user_soft_quota"]}}" >> boot.env
+ - echo "export HARD_USR_QUOTA={{cnf["user_hard_quota"]}}" >> boot.env
+ - echo "export USR_GRACE_PERIOD={{cnf["user_grace_period"]}}" >> boot.env
+{% endif %}
+{% if "mgs_id" in cnf %}
+ - echo "export MGS_ID={{cnf["mgs_id"]}}" >> boot.env
+{% elif "mdt_id" in cnf %}
  - echo "export MDT_ID={{cnf["mdt_id"]}}" >> boot.env
 {% endif %}
 {% if "oss_id" in cnf %}

@@ -4,7 +4,7 @@ default_config_parameters = {
     "allroles": {
         "infra", "infrastructure", "worker", "nfs", "sql", "dev", "etcd",
         "kubernetes_master", "mysqlserver", "elasticsearch", "samba", "lustre",
-        "mdt", "oss"
+        "mdt", "oss", "mgs"
     },
     # Kubernetes setting
     "service_cluster_ip_range": "10.3.0.0/16",
@@ -816,6 +816,7 @@ default_config_parameters = {
     "vc_config": {
         "VC-Default": ["*"],
     },
+    "storage_quota": {"user_soft": "2G", "user_hard": "3G", "user_grace_period": "1w"}, 
     "registry_credential": {},
     "priority": "regular",
     "service_2_docker_map": {
