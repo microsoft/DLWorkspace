@@ -119,6 +119,11 @@ class LustreMetric(object):
         return str(self.__dict__)
 
 
+def gen_lustre_gauge(lmetric, labels):
+    return GaugeMetricFamily("lustre_" + lmetric.name, lmetric.desc,
+                             labels=labels)
+
+
 def lctl_get_param(pattern):
     cmd = None
     try:
@@ -203,7 +208,8 @@ def get_component_and_target(key):
 
 def parse_single_metrics(content, lmetric):
     labels = ["server", "role", "component", "target"]
-    gauge = GaugeMetricFamily(lmetric.name, lmetric.desc, labels=labels)
+    gauge = gen_lustre_gauge(lmetric, labels=labels)
+
     for key, data in content.items():
         try:
             value_str = data.split("=")[-1]
@@ -223,7 +229,7 @@ def parse_single_metrics(content, lmetric):
 
 def parse_stats_metrics(content, lmetric):
     labels = ["server", "role", "component", "target", "operation"]
-    gauge = GaugeMetricFamily(lmetric.name, lmetric.desc, labels=labels)
+    gauge = gen_lustre_gauge(lmetric, labels=labels)
 
     metric_regex_group_indices = stats_regex_group_indices[lmetric.name]
     if not isinstance(metric_regex_group_indices, list):
@@ -251,7 +257,7 @@ def parse_stats_metrics(content, lmetric):
 
 def parse_lmetric(content, lmetric):
     if content is None:
-        return []
+        return None
 
     content = group_content(content)
 
@@ -282,8 +288,10 @@ def get_lustre_gauges():
     # Parse metrics fro each lctl param pattern call
     for pattern, lmetrics in pattern_to_lmetrics.items():
         content = lctl_get_param(pattern)
-        gauges.extend(
-            [parse_lmetric(content, lmetric) for lmetric in lmetrics])
+        for lmetric in lmetrics:
+            gauge = parse_lmetric(content, lmetric)
+            if gauge:
+                gauges.append(gauge)
 
     return gauges
 
