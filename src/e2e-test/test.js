@@ -1,5 +1,4 @@
 const puppeteer = require('puppeteer')
-const _ = require('lodash')
 
 const {
   PUPPETEER_HEADLESS,
