@@ -1,9 +1,9 @@
 const puppeteer = require('puppeteer')
-const _ = require('lodash')
 
 const {
   PUPPETEER_HEADLESS,
   PUPPETEER_USER_DATA_DIR = '.puppeteer',
+  PUPPETEER_SCREENSHOT_FILE,
   DLTS_DASHBOARD_URL,
   DLTS_CLUSTER_ID
 } = process.env
@@ -36,6 +36,7 @@ describe('Deep Learning Training Service', function () {
     it('sign in', async function () {
       this.timeout('1m')
       await page.goto(DLTS_DASHBOARD_URL)
+      await page.setViewport({ width: 1920, height: 1080 })
 
       await (
         await page.waitForSelector('a[href^="/api/authenticate"]')
@@ -106,10 +107,9 @@ describe('Deep Learning Training Service', function () {
     })
 
     afterEach(async function () {
-      if (this.currentTest && this.currentTest.err) {
-        const filename = _.snakeCase(`${new Date().toISOString()}_${this.currentTest.fullTitle()}`)
+      if (PUPPETEER_SCREENSHOT_FILE && this.currentTest && this.currentTest.err) {
         await page.screenshot({
-          path: `${PUPPETEER_USER_DATA_DIR}/${filename}.png`,
+          path: PUPPETEER_SCREENSHOT_FILE,
           fullPage: true
         })
       }
