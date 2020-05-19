@@ -80,16 +80,17 @@
     "nock": "^11.4.0",
     "nodemon": "^1.19.1",
     "nyc": "^14.1.1",
-    "react-scripts": "^3.0.1",
+    "react-scripts": "^3.4.1",
     "should": "^13.2.3",
     "tough-cookie": "^3.0.1",
-    "typescript": "^3.5.2"
+    "typescript": "^3.9.2"
   },
   "scripts": {
     "start": "node server",
     "frontend": "react-scripts start",
     "build": "react-scripts build",
     "backend": "nodemon server",
+    "check:frontend": "tsc",
     "lint:backend": "eslint server",
     "test:backend": "mocha --config server/.mocharc.js",
     "coverage:backend": "nyc --nycrc-path server/.nycrc.js npm run test:backend",

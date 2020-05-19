@@ -8,8 +8,7 @@ import logging
 import smtplib
 import yaml
 import json
-
-import payload
+from email.parser import BytesParser
 
 import pika
 
@@ -32,16 +31,14 @@ def load_smtp_config(path):
 def gen_callback(smtp_config_path):
     smtp_url, smtp_from, smtp_user, smtp_pass, default_cc = load_smtp_config(
         smtp_config_path)
+    parser = BytesParser()
 
     def callback(ch, method, properties, body):
         with smtplib.SMTP(smtp_url) as smtp_conn:
             smtp_conn.starttls()
             smtp_conn.login(smtp_user, smtp_pass)
-            logger.info("received %r" % body)
             try:
-                jbody = json.loads(body)
-                params = payload.Payload.deserialize(jbody)
-                msg = params.to_email_message(smtp_from, default_cc)
+                msg = parser.parsebytes(body)
             except Exception:
                 logger.exception("error when parsing body %s, drop it", body)
                 # drop malformed message

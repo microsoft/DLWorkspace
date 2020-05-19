@@ -1,4 +1,5 @@
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import * as React from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import useFetch from 'use-http';
 
 import {

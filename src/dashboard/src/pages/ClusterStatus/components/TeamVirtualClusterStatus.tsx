@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from 'react';
 import {
   Table,
   TableHead,
@@ -51,9 +51,9 @@ const renderData = (data: any) => {
 export const TeamVirtualClusterStatus = (props: TeamVC) => {
   const{vcStatus,selectedValue,handleChange, children} = props;
   const theme = useTheme();
-  console.log(vcStatus)
+  const checkIsDesktop = useCheckIsDesktop()
   return (
-    <MuiThemeProvider theme={useCheckIsDesktop ? theme : tableTheme}>
+    <MuiThemeProvider theme={checkIsDesktop ? theme : tableTheme}>
       {
         vcStatus.length > 0 ?  <SvgIconsMaterialTable
           title=""

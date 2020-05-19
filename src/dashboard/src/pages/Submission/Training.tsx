@@ -1,4 +1,5 @@
-import React, {useState} from "react";
+import * as React from 'react';
+import {useState} from "react";
 
 import {
   Card,
@@ -49,7 +50,7 @@ import {
   SUCCESSFULTEMPLATEDELETE, SUCCESSFULTEMPLATEDSAVE
 } from "../../Constants/WarnConstants";
 import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar";
-import _ from "lodash";
+import * as _ from "lodash";
 
 interface EnvironmentVariable {
   name: string;

@@ -1,4 +1,5 @@
-import React, {Fragment, useEffect, useState} from "react";
+import * as React from 'react';
+import {Fragment, useEffect, useState} from "react";
 import {
   Box,
   CircularProgress,
@@ -13,7 +14,7 @@ import { DLTSTabPanel } from '../CommonComponents/DLTSTabPanel'
 import {Link} from "react-router-dom";
 import useFetch from "use-http";
 import useJobs from './useJobs';
-import _ from 'lodash';
+import * as _ from 'lodash';
 import ClusterContext from "../../contexts/Clusters";
 import useJobsAll from "./useJobsAll";
 import IconButton from "@material-ui/core/IconButton";

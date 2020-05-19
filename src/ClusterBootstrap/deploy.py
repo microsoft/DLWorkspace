@@ -2938,7 +2938,7 @@ def map_old_config_to_cloud(nargs):
         use general config settings in example_dir
     """
     old_Keys_in_use = ["default_cpurequest", "default_cpulimit", "default_memoryrequest",
-        "grafana", "system_envs", "default_memorylimit"]
+        "grafana", "distributed_system_envs", "default_memorylimit"]
     old_keys_with_default = ["WebUIregisterGroups", "network", "elasticsearch", "Dashboards",
                              "DeployAuthentications", "WebUIauthorizedGroups", "webuiport",
                              "WebUIadminGroups", "infiniband_mounts"]
