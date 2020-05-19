@@ -8,6 +8,7 @@ import logging
 import smtplib
 import yaml
 import json
+import time
 from email.parser import BytesParser
 
 import pika
@@ -32,6 +33,7 @@ def gen_callback(smtp_config_path):
     smtp_url, smtp_from, smtp_user, smtp_pass, default_cc = load_smtp_config(
         smtp_config_path)
     parser = BytesParser()
+    sent_count = [0] # callback can modify this if it's array
 
     def callback(ch, method, properties, body):
         with smtplib.SMTP(smtp_url) as smtp_conn:
@@ -45,13 +47,31 @@ def gen_callback(smtp_config_path):
                 ch.basic_ack(delivery_tag=method.delivery_tag)
                 return
 
-            try:
-                smtp_conn.send_message(msg)
-                ch.basic_ack(delivery_tag=method.delivery_tag)
-            except smtplib.SMTPServerDisconnected:
-                logger.error("failed to connect to smtp server, retain message")
-            except Exception:
-                logger.exception("error when sending email %s", body)
+            output_quota_msg = False
+            sent = False
+            # SMTP server have 30 emails per minute quota limit, wait at most 60s
+            for i in range(60):
+                try:
+                    smtp_conn.send_message(msg)
+                    ch.basic_ack(delivery_tag=method.delivery_tag)
+                    sent = True
+                    sent_count[0] += 1
+                except smtplib.SMTPServerDisconnected:
+                    logger.error(
+                        "failed to connect to smtp server, retain message")
+                except smtplib.SMTPDataError:
+                    if not output_quota_msg:
+                        logger.info("sent %d emails before exceed quota",
+                                    sent_count[0])
+                        output_quota_msg = True
+                    sent_count[0] = 0
+                    time.sleep(1)
+                    continue
+                except Exception:
+                    logger.exception("error when sending email %s", body)
+                break
+            if not sent:
+                logger.error("failed to send out %s", body)
 
     return callback
 
