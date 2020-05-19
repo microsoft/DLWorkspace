@@ -270,11 +270,13 @@ class Job:
     def get_enable_custom_registry_secrets(self):
         return self._get_cluster_config("enable_custom_registry_secrets")
 
-    def get_system_envs(self):
-        system_envs = self._get_cluster_config("system_envs")
-        if system_envs is None or not isinstance(system_envs, dict):
-            system_envs = {}
-        return system_envs
+    def get_distributed_system_envs(self):
+        distributed_system_envs = \
+            self._get_cluster_config("distributed_system_envs")
+        if distributed_system_envs is None or \
+                not isinstance(distributed_system_envs, dict):
+            distributed_system_envs = {}
+        return distributed_system_envs
 
     def get_vc_node_hard_assignment(self):
         return self._get_cluster_config("vc_node_hard_assignment")
