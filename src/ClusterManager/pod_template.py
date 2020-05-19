@@ -106,14 +106,6 @@ class JobTemplate(object):
         # TODO: Make mountpoints independent of job.get_plugins
         params["mountpoints"] = [mp.to_dict() for mp in job.mountpoints]
 
-        # Set up system environment variables if any
-        system_envs = job.get_system_envs()
-        for env_name, env_val in system_envs.items():
-            params["envs"].append({
-                "name": env_name,
-                "value": env_val
-            })
-
         return params, None
 
     def generate_secrets(self, job):
@@ -353,5 +345,13 @@ class DistributeJobTemplate(JobTemplate):
             "name": "DLWS_WORKER_NUM",
             "value": str(params["numworker"])
         })
+
+        # Set up system environment variables if any
+        distributed_system_envs = job.get_distributed_system_envs()
+        for env_name, env_val in distributed_system_envs.items():
+            params["envs"].append({
+                "name": env_name,
+                "value": env_val
+            })
 
         return params, None
