@@ -113,7 +113,7 @@ class TestInsight(TestCase):
             "Suggestions above are purely based on average usage over a "
             "time window. Please take a closer look at METRICS tab to "
             "better understand the utilization pattern of GPU, GPU "
-            "memory, CPU and memory over time for further optimization. "
+            "memory, CPU and memory over time for further optimization."
         )
         expected_diagnostics += md.unordered_list(suggestions) + "\n"
         expected_diagnostics += "\n"
