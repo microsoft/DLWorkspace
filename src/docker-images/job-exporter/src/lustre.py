@@ -183,7 +183,7 @@ def group_content(content):
     # 2.
     # health_check=healthy
     # TODO: Find the proper regex to do this.
-    groups = collections.defaultdict(lambda: list())
+    groups = collections.defaultdict(lambda: [])
     key = None
     for line in content.splitlines():
         match = re.match(r"(^[\S]+)=", line)
@@ -281,7 +281,7 @@ def get_lustre_gauges():
 
     # Different metrics can be derived from the same lctl param pattern call
     # pattern -> [metric]
-    pattern_to_lmetrics = collections.defaultdict(lambda: list())
+    pattern_to_lmetrics = collections.defaultdict(lambda: [])
     for lmetric in lustre_metrics:
         pattern_to_lmetrics[lmetric.pattern].append(lmetric)
 
