@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import markdown_strings as md
+
 from unittest import TestCase
 from insight import G, gen_insights
 
@@ -69,14 +71,13 @@ class TestInsight(TestCase):
 
         insight = insights[0]
 
-        expected_messages = ["All GPU(s) are active."]
-        expected_messages.append(
-            "Average active GPU utilization over time is below "
-            "90%. You can take below suggestions to potentially "
-            "boost GPU utilization."
-        )
-        messages = []
-        messages.append(
+        expected_diagnostics = md.header("GPU Idleness", 2) + "\n"
+        expected_diagnostics += md.bold("All GPU(s) are active.") + "\n\n"
+
+        expected_diagnostics += md.header("Active GPU Utilization", 2) + "\n"
+        expected_diagnostics += "Average active GPU utilization over time is 30.00% < 90%. You can try below suggestions to boost GPU utilization:\n"
+        suggestions = []
+        suggestions.append(
             "Average active GPU memory utilization over time is below "
             "50%. Try increasing batch size to put more data "
             "onto GPU memory to boost GPU utilization. For a "
@@ -85,7 +86,7 @@ class TestInsight(TestCase):
             "for convergence, you can consider using a job "
             "with fewer GPUs and bigger batch size per GPU."
         )
-        messages.append(
+        suggestions.append(
             "The job uses 1.00 CPU cores per active GPU on average"
             "over time. The maximum CPU cores per GPU you can "
             "use without interfering with other GPUs in this "
@@ -94,7 +95,7 @@ class TestInsight(TestCase):
             "starvation. Please consider using/increasing "
             "parallel preprocessing on your input data."
         )
-        messages.append(
+        suggestions.append(
             "The job uses 10.00G memory per active GPU on average"
             "over time. The maximum memory per GPU you can "
             "use without interfering with other GPUs in this "
@@ -103,33 +104,24 @@ class TestInsight(TestCase):
             "is never waiting on data loading from "
             "disk/remote."
         )
-        messages.append(
+        suggestions.append(
             "Please check if your program is waiting on NFS I/O. "
             "If so, please consider using scalable storage, e.g. "
             "Azure blob."
         )
-        messages.append(
-            "Suggestions above are purely based on average usage over "
-            "time. Please take a closer look at METRICS tab to better"
-            "understand the utilization pattern of GPU, GPU "
-            "memory, CPU and memory over time for further optimization. "
+        suggestions.append(
+            "Suggestions above are purely based on average usage over a "
+            "time window. Please take a closer look at METRICS tab to "
+            "better understand the utilization pattern of GPU, GPU "
+            "memory, CPU and memory over time for further optimization."
         )
-        expected_messages.append(messages)
+        expected_diagnostics += md.unordered_list(suggestions) + "\n"
+        expected_diagnostics += "\n"
 
         expected_insight = {
             "job_id": "job0",
             "since": since,
             "end": end,
-            "job_timespan": end - since,
-            "num_gpus": 1,
-            "num_idle_gpus": 0,
-            "num_active_gpus": 1,
-            "avg_active_gpu_util": float(30),
-            "avg_active_gpu_memory_util": float(45),
-            "avg_cpu_per_active_gpu": float(1),
-            "avg_memory_per_active_gpu": float(10 * G),
-            "max_cpu_per_gpu": 4,
-            "max_memory_per_gpu": 100 * G,
-            "messages": expected_messages,
+            "diagnostics": expected_diagnostics,
         }
         self.assertEqual(expected_insight, insight)
