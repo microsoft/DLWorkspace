@@ -7,7 +7,7 @@ import {
   useRef,
   useState
 } from 'react';
-import { entries, find, get, set } from 'lodash';
+import { entries, find, get, keys, set, union } from 'lodash';
 
 import {
   Button,
@@ -37,6 +37,12 @@ const humanHours = (seconds: number) => {
   return formatHours(seconds);
 }
 
+interface GpuMetrics {
+  idle?: number;
+  bookedLast31Days?: number;
+  idleLast31Days?: number;
+}
+
 interface Props {
   data: any;
 }
@@ -48,20 +54,32 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
   const [filterCurrent, setFilterCurrent] = useState(true);
 
   const gpuIdleMetrics = usePrometheus(config.grafana, `count (task_gpu_percent{vc_name="${currentTeamId}"} == 0) by (username)`);
+  const gpuBookedLast31DaysMetrics = usePrometheus(config.grafana, `sum(job_booked_gpu_second{vc="${currentTeamId}", since="31d"}) by (user)`)
+  const gpuIdleLast31DaysMetrics = usePrometheus(config.grafana, `sum(job_idle_gpu_second{vc="${currentTeamId}", since="31d"}) by (user)`)
 
   const handleButtonClick = useCallback(() => {
     setFilterCurrent((filterCurrent) => !filterCurrent);
   }, [setFilterCurrent]);
 
-  const usersGPUIdle = useMemo(() => {
-    const usersGPUIdle: { [user: string]: number } = Object.create(null);
+  const usersGPUMetrics = useMemo(() => {
+    const usersGPUMetrics: { [user: string]: GpuMetrics } = Object.create(null);
     if (gpuIdleMetrics != null)  {
       for (const { metric, value } of gpuIdleMetrics.result) {
-        usersGPUIdle[metric.username] = Number(value[1]);
+        set(usersGPUMetrics, [metric.username, 'idle'], Number(value[1]));
       }
     }
-    return usersGPUIdle;
-  }, [gpuIdleMetrics]);
+    if (gpuBookedLast31DaysMetrics != null)  {
+      for (const { metric, value } of gpuBookedLast31DaysMetrics.result) {
+        set(usersGPUMetrics, [metric.user, 'bookedLast31Days'], Number(value[1]));
+      }
+    }
+    if (gpuIdleLast31DaysMetrics != null)  {
+      for (const { metric, value } of gpuIdleLast31DaysMetrics.result) {
+        set(usersGPUMetrics, [metric.user, 'idleLast31Days'], Number(value[1]));
+      }
+    }
+    return usersGPUMetrics;
+  }, [gpuIdleMetrics, gpuBookedLast31DaysMetrics, gpuIdleLast31DaysMetrics]);
 
   const data = useMemo(() => {
     const data = [];
@@ -69,19 +87,34 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
     const totalStatus = Object.create(null);
     const total = {
       status: totalStatus,
-      gpu: { booked: 0, idle: 0 },
-      gpuIdle: 0,
+      gpuMetrics: {
+        idle: 0,
+        bookedLast31Days: 0,
+        idleLast31Days: 0
+      },
       tableData: { isTreeExpanded: true }
     };
     data.push(total);
-    for (const [userName, {types, gpu}] of entries<any>(users)) {
-      if (types == null && filterCurrent) continue;
+
+    const userNames = filterCurrent ? keys(users) : union(keys(users), keys(usersGPUMetrics));
+    userNames.sort();
+
+    for (const userName of userNames) {
       const userStatus = Object.create(null);
-      const gpuIdle = usersGPUIdle[userName];
-      data.push({ id: userName, status: userStatus, gpu, gpuIdle });
-      total.gpu.booked += get(gpu, 'booked', 0);
-      total.gpu.idle += get(gpu, 'idle', 0);
-      total.gpuIdle += gpuIdle !== undefined ? gpuIdle : 0;
+      const gpuMetrics: GpuMetrics | undefined = get(usersGPUMetrics, [userName]);
+      data.push({ id: userName, status: userStatus, gpuMetrics });
+      if (gpuMetrics != null) {
+        const {
+          idle,
+          bookedLast31Days,
+          idleLast31Days,
+        } = gpuMetrics;
+        total.gpuMetrics.idle += idle || 0;
+        total.gpuMetrics.bookedLast31Days += bookedLast31Days || 0;
+        total.gpuMetrics.idleLast31Days += idleLast31Days || 0;
+      }
+
+      const types = get(users, [userName, 'types']);
       for (const [typeName, status] of entries(types)) {
         data.push({ id: typeName, userName, status })
         for (const resourceType of ['cpu', 'gpu', 'memory']) {
@@ -97,7 +130,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
       }
     }
     return data;
-  }, [filterCurrent, users, usersGPUIdle]);
+  }, [filterCurrent, users, usersGPUMetrics]);
   const tableData = useTableData(data);
 
   const handleUserClick = useCallback((userName: string) => () => {
@@ -159,29 +192,29 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
     width: 'auto'
   } as Column<any>, {
     title: 'GPU Idle',
-    field: 'gpuIdle',
+    field: 'gpuMetrics.idle',
     type: 'numeric',
-    render: ({ gpuIdle }) => typeof gpuIdle === 'number' && (
-      <Typography variant="inherit" color={gpuIdle > 0 ? "error" : "inherit"}>
-        {gpuIdle}
+    render: ({ gpuMetrics }) => gpuMetrics != null && typeof gpuMetrics.idle === 'number' && (
+      <Typography variant="inherit" color={gpuMetrics.idle > 0 ? "error" : "inherit"}>
+        {gpuMetrics.idle}
       </Typography>
     ),
     width: 'auto'
   } as Column<any>, {
-    title: <CaptionColumnTitle caption="Last 30 days">Booked GPU</CaptionColumnTitle>,
-    field: 'gpu.booked',
+    title: <CaptionColumnTitle caption="Last 31 days">Booked GPU</CaptionColumnTitle>,
+    field: 'gpuMetrics.bookedLast31Days',
     type: 'numeric',
-    render: (data) => <>{humanHours(get(data, 'gpu.booked'))}</>,
+    render: (data) => <>{humanHours(get(data, 'gpuMetrics.bookedLast31Days'))}</>,
     width: 'auto'
   } as Column<any>, {
-    title: <CaptionColumnTitle caption="Last 30 days">Idle GPU (%)</CaptionColumnTitle>,
-    field: 'gpu.idle',
+    title: <CaptionColumnTitle caption="Last 31 days">Idle GPU (%)</CaptionColumnTitle>,
+    field: 'gpu.idleLast31Days',
     type: 'numeric',
     render: (data) => {
       if (data.userName) return;
 
-      const booked = get(data, 'gpu.booked', 0);
-      const idle = get(data, 'gpu.idle', 0);
+      const booked = get(data, 'gpuMetrics.bookedLast31Days', 0);
+      const idle = get(data, 'gpuMetrics.idleLast31Days', 0);
 
       if (booked === 0) return <>{humanHours(idle)}</>;
 

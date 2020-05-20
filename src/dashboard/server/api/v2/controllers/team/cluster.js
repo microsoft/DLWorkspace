@@ -93,11 +93,6 @@ module.exports = async context => {
     }
   }
 
-  for (const [userName, data] of _team.get('gpu_idle').entries()) {
-    _setBody(['users', userName, 'gpu', 'booked'], data['booked'])
-    _setBody(['users', userName, 'gpu', 'idle'], data['idle'])
-  }
-
   for (const node of _team.get('node_status').filter(_.matches({ 'labels': { 'worker': 'active' } }))) {
     const _node = _.chain(node)
     _setBody(['workers', node.name, 'healthy'], !node['unschedulable'])
