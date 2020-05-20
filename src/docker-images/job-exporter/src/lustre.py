@@ -94,6 +94,7 @@ stats_regex_group_indices = {
         ("punch", 0),
         ("destroy", 0),
         ("create", 0),
+        ("get_info", 0),
         ("set_info", 0),
     ],
     "read_samples_total": ("read_bytes", 0),
@@ -136,7 +137,7 @@ def lctl_get_param(pattern):
             raise e  # Signal LustreCollector to reset sleep time to 1 day
         else:
             logger.debug("%s returns %d, output %s", cmd, e.returncode,
-                           e.output)
+                         e.output)
     except:
         logger.debug("%s failed", cmd)
     return None
