@@ -55,9 +55,6 @@ default_config_parameters = {
     "node-exporter": {
         "port": 9100
     },
-    "lustre-exporter": {
-        "port": 9103
-    },
     "watchdog": {
         "port": 9101
     },
@@ -339,9 +336,6 @@ default_config_parameters = {
         },
         'elasticsearch': {
             "elasticsearch": "active"
-        },
-        'lustre': {
-            "lustre": "active"
         },
     },
     "kube_services_2_start": [
@@ -824,7 +818,6 @@ default_config_parameters = {
             "gpu-reporter",
             "reaper",
             "job-exporter",
-            "lustre-exporter"
         ],
         "dashboard": ["dashboard"],
         "restfulapi": ["restfulapi"],

@@ -37,6 +37,7 @@ import nvidia
 import ps
 import dcgm
 import infiniband
+import lustre
 
 logger = logging.getLogger(__name__)
 
@@ -1212,3 +1213,22 @@ class NvPeerMemCollector(Collector):
             logger.exception("call nv_peer_mem failed")
 
         return ""
+
+
+class LustreCollector(Collector):
+
+    def __init__(self, name, sleep_time, atomic_ref, iteration_counter):
+        Collector.__init__(self, name, sleep_time, atomic_ref,
+                           iteration_counter)
+
+    def collect_impl(self):
+        try:
+            return lustre.get_lustre_gauges()
+        except subprocess.CalledProcessError as e:
+            if e.returncode == 127:
+                self.sleep_time = 86400
+                logger.info("lctl is not installed, reset sleep_time to %s",
+                            self.sleep_time)
+        except:
+            logger.exception("failed to collect lustre metrics")
+        return None
