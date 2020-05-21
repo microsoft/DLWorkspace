@@ -97,6 +97,55 @@ if config.get("logging") == 'azure_blob':
                 "Failed to request logs of job {} from azure blob".format(
                     jobId))
             return ({}, None)
+
+    def GetJobRawLog(jobId):
+        try:
+            prefix = 'jobs.' + jobId
+
+            blobs = list(append_blob_service.list_blobs(container_name, prefix))
+
+            if len(blobs) == 0:
+                return None
+                yield
+
+            blobs = sorted(blobs, key=lambda blob: blob.properties.last_modified)
+
+            for blob in blobs:
+                try:
+                    buffer = b''
+                    start_range = 0
+                    while start_range < blob.properties.content_length:
+                        end_range = min(
+                            start_range + CHUNK_SIZE,
+                            blob.properties.content_length - 1)
+                        blob = append_blob_service.get_blob_to_bytes(
+                            container_name, blob.name,
+                            start_range=start_range,
+                            end_range=end_range)
+                        buffer += blob.content
+                        start_range = end_range + 1
+
+                        while True:
+                            try:
+                                [head, buffer] = buffer.split(b'\n', 1)
+                            except ValueError:
+                                break
+
+                            try:
+                                line = loads(head.decode('utf-8', errors='ignore'))
+                                yield line['log']
+                            except Exception:
+                                logger.exception('Failed to process log line {}'.format(repr(head)))
+
+                except Exception:
+                    logger.exception('Failed to process blob {}'.format(blob.name))
+
+        except Exception:
+            logger.exception("Failed to request logs of job {} from azure blob".format(jobId))
+            return None
+            yield
+
+
 elif config.get("logging") == 'elasticsearch':
     logger.info('Elasticsearch log backend is enabled.')
 
@@ -155,6 +204,49 @@ elif config.get("logging") == 'elasticsearch':
                 "Failed to request logs of job {} from elasticsearch".format(
                     jobId))
             return ({}, None)
+
+    def GetJobRawLog(jobId):
+        try:
+            CHUNK_SIZE = 100
+            elasticsearch = Elasticsearch(config['elasticsearch'])
+
+            body = {
+                "query": {
+                    "match_phrase": {
+                        "kubernetes.labels.jobId": jobId
+                    }
+                },
+                "sort": [
+                    "@timestamp",
+                    {
+                        "time_nsec": {
+                            "unmapped_type": "long",
+                            "missing": 0
+                        }
+                    },
+                ],
+                "size": CHUNK_SIZE,
+                "_source": ["log"],
+            }
+
+            while True:
+                response_json = elasticsearch.search(index="logstash-*", body=body)
+                documents = response_json["hits"]["hits"]
+
+                for document in documents:
+                    yield document["_source"]["log"]
+                else:
+                    break
+
+                body['search_after'] = documents[-1]["sort"]
+
+        except Exception:
+            logger.exception(
+                "Failed to request logs of job {} from elasticsearch".format(
+                    jobId))
+            return None
+            yield
+
 else:
     logger.info('No log backend is configured')
 

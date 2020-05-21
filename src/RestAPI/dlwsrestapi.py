@@ -488,6 +488,21 @@ class GetJobLog(Resource):
         return JobRestAPIUtils.GetJobLog(userName, jobId, cursor)
 
 
+@app.route("/GetJobRawLog")
+def GetJobRawLog():
+    get_parser = reqparse.RequestParser()
+    get_parser.add_argument("jobId", required=True)
+    get_parser.add_argument("userName", required=True)
+    args = get_parser.parse_args()
+    jobId = args["jobId"]
+    userName = args["userName"]
+    response = JobRestAPIUtils.GetJobRawLog(userName, jobId)
+    if type(response) is int:
+        return Response(status=response, content_type="text/plain")
+    else:
+        return Response(response, content_type="text/plain")
+
+
 @api.resource("/GetJobStatus")
 class GetJobStatus(Resource):
     def __init__(self):

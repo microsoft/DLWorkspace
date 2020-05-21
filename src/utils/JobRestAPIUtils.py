@@ -30,7 +30,7 @@ sys.path.append(
                  "../ClusterManager"))
 
 from job_params_util import make_job_params
-from JobLogUtils import GetJobLog as UtilsGetJobLog
+import JobLogUtils
 from resource_stat import Gpu
 
 DEFAULT_JOB_PRIORITY = 100
@@ -740,7 +740,7 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
                 except:
                     pass
             elif _get_job_log_enabled:
-                (pod_logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
+                (pod_logs, cursor) = JobLogUtils.GetJobLog(jobId, cursor, size)
 
                 if _get_job_log_fallback:
                     if pod_logs is None or len(pod_logs.keys()) == 0:
@@ -773,6 +773,20 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
         "log": {},
         "cursor": None,
     }
+
+
+def GetJobRawLog(userName, jobId):
+    dataHandler = DataHandler()
+    jobs = dataHandler.GetJob(jobId=jobId)
+    if len(jobs) == 1:
+        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(
+                userName, ResourceType.VC, jobs[0]["vcName"],
+                Permission.Collaborator):
+            return JobLogUtils.GetJobRawLog(jobId)
+        else:
+            return 403
+    else:
+        return 404
 
 
 def GetClusterStatus():
