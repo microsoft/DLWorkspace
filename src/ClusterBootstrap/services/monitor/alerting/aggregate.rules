@@ -10,7 +10,7 @@ groups:
       - record: aggregate:cluster:assigned_task_dcgm_gpu_util:avg
         expr: avg(task_dcgm_gpu_util) by (preemptible)
       - record: aggregate:cluster:active_task_dcgm_gpu_util:avg
-        expr: avg(task_dcgm_gpu_util > 0)  by (preemptible)
+        expr: avg(task_dcgm_gpu_util > 0) by (preemptible)
       - record: aggregate:cluster:dcgm_retired_pages_pending:count
         expr: count(dcgm_retired_pages_pending > 0)
       - record: aggregate:cluster:cluster_booked_gpu_second:avg
