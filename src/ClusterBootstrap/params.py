@@ -62,6 +62,9 @@ default_config_parameters = {
         "port": 3000,
         "prometheus-ip": "localhost"
     },
+    "dashboard": {
+        "port": 80,
+    },
     "alert-manager": {
         "port": 9093,
         "configured": False,
@@ -307,6 +310,7 @@ default_config_parameters = {
         "storagemanager": "nfs_node",
         "user-synchronizer": "etcd_node_1",
         "job-insighter": "etcd_node_1",
+        "dashboard": "etcd_node_1",
     },
     "default_kube_labels_by_node_role": {
         'infra': {

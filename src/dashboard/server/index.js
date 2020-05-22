@@ -16,7 +16,8 @@ if (require.main === module) {
     HOST,
     PORT = 3000,
     SSL_KEY,
-    SSL_CERT
+    SSL_CERT,
+    TRUST_PROXY = false
   } = process.env
 
   const server = SSL_KEY && SSL_CERT
@@ -30,6 +31,9 @@ if (require.main === module) {
       cert: SSL_CERT
     })
   }
+
+  app.proxy = Boolean(TRUST_PROXY)
+
   server.on('request', app.callback())
-  server.listen(PORT, HOST)
+  server.listen(Number(PORT), HOST)
 }
