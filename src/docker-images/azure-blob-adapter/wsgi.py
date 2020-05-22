@@ -21,6 +21,13 @@ container_name = environ['AZURE_STORAGE_CONTAINER_NAME']
 append_blob_service = AppendBlobService(connection_string=connection_string)
 
 
+def _get_blob_index(blob_name):
+    try:
+        return int(blob_name.split('.', 2)[2])
+    except (IndexError, ValueError):
+        return 0
+
+
 @PlainRequest.application
 def application(request):
     '''
@@ -64,11 +71,11 @@ def application(request):
                     #   P4. [Full, ..., ->Full<-]
                     if blob_name == tag:
                         # Fist blob is full: P1, P2 or P3
-                        blobs = append_blob_service.list_blobs(
+                        blob_names = append_blob_service.list_blob_names(
                             container_name=container_name,
                             prefix=tag)
-                        blobs = list(blobs)
-                        if len(blobs) == 1:
+                        blob_names = list(blob_names)
+                        if len(blob_names) == 1:
                             # P1: make it [Full, ->New<-]
                             blob_name = tag + '.1'
                             append_blob_service.create_blob(
@@ -77,12 +84,11 @@ def application(request):
                             continue
                         else:
                             # P2 or P3: point to the last one and retry
-                            latest_blob = max(blobs, key=lambda blob: blob.properties.last_modified)
-                            blob_name = latest_blob.name
+                            blob_name = max(blob_names, key=_get_blob_index)
                             continue
                     else:
                         # P4: make it [Full, ..., Full, ->New<-]
-                        suffix = int(blob_name.split('.')[-1])
+                        suffix = _get_blob_index(blob_name)
                         blob_name = tag + '.' + str(suffix + 1)
                         append_blob_service.create_blob(
                             container_name=container_name,
