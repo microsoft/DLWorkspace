@@ -536,30 +536,16 @@ def block_until_state_in(rest_url, jid, states, timeout=300):
 
 
 def get_job_log(rest_url, email, jid):
-    cursor = None
-    job_logs = []
-    for _ in range(500): # avoid dead loop
-        args = {
-            "userName": email,
-            "jobId": jid,
-        }
-        if cursor is not None:
-            args['cursor'] = cursor
-        args = urllib.parse.urlencode(args)
-        url = urllib.parse.urljoin(rest_url, "/GetJobLog") + "?" + args
-        resp = requests.get(url)
-        if resp.status_code == 404:
-            break
-        resp_json = resp.json()
-        log = resp_json["log"]
-        cursor = resp_json["cursor"]
-        if isinstance(log, dict):
-            job_logs.extend(log.values())
-        else:
-            job_logs.append(log)
-        if cursor is None:
-            break
-    return '\n'.join(job_logs)
+    args = {
+        "userName": email,
+        "jobId": jid,
+    }
+    args = urllib.parse.urlencode(args)
+    url = urllib.parse.urljoin(rest_url, "/GetJobRawLog") + "?" + args
+    resp = requests.get(url)
+    if resp.status_code == 404:
+        return None
+    return resp.text
 
 
 def get_endpoints(rest_url, email, jid):
