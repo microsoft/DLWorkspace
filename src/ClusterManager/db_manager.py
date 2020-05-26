@@ -8,7 +8,6 @@ import sys
 import time
 import yaml
 
-
 from cluster_manager import setup_exporter_thread, \
     manager_iteration_histogram, \
     register_stack_trace_dump, \
@@ -55,33 +54,42 @@ def delete_old_cluster_status(days_ago):
 def delete_old_inactive_jobs(days_ago):
     table = "jobs"
     with DataHandler() as data_handler:
-        logger.info("Deleting inactive job records from table %s older than %s "
-                    "day(s)", table, days_ago)
+        logger.info(
+            "Deleting inactive job records from table %s older than %s "
+            "day(s)", table, days_ago)
 
-        cond = {
-            "jobStatus": ("IN", ["finished", "failed", "killed", "error"])
-        }
+        cond = {"jobStatus": ("IN", ["finished", "failed", "killed", "error"])}
         ret = data_handler.delete_rows_from_table_older_than_days(
             table, days_ago, col="lastUpdated", cond=cond)
         ret_status = "succeeded" if ret is True else "failed"
-        logger.info("Deleting inactive job records from table %s older than %s "
-                    "day(s) %s", table, days_ago, ret_status)
+        logger.info(
+            "Deleting inactive job records from table %s older than %s "
+            "day(s) %s", table, days_ago, ret_status)
+
+
+def sleep_with_update(time_to_sleep, fn):
+    for _ in range(int(time_to_sleep / 100)):
+        fn()
+        time.sleep(100)
 
 
 def run():
     register_stack_trace_dump()
     create_log()
+
+    update = lambda: update_file_modification_time("db_manager")
     while True:
-        update_file_modification_time("db_manager")
+        update()
 
         with manager_iteration_histogram.labels("db_manager").time():
             try:
                 delete_old_cluster_status(CLUSTER_STATUS_EXPIRY)
-                delete_old_inactive_jobs(JOBS_EXPIRY)
+                # query below is too time consuming since lastUpdated in job table is not indexed
+                # delete_old_inactive_jobs(JOBS_EXPIRY)
             except:
-                logger.exception("Deleting old cluster status failed",
-                                 exc_info=True)
-        time.sleep(86400)
+                logger.exception("Deleting old cluster status failed")
+
+        sleep_with_update(86400, update)
 
 
 if __name__ == '__main__':
