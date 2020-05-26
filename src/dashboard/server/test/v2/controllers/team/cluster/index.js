@@ -12,7 +12,7 @@ const WORKER_NAME = 'worker'
 const POD_NAME = 'pod'
 const JOB_ID = 'job'
 
-describe('GET /teams/:teamId/clusters/:clusterId', function () {
+describe('GET /clusters/:clusterId/teams/:teamId', function () {
   it('should return cluster status', async function () {
     nock('http://Universe')
       .get('/GetVC?' + new URLSearchParams({ userName: EMAIL, vcName: TEAM_ID }))
@@ -80,7 +80,7 @@ describe('GET /teams/:teamId/clusters/:clusterId', function () {
         }]
       })
 
-    const response = await axiosist(api).get(`/v2/teams/${TEAM_ID}/clusters/Universe`, {
+    const response = await axiosist(api).get(`/v2/clusters/Universe/teams/${TEAM_ID}`, {
       params: {
         email: EMAIL,
         password: PASSWORD
