@@ -11,9 +11,9 @@ router.get('/openapi.yaml', require('./controllers/openapi'))
 router.param('clusterId',
   require('./middlewares/cluster'))
 
-router.get('/teams/:teamId/clusters/:clusterId',
+router.get('/clusters/:clusterId/teams/:teamId',
   require('../middlewares/user')(),
-  require('./controllers/team/cluster'))
+  require('./controllers/cluster/team'))
 router.get('/clusters/:clusterId/teams/:teamId/jobs',
   require('../middlewares/user')(),
   require('./controllers/cluster/team/jobs'))
