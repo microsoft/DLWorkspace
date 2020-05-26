@@ -125,10 +125,10 @@ if config.get("logging") == 'azure_blob':
                         buffer += blob.content
                         start_range = end_range + 1
 
-                        while True:
+                        while len(buffer) > 0:
                             try:
                                 [head, buffer] = buffer.split(b'\n', 1)
-                            except ValueError:
+                            except ValueError:  # no '\n' in buffer so no enough items in returned list.
                                 break
 
                             try:
