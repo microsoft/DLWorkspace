@@ -47,6 +47,20 @@ class Cluster extends ClusterV1 {
     this.context.log.debug('Got job %s', job['jobName'])
     return job
   }
+
+  /**
+   * @param {string} jobId
+   * @return {Promise<NodeJS.ReadableStream>}
+   */
+  async getJobLogStream (jobId) {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      userName: user.email,
+      jobId
+    })
+    const response = await this.fetch('/GetJobRawLog?' + params)
+    return response.body
+  }
 }
 
 module.exports = Cluster

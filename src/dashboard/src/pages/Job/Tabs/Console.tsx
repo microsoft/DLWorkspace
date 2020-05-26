@@ -2,11 +2,18 @@ import * as React from 'react';
 import {
   FunctionComponent,
   useEffect,
-  useMemo
+  useMemo,
 } from 'react';
 import {
-  Box
+  Box,
+  Fab,
+  Tooltip,
+  createStyles,
+  makeStyles,
 } from '@material-ui/core';
+import {
+  CloudDownload,
+} from '@material-ui/icons';
 import useFetch from 'use-http-2';
 import { useSnackbar } from 'notistack';
 import { mergeWith } from 'lodash';
@@ -17,9 +24,18 @@ import useConstant from '../../../hooks/useConstant';
 
 import useRouteParams from '../useRouteParams';
 
+const useFabStyles = makeStyles((theme) => createStyles({
+  root: {
+    position: 'absolute',
+    top: theme.spacing(2),
+    right: theme.spacing(2),
+  },
+}));
+
 const Console: FunctionComponent = () => {
   const { clusterId, jobId } = useRouteParams();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+  const fabStyles = useFabStyles();
   const { data, loading, error, get } = useFetch(
     `/api/clusters/${clusterId}/jobs/${jobId}/log`, useConstant({
       onNewData (currentData, newData) {
@@ -109,11 +125,20 @@ ${log[podName]}
   }
 
   return (
-    <Box p={1} style={{ overflow: 'auto' }}>
+    <Box p={1} style={{ position: 'relative', overflow: 'auto' }}>
       <CodeBlock>
         {logText}
       </CodeBlock>
       {loading && <Loading/>}
+      <Tooltip title="Download Raw Log">
+        <Fab
+          color="primary"
+          classes={fabStyles}
+          href={`/api/v2/clusters/${clusterId}/jobs/${jobId}/log`}
+        >
+          <CloudDownload/>
+        </Fab>
+      </Tooltip>
     </Box>
   );
 }
