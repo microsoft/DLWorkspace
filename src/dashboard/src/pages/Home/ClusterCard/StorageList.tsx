@@ -21,7 +21,6 @@ import copy from 'clipboard-copy';
 
 import {
   each,
-  endsWith,
   includes,
   get,
   last,
@@ -57,7 +56,7 @@ const StorageList: FunctionComponent = () => {
 
   const getContainerPath = useCallback((mountpoint: string) => {
     if (!mountpoint) return;
-    if (endsWith(mountpoint, '/mntdlws/nfs')) return '~';
+    if (includes(mountpoint, '/mntdlws/nfs')) return '~';
     const directories = mountpoint.split('/');
     if (includes(directories, currentTeamId)) {
       return '/' + last(directories);
