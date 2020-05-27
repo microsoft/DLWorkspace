@@ -27,7 +27,7 @@ export function formatFloat(float: number) {
 }
 
 export function formatPercent(float: number, digits = 2) {
-  return String(Math.round(float / 100).toFixed(digits)) + '%'
+  return String(Math.round(float * 100).toFixed(digits)) + '%'
 }
 
 export function formatHours(seconds: number) {
