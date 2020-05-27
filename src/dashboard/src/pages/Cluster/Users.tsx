@@ -224,13 +224,13 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
           <>
             {humanHours(idle)}
             {" ("}
-            <Typography variant="inherit" color="error">{formatPercent(percent, 1)}%</Typography>
+            <Typography variant="inherit" color="error">{formatPercent(percent, 1)}</Typography>
             )
           </>
         );
       }
 
-      return <>{humanHours(idle)}{" ("}{formatPercent(percent, 1)}%)</>;
+      return <>{humanHours(idle)}{" ("}{formatPercent(percent, 1)})</>;
     },
     width: 'auto'
   } as Column<any>]).current;

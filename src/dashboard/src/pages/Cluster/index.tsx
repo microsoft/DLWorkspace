@@ -102,7 +102,7 @@ const ClusterContent: FunctionComponent = () => {
   const { currentTeamId } = useContext(TeamContext);
 
   const { data, error, loading, get } = useFetch(
-    `/api/v2/teams/${currentTeamId}/clusters/${clusterId}`,
+    `/api/v2/clusters/${clusterId}/teams/${currentTeamId}`,
     undefined,
     [clusterId, currentTeamId]
   );
