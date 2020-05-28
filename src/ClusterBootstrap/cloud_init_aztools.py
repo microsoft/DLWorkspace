@@ -166,12 +166,12 @@ def create_nfs_nsg(config, args):
         cmd = """az network nsg create --resource-group {} --name {}""".format(
             resource_group, nfs_nsg_name)
         execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
-    priority = 1700
-    # set nsg rules for devs, (and samba, since samba machines are all in corpnet)
-    for tag in config["cloud_config_nsg_rules"]["service_tags"]:
-        create_nsg_rule(resource_group, nfs_nsg_name, priority, 
-        "NFS-Allow-Dev-{}".format(tag), nfs_ports, tag, args)
-        priority += 1
+        priority = 1700
+        # set nsg rules for devs, (and samba, since samba machines are all in corpnet)
+        for tag in config["cloud_config_nsg_rules"]["service_tags"]:
+            create_nsg_rule(resource_group, nfs_nsg_name, priority, 
+            "NFS-Allow-Dev-{}".format(tag), nfs_ports, tag, args)
+            priority += 1
 
 
 
@@ -231,6 +231,25 @@ def get_lustre_init_ID():
     return sum([0]+start_id_and_disks_num)
 
 
+def validate_deploy_action(action_cnf):
+    # TODO add more items to the checklist
+    all_nodes = {}
+    if os.path.exists(STATUS_YAML):
+        with open(STATUS_YAML) as f:
+            status_cnf = yaml.safe_load(f)
+            status_nodes = status_cnf["machines"]
+            all_nodes = {k: v for k, v in status_cnf["machines"].items()}
+    action_nodes = action_cnf["machines"]
+    merge_config(all_nodes, action_nodes)
+    private_ips = set()
+    for node_name, spec in all_nodes.items():
+        if "private_ip" in spec:
+            cur_pr_ip = spec["private_ip"]
+            assert cur_pr_ip not in private_ips, "duplicated"\
+            " private ip {} of {} detected".format(cur_pr_ip, node_name)
+            private_ips.add(cur_pr_ip)
+
+
 def gen_machine_list_4_deploy_action(complementary_file_name, config):
     """based on info from config.yaml, generate the expected machine names etc."""
     cc = {}
@@ -264,6 +283,7 @@ def gen_machine_list_4_deploy_action(complementary_file_name, config):
                 disks = [dsk["disk_num"] for dsk in disk_specs 
                                             if "is_os" not in dsk]
                 lustre_init_ID += sum(disks)
+    validate_deploy_action(cc)
     if complementary_file_name is not None:
         complementary_file_name = ACTION_YAML if complementary_file_name == '' else complementary_file_name
         with open(complementary_file_name, 'w') as outfile:

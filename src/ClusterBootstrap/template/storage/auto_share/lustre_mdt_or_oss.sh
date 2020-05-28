@@ -54,7 +54,10 @@ elif [ ! -z "$OSS_ID" ] || [ ! -z "$MDT_ID" ]; then
 fi
 
 sudo mkdir -p /mnt/mgs_client
-sudo mount $MGS_NODE_PRIVATE_IP:/$LUSTRE_FS_NAME /mnt/mgs_client -t lustre
+until sudo mount $MGS_NODE_PRIVATE_IP:/$LUSTRE_FS_NAME /mnt/mgs_client -t lustre 2>&1 >/dev/null; do
+    sleep 1m;
+    echo 'waiting for mgs node';
+done;
 
 if [ ! -z "$MGS_ID" ] || [ ! -z "$MDT_ID" ]; then
     # Lustre mount in jobs shows Permission denied even with drwxrwxrwx. E.g.

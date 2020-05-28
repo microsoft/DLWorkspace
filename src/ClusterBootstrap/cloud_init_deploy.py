@@ -411,7 +411,7 @@ def gen_mounting_yaml(config):
     mount_sources_set = set()
     lustre_fs_set = set()
     os.system("mkdir -p ./deploy/storage/auto_share")
-    for node_fqdn in config.get("nfs_node", []) + config.get("mdt_node",[]):
+    for node_fqdn in config.get("nfs_node", []) + config.get("mgs_node",[]):
         storage_node_name = node_fqdn.split(".")[0]
         spec = config["machines"][storage_node_name]
         assert "private_ip" in spec, "Need IP for NFS or MDT node {}!".format(storage_node_name)
@@ -429,8 +429,13 @@ def gen_mounting_yaml(config):
             assert mnt_root not in mount_sources_set, "Duplicate mounting mount path detected:\n{}".format(mnt_root)                
             mount_sources_set.add(mnt_root)
             if "mdt" in spec["role"]:
-                assert server_path not in lustre_fs_set, "Duplicate lustre"\
-                        " filesystem name detected:\n{}".format(server_path)
+                # assert server_path not in lustre_fs_set, "Duplicate lustre"\
+                #         " filesystem name detected:\n{}".format(server_path)
+                assert os.path.split(server_path)[0] == '/', "server_path "\
+                                    "must be a unique abspath under root path"
+                lustre_fs = os.path.basename(os.path.split(server_path)[1])
+                assert 1 <= len(lustre_fs) <= 8, "server path would be used "\
+                    "for lustre fs, which should be 1-8 chars"
                 lustre_fs_set.add(server_path)
             if "client_link_root" in v:
                 lnk_root = os.path.join(v["client_link_root"], vc)
@@ -633,8 +638,9 @@ def render_lustre_node_specific(config, args):
         if isinstance(spec["data_disk_mnt_path"], list):
             spec["data_disk_mnt_path"] = ';'.join(spec["data_disk_mnt_path"])
         if "mdt" in spec["role"]:
-            # currently we only support 1 lustre fs per MDT
-            config["lustre_fs"] = spec["fileshares"][0]["server_path"]
+            # currently we only support 1 lustre fs per MDT, and we require 
+            # server_path be a unique abspath under / for each MDT node
+            server_path = spec["fileshares"][0]["server_path"]
             quota = spec.get("storage_quota", config["storage_quota"])
             config["user_soft_quota"] = quota["user_soft"]
             config["user_hard_quota"] = quota["user_hard"]
@@ -642,7 +648,9 @@ def render_lustre_node_specific(config, args):
         elif "oss" in spec["role"]:
             # affiliating MDT
             aff_mdt_spec = config["machines"][spec["mdt_name"]]
-            config["lustre_fs"] = aff_mdt_spec["fileshares"][0]["server_path"]
+            server_path = aff_mdt_spec["fileshares"][0]["server_path"]
+        lustre_fs = os.path.basename(os.path.split(server_path)[1])
+        config["lustre_fs"] = lustre_fs
         config["data_disk_mnt_path"] = spec["data_disk_mnt_path"]
         config["kube_labels"] = get_kube_labels_of_machine_name(
             config, machine_name)
@@ -718,8 +726,14 @@ def push_docker_images(args, config):
     render_docker_images(config, False)
     if "private_docker_credential" in config:
         login_private_docker(config)
-    push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"],
-                 args.nargs[1:], config, args.verbose, nocache=args.nocache)
+    tuples = [("./deploy/docker-images/", 
+              config["dockerprefix"], config["dockertag"], [docker_name], config,
+              args.verbose, args.nocache) for docker_name in args.nargs[1:]]
+    pool = utils.Pool(len(args.nargs[1:]))
+    # use starmap for pre-zipped params, details in
+    # https://docs.python.org/dev/library/itertools.html#itertools.starmap
+    results = pool.starmap(push_dockers, tuples)
+    pool.close()
 
 
 def docker_required_by_services(config):
