@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from 'react';
 import {
   Button, Dialog,
   DialogActions,
@@ -21,7 +21,7 @@ interface DialogProps {
   title: string;
   titleStyle: object;
 }
-const Transition = React.forwardRef<unknown, TransitionProps>(function Transition(props, ref) {
+const Transition = React.forwardRef<unknown, TransitionProps & { children?: React.ReactElement }>(function Transition(props, ref) {
   return <Slide direction="down" ref={ref} {...props} />;
 });
 export const DLTSDialog = (props: DialogProps) => {

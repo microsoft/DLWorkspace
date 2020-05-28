@@ -1,8 +1,9 @@
-import { RefObject, useCallback } from 'react';
+import { useCallback, createElement } from 'react';
 import { useSnackbar } from 'notistack';
-import MaterialTable, { Action } from 'material-table';
+import { Action } from 'material-table';
 
 import useConfirm from './useConfirm';
+import { Check, Clear, Pause, PlayArrow } from '@material-ui/icons';
 
 const APPROVABLE_STATUSES = [
   'unapproved'
@@ -24,7 +25,7 @@ const KILLABLE_STATUSES = [
   'paused'
 ];
 
-const useBatchActions = (clusterId: string, tableRef?: RefObject<MaterialTable<any>>) => {
+const useBatchActions = (clusterId: string) => {
   const confirm = useConfirm();
   const { enqueueSnackbar } = useSnackbar();
 
@@ -131,7 +132,7 @@ const useBatchActions = (clusterId: string, tableRef?: RefObject<MaterialTable<a
     const hidden = !Array.isArray(jobs) || jobs.some(job => APPROVABLE_STATUSES.indexOf(job['jobStatus']) === -1);
     return {
       hidden,
-      icon: 'check',
+      icon: () => createElement(Check),
       tooltip: 'Approve',
       onClick: onBatchApprove
     }
@@ -141,7 +142,7 @@ const useBatchActions = (clusterId: string, tableRef?: RefObject<MaterialTable<a
     const hidden = !Array.isArray(jobs) || jobs.some(job => PAUSABLE_STATUSES.indexOf(job['jobStatus']) === -1);
     return {
       hidden,
-      icon: 'pause',
+      icon: () => createElement(Pause),
       tooltip: 'Pause',
       onClick: onBatchPause
     }
@@ -151,7 +152,7 @@ const useBatchActions = (clusterId: string, tableRef?: RefObject<MaterialTable<a
     const hidden = !Array.isArray(jobs) || jobs.some(job => RESUMABLE_STATUSES.indexOf(job['jobStatus']) === -1);
     return {
       hidden,
-      icon: 'play_arrow',
+      icon: () => createElement(PlayArrow),
       tooltip: 'Resume',
       onClick: onBatchResume
     }
@@ -161,7 +162,7 @@ const useBatchActions = (clusterId: string, tableRef?: RefObject<MaterialTable<a
     const hidden = !Array.isArray(jobs) || jobs.some(job => KILLABLE_STATUSES.indexOf(job['jobStatus']) === -1);
     return {
       hidden,
-      icon: 'clear',
+      icon: () => createElement(Clear),
       tooltip: 'Kill',
       onClick: onBatchKill
     }

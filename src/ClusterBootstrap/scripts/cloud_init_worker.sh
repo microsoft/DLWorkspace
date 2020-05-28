@@ -20,3 +20,9 @@ if [ ! -z "$MNT_N_LNK" ]; then
 bash ./fileshare_install.sh
 bash ./mnt_fs_svc.sh
 fi
+
+# the latest tested image is Canonical:UbuntuServer:18.04-LTS:18.04.201912180
+IFS=';' read -ra script_modules <<< $SCRIPT_MODULES
+if [[ "${script_modules[@]}" =~ "infiniband" ]]; then
+    bash ./install_ib_on_sriov_az_cluster.sh
+fi

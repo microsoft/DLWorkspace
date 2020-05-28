@@ -10,11 +10,14 @@ import yaml
 import mysql.connector
 import multiprocessing
 import subprocess
+import urllib
+import requests
 
 from argparse import RawTextHelpFormatter
 from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
 from kubernetes.client import Configuration, ApiClient
+from tabulate import tabulate
 
 
 logger = logging.getLogger(__name__)
@@ -127,6 +130,35 @@ def get_expected_capacity(config_dir):
         if conn is not None:
             conn.close()
     return ret
+
+
+def get_vc_user_quota(config_dir):
+    conn = None
+    cursor = None
+    rows = []
+    try:
+        conn = get_db_conn(config_dir)
+        cursor = conn.cursor()
+        query = "SELECT `vcName`, `metadata` FROM `vc`"
+        cursor.execute(query)
+        for vc_name, metadata in cursor:
+            data = json.loads(metadata)
+            if "user_quota" in data:
+                user_quota = int(data["user_quota"])
+            else:
+                user_quota = "unlimited"
+            rows.append([vc_name, user_quota])
+
+        conn.commit()
+    except Exception:
+        logger.exception("Failed to get user quota for VC %s", vc)
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if conn is not None:
+            conn.close()
+
+    print(tabulate(rows, headers=['vc', 'user_quota']))
 
 
 def get_user(config_dir):
@@ -279,14 +311,15 @@ def get_jobs_on_nodes(config_dir, nodes):
                 username = job["username"]
                 vc_name = job["vc_name"]
                 user_list.append(username)
-                job_list.append((job_id, username, vc_name))
+                job_list.append((job_id, username, vc_name, node))
 
     logger.info("nodes without jobs: %s", ",".join(nodes_without_jobs))
     logger.info("nodes with jobs   : %s", ",".join(nodes_with_jobs))
     logger.info("users to email    : %s", ";".join(list(set(user_list))))
     logger.info("jobs affected     :\n%s", 
-                "\n".join(["%s %s %s" % (job[0], job[1], job[2]) 
+                "\n".join(["%s %s %s %s" % (job[0], job[1], job[2], job[3]) 
                            for job in job_list]))
+    logger.info("job ids: %s", ",".join([job[0] for job in job_list]))
 
     return jobs
 
@@ -357,13 +390,37 @@ def get_unschedulable(config_dir):
         if ready is not True:
             notready_nodes.append(hostname)
     if len(unschedulable_nodes) > 0:
-        logger.info("unschedulable nodes: %s", ",".join(unschedulable_nodes))
+        logger.info("%s unschedulable nodes: %s", len(unschedulable_nodes), 
+                    ",".join(unschedulable_nodes))
     else:
         logger.info("all nodes are schedulable")
     if len(notready_nodes) > 0:
-        logger.info("notready nodes     : %s", ",".join(notready_nodes))
+        logger.info("%s notready nodes: %s", len(notready_nodes), 
+                    ",".join(notready_nodes))
     else:
         logger.info("all nodes are ready")
+
+
+def get_ssh_params(config_dir):
+    identity_file = os.path.join(config_dir, "sshkey", "id_rsa")
+    assert os.path.isfile(identity_file), "sshkey/id_rsa must exist!"
+
+    user = get_user(config_dir)
+    assert user is not None, "admin_username cannot be None, check config files"
+
+    domain = get_domain(config_dir)
+    assert domain is not None, "domain cannot be None, check config files"
+
+    return identity_file, user, domain
+
+
+def ssh_connect(config_dir, nodes):
+    identity_file, user, domain = get_ssh_params(config_dir)
+    for node in nodes:
+        host = "%s.%s" % (node, domain)
+        os.system(
+            """ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" """ %
+            (identity_file, user, host))
 
 
 def ssh_exec(params):
@@ -380,14 +437,7 @@ def ssh_exec(params):
 
 
 def parallel_ssh(config_dir, nodes, command):
-    identity_file = os.path.join(config_dir, "sshkey", "id_rsa")
-    assert os.path.isfile(identity_file), "sshkey/id_rsa must exist!"
-
-    user = get_user(config_dir)
-    assert user is not None, "admin_username cannot be None, check config files"
-
-    domain = get_domain(config_dir)
-    assert domain is not None, "domain cannot be None, check config files"
+    identity_file, user, domain = get_ssh_params(config_dir)
 
     arg_lists = []
     for node in nodes:
@@ -422,12 +472,14 @@ def get_ib(config_dir):
             logger.info("[%s] %s", node, results[i])
 
     if len(nodes_without_ib) > 0:
-        logger.info("nodes without ib: %s", ",".join(nodes_without_ib))
+        logger.info("%s nodes without ib: %s", len(nodes_without_ib), 
+                    ",".join(nodes_without_ib))
     else:
         logger.info("all nodes have ib")
 
     if len(nodes_with_bad_ipoib) > 0:
-        logger.info("nodes with bad ipoib: %s", ",".join(nodes_with_bad_ipoib))
+        logger.info("%s nodes with bad ipoib: %s", len(nodes_with_bad_ipoib),
+                    ",".join(nodes_with_bad_ipoib))
     else:
         logger.info("all nodes have good ipoib")
 
@@ -447,12 +499,77 @@ def reboot(config_dir, nodes):
     _ = parallel_ssh(config_dir, nodes, cmd)
 
 
+def get_restful_url(config_dir):
+    machines = get_machine_list(config_dir)
+    infra_host = find_infra_node_name(machines)
+    domain = get_domain(config_dir)
+    restful_url = "http://%s.%s:5000" % (infra_host, domain)
+    return restful_url
+
+
+def op_jobs(config_dir, job_ids, op, user):
+    if not isinstance(job_ids, list):
+        return
+
+    restful_url = get_restful_url(config_dir)
+
+    if isinstance(job_ids, list):
+        job_ids = ",".join(job_ids)
+
+    args = urllib.parse.urlencode({
+        "userName": user,
+        "jobIds": job_ids,
+    })
+    url = urllib.parse.urljoin(restful_url, "/%sJobs" % op) + "?" + args
+    resp = requests.get(url)
+    return resp.json()
+
+
+def pause_jobs(config_dir, job_ids, user):
+    try:
+        resp = op_jobs(config_dir, job_ids, "Pause", user)
+        logger.info(resp)
+    except Exception as e:
+        logger.exception(e)
+
+
+def resume_jobs(config_dir, job_ids, user):
+    try:
+        resp = op_jobs(config_dir, job_ids, "Resume", user)
+        logger.info(resp)
+    except Exception as e:
+        logger.exception(e)
+
+
+def get_status_for_jobs(config_dir, job_ids):
+    if not isinstance(job_ids, list):
+        return
+
+    restful_url = get_restful_url(config_dir)
+    
+    for job_id in job_ids:
+        try:
+            args = urllib.parse.urlencode({
+                "jobId": job_id,
+            })
+            url = urllib.parse.urljoin(restful_url, "/GetJobStatus") + "?" + args
+            resp = requests.get(url)
+            job_status =  resp.json()["jobStatus"]
+            logger.info("%s %s", job_id, job_status)
+        except Exception as e:
+            logger.info("%s unknown", job_id)
+
+
 def main(args):
     config = args.config
     action = args.action
     nodes = args.nodes
+    jobs = args.jobs
+    user = args.user
     if nodes is not None:
         nodes = nodes.split(",")
+    if jobs is not None:
+        jobs = jobs.split(",")
 
     if action == "gpu-count":
         get_gpu_count(config)
@@ -472,6 +589,9 @@ def main(args):
     elif action == "hostname":
         assert nodes is not None
         ssh_exec_hostname(config, nodes)
+    elif action == "connect":
+        assert nodes is not None
+        ssh_connect(config, nodes)
     elif action == "kubelet":
         assert nodes is not None
         restart_kubelet(config, nodes)
@@ -483,6 +603,19 @@ def main(args):
         response = input("!!!WARNING!!! Confirm node reboot[Y/N]: ")
         if response == "Y":
             reboot(config, nodes)
+    elif action == "job-status":
+        assert jobs is not None
+        get_status_for_jobs(config, jobs)
+    elif action == "pause-jobs":
+        assert user is not None
+        assert jobs is not None
+        pause_jobs(config, jobs, user)
+    elif action == "resume-jobs":
+        assert user is not None
+        assert jobs is not None
+        resume_jobs(config, jobs, user)
+    elif action == "user-quota":
+        get_vc_user_quota(config)
     else:
         logger.exception("Unrecognized action")
 
@@ -505,9 +638,14 @@ if __name__ == '__main__':
         "  uncordon        cordon a list of nodes from --nodes/-n",
         "  jobs            get jobs on a list of nodes from --nodes/-n",
         "  hostname        exec hostname on all gpu nodes",
+        "  connect         ssh to a node from --nodes/-n",
         "  kubelet         'sudo systemctl restart kubelet' on nodes from --nodes/-n",
         "  walinuxagent    'sudo systemctl restart walinuxagent' on nodes from --nodes/-n",
         "  reboot          'sudo reboot' on nodes from --nodes/-n",
+        "  job-status      get status for jobs from --jobs/-j",
+        "  pause-jobs      pause jobs from --jobs/-j with username from --user/-u",
+        "  resume-jobs     resume jobs from --jobs/-j with username from --user/-u",
+        "  user-quota      get user-quota for all VCs in the cluster",
     ]
     parser.add_argument("--action",
                         "-a",
@@ -518,6 +656,16 @@ if __name__ == '__main__':
                         required=False,
                         default=None,
                         help="comma separated list of nodes")
+    parser.add_argument("--jobs",
+                        "-j",
+                        required=False,
+                        default=None,
+                        help="comma separated list of jobs")
+    parser.add_argument("--user",
+                        "-u",
+                        required=False,
+                        default=None,
+                        help="admin username (full email)")
     args = parser.parse_args()
 
     main(args)

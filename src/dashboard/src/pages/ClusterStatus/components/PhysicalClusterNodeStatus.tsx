@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from 'react';
 import {
   CircularProgress,
   createMuiTheme,
@@ -9,7 +9,7 @@ import {checkObjIsEmpty, sumValues} from "../../../utlities/ObjUtlities";
 import {red} from "@material-ui/core/colors";
 import Tooltip from "@material-ui/core/Tooltip";
 import IconButton from "@material-ui/core/IconButton";
-import MaterialTable, {MTableToolbar} from "material-table";
+import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable';
 
 interface PhClusterNSType {
   nodeStatus: any;
@@ -30,10 +30,11 @@ const tableTheme = createMuiTheme({
 export const PhysicalClusterNodeStatus = (props: PhClusterNSType) => {
   const theme = useTheme();
   const {nodeStatus} = props;
+  const checkIsDesktop = useCheckIsDesktop()
   return (
-    <MuiThemeProvider theme={useCheckIsDesktop ? theme : tableTheme}>
+    <MuiThemeProvider theme={checkIsDesktop ? theme : tableTheme}>
       {
-        nodeStatus ?  <MaterialTable
+        nodeStatus ?  <SvgIconsMaterialTable
           title=""
           columns={[
             {title: 'Node Name', field: 'name'},

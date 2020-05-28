@@ -1,4 +1,5 @@
-import React, {Fragment, useEffect, useState} from 'react';
+import * as React from 'react';
+import {Fragment, useEffect, useState} from 'react';
 import {
   Theme,
   useTheme,
@@ -26,7 +27,7 @@ import {DLTSTabs} from "../../CommonComponents/DLTSTabs";
 import {JobDetailTitles, readOnlyJobDetailTitles} from "../../../Constants/TabsContants";
 import {DLTSSnackbar} from "../../CommonComponents/DLTSSnackbar";
 import ClusterContext from "../../../contexts/Clusters";
-import TeamContext from "../../../contexts/Teams";
+import TeamContext from "../../../contexts/Team";
 import {useTimeoutFn} from "react-use";
 interface Props {
   team: string;
@@ -52,12 +53,12 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job, team }) => {
     }
     setValue(index);
   }
-  const { teams } = React.useContext(TeamContext);
+  const { clusters } = React.useContext(ClusterContext);
   const [isReady, reset, cancel] = useTimeoutFn(() => {
     setRefresh(true);
     setShowIframe(true)
   }, 2000);
-  const isReadOnly = !(teams.filter((item: any)=>item["id"] === team)[0]["clusters"].filter((cluster: any) => cluster.id === clusterId)[0].admin || email === job['userName']);
+  const isReadOnly = !(clusters.filter((cluster: any) => cluster.id === clusterId)[0].admin || email === job['userName']);
   useEffect(()=>{
     if (isReady()) {
       reset();

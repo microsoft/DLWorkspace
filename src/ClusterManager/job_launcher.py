@@ -180,6 +180,19 @@ def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
     return new_job_status_detail
 
 
+def get_pod_priority_class(is_support_pod_priority, job_type, is_preemptible):
+    if not is_support_pod_priority:
+        return None
+
+    if job_type == "InferenceJob":
+        return "inference-job-priority"
+
+    if is_preemptible:
+        return "preemptible-job-priority"
+    else:
+        return "job-priority"
+
+
 # Interface class for managing life time of job
 class Launcher(object):
     def __init__(self):
@@ -284,21 +297,14 @@ class Launcher(object):
     @record
     def _get_deployment(self, name):
         api_response = self.k8s_AppsAPI.read_namespaced_deployment_scale(
-            namespace=self.namespace,
-            pretty=self.pretty,
-            name=name
-        )
+            namespace=self.namespace, pretty=self.pretty, name=name)
         logger.debug("Get pods: {}".format(api_response))
         return api_response
 
     @record
     def _patch_deployment(self, name, body):
         api_response = self.k8s_AppsAPI.patch_namespaced_deployment_scale(
-            namespace=self.namespace,
-            pretty=self.pretty,
-            name=name,
-            body=body
-        )
+            namespace=self.namespace, pretty=self.pretty, name=name, body=body)
         return api_response
 
     @record
@@ -724,6 +730,10 @@ class LauncherStub(Launcher):
                 logger.error("failed to generate params for %s job %s",
                              job_object.params["jobtrainingtype"], error)
                 return False
+            job_object.params["priority_class"] = get_pod_priority_class(
+                config.get("is_support_pod_priority", False),
+                job_object.params["jobtrainingtype"],
+                job_object.params.get("preemptionAllowed", False))
             framework_desc = framework.transform_job(
                 job_object.params["jobtrainingtype"], params, config)
 
@@ -1056,6 +1066,7 @@ class PythonLauncher(Launcher):
                 "blobfuse": blobfuse_secret_template,
                 "imagePull": image_pull_secret_template
             }
+
             if job_object.params["jobtrainingtype"] == "RegularJob":
                 pod_template = RegularJobTemplate(
                     job_object.get_template(),
@@ -1076,6 +1087,10 @@ class PythonLauncher(Launcher):
                 dataHandler.Close()
                 return False
 
+            job_object.params["priority_class"] = get_pod_priority_class(
+                config.get("is_support_pod_priority", False),
+                job_object.params["jobtrainingtype"],
+                job_object.params.get("preemptionAllowed", False))
             pods, error = pod_template.generate_pods(job_object)
             if error:
                 dataHandler.SetJobError(job_object.job_id, "ERROR: %s" % error)
@@ -1194,8 +1209,8 @@ class PythonLauncher(Launcher):
 
         deployment.spec.replicas = new_replicas
         self._patch_deployment(name=name, body=deployment)
-        logger.debug("Scale inference job %s from %d to %d." % (job_object.job_id, replicas, new_replicas))
-
+        logger.debug("Scale inference job %s from %d to %d." %
+                     (job_object.job_id, replicas, new_replicas))
 
     def run(self, queue):
         # TODO maintain a data_handler so do not need to init it every time

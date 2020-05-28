@@ -1,4 +1,5 @@
-import React, {Fragment, useEffect, useState} from "react";
+import * as React from 'react';
+import {Fragment, useEffect, useState} from "react";
 import {
   Box,
   CircularProgress,
@@ -12,9 +13,8 @@ import {red, green, blue} from "@material-ui/core/colors";
 import { DLTSTabPanel } from '../CommonComponents/DLTSTabPanel'
 import {Link} from "react-router-dom";
 import useFetch from "use-http";
-import MaterialTable from 'material-table';
 import useJobs from './useJobs';
-import _ from 'lodash';
+import * as _ from 'lodash';
 import ClusterContext from "../../contexts/Clusters";
 import useJobsAll from "./useJobsAll";
 import IconButton from "@material-ui/core/IconButton";
@@ -32,11 +32,12 @@ import {
   SUCESSFULKILLED
 } from "../../Constants/WarnConstants";
 import {JobsSelectByCluster} from "./components/JobsSelectByCluster";
-import TeamContext from "../../contexts/Teams";
+import TeamContext from "../../contexts/Team";
 import {checkObjIsEmpty, toLocalTime} from "../../utlities/ObjUtlities";
 import ReactJson from "react-json-view";
 import TablePagination from "@material-ui/core/TablePagination";
 import {checkFinishedJob} from "../../utlities/interactionUtlties";
+import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
 
 const variantIcon = {
   success: CheckCircleIcon,
@@ -463,7 +464,7 @@ const Jobs: React.FC = (props: any) => {
       </React.Fragment>
     )
   }
-  const { selectedTeam } = React.useContext(TeamContext);
+  const { currentTeamId } = React.useContext(TeamContext);
   const generatePageSize = (jobs: any) => {
     return jobs.length < 10 ? jobs.length : 10;
   }
@@ -481,14 +482,14 @@ const Jobs: React.FC = (props: any) => {
         <DLTSTabs value={value} setValue={setValue} titles={JobsTitles} setRefresh={setRefresh} />
         <DLTSTabPanel value={value} index={0}>
           <JobsSelectByCluster currentCluster={currentCluster} onClusterChange={onClusterChange} clusters={clusters}/>
-          {filterRunningJobs(jobs).length > 0 ? <MaterialTable
+          {filterRunningJobs(jobs).length > 0 ? <SvgIconsMaterialTable
             title="Running Jobs"
             columns={[
               {title: 'JobId', field: 'jobId',cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'3',
-              },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>  },
+              },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>  },
               {title: 'Job Name', field: 'jobName',cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
@@ -584,14 +585,14 @@ const Jobs: React.FC = (props: any) => {
               ,
             }}
           /> : null}
-          {filterQueuedJobs(jobs).length > 0 ? <MaterialTable
+          {filterQueuedJobs(jobs).length > 0 ? <SvgIconsMaterialTable
             title="Queued  Jobs"
             columns={[
               {title: 'JobId', field: 'jobId',cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'3',
-              },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>  },
+              },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>  },
               {title: 'Job Name', field: 'jobName',cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
@@ -670,14 +671,14 @@ const Jobs: React.FC = (props: any) => {
 
             }}
           /> : null}
-          {filterUnApprovedJobs(jobs).length > 0 ? <MaterialTable
+          {filterUnApprovedJobs(jobs).length > 0 ? <SvgIconsMaterialTable
             title="Unapproved  Jobs"
             columns={[
               {title: 'JobId', field: 'jobId',cellStyle: {
                 textAlign:'center',
                 flexDirection: 'row',
                 padding:'0',
-              }, render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
+              }, render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
               {title: 'Job Name', field: 'jobName',cellStyle: {
                 textAlign:'center',
                 flexDirection: 'row',
@@ -759,14 +760,14 @@ const Jobs: React.FC = (props: any) => {
 
             }}
           /> : null}
-          {filterPauseJobs(jobs).length > 0 ? <MaterialTable
+          {filterPauseJobs(jobs).length > 0 ? <SvgIconsMaterialTable
             title="Paused Jobs"
             columns={[
               { title: 'JobId', field: 'jobId',cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'3',
-              }, render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
+              }, render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
               { title: 'Job Name', cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
@@ -846,14 +847,14 @@ const Jobs: React.FC = (props: any) => {
 
             }}
           /> : null}
-          {filterFinishedJobs(jobs).length > 0 ? <MaterialTable
+          {filterFinishedJobs(jobs).length > 0 ? <SvgIconsMaterialTable
             title="Finished Jobs"
             columns={[
               { title: 'JobId', field: 'jobId',cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'3'
-              },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
+              },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
               { title: 'Job Name', cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
@@ -926,14 +927,14 @@ const Jobs: React.FC = (props: any) => {
           refresh ? allJobs &&
               <DLTSTabPanel value={value} index={1}>
                 <JobsSelectByCluster currentCluster={currentCluster} onClusterChange={onClusterChange} clusters={clusters}/>
-                {filterRunningJobs(allJobs).length > 0 ? <MaterialTable
+                {filterRunningJobs(allJobs).length > 0 ? <SvgIconsMaterialTable
                   title="Running Jobs"
                   columns={[
                     {title: 'JobId',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'3',
-                    }, field: 'jobId',render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
+                    }, field: 'jobId',render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
                     {title: 'Job Name',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
@@ -1031,14 +1032,14 @@ const Jobs: React.FC = (props: any) => {
                     Action: (props: any)=> isAdmin ? renderActions(props) : null,
                   }}
                 /> : null}
-                {filterQueuedJobs(allJobs).length > 0 ? <MaterialTable
+                {filterQueuedJobs(allJobs).length > 0 ? <SvgIconsMaterialTable
                   title="Queued  Jobs"
                   columns={[
                     {title: 'JobId', field: 'jobId',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'3',
-                    }, render: rowData =>  <Link  className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
+                    }, render: rowData =>  <Link  className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
                     {title: 'Job Name',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
@@ -1135,16 +1136,15 @@ const Jobs: React.FC = (props: any) => {
                     Action: (props: any)=>isAdmin ? renderActions(props) : null,
 
                   }}
-
                 /> : null}
-                {filterUnApprovedJobs(allJobs).length > 0 ? <MaterialTable
+                {filterUnApprovedJobs(allJobs).length > 0 ? <SvgIconsMaterialTable
                   title="Unapproved  Jobs"
                   columns={[
                     {title: 'JobId', field: 'jobId',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'3',
-                    },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link>},
+                    },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}/${currentTeamId}`}>{rowData.jobId}</Link>},
                     {title: 'Job Name',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
@@ -1238,14 +1238,14 @@ const Jobs: React.FC = (props: any) => {
 
                   }}
                 /> : null}
-                {filterPauseJobs(allJobs).length > 0  ? <MaterialTable
+                {filterPauseJobs(allJobs).length > 0  ? <SvgIconsMaterialTable
                   title="Paused Jobs"
                   columns={[
                     { title: 'JobId',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'3',
-                    },field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link> },
+                    },field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}/${currentTeamId}`}>{rowData.jobId}</Link> },
                     { title: 'Job Name',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
@@ -1330,14 +1330,14 @@ const Jobs: React.FC = (props: any) => {
 
                   }}
                 /> : null}
-                {filterFinishedJobs(allJobs).length > 0 ? <MaterialTable
+                {filterFinishedJobs(allJobs).length > 0 ? <SvgIconsMaterialTable
                   title="Finished Jobs"
                   columns={[
                     { title: 'JobId', field: 'jobId',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'3'
-                    },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
+                    },render: rowData =>  <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
                     { title: 'Job Name', cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',

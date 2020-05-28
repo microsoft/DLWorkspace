@@ -1,4 +1,5 @@
-import React, {
+import * as React from 'react';
+import {
   ComponentPropsWithoutRef,
   FunctionComponent,
   useCallback,
@@ -12,7 +13,7 @@ import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
 import { reduce } from 'lodash';
 
-import TeamsContext from '../../contexts/Teams';
+import TeamContext from '../../contexts/Team';
 import useActions from '../../hooks/useActions';
 import useBatchActions from '../../hooks/useBatchActions';
 
@@ -90,14 +91,14 @@ const InactiveJobsTable: FunctionComponent<JobsTablePropsWithoutColumnsActions> 
 const MyJobs: FunctionComponent = () => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { cluster } = useContext(ClusterContext);
-  const { selectedTeam } = useContext(TeamsContext);
+  const { currentTeamId } = useContext(TeamContext);
 
   const [limit, setLimit] = useState(30);
 
   const { data, loading, error, get, abort } = useFetch(
-    `/api/v2/clusters/${cluster.id}/teams/${selectedTeam}/jobs?limit=${limit}`,
+    `/api/v2/clusters/${cluster.id}/teams/${currentTeamId}/jobs?limit=${limit}`,
     undefined,
-    [cluster.id, selectedTeam, limit]
+    [cluster.id, currentTeamId, limit]
   );
 
   const { Inactive: inactiveJobs=[], ...activeStatusesJobs } = useMemo(() => {

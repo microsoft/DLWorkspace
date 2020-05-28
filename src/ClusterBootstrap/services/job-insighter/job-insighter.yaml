@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: job-insighter
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: job-insighter
+  template:
+    metadata:
+      name: job-insighter
+      labels:
+        app: job-insighter
+    spec:
+      hostNetwork: true
+      nodeSelector:
+        job-insighter: active
+      containers:
+      - name: job-insighter
+        image: '{{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/job-insighter:{{cnf["dockertag"]}}'
+        imagePullPolicy: Always
+        args:
+          - 'python'
+          - '/job-insighter/insight.py'
+          - '--restful_url'
+          - 'http://localhost:{{cnf["restfulapiport"]}}'
+          - '--prometheus_url'
+          - 'http://localhost:{{cnf["prometheus"]["port"]}}'
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule

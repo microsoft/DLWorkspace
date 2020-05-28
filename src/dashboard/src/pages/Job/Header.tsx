@@ -1,5 +1,7 @@
-import React, {
+import * as React from 'react';
+import {
   FunctionComponent,
+  createElement,
   useContext,
   useMemo,
 } from 'react';
@@ -9,8 +11,7 @@ import {
   IconButton,
   Toolbar,
   Typography,
-  Tooltip,
-  Icon
+  Tooltip
 } from '@material-ui/core';
 import {
   ArrowBack
@@ -38,9 +39,9 @@ const Header: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
     const { hidden, icon, tooltip, onClick } = action(job);
     if (hidden) return null;
     return (
-      <Tooltip key={index} title={tooltip}>
+      <Tooltip key={index} title={tooltip as string}>
         <IconButton onClick={(event) => onClick(event, job)}>
-          <Icon>{icon}</Icon>
+          {createElement(icon)}
         </IconButton>
       </Tooltip>
     )

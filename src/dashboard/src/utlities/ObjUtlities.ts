@@ -1,5 +1,5 @@
-import _ from "lodash";
-import React from "react";
+import * as _ from "lodash";
+import * as React from 'react';
 const { DateTime } = require('luxon');
 export const checkObjIsEmpty = (obj: object) => {
   return _.keys(obj).length === 0;

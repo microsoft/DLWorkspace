@@ -1003,19 +1003,55 @@ class JobPriority(Resource):
         username = args["userName"]
 
         payload = request.get_json(silent=True)
-        success, all_job_priorities = JobRestAPIUtils.update_job_priorites(
+        resp, status_code = JobRestAPIUtils.update_job_priorites(
             username, payload)
-        http_status = 200 if success else 400
+
+        if status_code != 200:
+            return resp, status_code
 
         # Only return job_priorities affected in the POST request
         job_priorities = {}
         for job_id, _ in list(payload.items()):
-            if job_id in all_job_priorities:
-                job_priorities[job_id] = all_job_priorities[job_id]
+            if job_id in resp:
+                job_priorities[job_id] = resp[job_id]
             else:
                 job_priorities[job_id] = JobRestAPIUtils.DEFAULT_JOB_PRIORITY
 
         return generate_response(job_priorities)
+
+
+@api.resource("/Insight")
+class Insight(Resource):
+    def __init__(self):
+        self.post_parser = reqparse.RequestParser()
+        self.post_parser.add_argument("jobId", required=True)
+        self.post_parser.add_argument("userName", required=True)
+
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobId", required=True)
+        self.get_parser.add_argument("userName", required=True)
+
+    def get(self):
+        args = self.get_parser.parse_args()
+        job_id = args.get("jobId")
+        username = args.get("userName")
+
+        resp, status_code = JobRestAPIUtils.get_job_insight(job_id, username)
+        if status_code != 200:
+            return resp, status_code
+        return generate_response(resp)
+
+    def post(self):
+        args = self.post_parser.parse_args()
+        job_id = args.get("jobId")
+        username = args.get("userName")
+        payload = request.get_json(force=True, silent=True)
+
+        resp, status_code = JobRestAPIUtils.set_job_insight(job_id, username,
+                                                            payload)
+        if status_code != 200:
+            return resp, status_code
+        return generate_response(resp)
 
 
 @app.route("/metrics")

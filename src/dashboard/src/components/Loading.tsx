@@ -1,11 +1,21 @@
-import React, { FunctionComponent } from 'react';
+import * as React from 'react';
+import { FunctionComponent } from 'react';
 
-import { Box, CircularProgress } from '@material-ui/core';
+import { Box, CircularProgress, Typography } from '@material-ui/core';
 
-const LoadingIndicator: FunctionComponent = () => (
-  <Box p={2} display="flex" justifyContent="center">
+interface LoadingProps {
+  children?: string;
+}
+
+const Loading: FunctionComponent<LoadingProps> = ({ children }) => (
+  <Box
+    flex={1} alignSelf="center"
+    display="flex" flexDirection="column" justifyContent="center" alignItems="center"
+    p={2}
+  >
     <CircularProgress/>
+    {children && <Typography variant="caption" children={children}/>}
   </Box>
 );
 
-export default LoadingIndicator;
+export default Loading;

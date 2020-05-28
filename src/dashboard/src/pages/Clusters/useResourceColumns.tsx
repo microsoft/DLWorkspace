@@ -1,4 +1,5 @@
-import React, {
+import * as React from 'react';
+import {
   useMemo,
   useState,
 } from 'react';
@@ -10,31 +11,11 @@ import { More } from '@material-ui/icons';
 import { Column } from 'material-table';
 import { capitalize, get } from 'lodash';
 
+import CaptionColumnTitle from '../../components/CaptionColumnTitle';
+import { formatBytes, formatFloat } from '../../utils/formats';
+
 export type ResourceType = 'cpu' | 'gpu' | 'memory';
 export type ResourceKind = 'total' | 'unschedulable' | 'used' | 'preemptable' | 'available';
-
-export const humanBytes = (bytes: number) => {
-  if (bytes >= 1024 * 1024 * 1024 * 1024) {
-    return (bytes / 1024 / 1024 / 1024 / 1024).toFixed(1) + ' TiB'
-  }
-  if (bytes >= 1024 * 1024 * 1024) {
-    return (bytes / 1024 / 1024 / 1024).toFixed(1) + ' GiB'
-  }
-  if (bytes >= 1024 * 1024) {
-    return (bytes / 1024 / 1024).toFixed(1) + ' MiB'
-  }
-  if (bytes >= 1024) {
-    return (bytes / 1024).toFixed(1) + ' KiB'
-  }
-  if (isNaN(bytes)) {
-    return '0 B'
-  }
-  return bytes + ' B'
-}
-
-export const humanFloat = (number: number) => {
-  return String(Math.floor(number * 100) / 100);
-}
 
 const useResourceColumns = (kinds: ResourceKind[]) => {
   const theme = useTheme();
@@ -54,19 +35,21 @@ const useResourceColumns = (kinds: ResourceKind[]) => {
 
     for (const title of ['CPU', 'GPU', 'Memory']) {
       const type = title.toLowerCase() as ResourceType;
-      const process = type === 'memory' ? humanBytes : humanFloat;
+      const process = type === 'memory' ? formatBytes : formatFloat;
       const style = { backgroundColor: typeColor[type] };
       columns.push({
         title: (
           <TableSortLabel
             active
             IconComponent={More}
+            direction="desc"
             onClick={() => setExpandedResourceType(type)}
           >
-            {title}
+            <CaptionColumnTitle caption="Used/Total">
+              {title}
+            </CaptionColumnTitle>
           </TableSortLabel>
         ),
-        tooltip: 'Expand',
         hidden: !expandable || expandedResourceType === type,
         headerStyle: { whiteSpace: 'nowrap', ...style },
         cellStyle: { whiteSpace: 'nowrap', ...style },
@@ -79,13 +62,15 @@ const useResourceColumns = (kinds: ResourceKind[]) => {
         ),
         sorting: false,
         searchable: false,
-        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-        // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
         width: 'auto'
-      });
+      } as Column<any>);
       for (const kind of kinds) {
         columns.push({
-          title: `${title} ${capitalize(kind)}`,
+          title: (
+            <CaptionColumnTitle caption={capitalize(kind)}>
+              {title}
+            </CaptionColumnTitle>
+          ),
           type: 'numeric',
           field: `status.${type}.${kind}`,
           hidden: expandable && expandedResourceType !== type,
@@ -94,10 +79,8 @@ const useResourceColumns = (kinds: ResourceKind[]) => {
           ),
           headerStyle: style,
           cellStyle: style,
-          // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-          // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
           width: 'auto'
-        });
+        } as Column<any>);
       }
     }
     return columns;

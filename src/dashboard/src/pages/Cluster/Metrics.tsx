@@ -1,6 +1,8 @@
-import React, {
+import * as React from 'react';
+import {
   FunctionComponent,
-  useContext} from 'react';
+  useContext
+} from 'react';
 
 import {
   Card,
@@ -9,14 +11,14 @@ import {
 } from '@material-ui/core';
 
 
-import TeamsContext from '../../contexts/Teams';
+import TeamContext from '../../contexts/Team';
 
 interface Props {
   data: any;
 }
 
 const Metrics: FunctionComponent<Props> = ({ data: { config } }) => {
-  const { selectedTeam } = useContext(TeamsContext);
+  const { currentTeamId } = useContext(TeamContext);
 
   return (
     <>
@@ -24,7 +26,7 @@ const Metrics: FunctionComponent<Props> = ({ data: { config } }) => {
         <CardHeader title="Team GPU Usage"/>
         <CardMedia
           component="iframe"
-          src={`${config['grafana']}/dashboard/db/per-vc-gpu-statistic?var-vc_name=${selectedTeam}`}
+          src={`${config['grafana']}/dashboard/db/per-vc-gpu-statistic?var-vc_name=${currentTeamId}`}
           height="480"
           frameBorder="0"
         />

@@ -36,9 +36,9 @@ class Framework(object):
     def __init__(self, init_image, labels, annotations, roles, job_id, pod_name,
                  user_cmd, alias, email, gid, uid, mount_points, plugins,
                  family_token, vc_name, dns_policy, node_selector,
-                 ssh_private_key, ssh_public_keys,
-                 is_preemption_allowed, is_host_network,
-                 is_host_ipc, is_privileged, is_debug):
+                 ssh_private_key, ssh_public_keys, priority_class,
+                 is_preemption_allowed, is_host_network, is_host_ipc,
+                 is_privileged, is_debug):
         self.init_image = init_image # str, maybe None
         self.labels = labels # map
         self.annotations = annotations # map
@@ -58,6 +58,7 @@ class Framework(object):
         self.node_selector = node_selector # map
         self.ssh_private_key = ssh_private_key # str
         self.ssh_public_keys = ssh_public_keys # list of str
+        self.priority_class = priority_class # str
         self.is_preemption_allowed = is_preemption_allowed # bool
         self.is_host_network = is_host_network # bool
         self.is_host_ipc = is_host_ipc # bool
@@ -274,6 +275,11 @@ def gen_container_envs(job, role):
         result.append({"name": "DLWS_HOST_NETWORK", "value": "enable"})
         result.append({"name": "DLTS_HOST_NETWORK", "value": "enable"})
 
+    if job.is_preemption_allowed:
+        result.append({"name": "DLTS_PREEMPTIBLE", "value": "true"})
+    else:
+        result.append({"name": "DLTS_PREEMPTIBLE", "value": "false"})
+
     for i, key_value in enumerate(job.ssh_public_keys):
         result.append({
             "name": "DLTS_PUBLIC_SSH_KEY_%d" % i,
@@ -316,9 +322,17 @@ def gen_containers(job, role):
     logger.debug("volume_mounts: %s", volume_mounts)
 
     if job.init_image is None:
+        # This act like init_image for inference jobs, because inference jobs do not need to setup sshd
         cmd = [
-            "sh", "-c",
-            "printenv DLWS_LAUNCH_CMD > /job_command.sh ; mkdir -p /dlts-runtime/status ; touch /dlts-runtime/status/READY ; bash -x /job_command.sh"
+            "sh", "-c", """
+            printenv DLWS_LAUNCH_CMD > /job_command.sh
+            chmod +x /job_command.sh
+            mkdir -p /dlts-runtime/status
+            touch /dlts-runtime/status/READY
+            mkdir /dlts-runtime/env
+            bash /dlws-scripts/init_user.sh
+            runuser -s /bin/bash -l ${DLTS_USER_NAME} -c /job_command.sh
+            """
         ]
     else:
         cmd = ["bash", "/dlws-scripts/bootstrap.sh"]
@@ -533,6 +547,8 @@ def gen_task_role(job, role):
         "containers": gen_containers(job, role),
         "volumes": volumes,
     }
+    if job.priority_class is not None:
+        pod_spec["priorityClassName"] = job.priority_class
 
     if job.init_image is not None:
         pod_spec["initContainers"] = gen_init_container(job, role)
@@ -685,6 +701,7 @@ def transform_regular_job(params, cluster_config):
         params.get("nodeSelector", {}),
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
+        params.get("priority_class"),
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
@@ -752,6 +769,7 @@ def transform_distributed_job(params, cluster_config):
         params.get("nodeSelector", {}),
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
+        params.get("priority_class"),
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
@@ -815,6 +833,7 @@ def transform_inference_job(params, cluster_config):
         params.get("nodeSelector", {}),
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
+        params.get("priority_class"),
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),

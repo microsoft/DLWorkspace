@@ -148,6 +148,8 @@ def populate_job_resource(params):
         if job_params.is_valid():
             logger.info("job_params %s is valid. Populating.", job_params)
             params["sku"] = job_params.sku
+            if job_params.gpu_type:
+                params["gpuType"] = job_params.gpu_type
             params["resourcegpu"] = job_params.gpu_limit
             params["cpurequest"] = job_params.cpu_request
             params["cpulimit"] = job_params.cpu_limit
@@ -928,19 +930,6 @@ def ListVCs(userName):
     return ret
 
 
-def get_gpu_idle(vc_name):
-    ret = None
-    try:
-        gpu_idle_url = config["gpu_reporter"] + '/gpu_idle'
-        gpu_idle_params = {"vc": vc_name}
-        gpu_idle_response = requests.get(gpu_idle_url, params=gpu_idle_params)
-        gpu_idle_json = gpu_idle_response.json()
-        ret = gpu_idle_json
-    except Exception:
-        logger.exception("Failed to fetch gpu_idle from " "gpu-exporter")
-    return ret
-
-
 def get_vc(username, vc_name):
     ret = None
     try:
@@ -963,9 +952,6 @@ def get_vc(username, vc_name):
                 # TODO: deprecate typo "AvaliableJobNum" in legacy code
                 ret["AvaliableJobNum"] = ret["available_job_num"]
 
-                gpu_idle = get_gpu_idle(vc_name)
-                if gpu_idle is not None:
-                    ret["gpu_idle"] = gpu_idle
                 break
     except:
         logger.exception("Exception in getting VC %s for user %s", vc_name,
@@ -1563,13 +1549,16 @@ def get_job_priorities():
 
 
 def update_job_priorites(username, job_priorities):
+    if job_priorities is None:
+        return "Invalid payload", 400
+
     data_handler = None
     try:
         data_handler = DataHandler()
 
         # Only job owner and VC admin can update job priority.
         # Fail job priority update if there is one unauthorized items.
-        pendingJobs = {}
+        pending_jobs = {}
         for job_id in job_priorities:
             priority = job_priorities[job_id]
             job = data_handler.GetJobTextFields(
@@ -1581,31 +1570,129 @@ def update_job_priorites(username, job_priorities):
                                                       job["vcName"],
                                                       Permission.Admin)
             if job["userName"] != username and (not vc_admin):
-                return False
+                msg = "Operation aborted. User %s is unauthorized to " \
+                      "update priority for job %s" % (job["userName"], job_id)
+                return msg, 403
 
             # Adjust priority based on permission
             permission = Permission.Admin if vc_admin else Permission.User
             job_priorities[job_id] = adjust_job_priority(priority, permission)
 
             if job["jobStatus"] in ACTIVE_STATUS:
-                pendingJobs[job_id] = job_priorities[job_id]
+                pending_jobs[job_id] = job_priorities[job_id]
 
-        ret_code = data_handler.update_job_priority(job_priorities)
-        return ret_code, pendingJobs
+        success = data_handler.update_job_priority(job_priorities)
+        if not success:
+            return "Internal DB error", 400
+        return pending_jobs, 200
 
-    except Exception as e:
-        logger.error("Exception when updating job priorities: %s" % e)
+    except Exception:
+        logger.exception("Failed to update job priorities %s.", job_priorities)
 
     finally:
         if data_handler is not None:
             data_handler.Close()
 
-def getAlias(username):
-    if "@" in username:
-        username = username.split("@")[0].strip()
-    if "/" in username:
-        username = username.split("/")[1].strip()
-    return username
+    return "Internal server error", 400
+
+
+def get_job_insight(job_id, username):
+    """Get job insight for the specified job.
+
+    Args:
+        job_id: Job id for which to get job insight.
+        username: Requester username.
+
+    Returns:
+        (response message, status code)
+    """
+    try:
+        with DataHandler() as data_handler:
+            fields = ["userName", "vcName", "insight"]
+            job = data_handler.GetJobTextFields(job_id, fields)
+
+            # Job not found
+            if job is None:
+                msg = "Job %s requested by user %s cannot be found" % \
+                      (job_id, username)
+                logger.error(msg)
+                return msg, 404
+
+            # Only job owner and VC users/admins can see job insight
+            if job["userName"] != username and \
+                    not has_access(username, VC, job["vcName"], COLLABORATOR):
+                msg = "Unauthorized access to insight for job %s by user %s" % \
+                      (job_id, username)
+                logger.error(msg)
+                return msg, 403
+
+            if job["insight"] is not None:
+                insight = json.loads(base64decode(job["insight"]))
+            else:
+                insight = {}
+            logger.info("Insight for job %s is successfully get by user %s",
+                        job_id, username)
+            return insight, 200
+    except Exception as e:
+        msg = "Exception when getting insight for job %s by user %s. %s" % \
+              (job_id, username, e)
+        logger.exception(msg)
+        return msg, 500
+
+
+def set_job_insight(job_id, username, insight):
+    """Set job insight for the specified job (only by job owner or VC admin).
+
+    Args:
+        job_id: Job id for which to set insight.
+        username: Requester username.
+        insight: Insight content for the job.
+
+    Returns:
+        (response message, status code)
+    """
+    try:
+        with DataHandler() as data_handler:
+            fields = ["userName", "vcName"]
+            job = data_handler.GetJobTextFields(job_id, fields)
+
+            # Job not found
+            if job is None:
+                msg = "Job %s requested by user %s cannot be found" % \
+                      (job_id, username)
+                logger.error(msg)
+                return msg, 404
+
+            # Only VC admins can set job insight
+            if not has_access(username, VC, job["vcName"], ADMIN):
+                msg = "Unauthorized to set insight for job %s by user %s" % \
+                      (job_id, username)
+                logger.error(msg)
+                return msg, 403
+
+            if insight is None:
+                msg = "Bad insight cannot be set for job %s by user %s" % \
+                      (job_id, username)
+                logger.error(msg)
+                return msg, 400
+
+            cond_fields = {"jobId": job_id}
+            data_fields = {"insight": base64encode(json.dumps(insight))}
+            ret = data_handler.UpdateJobTextFields(cond_fields, data_fields)
+            if ret is True:
+                msg = "Insight for job %s is successfully set by user %s" % \
+                      (job_id, username)
+                logger.info(msg)
+                return msg, 200
+            else:
+                msg = "Internal error on setting insight for job %s by user %s" % \
+                      (job_id, username)
+                return msg, 500
+    except Exception as e:
+        msg = "Exception when setting insight for job %s by user %s. %s" % \
+              (job_id, username, e)
+        logger.exception(msg)
+        return msg, 500
 
 
 def getAlias(username):

@@ -9,6 +9,7 @@ import signal
 import faulthandler
 import gc
 import datetime
+import sys
 
 import prometheus_client
 from prometheus_client import Gauge
@@ -138,6 +139,13 @@ def main(args):
     # used to exchange dcgm info between DCGMCollector and ContainerCollector
     dcgm_info_ref = collector.AtomicRef(decay_time)
 
+    # used to exchange infiniband info between InfinibandCollector and
+    # ContainerCollector
+    infiniband_info_ref = collector.AtomicRef(decay_time)
+
+    # used to exchange ipoib info between IPoIBCollector and ContainerCollector
+    ipoib_info_ref = collector.AtomicRef(decay_time)
+
     interval = args.interval
     # Because all collector except container_collector will spent little time in calling
     # external command to get metrics, so they need to sleep 30s to align with prometheus
@@ -150,7 +158,7 @@ def main(args):
          nvidia_info_ref, zombie_info_ref, args.threshold),
         ("container_collector", max(0, interval - 18), decay_time,
          collector.ContainerCollector, nvidia_info_ref, stats_info_ref,
-         args.interface, dcgm_info_ref),
+         args.interface, dcgm_info_ref, infiniband_info_ref, ipoib_info_ref),
         ("zombie_collector", interval, decay_time, collector.ZombieCollector,
          stats_info_ref, zombie_info_ref),
         ("process_collector", interval, decay_time, collector.ProcessCollector),
@@ -158,6 +166,13 @@ def main(args):
          dcgm_info_ref),
         ("nvsm_collector", 10, datetime.timedelta(seconds=1200),
          collector.NVSMCollector),
+        ("infiniband_collector", interval, decay_time,
+         collector.InfinibandCollector, infiniband_info_ref),
+        ("ipoib_collector", interval, decay_time, collector.IPoIBCollector,
+         ipoib_info_ref),
+        ("nv_peer_mem_collector", interval, decay_time,
+         collector.NvPeerMemCollector),
+        ("lustre_collector", interval, decay_time, collector.LustreCollector),
     ]
 
     refs = list(map(lambda x: collector.make_collector(*x), collector_args))

@@ -257,6 +257,12 @@ spec:
     - name: DLTS_HOST_NETWORK
       value: "enable"
     {% endif %}
+    - name: DLTS_PREEMPTIBLE
+    {% if job["preemptionAllowed"] %}
+      value: "true"
+    {% else%}
+      value: "false"
+    {% endif %}
     {% for env in job["envs"] %}
     - name: {{env.name}}
       value: "{{env.value}}"
@@ -328,4 +334,7 @@ spec:
   {% endif %}
   {% endif %}
   {% endfor %}
+  {% endif %}
+  {% if job["priority_class"] %}
+  priorityClassName: {{ job["priority_class"] }}
   {% endif %}

@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from 'react';
 import {AppBar, Container, Tabs, Tab} from "@material-ui/core";
 import useCheckIsDesktop from "../../utlities/layoutUtlities";
 import {handleChangeTab} from "../../utlities/interactionUtlties";
@@ -13,8 +13,9 @@ interface TabsProps {
 
 export const DLTSTabs = (props: TabsProps) => {
   const { children, value,setShowIframe,setValue,titles,setRefresh, ...other } = props;
+  const checkIsDesktop = useCheckIsDesktop();
   return (
-    <Container maxWidth={useCheckIsDesktop ? 'xl' : 'lg'}  >
+    <Container maxWidth={checkIsDesktop ? 'xl' : 'lg'}  >
       <AppBar position="static" color="default">
         <Tabs
           value={value}

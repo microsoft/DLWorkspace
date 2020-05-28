@@ -1,4 +1,5 @@
-import React, {
+import * as React from 'react';
+import {
   FunctionComponent,
   useCallback,
   useContext,
@@ -17,7 +18,7 @@ import {
   Typography
 } from '@material-ui/core';
 
-import MaterialTable, {
+import {
   Column,
   Options
 } from 'material-table';
@@ -25,8 +26,8 @@ import MaterialTable, {
 import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
 
-import SortArrow from '../../components/SortArrow';
-import TeamsContext from '../../contexts/Teams';
+import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
+import TeamContext from '../../contexts/Team';
 import ClustersContext from '../../contexts/Clusters';
 import useTableData from '../../hooks/useTableData';
 
@@ -34,13 +35,13 @@ import useResourceColumns, { ResourceKind } from './useResourceColumns';
 import usePrometheus from '../../hooks/usePrometheus';
 
 const useClusterStatus = (clusterId: string) => {
-  const { selectedTeam } = useContext(TeamsContext);
+  const { currentTeamId } = useContext(TeamContext);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const { data, loading, error, get } = useFetch(
-    `/api/v2/teams/${selectedTeam}/clusters/${clusterId}`,
+    `/api/v2/teams/${currentTeamId}/clusters/${clusterId}`,
     undefined,
-    [clusterId, selectedTeam]);
+    [clusterId, currentTeamId]);
 
   useEffect(() => {
     if (loading) return;
@@ -66,10 +67,10 @@ const useClusterStatus = (clusterId: string) => {
 };
 
 const useClusterMetrics = (status: any) => { // Actually Cluster-Team Metrics
-  const { selectedTeam } = useContext(TeamsContext);
+  const { currentTeamId } = useContext(TeamContext);
 
   const metrics = usePrometheus(status ? status.config['grafana'] : undefined,
-    `avg(task_gpu_percent {vc_name="${selectedTeam}"})`);
+    `avg(task_gpu_percent {vc_name="${currentTeamId}"})`);
 
   return get(metrics, 'result[0].value[1]');
 }
@@ -179,13 +180,12 @@ const Clusters: FunctionComponent = () => {
 
   return (
     <Container>
-      <MaterialTable
+      <SvgIconsMaterialTable
         title="Clusters"
         data={data}
         columns={columns}
         options={options}
         parentChildData={parentChildData}
-        icons={{ SortArrow }}
       />
     </Container>
   )

@@ -1,4 +1,5 @@
-import React, {
+import * as React from 'react';
+import {
   ChangeEvent,
   FunctionComponent,
   useCallback,
@@ -23,22 +24,22 @@ import {
   Typography,
   makeStyles
 } from '@material-ui/core';
-import MaterialTable, {
+import {
   Column,
   Options,
   DetailPanel
 } from 'material-table';
 
-import SortArrow from '../../components/SortArrow';
-import TeamsContext from '../../contexts/Teams';
+import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
+import TeamContext from '../../contexts/Team';
 import useTableData from '../../hooks/useTableData';
 import usePrometheus from '../../hooks/usePrometheus';
 
 import useResourceColumns, { ResourceKind } from '../Clusters/useResourceColumns';
+import QueryContext from './QueryContext';
 
 interface Props {
   data: any;
-  onSearchPods: (query: string) => void;
 }
 
 const useLinkStyles = makeStyles({
@@ -47,14 +48,15 @@ const useLinkStyles = makeStyles({
   }
 });
 
-const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, onSearchPods }) => {
-  const { selectedTeam } = useContext(TeamsContext);
+const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } }) => {
+  const { currentTeamId } = useContext(TeamContext);
+  const { setQuery } = useContext(QueryContext);
 
   const linkStyles = useLinkStyles();
 
   const [filterType, setFilterType] = useState<string>('__all__');
 
-  const metrics = usePrometheus(config['grafana'], `avg(task_gpu_percent{vc_name="${selectedTeam}"}) by (instance)`);
+  const metrics = usePrometheus(config['grafana'], `avg(task_gpu_percent{vc_name="${currentTeamId}"}) by (instance)`);
   const workersGPUUtilization = useMemo(() => {
     const workersGPUUtilization: { [workerName: string]: number } = Object.create(null);
     if (metrics) {
@@ -86,8 +88,8 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, o
   const tableData = useTableData(data, { isTreeExpanded: true });
 
   const handleWorkerClick = useCallback((workerName: string) => () => {
-    onSearchPods(workerName);
-  }, [onSearchPods]);
+    setQuery(workerName);
+  }, [setQuery]);
 
   const resourceKinds = useRef<ResourceKind[]>(
     ['total', 'unschedulable', 'used', 'preemptable', 'available']
@@ -129,7 +131,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, o
       render: ({ gpuUtilization }) => gpuUtilization && <>{Number(gpuUtilization).toFixed(2)}%</>
     });
     return columns;
-  }, [resourceColumns, handleWorkerClick]);
+  }, [resourceColumns, handleWorkerClick, linkStyles]);
 
   const options = useRef<Options>({
     padding: 'dense',
@@ -159,7 +161,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, o
   }, [config]);
 
   return (
-    <MaterialTable
+    <SvgIconsMaterialTable
       title={(
         <>
           Show Type: <Select value={filterType} onChange={handleSelectChange}>
@@ -174,7 +176,6 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, o
       columns={columns}
       options={options}
       detailPanel={detailPanel}
-      icons={{ SortArrow }}
     />
   );
 };

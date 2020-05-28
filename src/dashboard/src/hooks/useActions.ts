@@ -1,5 +1,6 @@
-import { useCallback, useContext } from 'react';
+import { createElement, useCallback, useContext } from 'react';
 import { useSnackbar } from 'notistack';
+import { Check, Clear, ContactSupport, Pause, PlayArrow } from '@material-ui/icons';
 import { Action } from 'material-table';
 
 import ConfigContext from '../contexts/Config';
@@ -126,7 +127,7 @@ ${givenName} ${familyName}
 
   const support = useCallback(Object.assign((job: any): Action<any> => {
     return {
-      icon: 'contact_support',
+      icon: () => createElement(ContactSupport),
       tooltip: 'Support',
       onClick: onSupport
     };
@@ -136,7 +137,7 @@ ${givenName} ${familyName}
     const hidden = APPROVABLE_STATUSES.indexOf(job['jobStatus']) === -1;
     return {
       hidden,
-      icon: 'check',
+      icon: () => createElement(Check),
       tooltip: 'Approve',
       onClick: onApprove
     }
@@ -146,7 +147,7 @@ ${givenName} ${familyName}
     const hidden = PAUSABLE_STATUSES.indexOf(job['jobStatus']) === -1;
     return {
       hidden,
-      icon: 'pause',
+      icon: () => createElement(Pause),
       tooltip: 'Pause',
       onClick: onPause
     }
@@ -156,7 +157,7 @@ ${givenName} ${familyName}
     const hidden = RESUMABLE_STATUSES.indexOf(job['jobStatus']) === -1;
     return {
       hidden,
-      icon: 'play_arrow',
+      icon: () => createElement(PlayArrow),
       tooltip: 'Resume',
       onClick: onResume
     }
@@ -166,7 +167,7 @@ ${givenName} ${familyName}
     const hidden = KILLABLE_STATUSES.indexOf(job['jobStatus']) === -1;
     return {
       hidden,
-      icon: 'clear',
+      icon: () => createElement(Clear),
       tooltip: 'Kill',
       onClick: onKill
     }

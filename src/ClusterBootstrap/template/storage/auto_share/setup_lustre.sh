@@ -1,15 +1,20 @@
 cat <<EOM >/etc/yum.repos.d/lustre.repo 
 [lustre-server]
-name=CentOS-$releasever - Lustre
-baseurl=https://downloads.hpdd.intel.com/public/lustre/latest-feature-release/el7/server/
+name=lustre-server
+baseurl=https://downloads.whamcloud.com/public/lustre/latest-feature-release/el7/server
+# exclude=*debuginfo*
 gpgcheck=0
-[e2fsprogs]
-name=CentOS-$releasever - Ldiskfs
-baseurl=https://downloads.hpdd.intel.com/public/e2fsprogs/latest/el7/
-gpgcheck=0
+
 [lustre-client]
-name=CentOS-$releasever - Lustre
-baseurl=https://downloads.hpdd.intel.com/public/lustre/latest-feature-release/el7/client/
+name=lustre-client
+baseurl=https://downloads.whamcloud.com/public/lustre/latest-feature-release/el7/client
+# exclude=*debuginfo*
+gpgcheck=0
+
+[e2fsprogs-wc]
+name=e2fsprogs-wc
+baseurl=https://downloads.whamcloud.com/public/e2fsprogs/latest/el7
+# exclude=*debuginfo*
 gpgcheck=0
 EOM
 
@@ -35,6 +40,11 @@ touch {{cnf["folder_auto_share"]}}/lustre_setup_finished
 chown -R {{cnf["lustre_user"]}}:{{cnf["lustre_user"]}} {{cnf["folder_auto_share"]}}
 # we further setup service that examine 2 token: when lustre_setup_finished exist, lustre_nodes_locally_mounted doesn't, execute following script
 source ../boot.env
-python ./cloud_init_mkdir_and_cp.py -p file_map.yaml -u $USER -m $MOD_2_CP
+
+# file system operations in Centos cloud init is extremely slow - a few to 
+# tens of seconds for each operation. Here only copy necessary files to enable 
+# lustre service. Defer major file system operations in lustre_mdt_or_oss.sh 
+# in lustre service.
+python ./cloud_init_mkdir_and_cp.py -p file_map.yaml -u $USER -m lustre_server
 systemctl enable lustre_server
 reboot

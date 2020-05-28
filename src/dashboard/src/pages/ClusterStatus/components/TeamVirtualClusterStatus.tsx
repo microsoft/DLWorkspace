@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from 'react';
 import {
   Table,
   TableHead,
@@ -13,10 +13,10 @@ import {
 import {checkObjIsEmpty, sumValues} from "../../../utlities/ObjUtlities";
 import { TeamVCTitles } from "../../../Constants/TabsContants";
 import useCheckIsDesktop from "../../../utlities/layoutUtlities";
-import MaterialTable from "material-table";
 import Tooltip from "@material-ui/core/Tooltip";
 import IconButton from "@material-ui/core/IconButton";
 import {red} from "@material-ui/core/colors";
+import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable';
 
 interface TeamVC {
   children?: React.ReactNode;
@@ -51,11 +51,11 @@ const renderData = (data: any) => {
 export const TeamVirtualClusterStatus = (props: TeamVC) => {
   const{vcStatus,selectedValue,handleChange, children} = props;
   const theme = useTheme();
-  console.log(vcStatus)
+  const checkIsDesktop = useCheckIsDesktop()
   return (
-    <MuiThemeProvider theme={useCheckIsDesktop ? theme : tableTheme}>
+    <MuiThemeProvider theme={checkIsDesktop ? theme : tableTheme}>
       {
-        vcStatus.length > 0 ?  <MaterialTable
+        vcStatus.length > 0 ?  <SvgIconsMaterialTable
           title=""
           columns={[
             {title: 'Name', field: 'ClusterName', render:(rowData: any)=><div><Radio

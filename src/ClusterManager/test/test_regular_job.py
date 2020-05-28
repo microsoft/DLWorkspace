@@ -47,14 +47,13 @@ def test_regular_preemptable_job_running(args):
 
 @utils.case(unstable=True)
 def test_data_job_running(args):
-    expected_state = "finished"
     expected_word = "wantThisInLog"
     cmd = "mkdir -p /tmp/dlts_test_dir; " \
           "echo %s > /tmp/dlts_test_dir/testfile; " \
           "cd /DataUtils; " \
           "./copy_data.sh /tmp/dlts_test_dir adl://indexserveplatform-experiment-c09.azuredatalakestore.net/local/dlts_test_dir True 4194304 4 2 >/dev/null 2>&1;" \
           "./copy_data.sh adl://indexserveplatform-experiment-c09.azuredatalakestore.net/local/dlts_test_dir /tmp/dlts_test_dir_copyback False 33554432 4 2 >/dev/null 2>&1;" \
-          "cat /tmp/dlts_test_dir_copyback/testfile; " % expected_word
+          "cat /tmp/dlts_test_dir_copyback/testfile; sleep 120" % expected_word
 
     image = "indexserveregistry.azurecr.io/dlts-data-transfer-image:latest"
 
@@ -66,10 +65,9 @@ def test_data_job_running(args):
                                                  image=image)
     with utils.run_job(args.rest, job_spec) as job:
         state = job.block_until_state_not_in(
-            {"unapproved", "queued", "scheduling", "running"})
-        assert expected_state == state
+            {"unapproved", "queued", "scheduling"})
 
-        for _ in range(10):
+        for _ in range(300):
             log = utils.get_job_log(args.rest, args.email, job.jid)
             if expected_word in log:
                 break
@@ -758,3 +756,141 @@ def test_regular_job_mountpoints(args):
         for mp in ib_mps:
             assert not utils.mountpoint_in_pod(mp, pod), \
                 "infiniband mountpoint %s in regular job %s" % (mp, job.jid)
+
+
+@utils.case()
+def test_job_insight(args):
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        payload = {"messages": ["dummy"]}
+        resp = utils.set_job_insight(args.rest, args.email, job.jid, payload)
+        assert resp.status_code == 200
+
+        insight = utils.get_job_insight(args.rest, args.email, job.jid)
+        assert payload == insight
+
+
+@utils.case()
+def test_gpu_type_override(args):
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc)
+    # wrong gpu type
+    job_spec["gpuType"] = "V100"
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = job.block_until_state_not_in({"unapproved", "queued"})
+        assert state in ["scheduling", "running"]
+
+        pod = utils.kube_get_pods(args.config, "default",
+                                  "jobId=%s" % job.jid)[0]
+
+        # gpu type should be overriden by the correct one
+        assert pod.metadata.labels.get("gpuType") == "P40"
+
+
+@utils.case()
+def test_job_priority(args):
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc)
+    with utils.run_job(args.rest, job_spec) as job:
+        # wait until running to avoid state change race
+        state = job.block_until_state_not_in({"unapproved", "queued"})
+        assert state in ["scheduling", "running"]
+
+        # invalid payload
+        resp = utils.set_job_priorities(args.rest, args.email, None)
+        assert resp.status_code == 400
+
+        # unauthorized user cannot change priority
+        resp = utils.set_job_priorities(args.rest, "unauthorized_user",
+                                        {job.jid: 101})
+        assert resp.status_code == 403
+        priority = utils.get_job_priorities(args.rest)[job.jid]
+        assert priority == 100
+
+        # job owner can change priority
+        resp = utils.set_job_priorities(args.rest, args.email, {job.jid: 101})
+        assert resp.status_code == 200
+        priority = utils.get_job_priorities(args.rest)[job.jid]
+        assert priority == 101
+
+
+@utils.case()
+def test_regular_job_no_distributed_system_envs(args):
+    envs = utils.load_distributed_system_envs(args)
+
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 cmd="sleep infinity")
+    with utils.run_job(args.rest, job_spec) as job:
+        endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
+                                          ["ssh"])
+        endpoint_id = list(endpoints.keys())[0]
+
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email,
+                                                 job.jid, endpoint_id)
+        logger.debug("endpoints resp is %s", ssh_endpoint)
+
+        ssh_host = "%s.%s" % (ssh_endpoint["nodeName"],
+                              ssh_endpoint["domain"])
+        ssh_port = ssh_endpoint["port"]
+        ssh_id = ssh_endpoint["id"]
+
+        bash_cmd = ";".join([
+            "printf '%s=' ; printenv %s" % (key, key)
+            for key, _ in envs.items()
+        ])
+
+        # exec into jobmanager to execute ssh to avoid firewall
+        job_manager_pod = utils.kube_get_pods(args.config, "default",
+                                              "app=jobmanager")[0]
+        job_manager_pod_name = job_manager_pod.metadata.name
+
+        alias = args.email.split("@")[0]
+
+        ssh_cmd = [
+            "ssh",
+            "-i",
+            "/dlwsdata/work/%s/.ssh/id_rsa" % alias,
+            "-p",
+            str(ssh_port),
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "LogLevel=ERROR",
+            "%s@%s" % (alias, ssh_host),
+            "--",
+        ]
+        ssh_cmd.append(bash_cmd)
+
+        code, output = utils.kube_pod_exec(args.config, "default",
+                                           job_manager_pod_name,
+                                           "jobmanager", ssh_cmd)
+
+        logger.debug("cmd %s code is %s, output is %s", " ".join(ssh_cmd),
+                     code, output)
+
+        for key, val in envs.items():
+            expected_output = "%s=%s" % (key, val)
+            assert output.find(
+                expected_output) == -1, "should not find %s in log %s" % (
+                expected_output, output)
+

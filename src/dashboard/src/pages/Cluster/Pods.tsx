@@ -1,4 +1,5 @@
-import React, {
+import * as React from 'react';
+import {
   FunctionComponent,
   useCallback,
   useContext,
@@ -16,29 +17,30 @@ import {
   Tooltip,
   Typography
 } from '@material-ui/core';
-import MaterialTable, {
+import {
   Column,
   Options
 } from 'material-table';
 
-import SortArrow from '../../components/SortArrow';
+import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
 import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
-import TeamsContext from '../../contexts/Teams';
+import TeamContext from '../../contexts/Team';
+import { formatBytes, formatPercent } from '../../utils/formats';
 
-import { humanBytes } from '../Clusters/useResourceColumns';
+import QueryContext from './QueryContext';
 
 interface Props {
   data: any;
-  query?: string;
 }
 
-const Pods: FunctionComponent<Props> = ({ data: { config, workers }, query }) => {
+const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
   const { clusterId } = useParams();
-  const { selectedTeam } = useContext(TeamsContext);
+  const { currentTeamId } = useContext(TeamContext);
+  const { query } = useContext(QueryContext);
 
-  const gpuUtilizationMetrics = usePrometheus(config['grafana'], `avg(task_gpu_percent {vc_name="${selectedTeam}"}) by (pod_name)`);
-  const gpuIdleMetrics = usePrometheus(config['grafana'], `count(task_gpu_percent {vc_name="${selectedTeam}"} == 0) by (pod_name)`);
+  const gpuUtilizationMetrics = usePrometheus(config['grafana'], `avg(task_gpu_percent {vc_name="${currentTeamId}"}) by (pod_name)`);
+  const gpuIdleMetrics = usePrometheus(config['grafana'], `count(task_gpu_percent {vc_name="${currentTeamId}"} == 0) by (pod_name)`);
 
   const [filterCurrentTeam, setFilterCurrentTeam] = useState(true);
 
@@ -70,8 +72,8 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers }, query }) =>
           ...pod
         })));
     if (filterCurrentTeam) return pods;
-    return filter(pods, ({ team }) => team === selectedTeam);
-  }, [filterCurrentTeam, podsGPUMetrics, selectedTeam, workers]);
+    return filter(pods, ({ team }) => team === currentTeamId);
+  }, [filterCurrentTeam, podsGPUMetrics, currentTeamId, workers]);
   const tableData = useTableData(pods);
 
   const handleButtonClick = useCallback(() => {
@@ -114,13 +116,13 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers }, query }) =>
     title: 'Memory',
     field: 'memoty',
     type: 'numeric',
-    render: ({ memory }) => <>{humanBytes(memory)}</>,
+    render: ({ memory }) => <>{formatBytes(memory)}</>,
     width: 'auto'
   } as Column<any>, {
     title: 'Assigned GPU Utilization',
     field: 'gpuMetrics.utilization',
     type: 'numeric',
-    render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && <>{Number(gpuMetrics.utilization).toFixed(2)}%</>
+    render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && <>{formatPercent(Number(gpuMetrics.utilization))}</>
   } as Column<any>, {
     title: 'GPU Idle',
     field: 'gpuMetrics.idle',
@@ -138,7 +140,7 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers }, query }) =>
   }), [query]);
 
   return (
-    <MaterialTable
+    <SvgIconsMaterialTable
       title={
         <Button variant="outlined" onClick={handleButtonClick}>
           {filterCurrentTeam ? 'Show Pods in All Teams' : 'Show Current Team Only'}
@@ -147,7 +149,6 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers }, query }) =>
       data={tableData}
       columns={columns}
       options={options}
-      icons={{ SortArrow }}
     />
   );
 };

@@ -596,7 +596,7 @@ def test_distributed_job_mountpoints(args):
 
 @utils.case()
 def test_distributed_job_system_envs(args):
-    envs = utils.load_system_envs(args)
+    envs = utils.load_distributed_system_envs(args)
 
     job_spec = utils.gen_default_job_description("distributed",
                                                  args.email,

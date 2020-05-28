@@ -8,6 +8,7 @@ import json
 import yaml
 import uuid
 import utils
+import time
 import textwrap
 import argparse
 
@@ -191,48 +192,12 @@ def load_node_list_by_role_from_config(config, roles, with_domain=True):
     return Nodes, config
 
 
-# Get the list of nodes for a particular service
-def get_node_lists_for_service(service, config):
-    if "etcd_node" not in config or "worker_node" not in config:
-        print("cluster not ready! nodes unknown!")
-    labels = fetch_config(config, ["kubelabels"])
-    nodetype = labels[service] if service in labels else labels["default"]
-    if nodetype == "worker_node":
-        nodes = config["worker_node"]
-    elif nodetype == "etcd_node":
-        nodes = config["etcd_node"]
-    elif nodetype.find("etcd_node_") >= 0:
-        nodenumber = int(nodetype[nodetype.find(
-            "etcd_node_") + len("etcd_node_"):])
-        if len(config["etcd_node"]) >= nodenumber:
-            nodes = [config["etcd_node"][nodenumber-1]]
-        else:
-            nodes = []
-    elif nodetype == "all":
-        nodes = config["worker_node"] + config["etcd_node"]
-    else:
-        machines = fetch_config(config, ["machines"])
-        if machines is None:
-            print("Service %s has a nodes type %s, but there is no machine configuration to identify node" % (
-                service, nodetype))
-            exit(-1)
-        allnodes = config["worker_node"] + config["etcd_node"]
-        nodes = []
-        for node in allnodes:
-            nodename = kubernetes_get_node_name(node)
-            if nodename in machines and nodetype in machines[nodename]:
-                nodes.append(node)
-    return nodes
-
-
 def load_default_config(config):
     apply_config_mapping(config, default_config_mapping)
     if ("mysql_node" not in config):
-        config["mysql_node"] = None if len(get_node_lists_for_service("mysql", config)) == 0 \
-            else get_node_lists_for_service("mysql", config)[0]
+        config["mysql_node"] = config["infra_node"][0]
     if ("host" not in config["prometheus"]):
-        config["prometheus"]["host"] = None if len(get_node_lists_for_service("prometheus", config)) == 0 \
-            else get_node_lists_for_service("prometheus", config)[0]
+        config["prometheus"]["host"] = config["infra_node"][0]
     config = update_docker_image_config(config)
     config["admin_username"] = config.get("admin_username", config["cloud_config_nsg_rules"]["default_admin_username"])
     config["api_servers"] = "https://" + \
@@ -248,7 +213,7 @@ def load_default_config(config):
                    "./scripts/prepare_vm_disk.sh", "./scripts/prepare_ubuntu.sh",
                    "./scripts/disable_kernel_auto_updates.sh", "./scripts/docker_network_gc_setup.sh",
                    "./deploy/scripts/dns.sh", "./deploy/etcd/init_network.sh", "scripts/render_env_vars.sh",
-                   "scripts/fileshare_install.sh", "scripts/mnt_fs_svc.sh"],
+                   "scripts/fileshare_install.sh", "scripts/mnt_fs_svc.sh", "scripts/build_lustre_client.sh"],
 
         "infra": ["./deploy/master/" + config["premasterdeploymentscript"],
                   "./deploy/master/" +
@@ -264,7 +229,15 @@ def load_default_config(config):
 
         "nfs": ["./scripts/cloud_init_nfs.sh"],
 
-        "lustre_server": ["./deploy/storage/auto_share/setup_lustre.sh"]}
+        "lustre_server": [
+            "./deploy/kubelet/" + config["preworkerdeploymentscript"],
+            "./deploy/kubelet/" + config["postworkerdeploymentscript"],
+            "./scripts/cloud_init_lustre.sh",
+            "./scripts/prepare_lustre_centos.sh",
+            "./deploy/storage/auto_share/setup_lustre.sh",
+            "./deploy/cloud-config/lustre.kubelet.service.template"
+        ]
+    }
 
     config["repair-manager"]["cluster_name"] = config["cluster_name"]
     config["prometheus"]["cluster_name"] = config["cluster_name"]
@@ -550,6 +523,11 @@ def render_worker_node_specific(config, args):
     config = get_stat_of_sku(config)
     default_worker_f2cp = ["kubernetes_common", "kubelet_worker", "nfs_client"]
     for sku in config["worker_sku_cnt"]:
+        config["script_modules"] = []
+        need_infiniband = config.get("sku_mapping", {}).get(
+                                    sku, {}).get("infiniband", False)
+        if need_infiniband:
+            config["script_modules"].append("infiniband")
         gpu_type = config.get("sku_mapping", {}).get(
             sku, {}).get("gpu-type", "None")
         config["kube_labels"] = common_worker_labels + \
@@ -559,6 +537,7 @@ def render_worker_node_specific(config, args):
             config["file_modules_2_copy"].append("gpu_docker_daemon")
         utils.render_template("./template/cloud-config/cloud_init_worker.txt.template",
                               "./deploy/cloud-config/cloud_init_worker_{}.txt".format(sku), config)
+        config.pop("script_modules")
 
 
 def render_elasticsearch_node_specific(config, args):
@@ -601,10 +580,13 @@ def render_nfs_node_specific(config, args):
 def render_mdt_node_specific(config, args):
     """could only be invoked in render_lustre_node_specific, otherwise add file_modules"""
     config["mdt_id"] = 0
-    lustre_disk_id = 1
+    if "mdt_node" not in config or len(config["mdt_node"]) == 0:
+        return config
     mdt_node_name = config["mdt_node"][0].split(".")[0]
     mdt_spec = config["machines"][mdt_node_name]
     config["data_disk_mnt_path"] = mdt_spec["data_disk_mnt_path"]
+    config["kube_labels"] = get_kube_labels_of_machine_name(
+        config, mdt_node_name)
     utils.render_template("./template/cloud-config/cloud_init_lustre.txt.template",
         "./deploy/cloud-config/cloud_init_{}.txt".format(mdt_node_name), config)
     config["mgs_node_private_ip"] = mdt_spec["private_ip"]
@@ -614,6 +596,7 @@ def render_mdt_node_specific(config, args):
 
 def render_oss_node_specific(config, args):
     """could only be invoked in render_lustre_node_specific, otherwise add file_modules"""
+    lustre_disk_id = 1
     for oss in config.get("oss_node", []):
         oss_machine_name = oss.split(".")[0]
         oss_spec = config["machines"][oss_machine_name]
@@ -639,7 +622,8 @@ def render_oss_node_specific(config, args):
 def render_lustre_node_specific(config, args):
     assert config["priority"] in ["regular", "low"]
     config = escaped_etcd_end_point_and_k8s_api_server(config)
-    config["file_modules_2_copy"] = ["lustre_server"]
+    config["file_modules_2_copy"] = [
+        "kubernetes_common", "kubelet_worker", "lustre_server"]
     config = render_mdt_node_specific(config, args)
     config = render_oss_node_specific(config, args)
 
@@ -934,11 +918,12 @@ def render_for_infra_generic(config, args):
         config["basic_auth"] = create_basic_auth_4_k8s(regenerate_key)
 
     config = GetCertificateProperty(config)
-    utils.render_template_directory(
-        "./template/ssl", "./deploy/ssl", config, verbose=True)
-
+    
     gen_dns_config_script(config)
+
     if gen_new_key:
+        utils.render_template_directory(
+        "./template/ssl", "./deploy/ssl", config, verbose=True)
         gen_CA_certificates(config)
         gen_worker_certificates(config)
         gen_master_certificates(config)
@@ -1016,7 +1001,7 @@ def render_kube_services(config):
     utils.render_template_directory(
         "./services/", "./deploy/services/", config)
     config['labels'] = ["{{cnf['labels'] | join(',')}}"]
-    for role in ["infra", "worker"]:
+    for role in ["infra", "worker", "lustre"]:
         utils.render_template("template/cloud-config/{}.kubelet.service.template".format(role),
                               "./deploy/cloud-config/{}.kubelet.service.template".format(role), config)
 

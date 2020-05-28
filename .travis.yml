@@ -5,6 +5,7 @@ matrix:
     before_install: cd src/dashboard
     install: yarn --frozen-lockfile
     script:
+    - npm run check:frontend
     - npm run lint:backend
     - npm run coverage:backend
     after_success: npx nyc --nycrc-path server/.nycrc.js report --reporter=text-lcov | npx coveralls
@@ -65,5 +66,13 @@ matrix:
       - cd src/docker-images/gpu-reporter/test
     install:
       - pip install pyyaml requests flask prometheus_client flask-cors
+    script:
+      - python -m unittest discover .
+  - language: python
+    python: 3.6
+    before_install:
+      - cd src/docker-images/job-insighter
+    install:
+      - pip install requests markdown_strings
     script:
       - python -m unittest discover .

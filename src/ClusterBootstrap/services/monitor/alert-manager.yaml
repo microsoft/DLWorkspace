@@ -40,6 +40,24 @@ spec:
           mountPath: /alertmanager
         - name: templates-volume
           mountPath: /etc/alertmanager/template
+      - name: email-sender
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/email-sender:{{cnf["dockertag"]}}
+        command:
+          - 'python'
+          - '/email-sender/serve.py'
+          - '--mq_host'
+          - '{{ cnf["alert-manager"]["email-sender"]["mq-host"] }}'
+          - '--mq_user'
+          - '{{ cnf["alert-manager"]["email-sender"]["mq-user"] }}'
+          - '--mq_pass'
+          - '{{ cnf["alert-manager"]["email-sender"]["mq-pass"] }}'
+          - '--host'
+          - '{{ cnf["alert-manager"]["email-sender"]["host"] }}'
+          - '--port'
+          - '{{ cnf["alert-manager"]["email-sender"]["port"] }}'
+        ports:
+        - name: smtpd-port
+          containerPort: {{ cnf["alert-manager"]["email-sender"]["port"] }}
       {% if cnf["alert-manager"]["reaper"] %}
       - name: reaper
         image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/reaper:{{cnf["dockertag"]}}
@@ -92,8 +110,12 @@ data:
       resolve_timeout: 5m
       smtp_smarthost: {{ alert_info["smtp_url"] }}
       smtp_from: {{ alert_info["smtp_from"] }}
+      {% if alert_info["smtp_auth_username"] and alert_info["smtp_auth_password"] %}
       smtp_auth_username: {{ alert_info["smtp_auth_username"] }}
       smtp_auth_password: {{ alert_info["smtp_auth_password"] }}
+      {% else %}
+      smtp_require_tls: False
+      {% endif %}
     templates:
     - "/etc/alertmanager/template/*.tmpl"
     route:

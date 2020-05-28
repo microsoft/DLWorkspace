@@ -69,209 +69,654 @@ class TestReporter(unittest.TestCase):
         self.assertTrue(result["31d"]["idle"] >= result["14d"]["idle"])
         self.assertTrue(result["14d"]["idle"] >= result["7d"]["idle"])
 
-        self.assertEqual(50.0, result["31d"]["next"]["vvv"]["assigned_util"])
-        self.assertEqual(100.0, result["31d"]["next"]["vvv"]["nonidle_util"])
-        self.assertEqual(600, result["31d"]["next"]["vvv"]["booked"])
-        self.assertEqual(300, result["31d"]["next"]["vvv"]["idle"])
+        self.assertEqual(
+            50.0,
+            result["31d"]["next"]["false"]["next"]["vvv"]["assigned_util"])
+        self.assertEqual(
+            100.0,
+            result["31d"]["next"]["false"]["next"]["vvv"]["nonidle_util"])
+        self.assertEqual(
+            600, result["31d"]["next"]["false"]["next"]["vvv"]["booked"])
+        self.assertEqual(300,
+                         result["31d"]["next"]["false"]["next"]["vvv"]["idle"])
 
-        self.assertEqual(20.0,
-                         result["31d"]["next"]["platform"]["assigned_util"])
-        self.assertEqual(20.0,
-                         result["31d"]["next"]["platform"]["nonidle_util"])
-        self.assertEqual(300, result["31d"]["next"]["platform"]["booked"])
-        self.assertEqual(0, result["31d"]["next"]["platform"]["idle"])
+        self.assertEqual(
+            20.0,
+            result["31d"]["next"]["false"]["next"]["platform"]["assigned_util"])
+        self.assertEqual(
+            20.0,
+            result["31d"]["next"]["false"]["next"]["platform"]["nonidle_util"])
+        self.assertEqual(
+            300, result["31d"]["next"]["false"]["next"]["platform"]["booked"])
+        self.assertEqual(
+            0, result["31d"]["next"]["false"]["next"]["platform"]["idle"])
 
     def assert_metric_value(self, metrics, target_name, labels, value):
         target = self.get_samples(metrics, target_name, labels)
         self.assertEqual(1, len(target), "zero/multiple target %s" % (target))
         self.assertEqual(value, target[0].value)
 
-    def test_walk_exported_regiter(self):
-        obj = json.loads(self.load_data("data/exported.json"))
+    def test_export_to_metric(self):
+        step_seconds = 300
+        idleness_threshold = 0
+        end = datetime.datetime.fromtimestamp(1587768375)
 
-        collector = reporter.CustomCollector(None)
-        metrics = collector.walk_exported_register(obj)
-        self.assert_metric_value(metrics, "cluster_booked_gpu_second",
-                                 {"since": "31d"}, 900)
-        self.assert_metric_value(metrics, "cluster_idle_gpu_second",
-                                 {"since": "31d"}, 300)
-        self.assert_metric_value(metrics, "cluster_non_idle_utils",
-                                 {"since": "31d"}, 60)
-        self.assert_metric_value(metrics, "cluster_assigned_utils",
-                                 {"since": "31d"}, 40)
+        calculator = reporter.IdlenessCalculator(step_seconds,
+                                                 idleness_threshold, end)
+        raw = json.loads(self.load_data("data/raw.json"))
+        obj = reporter.calculate(raw, calculator)
 
-        self.assert_metric_value(metrics, "cluster_booked_gpu_second",
-                                 {"since": "14d"}, 900)
-        self.assert_metric_value(metrics, "cluster_idle_gpu_second",
-                                 {"since": "14d"}, 300)
-        self.assert_metric_value(metrics, "cluster_non_idle_utils",
-                                 {"since": "14d"}, 60)
-        self.assert_metric_value(metrics, "cluster_assigned_utils",
-                                 {"since": "14d"}, 40)
+        metrics = reporter.IdlenessExportable(obj).to_metrics()
+        self.assert_metric_value(metrics, "cluster_booked_gpu_second", {
+            "since": "31d",
+            "preemptible": "false"
+        }, 900)
+        self.assert_metric_value(metrics, "cluster_idle_gpu_second", {
+            "since": "31d",
+            "preemptible": "false"
+        }, 300)
+        self.assert_metric_value(metrics, "cluster_non_idle_utils", {
+            "since": "31d",
+            "preemptible": "false"
+        }, 60)
+        self.assert_metric_value(metrics, "cluster_assigned_utils", {
+            "since": "31d",
+            "preemptible": "false"
+        }, 40)
 
-        self.assert_metric_value(metrics, "cluster_booked_gpu_second",
-                                 {"since": "7d"}, 0)
-        self.assert_metric_value(metrics, "cluster_idle_gpu_second",
-                                 {"since": "7d"}, 0)
-        self.assert_metric_value(metrics, "cluster_non_idle_utils",
-                                 {"since": "7d"}, 0)
-        self.assert_metric_value(metrics, "cluster_assigned_utils",
-                                 {"since": "7d"}, 0)
+        self.assert_metric_value(metrics, "cluster_booked_gpu_second", {
+            "since": "14d",
+            "preemptible": "false"
+        }, 900)
+        self.assert_metric_value(metrics, "cluster_idle_gpu_second", {
+            "since": "14d",
+            "preemptible": "false"
+        }, 300)
+        self.assert_metric_value(metrics, "cluster_non_idle_utils", {
+            "since": "14d",
+            "preemptible": "false"
+        }, 60)
+        self.assert_metric_value(metrics, "cluster_assigned_utils", {
+            "since": "14d",
+            "preemptible": "false"
+        }, 40)
 
         self.assert_metric_value(metrics, "vc_booked_gpu_second", {
             "since": "31d",
-            "vc": "platform"
+            "vc": "platform",
+            "preemptible": "false"
         }, 300)
         self.assert_metric_value(metrics, "vc_booked_gpu_second", {
             "since": "31d",
-            "vc": "vvv"
+            "vc": "vvv",
+            "preemptible": "false"
         }, 600)
         self.assert_metric_value(metrics, "vc_booked_gpu_second", {
             "since": "14d",
-            "vc": "platform"
+            "vc": "platform",
+            "preemptible": "false"
         }, 300)
         self.assert_metric_value(metrics, "vc_booked_gpu_second", {
             "since": "14d",
-            "vc": "vvv"
+            "vc": "vvv",
+            "preemptible": "false"
         }, 600)
         self.assert_metric_value(metrics, "vc_idle_gpu_second", {
             "since": "31d",
-            "vc": "platform"
+            "vc": "platform",
+            "preemptible": "false"
         }, 0)
         self.assert_metric_value(metrics, "vc_idle_gpu_second", {
             "since": "31d",
-            "vc": "vvv"
+            "vc": "vvv",
+            "preemptible": "false"
         }, 300)
         self.assert_metric_value(metrics, "vc_idle_gpu_second", {
             "since": "14d",
-            "vc": "platform"
+            "vc": "platform",
+            "preemptible": "false"
         }, 0)
         self.assert_metric_value(metrics, "vc_idle_gpu_second", {
             "since": "14d",
-            "vc": "vvv"
+            "vc": "vvv",
+            "preemptible": "false"
         }, 300)
         self.assert_metric_value(metrics, "vc_non_idle_utils", {
             "since": "31d",
-            "vc": "platform"
+            "vc": "platform",
+            "preemptible": "false"
         }, 20)
         self.assert_metric_value(metrics, "vc_non_idle_utils", {
             "since": "31d",
-            "vc": "vvv"
+            "vc": "vvv",
+            "preemptible": "false"
         }, 100)
         self.assert_metric_value(metrics, "vc_non_idle_utils", {
             "since": "14d",
-            "vc": "platform"
+            "vc": "platform",
+            "preemptible": "false"
         }, 20)
         self.assert_metric_value(metrics, "vc_non_idle_utils", {
             "since": "14d",
-            "vc": "vvv"
+            "vc": "vvv",
+            "preemptible": "false"
         }, 100)
         self.assert_metric_value(metrics, "vc_assigned_utils", {
             "since": "31d",
-            "vc": "platform"
+            "vc": "platform",
+            "preemptible": "false"
         }, 20)
         self.assert_metric_value(metrics, "vc_assigned_utils", {
             "since": "31d",
-            "vc": "vvv"
+            "vc": "vvv",
+            "preemptible": "false"
         }, 50)
         self.assert_metric_value(metrics, "vc_assigned_utils", {
             "since": "14d",
-            "vc": "platform"
+            "vc": "platform",
+            "preemptible": "false"
         }, 20)
         self.assert_metric_value(metrics, "vc_assigned_utils", {
             "since": "14d",
-            "vc": "vvv"
+            "vc": "vvv",
+            "preemptible": "false"
         }, 50)
         self.assert_metric_value(metrics, "user_booked_gpu_second", {
             "since": "31d",
             "vc": "platform",
-            "user": "bbb"
+            "user": "bbb",
+            "preemptible": "false"
         }, 300)
         self.assert_metric_value(metrics, "user_booked_gpu_second", {
             "since": "31d",
             "vc": "vvv",
-            "user": "aaa"
+            "user": "aaa",
+            "preemptible": "false"
         }, 600)
         self.assert_metric_value(metrics, "user_booked_gpu_second", {
             "since": "14d",
             "vc": "platform",
-            "user": "bbb"
+            "user": "bbb",
+            "preemptible": "false"
         }, 300)
         self.assert_metric_value(metrics, "user_booked_gpu_second", {
             "since": "14d",
             "vc": "vvv",
-            "user": "aaa"
+            "user": "aaa",
+            "preemptible": "false"
         }, 600)
         self.assert_metric_value(metrics, "user_idle_gpu_second", {
             "since": "31d",
             "vc": "platform",
-            "user": "bbb"
+            "user": "bbb",
+            "preemptible": "false"
         }, 0)
         self.assert_metric_value(metrics, "user_idle_gpu_second", {
             "since": "31d",
             "vc": "vvv",
-            "user": "aaa"
+            "user": "aaa",
+            "preemptible": "false"
         }, 300)
         self.assert_metric_value(metrics, "user_idle_gpu_second", {
             "since": "14d",
             "vc": "platform",
-            "user": "bbb"
+            "user": "bbb",
+            "preemptible": "false"
         }, 0)
         self.assert_metric_value(metrics, "user_idle_gpu_second", {
             "since": "14d",
             "vc": "vvv",
-            "user": "aaa"
+            "user": "aaa",
+            "preemptible": "false"
         }, 300)
         self.assert_metric_value(metrics, "user_non_idle_utils", {
             "since": "31d",
             "vc": "platform",
-            "user": "bbb"
+            "user": "bbb",
+            "preemptible": "false"
         }, 20)
         self.assert_metric_value(metrics, "user_non_idle_utils", {
             "since": "31d",
             "vc": "vvv",
-            "user": "aaa"
+            "user": "aaa",
+            "preemptible": "false"
         }, 100)
         self.assert_metric_value(metrics, "user_non_idle_utils", {
             "since": "14d",
             "vc": "platform",
-            "user": "bbb"
+            "user": "bbb",
+            "preemptible": "false"
         }, 20)
         self.assert_metric_value(metrics, "user_non_idle_utils", {
             "since": "14d",
             "vc": "vvv",
-            "user": "aaa"
+            "user": "aaa",
+            "preemptible": "false"
         }, 100)
         self.assert_metric_value(metrics, "user_assigned_utils", {
             "since": "31d",
             "vc": "platform",
-            "user": "bbb"
+            "user": "bbb",
+            "preemptible": "false"
         }, 20)
         self.assert_metric_value(metrics, "user_assigned_utils", {
             "since": "31d",
             "vc": "vvv",
-            "user": "aaa"
+            "user": "aaa",
+            "preemptible": "false"
         }, 50)
         self.assert_metric_value(metrics, "user_assigned_utils", {
             "since": "14d",
             "vc": "platform",
-            "user": "bbb"
+            "user": "bbb",
+            "preemptible": "false"
         }, 20)
         self.assert_metric_value(metrics, "user_assigned_utils", {
             "since": "14d",
             "vc": "vvv",
-            "user": "aaa"
+            "user": "aaa",
+            "preemptible": "false"
         }, 50)
         self.assert_metric_value(
             metrics, "job_booked_gpu_second", {
                 "since": "31d",
                 "vc": "platform",
                 "user": "bbb",
-                "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63"
+                "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63",
+                "preemptible": "false"
             }, 300)
         self.assert_metric_value(
             metrics, "job_booked_gpu_second", {
                 "since": "31d",
+                "vc": "vvv",
+                "user": "aaa",
+                "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571",
+                "preemptible": "false"
+            }, 600)
+        self.assert_metric_value(
+            metrics, "job_booked_gpu_second", {
+                "since": "14d",
+                "vc": "platform",
+                "user": "bbb",
+                "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63",
+                "preemptible": "false"
+            }, 300)
+        self.assert_metric_value(
+            metrics, "job_booked_gpu_second", {
+                "since": "14d",
+                "vc": "vvv",
+                "user": "aaa",
+                "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571",
+                "preemptible": "false"
+            }, 600)
+        self.assert_metric_value(
+            metrics, "job_idle_gpu_second", {
+                "since": "31d",
+                "vc": "platform",
+                "user": "bbb",
+                "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63",
+                "preemptible": "false"
+            }, 0)
+        self.assert_metric_value(
+            metrics, "job_idle_gpu_second", {
+                "since": "31d",
+                "vc": "vvv",
+                "user": "aaa",
+                "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571",
+                "preemptible": "false"
+            }, 300)
+        self.assert_metric_value(
+            metrics, "job_idle_gpu_second", {
+                "since": "14d",
+                "vc": "platform",
+                "user": "bbb",
+                "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63",
+                "preemptible": "false"
+            }, 0)
+        self.assert_metric_value(
+            metrics, "job_idle_gpu_second", {
+                "since": "14d",
+                "vc": "vvv",
+                "user": "aaa",
+                "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571",
+                "preemptible": "false"
+            }, 300)
+        self.assert_metric_value(
+            metrics, "job_non_idle_utils", {
+                "since": "31d",
+                "vc": "platform",
+                "user": "bbb",
+                "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63",
+                "preemptible": "false"
+            }, 20)
+        self.assert_metric_value(
+            metrics, "job_non_idle_utils", {
+                "since": "31d",
+                "vc": "vvv",
+                "user": "aaa",
+                "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571",
+                "preemptible": "false"
+            }, 100)
+        self.assert_metric_value(
+            metrics, "job_non_idle_utils", {
+                "since": "14d",
+                "vc": "platform",
+                "user": "bbb",
+                "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63",
+                "preemptible": "false"
+            }, 20)
+        self.assert_metric_value(
+            metrics, "job_non_idle_utils", {
+                "since": "14d",
+                "vc": "vvv",
+                "user": "aaa",
+                "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571",
+                "preemptible": "false"
+            }, 100)
+        self.assert_metric_value(
+            metrics, "job_assigned_utils", {
+                "since": "31d",
+                "vc": "platform",
+                "user": "bbb",
+                "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63",
+                "preemptible": "false"
+            }, 20)
+        self.assert_metric_value(
+            metrics, "job_assigned_utils", {
+                "since": "31d",
+                "vc": "vvv",
+                "user": "aaa",
+                "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571",
+                "preemptible": "false"
+            }, 50)
+        self.assert_metric_value(
+            metrics, "job_assigned_utils", {
+                "since": "14d",
+                "vc": "platform",
+                "user": "bbb",
+                "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63",
+                "preemptible": "false"
+            }, 20)
+        self.assert_metric_value(
+            metrics, "job_assigned_utils", {
+                "since": "14d",
+                "vc": "vvv",
+                "user": "aaa",
+                "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571",
+                "preemptible": "false"
+            }, 50)
+
+    def test_preemptible(self):
+        step_seconds = 300
+        idleness_threshold = 0
+        end = datetime.datetime.fromtimestamp(1587768375)
+
+        calculator = reporter.IdlenessCalculator(step_seconds,
+                                                 idleness_threshold, end)
+        raw = json.loads(self.load_data("data/raw-with-preempitable.json"))
+        obj = reporter.calculate(raw, calculator)
+
+        metrics = reporter.IdlenessExportable(obj).to_metrics()
+        self.assert_metric_value(metrics, "cluster_booked_gpu_second", {
+            "since": "31d",
+            "preemptible": "true"
+        }, 600)
+        self.assert_metric_value(metrics, "cluster_booked_gpu_second", {
+            "since": "31d",
+            "preemptible": "false"
+        }, 300)
+        self.assert_metric_value(metrics, "cluster_booked_gpu_second", {
+            "since": "14d",
+            "preemptible": "true"
+        }, 600)
+        self.assert_metric_value(metrics, "cluster_booked_gpu_second", {
+            "since": "14d",
+            "preemptible": "false"
+        }, 300)
+        self.assert_metric_value(metrics, "cluster_idle_gpu_second", {
+            "since": "31d",
+            "preemptible": "true"
+        }, 300)
+        self.assert_metric_value(metrics, "cluster_idle_gpu_second", {
+            "since": "31d",
+            "preemptible": "false"
+        }, 0)
+        self.assert_metric_value(metrics, "cluster_idle_gpu_second", {
+            "since": "14d",
+            "preemptible": "true"
+        }, 300)
+        self.assert_metric_value(metrics, "cluster_idle_gpu_second", {
+            "since": "14d",
+            "preemptible": "false"
+        }, 0)
+        self.assert_metric_value(metrics, "cluster_non_idle_utils", {
+            "since": "31d",
+            "preemptible": "true"
+        }, 100.0)
+        self.assert_metric_value(metrics, "cluster_non_idle_utils", {
+            "since": "31d",
+            "preemptible": "false"
+        }, 20.0)
+        self.assert_metric_value(metrics, "cluster_non_idle_utils", {
+            "since": "14d",
+            "preemptible": "true"
+        }, 100.0)
+        self.assert_metric_value(metrics, "cluster_non_idle_utils", {
+            "since": "14d",
+            "preemptible": "false"
+        }, 20.0)
+        self.assert_metric_value(metrics, "cluster_assigned_utils", {
+            "since": "31d",
+            "preemptible": "true"
+        }, 50.0)
+        self.assert_metric_value(metrics, "cluster_assigned_utils", {
+            "since": "31d",
+            "preemptible": "false"
+        }, 20.0)
+        self.assert_metric_value(metrics, "cluster_assigned_utils", {
+            "since": "14d",
+            "preemptible": "true"
+        }, 50.0)
+        self.assert_metric_value(metrics, "cluster_assigned_utils", {
+            "since": "14d",
+            "preemptible": "false"
+        }, 20.0)
+        self.assert_metric_value(metrics, "vc_booked_gpu_second", {
+            "since": "31d",
+            "preemptible": "true",
+            "vc": "vvv"
+        }, 600)
+        self.assert_metric_value(metrics, "vc_booked_gpu_second", {
+            "since": "31d",
+            "preemptible": "false",
+            "vc": "platform"
+        }, 300)
+        self.assert_metric_value(metrics, "vc_booked_gpu_second", {
+            "since": "14d",
+            "preemptible": "true",
+            "vc": "vvv"
+        }, 600)
+        self.assert_metric_value(metrics, "vc_booked_gpu_second", {
+            "since": "14d",
+            "preemptible": "false",
+            "vc": "platform"
+        }, 300)
+        self.assert_metric_value(metrics, "vc_idle_gpu_second", {
+            "since": "31d",
+            "preemptible": "true",
+            "vc": "vvv"
+        }, 300)
+        self.assert_metric_value(metrics, "vc_idle_gpu_second", {
+            "since": "31d",
+            "preemptible": "false",
+            "vc": "platform"
+        }, 0)
+        self.assert_metric_value(metrics, "vc_idle_gpu_second", {
+            "since": "14d",
+            "preemptible": "true",
+            "vc": "vvv"
+        }, 300)
+        self.assert_metric_value(metrics, "vc_idle_gpu_second", {
+            "since": "14d",
+            "preemptible": "false",
+            "vc": "platform"
+        }, 0)
+        self.assert_metric_value(metrics, "vc_non_idle_utils", {
+            "since": "31d",
+            "preemptible": "true",
+            "vc": "vvv"
+        }, 100.0)
+        self.assert_metric_value(metrics, "vc_non_idle_utils", {
+            "since": "31d",
+            "preemptible": "false",
+            "vc": "platform"
+        }, 20.0)
+        self.assert_metric_value(metrics, "vc_non_idle_utils", {
+            "since": "14d",
+            "preemptible": "true",
+            "vc": "vvv"
+        }, 100.0)
+        self.assert_metric_value(metrics, "vc_non_idle_utils", {
+            "since": "14d",
+            "preemptible": "false",
+            "vc": "platform"
+        }, 20.0)
+        self.assert_metric_value(metrics, "vc_assigned_utils", {
+            "since": "31d",
+            "preemptible": "true",
+            "vc": "vvv"
+        }, 50.0)
+        self.assert_metric_value(metrics, "vc_assigned_utils", {
+            "since": "31d",
+            "preemptible": "false",
+            "vc": "platform"
+        }, 20.0)
+        self.assert_metric_value(metrics, "vc_assigned_utils", {
+            "since": "14d",
+            "preemptible": "true",
+            "vc": "vvv"
+        }, 50.0)
+        self.assert_metric_value(metrics, "vc_assigned_utils", {
+            "since": "14d",
+            "preemptible": "false",
+            "vc": "platform"
+        }, 20.0)
+        self.assert_metric_value(metrics, "user_booked_gpu_second", {
+            "since": "31d",
+            "preemptible": "true",
+            "vc": "vvv",
+            "user": "aaa"
+        }, 600)
+        self.assert_metric_value(metrics, "user_booked_gpu_second", {
+            "since": "31d",
+            "preemptible": "false",
+            "vc": "platform",
+            "user": "bbb"
+        }, 300)
+        self.assert_metric_value(metrics, "user_booked_gpu_second", {
+            "since": "14d",
+            "preemptible": "true",
+            "vc": "vvv",
+            "user": "aaa"
+        }, 600)
+        self.assert_metric_value(metrics, "user_booked_gpu_second", {
+            "since": "14d",
+            "preemptible": "false",
+            "vc": "platform",
+            "user": "bbb"
+        }, 300)
+        self.assert_metric_value(metrics, "user_idle_gpu_second", {
+            "since": "31d",
+            "preemptible": "true",
+            "vc": "vvv",
+            "user": "aaa"
+        }, 300)
+        self.assert_metric_value(metrics, "user_idle_gpu_second", {
+            "since": "31d",
+            "preemptible": "false",
+            "vc": "platform",
+            "user": "bbb"
+        }, 0)
+        self.assert_metric_value(metrics, "user_idle_gpu_second", {
+            "since": "14d",
+            "preemptible": "true",
+            "vc": "vvv",
+            "user": "aaa"
+        }, 300)
+        self.assert_metric_value(metrics, "user_idle_gpu_second", {
+            "since": "14d",
+            "preemptible": "false",
+            "vc": "platform",
+            "user": "bbb"
+        }, 0)
+        self.assert_metric_value(metrics, "user_non_idle_utils", {
+            "since": "31d",
+            "preemptible": "true",
+            "vc": "vvv",
+            "user": "aaa"
+        }, 100.0)
+        self.assert_metric_value(metrics, "user_non_idle_utils", {
+            "since": "31d",
+            "preemptible": "false",
+            "vc": "platform",
+            "user": "bbb"
+        }, 20.0)
+        self.assert_metric_value(metrics, "user_non_idle_utils", {
+            "since": "14d",
+            "preemptible": "true",
+            "vc": "vvv",
+            "user": "aaa"
+        }, 100.0)
+        self.assert_metric_value(metrics, "user_non_idle_utils", {
+            "since": "14d",
+            "preemptible": "false",
+            "vc": "platform",
+            "user": "bbb"
+        }, 20.0)
+        self.assert_metric_value(metrics, "user_assigned_utils", {
+            "since": "31d",
+            "preemptible": "true",
+            "vc": "vvv",
+            "user": "aaa"
+        }, 50.0)
+        self.assert_metric_value(metrics, "user_assigned_utils", {
+            "since": "31d",
+            "preemptible": "false",
+            "vc": "platform",
+            "user": "bbb"
+        }, 20.0)
+        self.assert_metric_value(metrics, "user_assigned_utils", {
+            "since": "14d",
+            "preemptible": "true",
+            "vc": "vvv",
+            "user": "aaa"
+        }, 50.0)
+        self.assert_metric_value(metrics, "user_assigned_utils", {
+            "since": "14d",
+            "preemptible": "false",
+            "vc": "platform",
+            "user": "bbb"
+        }, 20.0)
+        self.assert_metric_value(
+            metrics, "job_booked_gpu_second", {
+                "since": "31d",
+                "preemptible": "true",
+                "vc": "vvv",
+                "user": "aaa",
+                "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571"
+            }, 600)
+        self.assert_metric_value(
+            metrics, "job_booked_gpu_second", {
+                "since": "31d",
+                "preemptible": "false",
+                "vc": "platform",
+                "user": "bbb",
+                "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63"
+            }, 300)
+        self.assert_metric_value(
+            metrics, "job_booked_gpu_second", {
+                "since": "14d",
+                "preemptible": "true",
                 "vc": "vvv",
                 "user": "aaa",
                 "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571"
@@ -279,34 +724,23 @@ class TestReporter(unittest.TestCase):
         self.assert_metric_value(
             metrics, "job_booked_gpu_second", {
                 "since": "14d",
+                "preemptible": "false",
                 "vc": "platform",
                 "user": "bbb",
                 "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63"
             }, 300)
         self.assert_metric_value(
-            metrics, "job_booked_gpu_second", {
-                "since": "14d",
-                "vc": "vvv",
-                "user": "aaa",
-                "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571"
-            }, 600)
-        self.assert_metric_value(
             metrics, "job_idle_gpu_second", {
                 "since": "31d",
-                "vc": "platform",
-                "user": "bbb",
-                "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63"
-            }, 0)
-        self.assert_metric_value(
-            metrics, "job_idle_gpu_second", {
-                "since": "31d",
+                "preemptible": "true",
                 "vc": "vvv",
                 "user": "aaa",
                 "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571"
             }, 300)
         self.assert_metric_value(
             metrics, "job_idle_gpu_second", {
-                "since": "14d",
+                "since": "31d",
+                "preemptible": "false",
                 "vc": "platform",
                 "user": "bbb",
                 "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63"
@@ -314,66 +748,83 @@ class TestReporter(unittest.TestCase):
         self.assert_metric_value(
             metrics, "job_idle_gpu_second", {
                 "since": "14d",
+                "preemptible": "true",
                 "vc": "vvv",
                 "user": "aaa",
                 "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571"
             }, 300)
         self.assert_metric_value(
-            metrics, "job_non_idle_utils", {
-                "since": "31d",
+            metrics, "job_idle_gpu_second", {
+                "since": "14d",
+                "preemptible": "false",
                 "vc": "platform",
                 "user": "bbb",
                 "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63"
-            }, 20)
+            }, 0)
         self.assert_metric_value(
             metrics, "job_non_idle_utils", {
                 "since": "31d",
+                "preemptible": "true",
                 "vc": "vvv",
                 "user": "aaa",
                 "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571"
-            }, 100)
+            }, 100.0)
+        self.assert_metric_value(
+            metrics, "job_non_idle_utils", {
+                "since": "31d",
+                "preemptible": "false",
+                "vc": "platform",
+                "user": "bbb",
+                "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63"
+            }, 20.0)
         self.assert_metric_value(
             metrics, "job_non_idle_utils", {
                 "since": "14d",
-                "vc": "platform",
-                "user": "bbb",
-                "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63"
-            }, 20)
+                "preemptible": "true",
+                "vc": "vvv",
+                "user": "aaa",
+                "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571"
+            }, 100.0)
         self.assert_metric_value(
             metrics, "job_non_idle_utils", {
                 "since": "14d",
-                "vc": "vvv",
-                "user": "aaa",
-                "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571"
-            }, 100)
-        self.assert_metric_value(
-            metrics, "job_assigned_utils", {
-                "since": "31d",
+                "preemptible": "false",
                 "vc": "platform",
                 "user": "bbb",
                 "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63"
-            }, 20)
+            }, 20.0)
         self.assert_metric_value(
             metrics, "job_assigned_utils", {
                 "since": "31d",
+                "preemptible": "true",
                 "vc": "vvv",
                 "user": "aaa",
                 "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571"
-            }, 50)
+            }, 50.0)
         self.assert_metric_value(
             metrics, "job_assigned_utils", {
-                "since": "14d",
+                "since": "31d",
+                "preemptible": "false",
                 "vc": "platform",
                 "user": "bbb",
                 "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63"
-            }, 20)
+            }, 20.0)
         self.assert_metric_value(
             metrics, "job_assigned_utils", {
                 "since": "14d",
+                "preemptible": "true",
                 "vc": "vvv",
                 "user": "aaa",
                 "job_id": "f29f07ab-8510-4ad9-ac24-363bd7271571"
-            }, 50)
+            }, 50.0)
+        self.assert_metric_value(
+            metrics, "job_assigned_utils", {
+                "since": "14d",
+                "preemptible": "false",
+                "vc": "platform",
+                "user": "bbb",
+                "job_id": "89ba301e-58d0-4ce5-ba6b-5781a7926f63"
+            }, 20.0)
 
 
 if __name__ == '__main__':
