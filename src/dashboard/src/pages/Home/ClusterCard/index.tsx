@@ -8,6 +8,7 @@ import ClusterCardHeader from './ClusterCardHeader';
 import ResourceChart from './ResourceChart';
 import StorageList from './StorageList';
 import ClusterCardActions from './ClusterCardActions';
+import DirectoryContent from './DirectoryContent';
 
 interface Props {
   clusterId: string;
@@ -23,6 +24,8 @@ const ClusterCard: FunctionComponent<Props> = ({ clusterId }) => (
       <StorageList/>
       <Divider/>
       <ClusterCardActions/>
+      <Divider/>
+      <DirectoryContent/>
     </Card>
   </ClusterProvider>
 );

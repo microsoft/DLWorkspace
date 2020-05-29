@@ -14,10 +14,10 @@ import TeamContext from '../../../contexts/Team';
 
 interface ClusterContextValue {
   id: string;
-  status?: { [key: string]: any };
+  status: { [key: string]: any };
 }
 
-const ClusterContext = createContext<ClusterContextValue>({ id: '' });
+const ClusterContext = createContext<ClusterContextValue>({ id: '', status: {} });
 
 interface ClusterProviderProps {
   id: string;
@@ -51,6 +51,8 @@ const ClusterProvider: FunctionComponent<ClusterProviderProps> = ({ id, children
       }
     }
   }, [error, id, enqueueSnackbar, closeSnackbar]);
+
+  if (status == null) return null;
 
   return React.createElement(ClusterContext.Provider, { value: { id, status } }, children);
 }

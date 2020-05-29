@@ -69,7 +69,6 @@ const ResourceChart: FunctionComponent = () => {
   }>();
 
   const { cpu, gpu } = useMemo(() => {
-    if (status === undefined) return {};
     const { cpu, gpu } = transform(status.types, (data, type) => {
       data.cpu.available += get(type, ['cpu', 'available'], 0);
       data.cpu.used += get(type, ['cpu', 'used'], 0);
