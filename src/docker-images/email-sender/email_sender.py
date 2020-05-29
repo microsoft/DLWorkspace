@@ -8,7 +8,6 @@ import logging
 import smtplib
 import yaml
 import json
-import time
 from email.parser import BytesParser
 
 import pika
@@ -33,7 +32,9 @@ def gen_callback(smtp_config_path):
     smtp_url, smtp_from, smtp_user, smtp_pass, default_cc = load_smtp_config(
         smtp_config_path)
     parser = BytesParser()
-    sent_count = [0] # callback can modify this if it's array
+
+    # we retain last two sent count before exceed quota to reduce log
+    sent_count = [0, 0]
 
     def callback(ch, method, properties, body):
         with smtplib.SMTP(smtp_url) as smtp_conn:
@@ -44,34 +45,23 @@ def gen_callback(smtp_config_path):
             except Exception:
                 logger.exception("error when parsing body %s, drop it", body)
                 # drop malformed message
-                ch.basic_ack(delivery_tag=method.delivery_tag)
+                # ch.basic_ack(delivery_tag=method.delivery_tag)
                 return
 
-            output_quota_msg = False
-            sent = False
-            # SMTP server have 30 emails per minute quota limit, wait at most 60s
-            for i in range(60):
-                try:
-                    smtp_conn.send_message(msg)
-                    ch.basic_ack(delivery_tag=method.delivery_tag)
-                    sent = True
-                    sent_count[0] += 1
-                except smtplib.SMTPServerDisconnected:
-                    logger.error(
-                        "failed to connect to smtp server, retain message")
-                except smtplib.SMTPDataError:
-                    if not output_quota_msg:
-                        logger.info("sent %d emails before exceed quota",
-                                    sent_count[0])
-                        output_quota_msg = True
-                    sent_count[0] = 0
-                    time.sleep(1)
-                    continue
-                except Exception:
-                    logger.exception("error when sending email %s", body)
-                break
-            if not sent:
-                logger.error("failed to send out %s", body)
+            try:
+                smtp_conn.send_message(msg)
+                # ch.basic_ack(delivery_tag=method.delivery_tag)
+                sent_count[0] += 1
+            except smtplib.SMTPServerDisconnected:
+                logger.exception("failed to connect to smtp server")
+            except smtplib.SMTPDataError:
+                if sent_count[0] != sent_count[1]:
+                    logger.info("sent %d emails before exceed quota",
+                                sent_count[0])
+                sent_count[1] = sent_count[0]
+                sent_count[0] = 0
+            except Exception:
+                logger.exception("error when sending email %s", body)
 
     return callback
 
@@ -93,7 +83,8 @@ def run(args):
 
             channel.basic_qos(prefetch_count=500)
             channel.basic_consume(queue=args.queue,
-                                  on_message_callback=callback)
+                                  on_message_callback=callback,
+                                  auto_ack=True)
 
             channel.start_consuming()
         except pika.exceptions.ProbableAuthenticationError:
