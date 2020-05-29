@@ -597,6 +597,8 @@ def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
 
         if job_info["status"] in ["scheduling", "running"]:
             job_info["allowed"] = True # do not preempt non preemptable jobs
+            vc_schedulable -= job_resource
+            cluster_schedulable -= job_resource
             continue
 
         if stop_scheduling is None and \

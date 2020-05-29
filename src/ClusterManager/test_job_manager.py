@@ -2,6 +2,7 @@
 import sys
 import os
 import copy
+import logging
 
 import unittest
 
@@ -69,6 +70,10 @@ class TestJobManager(unittest.TestCase):
                 "0_0_999899_2020-03-31 08:07:46",
             "allowed":
                 False,
+            "status":
+                "running",
+            "reason":
+                None,
         }
 
         # job2 is running on a good node
@@ -101,6 +106,10 @@ class TestJobManager(unittest.TestCase):
                 "0_0_999899_2020-03-31 08:08:49",
             "allowed":
                 False,
+            "status":
+                "running",
+            "reason":
+                None,
         }
 
         # job3 is submitted just now
@@ -133,6 +142,10 @@ class TestJobManager(unittest.TestCase):
                 "0_2_999899_2020-03-31 09:00:10",
             "allowed":
                 False,
+            "status":
+                "queued",
+            "reason":
+                None,
         }
 
         jobs_info = [job1_info, job2_info, job3_info]
@@ -238,4 +251,8 @@ class TestJobManager(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        format=
+        '%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s',
+        level=logging.DEBUG)
     unittest.main()
