@@ -97,7 +97,7 @@ mapping = [
     #     "Total number of NVLink bandwidth counters for all lanes"),
 ]
 
-DCGMMetrics = collections.namedtuple("DCGMMetrics",
+DCGMMetrics = collections.namedtuple("DCGMMetrics", ["minor"] +
                                      list(map(lambda x: x[1], mapping)))
 
 
@@ -133,7 +133,7 @@ class DCGMHandler(object):
                     logger.exception("DCGMHandler.run got exception")
 
     def get_dcgm_metric(self):
-        metrics = {} # minor_number -> DCGMMetrics
+        metrics = {} # minor_number,uuid -> DCGMMetrics
         gauges = {} # gauge_name -> GaugeMetricFamily
 
         try:
@@ -161,7 +161,7 @@ class DCGMHandler(object):
                 part = line.split()
                 minor_number = part[0]
 
-                args = {}
+                args = {"minor": minor_number}
                 for i, (_, name, _) in enumerate(mapping):
                     value = part[i + 1]
                     args[name] = value
@@ -174,7 +174,8 @@ class DCGMHandler(object):
                     gauges[name].add_metric([minor_number, args["uuid"]],
                                             float(value))
 
-                metrics[minor_number] = DCGMMetrics(**args)
+                metrics[minor_number] = metrics[args["uuid"]] = DCGMMetrics(
+                    **args)
             return metrics, gauges
         except Exception:
             logger.exception("calling dcgmi failed")
