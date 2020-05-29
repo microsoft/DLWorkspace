@@ -89,7 +89,7 @@ spec:
           protocol: TCP
         readinessProbe:
           failureThreshold: 3
-          initialDelaySeconds: 3
+          initialDelaySeconds: 10
           periodSeconds: 30
           successThreshold: 1
           tcpSocket:

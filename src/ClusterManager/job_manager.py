@@ -562,6 +562,8 @@ def get_jobs_info(jobs):
                 "job_resource": job_resource,
                 "sort_key": sort_key,
                 "allowed": False,
+                "status": job_status,
+                "reason": None,
             }
 
             jobs_info.append(single_job_info)
@@ -572,6 +574,8 @@ def get_jobs_info(jobs):
 
 def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
                                           vc_schedulables):
+    stop_scheduling = None
+
     for job_info in jobs_info:
         job_resource = job_info["job_resource"]
         job_id = job_info["jobId"]
@@ -591,19 +595,37 @@ def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
         if preemption_allowed:
             continue # schedule non preemptable first
 
-        if cluster_schedulable >= job_resource and \
+        if job_info["status"] in ["scheduling", "running"]:
+            job_info["allowed"] = True # do not preempt non preemptable jobs
+            continue
+
+        if stop_scheduling is None and \
+                cluster_schedulable >= job_resource and \
                 vc_schedulable >= job_resource:
             vc_schedulable -= job_resource
             cluster_schedulable -= job_resource
             job_info["allowed"] = True
-            logger.info("Allow non-preemptable job %s to run, job resource %s",
-                        job_id, job_resource)
-        else:
+            logger.info("Allow non-p job %s to run, job resource %s", job_id,
+                        job_resource)
+        elif stop_scheduling is None:
+            reason = "resource not enough, required %s, vc schedulable %s" % (
+                job_resource, vc_schedulable)
+            job_info["reason"] = reason
             logger.info(
-                "Do not allow non-preemptable job %s to run in vc %s."
-                "resource not enough, required job resource %s. "
+                "Disallow non-p job %s to run in vc %s."
+                "resource not enough, required %s. "
                 "cluster schedulable %s, vc schedulables %s", job_id, vc_name,
                 job_resource, cluster_schedulable, vc_schedulable)
+            # prevent later non preemptable job from scheduling
+            stop_scheduling = job_info
+        else:
+            reason = "blocked by job with higher priority %s" % (
+                stop_scheduling['jobId'])
+            job_info["reason"] = reason
+            logger.info(
+                "Disallow non-p job %s to run in vc %s."
+                "job with higher priority is disallowed %s", job_id, vc_name,
+                stop_scheduling["jobId"])
 
 
 def mark_schedulable_preemptable_jobs(jobs_info, cluster_schedulable):
@@ -624,7 +646,7 @@ def mark_schedulable_preemptable_jobs(jobs_info, cluster_schedulable):
                 job_info["allowed"] = True
             else:
                 logger.info(
-                    "Do not allow preemptable job %s to run, "
+                    "Disallow preemptable job %s to run, "
                     "insufficient cluster resource: "
                     "cluster schedulable %s, "
                     "required job resource %s.", job_id, cluster_schedulable,
@@ -654,9 +676,12 @@ def schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
                 logger.info("Preempting job %s : %s", job_id, sort_key)
             elif job_status == "queued" and (not allowed):
                 vc_schedulable = vc_schedulables[vc_name]
-                message = "Waiting for resource. Job request %s. " \
-                          "VC schedulable %s. Cluster schedulable %s" % \
-                          (job_resource, vc_schedulable, cluster_schedulable)
+                if job_info["reason"] is not None:
+                    message = job_info["reason"]
+                else:
+                    message = "Waiting for resource. Job request %s. " \
+                              "VC schedulable %s. Cluster schedulable %s" % \
+                              (job_resource, vc_schedulable, cluster_schedulable)
                 detail = [{"message": message}]
                 data_handler.UpdateJobTextFields(
                     {"jobId": job_id},
