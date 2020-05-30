@@ -10,7 +10,7 @@ cur_pgid=`ps -o '%r' $$ | tail -n 1 | sed "s/ //g"`
 
 trap _broadcast SIGTERM
 
-kubectl create priorityclass job-priority --value=1000 --description="non-preemptible job pod priority" --dry-run -o yaml | kubectl replace --force=true -f -
+kubectl create priorityclass job-priority --value=1000 --description="non-preemptible job pod priority" --global-default=true --dry-run -o yaml | kubectl replace --force=true -f -
 kubectl create priorityclass preemptible-job-priority --value=500 --description="preemptible job pod priority" --dry-run -o yaml | kubectl replace --force=true -f -
 kubectl create priorityclass inference-job-priority --value=100 --description="inference job priority" --dry-run -o yaml | kubectl replace --force=true -f -
 
