@@ -760,10 +760,8 @@ def test_regular_job_mountpoints(args):
 
 @utils.case()
 def test_job_insight(args):
-    job_spec = utils.gen_default_job_description("regular",
-                                                 args.email,
-                                                 args.uid,
-                                                 args.vc)
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
 
     with utils.run_job(args.rest, job_spec) as job:
         state = job.block_until_state_not_in(
@@ -780,10 +778,8 @@ def test_job_insight(args):
 
 @utils.case()
 def test_gpu_type_override(args):
-    job_spec = utils.gen_default_job_description("regular",
-                                                 args.email,
-                                                 args.uid,
-                                                 args.vc)
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
     # wrong gpu type
     job_spec["gpuType"] = "V100"
 
@@ -800,10 +796,8 @@ def test_gpu_type_override(args):
 
 @utils.case()
 def test_job_priority(args):
-    job_spec = utils.gen_default_job_description("regular",
-                                                 args.email,
-                                                 args.uid,
-                                                 args.vc)
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
     with utils.run_job(args.rest, job_spec) as job:
         # wait until running to avoid state change race
         state = job.block_until_state_not_in({"unapproved", "queued"})
@@ -845,12 +839,11 @@ def test_regular_job_no_distributed_system_envs(args):
             {"unapproved", "queued", "scheduling"})
         assert state == "running"
 
-        ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email,
-                                                 job.jid, endpoint_id)
+        ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email, job.jid,
+                                                 endpoint_id)
         logger.debug("endpoints resp is %s", ssh_endpoint)
 
-        ssh_host = "%s.%s" % (ssh_endpoint["nodeName"],
-                              ssh_endpoint["domain"])
+        ssh_host = "%s.%s" % (ssh_endpoint["nodeName"], ssh_endpoint["domain"])
         ssh_port = ssh_endpoint["port"]
         ssh_id = ssh_endpoint["id"]
 
@@ -882,15 +875,75 @@ def test_regular_job_no_distributed_system_envs(args):
         ssh_cmd.append(bash_cmd)
 
         code, output = utils.kube_pod_exec(args.config, "default",
-                                           job_manager_pod_name,
-                                           "jobmanager", ssh_cmd)
+                                           job_manager_pod_name, "jobmanager",
+                                           ssh_cmd)
 
-        logger.debug("cmd %s code is %s, output is %s", " ".join(ssh_cmd),
-                     code, output)
+        logger.debug("cmd %s code is %s, output is %s", " ".join(ssh_cmd), code,
+                     output)
 
         for key, val in envs.items():
             expected_output = "%s=%s" % (key, val)
             assert output.find(
                 expected_output) == -1, "should not find %s in log %s" % (
-                expected_output, output)
+                    expected_output, output)
 
+
+@utils.case()
+def test_do_not_starve_big_job(args):
+    big_job_spec = utils.gen_default_job_description("regular",
+                                                     args.email,
+                                                     args.uid,
+                                                     args.vc,
+                                                     resourcegpu=100)
+    big_job_spec["jobName"] += ".big_job"
+    small_job_spec = utils.gen_default_job_description("regular", args.email,
+                                                       args.uid, args.vc)
+    small_job_spec["jobName"] += ".small_job"
+
+    with utils.run_job(args.rest, big_job_spec) as big_job:
+        with utils.run_job(args.rest, small_job_spec) as small_job:
+            state = small_job.block_until_state_not_in({"unapproved"})
+            assert state == "queued"
+
+            state = utils.get_job_status(args.rest, big_job.jid)["jobStatus"]
+            # if vc has user_quota, it will be unapproved
+            assert state in {"queued", "unapproved"}
+
+            expected = "blocked by job with higher priority"
+            for _ in range(50):
+                details = utils.get_job_detail(args.rest, args.email,
+                                               small_job.jid)
+
+                message = utils.walk_json_safe(details, "jobStatusDetail", 0,
+                                               "message")
+                if expected in message:
+                    break
+
+                time.sleep(0.5)
+            assert expected in message, "unexpected detail " + details
+
+
+@utils.case()
+def test_do_not_starve_preemptible_job(args):
+    big_job_spec = utils.gen_default_job_description("regular",
+                                                     args.email,
+                                                     args.uid,
+                                                     args.vc,
+                                                     resourcegpu=100)
+    big_job_spec["jobName"] += ".big_job"
+    p_job_spec = utils.gen_default_job_description("regular",
+                                                   args.email,
+                                                   args.uid,
+                                                   args.vc,
+                                                   preemptable=True)
+    p_job_spec["jobName"] += ".p_job"
+
+    with utils.run_job(args.rest, big_job_spec) as big_job:
+        with utils.run_job(args.rest, p_job_spec) as p_job:
+            state = p_job.block_until_state_not_in(
+                {"unapproved", "queued", "scheduling"})
+            assert state == "running"
+
+            state = utils.get_job_status(args.rest, big_job.jid)["jobStatus"]
+            # if vc has user_quota, it will be unapproved
+            assert state in {"queued", "unapproved"}
