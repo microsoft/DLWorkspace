@@ -902,11 +902,12 @@ def test_do_not_starve_big_job(args):
 
     with utils.run_job(args.rest, big_job_spec) as big_job:
         with utils.run_job(args.rest, small_job_spec) as small_job:
-            state = big_job.block_until_state_not_in({"unapproved"})
-            assert state == "queued"
-
             state = small_job.block_until_state_not_in({"unapproved"})
             assert state == "queued"
+
+            state = utils.get_job_status(args.rest, big_job.jid)["jobStatus"]
+            # if vc has user_quota, it will be unapproved
+            assert state in {"queued", "unapproved"}
 
             expected = "blocked by job with higher priority"
             for _ in range(50):
@@ -943,5 +944,6 @@ def test_do_not_starve_preemptible_job(args):
                 {"unapproved", "queued", "scheduling"})
             assert state == "running"
 
-            state = big_job.block_until_state_not_in({"unapproved"})
-            assert state == "queued"
+            state = utils.get_job_status(args.rest, big_job.jid)["jobStatus"]
+            # if vc has user_quota, it will be unapproved
+            assert state in {"queued", "unapproved"}

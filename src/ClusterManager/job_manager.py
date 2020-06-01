@@ -607,25 +607,26 @@ def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
             vc_schedulable -= job_resource
             cluster_schedulable -= job_resource
             job_info["allowed"] = True
-            logger.info("Allow non-p job %s to run, job resource %s", job_id,
-                        job_resource)
+            logger.info(
+                "Allow non-preemptable job %s from %s to run, job resource %s",
+                job_id, vc_name, job_resource)
         elif stop_scheduling is None:
-            reason = "resource not enough, required %s, vc schedulable %s" % (
-                job_resource, vc_schedulable)
+            reason = "resource not enough, required %s, vc schedulable %s, cluster schedulable %s" % (
+                job_resource, vc_schedulable, cluster_schedulable)
             job_info["reason"] = reason
             logger.info(
-                "Disallow non-p job %s to run in vc %s."
+                "Disallow non-preemptable job %s from vc %s to run."
                 "resource not enough, required %s. "
                 "cluster schedulable %s, vc schedulables %s", job_id, vc_name,
                 job_resource, cluster_schedulable, vc_schedulable)
             # prevent later non preemptable job from scheduling
             stop_scheduling = job_info
         else:
-            reason = "blocked by job with higher priority %s" % (
+            reason = "blocked by job with higher priority/earlier time %s" % (
                 stop_scheduling['jobId'])
             job_info["reason"] = reason
             logger.info(
-                "Disallow non-p job %s to run in vc %s."
+                "Disallow non-preemptable job %s from vc %s to run."
                 "job with higher priority is disallowed %s", job_id, vc_name,
                 stop_scheduling["jobId"])
 
