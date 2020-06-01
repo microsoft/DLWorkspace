@@ -34,6 +34,7 @@ import { formatBytes, formatPercent } from '../../../utils/formats';
 import { useCluster } from './Context';
 
 const LIST_ITEM_HEIGHT = 48;
+const CONTAINER_HOME_PATH = '~ (/data)'
 
 const useListStyles = makeStyles(() => createStyles({
   root: {
@@ -136,7 +137,7 @@ const StorageList: FunctionComponent = () => {
 
   const getContainerPath = useCallback((mountpoint: string) => {
     if (!mountpoint) return;
-    if (includes(mountpoint, '/mntdlws/nfs')) return '~';
+    if (includes(mountpoint, '/mntdlws/nfs')) return CONTAINER_HOME_PATH;
     const directories = mountpoint.split('/');
     if (includes(directories, currentTeamId)) {
       return '/' + last(directories);
@@ -154,7 +155,7 @@ const StorageList: FunctionComponent = () => {
   }, [email]);
   const getMountpointUrl = useCallback((containerPath: string) => {
     if (!containerPath) return joinPath(workStorage);
-    if (containerPath === '~') return joinPath(workStorage, userName);
+    if (containerPath === CONTAINER_HOME_PATH) return joinPath(workStorage, userName);
     return joinPath(workStorage, currentTeamId, containerPath);
   }, [workStorage, userName, currentTeamId]);
 
