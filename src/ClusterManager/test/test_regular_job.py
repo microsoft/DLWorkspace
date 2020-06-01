@@ -920,3 +920,28 @@ def test_do_not_starve_big_job(args):
 
                 time.sleep(0.5)
             assert expected in message, "unexpected detail " + details
+
+
+@utils.case()
+def test_do_not_starve_preemptible_job(args):
+    big_job_spec = utils.gen_default_job_description("regular",
+                                                     args.email,
+                                                     args.uid,
+                                                     args.vc,
+                                                     resourcegpu=100)
+    big_job_spec["jobName"] += ".big_job"
+    p_job_spec = utils.gen_default_job_description("regular",
+                                                   args.email,
+                                                   args.uid,
+                                                   args.vc,
+                                                   preemptable=True)
+    p_job_spec["jobName"] += ".p_job"
+
+    with utils.run_job(args.rest, big_job_spec) as big_job:
+        with utils.run_job(args.rest, p_job_spec) as p_job:
+            state = p_job.block_until_state_not_in(
+                {"unapproved", "queued", "scheduling"})
+            assert state == "running"
+
+            state = big_job.block_until_state_not_in({"unapproved"})
+            assert state == "queued"
