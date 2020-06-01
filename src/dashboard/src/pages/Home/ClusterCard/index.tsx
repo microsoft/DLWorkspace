@@ -23,9 +23,9 @@ const ClusterCard: FunctionComponent<Props> = ({ clusterId }) => (
       <Divider/>
       <StorageList/>
       <Divider/>
-      <ClusterCardActions/>
-      <Divider/>
       <DirectoryContent/>
+      <Divider/>
+      <ClusterCardActions/>
     </Card>
   </ClusterProvider>
 );

@@ -19,6 +19,7 @@ import {
 } from '@material-ui/icons';
 
 import copy from 'clipboard-copy';
+import { useSnackbar } from 'notistack';
 
 import UserContext from '../../../contexts/User';
 import { useCluster } from './Context';
@@ -29,6 +30,7 @@ interface CopyableTextFieldProps {
 }
 
 const CopyableTextField: FunctionComponent<CopyableTextFieldProps> = ({ label, value }) => {
+  const { enqueueSnackbar } = useSnackbar();
   const input = useRef<HTMLInputElement>();
   const handleMouseOver = useCallback(() => {
     if (input.current) {
@@ -36,8 +38,9 @@ const CopyableTextField: FunctionComponent<CopyableTextFieldProps> = ({ label, v
     }
   }, [input]);
   const handleClick = React.useCallback(() => {
-    copy(value)
-  }, [value])
+    copy(value);
+    enqueueSnackbar('Successfully copied', { variant: 'success' });
+  }, [value, enqueueSnackbar]);
   return (
     <TextField
       inputRef={input}
@@ -69,24 +72,26 @@ const DirectoryContent: FunctionComponent = () => {
   const { email } = useContext(UserContext);
   const { status } = useCluster();
   const workStorage = useMemo(() => {
-    if (email == null) return;
-    if (status.config == null) return;
+    if (email == null) return '';
+    if (status == null) return '';
+    if (status.config == null) return '';
     return status.config.workStorage + '/' + email.split('@', 1)[0];
   }, [email, status]);
   const dataStorage = useMemo(() => {
-    if (status.config == null) return;
+    if (status == null) return '';
+    if (status.config == null) return '';
     return status.config.dataStorage;
   }, [status]);
   return (
     <CardContent>
-      { workStorage && <CopyableTextField
+      <CopyableTextField
         label="Work Directory"
         value={workStorage}
-      /> }
-      { dataStorage && <CopyableTextField
+      />
+      <CopyableTextField
         label="Data Directory"
         value={dataStorage}
-      /> }
+      />
     </CardContent>
   );
 };

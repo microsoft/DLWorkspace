@@ -54,7 +54,7 @@ const ClusterCardHeader: FunctionComponent = () => {
   const { id, status } = useCluster();
 
   const subheader = useMemo(() => (
-    typeof status['runningJobs'] === 'number'
+    status && typeof status['runningJobs'] === 'number'
       ? `${status['runningJobs']} Job${status['runningJobs'] !== 1 ? 's' : ''} Running`
       : 'Loading'
   ), [status]);
