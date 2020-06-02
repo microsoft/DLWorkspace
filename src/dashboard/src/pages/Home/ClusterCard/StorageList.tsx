@@ -83,7 +83,7 @@ const StorageListItem: FunctionComponent<StorageListItemProps> = ({ containerPat
   const ratio = useMemo(() => {
     if (size === undefined) return 0;
     if (available === undefined) return 0;
-    return available / size;
+    return 1 - available / size;
   }, [size, available]);
   const listItemStyles = useListItemStyles();
   const linearProgressStyles = useLinearProgressStyles(ratio);
@@ -101,7 +101,7 @@ const StorageListItem: FunctionComponent<StorageListItemProps> = ({ containerPat
       <Typography variant="caption" color="inherit">
         {
           available !== undefined && size !== undefined
-            ? `(${formatBytes(available)}/${formatBytes(size)}) ${formatPercent(ratio, 0)} used`
+            ? `(${formatBytes(size - available)}/${formatBytes(size)}) ${formatPercent(ratio, 0)} used`
             : 'Loading...'
         }
       </Typography>
