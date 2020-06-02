@@ -947,3 +947,21 @@ def test_do_not_starve_preemptible_job(args):
             state = utils.get_job_status(args.rest, big_job.jid)["jobStatus"]
             # if vc has user_quota, it will be unapproved
             assert state in {"queued", "unapproved"}
+
+
+@utils.case()
+def test_set_max_time_works(args):
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        resp = utils.set_job_max_time(args.rest, args.email, job.jid, 1)
+        assert resp.status_code == 200
+
+        assert state == "running"
+        state = job.block_until_state_not_in({"running"}, timeout=30)
+        assert state == "killed"
