@@ -264,7 +264,7 @@ def test_distributed_job_env(args):
 
             if role == "ps":
                 envs.pop("DLWS_HOST_NETWORK", None)
-                envs.pop("DLTS_ROLE_NETWORK", None)
+                envs.pop("DLTS_HOST_NETWORK", None)
             else:
                 envs["DLWS_HOST_NETWORK"] = "enable"
                 envs["DLTS_HOST_NETWORK"] = "enable"
