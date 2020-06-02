@@ -218,19 +218,19 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
 
       if (booked === 0) return <>{humanHours(idle)}</>;
 
-      const percent = (idle / booked) * 100;
-      if (percent > 50) {
+      const ratio = idle / booked;
+      if (ratio > .5) {
         return (
           <>
             {humanHours(idle)}
             {" ("}
-            <Typography variant="inherit" color="error">{formatPercent(percent, 1)}</Typography>
+            <Typography variant="inherit" color="error">{formatPercent(ratio, 1)}</Typography>
             )
           </>
         );
       }
 
-      return <>{humanHours(idle)}{" ("}{formatPercent(percent, 1)})</>;
+      return <>{humanHours(idle)}{" ("}{formatPercent(ratio, 1)})</>;
     },
     width: 'auto'
   } as Column<any>]).current;

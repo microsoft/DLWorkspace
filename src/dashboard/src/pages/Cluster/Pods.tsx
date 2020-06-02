@@ -122,7 +122,7 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
     title: 'Assigned GPU Utilization',
     field: 'gpuMetrics.utilization',
     type: 'numeric',
-    render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && <>{formatPercent(Number(gpuMetrics.utilization))}</>
+    render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && <>{formatPercent(Number(gpuMetrics.utilization) / 100)}</>
   } as Column<any>, {
     title: 'GPU Idle',
     field: 'gpuMetrics.idle',
