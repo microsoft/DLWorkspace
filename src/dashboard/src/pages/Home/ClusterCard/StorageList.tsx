@@ -34,7 +34,7 @@ import { formatBytes, formatPercent } from '../../../utils/formats';
 import { useCluster } from './Context';
 
 const LIST_ITEM_HEIGHT = 48;
-const CONTAINER_HOME_PATH = '~ (/data)'
+const CONTAINER_HOME_PATH = '/data'
 
 const useListStyles = makeStyles(() => createStyles({
   root: {
@@ -183,7 +183,7 @@ const StorageList: FunctionComponent = () => {
     })
     return sortBy(map(mountpointMap,
       ({ size, available }, containerPath) => ({ containerPath, size, available })
-    ), 'containerPath');
+    ), ({ containerPath }) => containerPath !== CONTAINER_HOME_PATH ? containerPath : '~');
   }, [size, available, getContainerPath]);
 
   const listStyles = useListStyles();
