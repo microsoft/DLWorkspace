@@ -205,8 +205,6 @@ sleep infinity"""
 @utils.case()
 def test_distributed_job_env(args):
     envs = {
-        "DLWS_HOST_NETWORK": "enable",
-        "DLTS_HOST_NETWORK": "enable",
         "DLWS_NUM_PS": "1",
         "DLTS_NUM_PS": "1",
         "DLWS_NUM_WORKER": "1",
@@ -263,6 +261,13 @@ def test_distributed_job_env(args):
             envs["DLTS_ROLE_NAME"] = role
             envs["DLWS_ROLE_IDX"] = idx
             envs["DLTS_ROLE_IDX"] = idx
+
+            if role == "ps":
+                envs.pop("DLWS_HOST_NETWORK", None)
+                envs.pop("DLTS_ROLE_NETWORK", None)
+            else:
+                envs["DLWS_HOST_NETWORK"] = "enable"
+                envs["DLTS_HOST_NETWORK"] = "enable"
 
             bash_cmd = ";".join([
                 "printf '%s=' ; printenv %s" % (key, key)

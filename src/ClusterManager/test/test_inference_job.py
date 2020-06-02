@@ -12,8 +12,6 @@ logger = logging.getLogger(__file__)
 @utils.case()
 def test_inference_job_running(args):
     envs = {
-        "DLWS_HOST_NETWORK": "",
-        "DLTS_HOST_NETWORK": "",
         "DLWS_NUM_GPU_PER_WORKER": "1",
         "DLTS_NUM_GPU_PER_WORKER": "1",
         "DLWS_VC_NAME": str(args.vc),

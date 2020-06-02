@@ -111,7 +111,7 @@ def gen_init_container(job, role):
     else:
         envs.append({"name": "LOGGING_LEVEL", "value": "INFO"})
 
-    if job.is_host_network:
+    if role.name != "ps" and job.is_host_network:
         envs.append({"name": "DLTS_HOST_NETWORK", "value": "enable"})
 
     return [{
@@ -271,7 +271,7 @@ def gen_container_envs(job, role):
     if role.resource.gpu_limit < 1:
         result.append({"name": "NVIDIA_VISIBLE_DEVICES", "value": ""})
 
-    if job.is_host_network:
+    if role.name != "ps" and job.is_host_network:
         result.append({"name": "DLWS_HOST_NETWORK", "value": "enable"})
         result.append({"name": "DLTS_HOST_NETWORK", "value": "enable"})
 
@@ -540,7 +540,7 @@ def gen_task_role(job, role):
     pod_spec = {
         "nodeSelector": node_selector,
         "restartPolicy": "Never",
-        "hostNetwork": job.is_host_network,
+        "hostNetwork": False if role.name == "ps" else job.is_host_network,
         "hostIPC": job.is_host_ipc,
         "imagePullSecrets": image_pull_secrets,
         "affinity": gen_affinity(job, role),

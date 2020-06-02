@@ -142,6 +142,7 @@ def generate_service_selector(pod_name):
 
 def generate_node_port_service(job_id, pod_name, endpoint_id, name,
                                target_port):
+    # Ref: https://kubernetes.io/docs/concepts/services-networking/service/#nodeport
     endpoint = {
         "kind": "Service",
         "apiVersion": "v1",

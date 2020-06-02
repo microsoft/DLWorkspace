@@ -1144,6 +1144,15 @@ def GetEndpoints(userName, jobId):
     return ret
 
 
+def get_host_network(job_params, role):
+    if role == "ps":
+        return False
+    if "hostNetwork" in job_params and job_params["hostNetwork"] == True:
+        return True
+    else:
+        return False
+
+
 def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
     dataHandler = DataHandler()
     try:
@@ -1166,9 +1175,12 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             job_endpoints = json.loads(job["endpoints"])
 
         # get pods
-        pod_names = []
+        pods = []
         if job_type == "RegularJob":
-            pod_names.append(jobId)
+            pods.append({
+                "pod_name": jobId,
+                "hostNetwork": get_host_network(job_params, "master")
+            })
         else:
             nums = {
                 "ps": int(job_params["numps"]),
@@ -1176,13 +1188,10 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             }
             for role in ["ps", "worker"]:
                 for i in range(nums[role]):
-                    pod_names.append(jobId + "-" + role + str(i))
-
-        # HostNetwork
-        if "hostNetwork" in job_params and job_params["hostNetwork"] == True:
-            host_network = True
-        else:
-            host_network = False
+                    pods.append({
+                        "pod_name": jobId + "-" + role + str(i),
+                        "hostNetwork": get_host_network(job_params, role)
+                    })
 
         # username
         username = getAlias(job["userName"])
@@ -1191,7 +1200,10 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
 
         if "ssh" in requested_endpoints:
             # setup ssh for each pod
-            for pod_name in pod_names:
+            for pod in pods:
+                pod_name = pod.get("pod_name")
+                host_network = pod.get("hostNetwork", False)
+
                 endpoint_id = "e-" + pod_name + "-ssh"
 
                 if endpoint_id in job_endpoints:
@@ -1213,12 +1225,14 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
         # Only open Jupyter on the master
         if 'ipython' in requested_endpoints:
             if job_type == "RegularJob":
-                pod_name = pod_names[0]
+                pod_name = pods[0].get("pod_name")
+                host_network = pods[0].get("hostNetwork")
             else:
                 # For a distributed job, we set up jupyter on first worker node.
                 # PS node does not have GPU access.
                 # TODO: Simplify code logic after removing PS
-                pod_name = pod_names[1]
+                pod_name = pods[1].get("pod_name")
+                host_network = pods[1].get("hostNetwork")
 
             endpoint_id = "e-" + jobId + "-ipython"
 
@@ -1240,12 +1254,14 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
         # Only open tensorboard on the master
         if 'tensorboard' in requested_endpoints:
             if job_type == "RegularJob":
-                pod_name = pod_names[0]
+                pod_name = pods[0].get("pod_name")
+                host_network = pods[0].get("hostNetwork")
             else:
-                # For a distributed job, we set up jupyter on first worker node.
-                # PS node does not have GPU access.
+                # For a distributed job, we set up tensorboard on first worker
+                # node. PS node does not have GPU access.
                 # TODO: Simplify code logic after removing PS
-                pod_name = pod_names[1]
+                pod_name = pods[1].get("pod_name")
+                host_network = pods[1].get("hostNetwork")
 
             endpoint_id = "e-" + jobId + "-tensorboard"
 
@@ -1267,12 +1283,14 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
         # interactive port
         for interactive_port in interactive_ports:
             if job_type == "RegularJob":
-                pod_name = pod_names[0]
+                pod_name = pods[0].get("pod_name")
+                host_network = pods[0].get("hostNetwork")
             else:
-                # For a distributed job, we set up jupyter on first worker node.
-                # PS node does not have GPU access.
+                # For a distributed job, we set up interactive port on first 
+                # worker node. PS node does not have GPU access.
                 # TODO: Simplify code logic after removing PS
-                pod_name = pod_names[1]
+                pod_name = pods[1].get("pod_name")
+                host_network = pods[1].get("hostNetwork")
 
             endpoint_id = "e-" + jobId + "-port-" + \
                 str(interactive_port["podPort"])

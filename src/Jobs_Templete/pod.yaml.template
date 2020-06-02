@@ -133,7 +133,7 @@ spec:
       valueFrom:
         fieldRef:
           fieldPath: status.podIP
-    {% if job["hostNetwork"] %}
+    {% if jobRole != "ps" and job["hostNetwork"] %}
     - name: DLTS_HOST_NETWORK
       value: "enable"
     {% endif %}
@@ -251,7 +251,7 @@ spec:
       value: {{ job["vcName"] }}
     - name: DLTS_VC_NAME
       value: {{ job["vcName"] }}
-    {% if job["hostNetwork"] %}
+    {% if jobRole != "ps" and job["hostNetwork"] %}
     - name: DLWS_HOST_NETWORK
       value: "enable"
     - name: DLTS_HOST_NETWORK
