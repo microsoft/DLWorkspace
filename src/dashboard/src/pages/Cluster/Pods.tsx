@@ -127,9 +127,9 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
     title: 'GPU Idle',
     field: 'gpuMetrics.idle',
     type: 'numeric',
-    render: ({ gpuMetrics }) => gpuMetrics && typeof gpuMetrics.idle === 'number' && (
-      <Typography variant="inherit" color={gpuMetrics.idle > 0 ? "error" : "inherit"}>
-        {gpuMetrics.idle}
+    render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && (
+      <Typography variant="inherit" color={(gpuMetrics.idle || 0) > 0 ? "error" : "inherit"}>
+        {(gpuMetrics.idle || 0)}
       </Typography>
     )
   } as Column<any>]).current;
