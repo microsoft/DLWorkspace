@@ -9,45 +9,119 @@ CODE_UPSTREAM_REMOTE="upstream"
 CONFIG_DIR="$HOME/dev/Deployment"
 
 if [ $# != 2 ] ; then
-    echo Usage: $0 cluster_name version branch
+    echo Usage: $0 commit_hash cluster_name
     exit 1
 fi
 
-cluster_name=$1
-version=$2
+version=$1
+cluster_name=$2
 
-#(cd $CONFIG_DIR ; git fetch origin ; git merge origin/master)
+function update_config() {
+    (
+        cd $CONFIG_DIR
+        git fetch origin
+        git merge origin/master
+    )
+}
 
-cd $CODE_BASE_DIR/$cluster_name
+function update_code() {
+    (
+        cd $CODE_BASE_DIR/$cluster_name
+        git checkout . # make code path clean
+        git fetch --all ; git checkout $version
+    )
+}
 
-git checkout . # make code path clean
+function restore_config() {
+    (
+        cd $CODE_BASE_DIR/$cluster_name/src/ClusterBootstrap
+        ./ctl.py restorefromdir $CONFIG_DIR/$cluster_name
+    )
+}
 
-git fetch --all ; git checkout $CODE_UPSTREAM_REMOTE/$version -b $version
 
-cd src/ClusterBootstrap
+function update_service_config() {
+    (
+        cd $CODE_BASE_DIR/$cluster_name/src/ClusterBootstrap
+        for i in $@ ; do
+            ./ctl.py svc configupdate $i
+        done
+    )
+}
 
-./ctl.py restorefromdir $CONFIG_DIR/$cluster_name
+function push_docker_images() {
+    (
+        cd $CODE_BASE_DIR/$cluster_name/src/ClusterBootstrap
+        for i in $@ ; do
+            ./ctl.py docker push $i
+        done
+    )
+}
 
-# start to deploy
+function restart_services() {
+    (
+        cd $CODE_BASE_DIR/$cluster_name/src/ClusterBootstrap
+        for i in $@ ; do
+            ./ctl.py svc render $i
+            ./ctl.py svc stop $i
+            ./ctl.py svc start $i
+        done
+    )
+}
 
-for i in `echo restfulapi storagemanager repairmanager dashboard`
-do
-    ./ctl.py svc configupdate $i
-done
+function check() {
+    (
+        cd $CODE_BASE_DIR/$cluster_name/src/ClusterBootstrap
+        watch -d -n 1 './ctl.py kubectl get pod --all-namespaces | grep -v Running'
+        watch -d -n 1 './ctl.py kubectl get pod --all-namespaces | grep manager'
+    )
+}
 
-./ctl.py kubectl label node `grep infra01: status.yaml  | sed 's/ *:*//g'` job-insighter=active
+update_config
 
-for i in `echo RestfulAPI azure-blob-adapter dashboard email-sender gpu-reporter grafana init-container job-exporter job-insighter reaper RepairManager RepairManagerAgent RepairManagerEtcd StorageManager user-synchronizer watchdog`
-do
-    ./ctl.py docker push $i
-done
+update_code
 
-for i in `echo restfulapi jobmanager monitor dashboard job-insighter logging repairmanager repairmanageragent storagemanager `
-do
-    ./ctl.py svc render $i
-    ./ctl.py svc stop $i
-    ./ctl.py svc start $i
-done
+restore_config
 
-watch -d -n 1 './ctl.py kubectl get pod --all-namespaces | grep -v Running'
-watch -d -n 1 './ctl.py kubectl get pod --all-namespaces | grep manager'
+update_service_config `cat <(cat << EOF
+restfulapi
+storagemanager
+repairmanager
+dashboard
+EOF
+) | grep -v '#' `
+
+push_docker_images `cat <(cat << EOF
+restfulapi
+azure-blob-adapter
+dashboard
+email-sender
+gpu-reporter
+grafana
+init-container
+job-exporter
+job-insighter
+reaper
+repairmanager
+repairmanageragent
+repairmanageretcd
+storagemanager
+user-synchronizer
+watchdog
+EOF
+) | grep -v '#' `
+
+restart_services `cat <(cat << EOF
+restfulapi
+jobmanager
+monitor
+dashboard
+job-insighter
+logging
+repairmanager
+repairmanageragent
+storagemanager
+EOF
+) | grep -v '#' `
+
+check
