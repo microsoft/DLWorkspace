@@ -59,11 +59,13 @@ const Header: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
           <ArrowBack />
         </IconButton>
       )}
-      <Typography variant="h6">
-        {job['jobName']}
-      </Typography>
-      <Box flexGrow={1} paddingX={1}>
-        <JobStatus cluster={clusterId} job={job}/>
+      <Box width={0} flex={1} display="flex">
+        <Typography variant="h6" component={Box} flexShrink={1} overflow="hidden" whiteSpace="nowrap" textOverflow="ellipsis">
+          {job['jobName']}
+        </Typography>
+        <Box flexGrow={1} paddingLeft={1}>
+          <JobStatus cluster={clusterId} job={job}/>
+        </Box>
       </Box>
       {actionButtons}
     </Toolbar>
