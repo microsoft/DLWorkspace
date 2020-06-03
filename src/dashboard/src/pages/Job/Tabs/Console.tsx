@@ -2,40 +2,45 @@ import * as React from 'react';
 import {
   FunctionComponent,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
+  useState,
 } from 'react';
 import {
+  AppBar,
   Box,
-  Fab,
-  Tooltip,
-  createStyles,
-  makeStyles,
+  Button,
+  Fade,
+  LinearProgress,
+  Paper,
+  Toolbar,
+  Typography,
+  createMuiTheme,
+  useTheme,
 } from '@material-ui/core';
-import {
-  CloudDownload,
-} from '@material-ui/icons';
+import { ThemeProvider } from "@material-ui/styles";
+import { useWindowSize } from 'react-use';
 import useFetch from 'use-http-2';
 import { useSnackbar } from 'notistack';
 import { mergeWith } from 'lodash';
 
-import CodeBlock from '../../../components/CodeBlock';
-import Loading from '../../../components/Loading';
 import useConstant from '../../../hooks/useConstant';
 
 import useRouteParams from '../useRouteParams';
 
-const useFabStyles = makeStyles((theme) => createStyles({
-  root: {
-    position: 'absolute',
-    top: theme.spacing(2),
-    right: theme.spacing(2),
+const logTheme = createMuiTheme({
+  palette: {
+    type: 'dark'
   },
-}));
+  typography: {
+    fontFamily: `"Roboto-mono", "Menlo", "Consolas", monospace`
+  }
+});
 
-const Console: FunctionComponent = () => {
+const useLogText = () => {
   const { clusterId, jobId } = useRouteParams();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const fabStyles = useFabStyles();
   const { data, loading, error, get } = useFetch(
     `/api/clusters/${clusterId}/jobs/${jobId}/log`, useConstant({
       onNewData (currentData, newData) {
@@ -120,25 +125,62 @@ ${log[podName]}
     }
   }, [error, enqueueSnackbar, closeSnackbar, clusterId, jobId]);
 
-  if (logText === undefined) {
-    return <Loading/>;
-  }
+  return { loading, logText };
+}
+
+const Console: FunctionComponent = () => {
+  const { clusterId, jobId } = useRouteParams();
+  const { height: windowHeight } = useWindowSize();
+  const theme = useTheme();
+  const box = useRef<HTMLElement>(null);
+  const { loading, logText } = useLogText();
+  const [height, setHeight] = useState(0);
+
+  const downloadHref = useMemo(() => {
+    return `/api/v2/clusters/${clusterId}/jobs/${jobId}/log`;
+  }, [clusterId, jobId]);
+
+  useLayoutEffect(() => {
+    if (box.current == null) return;
+    const { top } = box.current.getBoundingClientRect();
+    const height = windowHeight - top - theme.spacing(3);
+    setHeight(height);
+  }, [windowHeight, theme]);
 
   return (
-    <Box p={1} style={{ position: 'relative', overflow: 'auto' }}>
-      <CodeBlock>
-        {logText}
-      </CodeBlock>
-      {loading && <Loading/>}
-      <Tooltip title="Download Raw Log">
-        <Fab
-          color="primary"
-          classes={fabStyles}
-          href={`/api/v2/clusters/${clusterId}/jobs/${jobId}/log`}
-        >
-          <CloudDownload/>
-        </Fab>
-      </Tooltip>
+    <Box
+      // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+      // @ts-ignore: https://github.com/mui-org/material-ui/issues/17010
+      ref={box}
+      height={height}
+      display="flex"
+      flexDirection="column"
+    >
+      <Box position="relative" height={0} flex={1}>
+        <ThemeProvider theme={logTheme}>
+          <Box position="absolute" width="100%">
+            <Fade in={loading}><LinearProgress/></Fade>
+          </Box>
+          <Paper square elevation={0} style={{ height: '100%' }}>
+            <Box height="100%" m={0} p={1} overflow="auto">
+              <Typography variant="inherit" component="pre">
+                {logText}
+              </Typography>
+            </Box>
+          </Paper>
+        </ThemeProvider>
+      </Box>
+      <AppBar
+        component="footer"
+        position="static"
+        color="default"
+        elevation={0}
+      >
+        <Toolbar variant="dense">
+          <Box flex={1}/>
+          <Button color="inherit" href={downloadHref}>Download</Button>
+        </Toolbar>
+      </AppBar>
     </Box>
   );
 }
