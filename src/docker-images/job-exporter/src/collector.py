@@ -1210,7 +1210,7 @@ class LustreCollector(Collector):
 
     def collect_impl(self):
         try:
-            return lustre.get_lustre_gauges()
+            return lustre.get_lustre_gauges() + lustre.get_lustre_pool_gauges()
         except subprocess.CalledProcessError as e:
             if e.returncode == 127:
                 self.sleep_time = 86400

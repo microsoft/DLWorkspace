@@ -125,10 +125,8 @@ def gen_lustre_gauge(lmetric, labels):
                              labels=labels)
 
 
-def lctl_get_param(pattern):
-    cmd = None
+def chroot_hostfs_cmd(cmd):
     try:
-        cmd = ["chroot", HOST_FS, "lctl", "get_param", pattern]
         return utils.exec_cmd(cmd, stderr=subprocess.STDOUT, timeout=3)
     except subprocess.TimeoutExpired as e:
         logger.debug("%s timeout", cmd)
@@ -141,6 +139,22 @@ def lctl_get_param(pattern):
     except:
         logger.debug("%s failed", cmd)
     return None
+
+
+def lctl_get_param(pattern):
+    return chroot_hostfs_cmd(["chroot", HOST_FS, "lctl", "get_param", pattern])
+
+
+def lfs_pool_list(fsname):
+    return chroot_hostfs_cmd(["chroot", HOST_FS, "lfs", "pool_list", fsname])
+
+
+def lfs_df(pool_name):
+    return chroot_hostfs_cmd(["chroot", HOST_FS, "lfs", "df", "-p", pool_name])
+
+
+def get_mounts():
+    return chroot_hostfs_cmd(["mount"])
 
 
 def get_server():
@@ -286,7 +300,7 @@ def get_lustre_gauges():
     for lmetric in lustre_metrics:
         pattern_to_lmetrics[lmetric.pattern].append(lmetric)
 
-    # Parse metrics fro each lctl param pattern call
+    # Parse metrics from each lctl param pattern call
     for pattern, lmetrics in pattern_to_lmetrics.items():
         content = lctl_get_param(pattern)
         for lmetric in lmetrics:
@@ -295,6 +309,77 @@ def get_lustre_gauges():
                 gauges.append(gauge)
 
     return gauges
+
+
+def parse_lustre_fsnames(content):
+    try:
+        if content is None:
+            return []
+
+        lustre_fsnames = set()
+        for line in content.splitlines():
+            splits = line.split()
+            if len(splits) < 5:
+                continue
+            if splits[4] == "lustre":
+                lustre_fsnames.add(splits[0].split("/")[-1])
+        return list(lustre_fsnames)
+
+    except Exception:
+        logger.exception("failed to get lustre fsnames")
+    return []
+
+
+def parse_lustre_pool_names(content, fsname):
+    if content is None:
+        return []
+
+    pool_names = []
+    for line in content.splitlines():
+        if line.startswith(fsname):
+            pool_names.append(line)
+    return pool_names
+
+
+def parse_lustre_pool_size(content):
+    """Parse for total, used, avail"""
+    if content is None:
+        return None
+
+    for line in content.splitlines():
+        if line.startswith("filesystem_summary"):
+            splits = line.split()
+            return int(splits[1]), int(splits[2]), int(splits[3])
+    return None
+
+
+def get_lustre_pool_gauges():
+    labels = ["fsname", "pool"]
+    total_gauge = GaugeMetricFamily("lustre_pool_total_bytes",
+                                    "Total bytes in lustre pool",
+                                    labels=labels)
+    used_gauge = GaugeMetricFamily("lustre_pool_used_bytes",
+                                   "Used bytes in lustre pool",
+                                   labels=labels)
+    avail_gauge = GaugeMetricFamily("lustre_pool_avail_bytes",
+                                    "Available bytes in lustre pool",
+                                    labels=labels)
+
+    # Get pool metrics on Lustre client
+    mounts = get_mounts()
+    fsnames = parse_lustre_fsnames(mounts)
+    for fsname in fsnames:
+        pool_names = parse_lustre_pool_names(lfs_pool_list(fsname), fsname)
+        for pool_name in pool_names:
+            pool_size = parse_lustre_pool_size(lfs_df(pool_name))
+            if pool_size is None:
+                continue
+            total, used, avail = pool_size
+            total_gauge.add_metric([pool_name], total)
+            used_gauge.add_metric([pool_name], used)
+            avail_gauge.add_metric([pool_name], avail)
+
+    return [total_gauge, used_gauge, avail_gauge]
 
 
 if __name__ == '__main__':
