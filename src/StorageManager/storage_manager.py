@@ -5,7 +5,7 @@ import logging.config
 import time
 import os
 
-from datetime import datetime, timezone
+from datetime import datetime
 from prometheus_client import Histogram
 from prometheus_client.core import GaugeMetricFamily
 from path_tree import PathTree
@@ -103,7 +103,7 @@ class StorageManager(object):
                                         "storage usage by each user",
                                         labels=["vc", "mountpoint", "user",
                                                 "snapshot_time"])
-        snapshot_time = str(datetime.timestamp(datetime.now()))
+        snapshot_time = str(datetime.timestamp(datetime.utcnow()))
         for sp in self.scan_points:
             if sp.get("path") not in ancestors:
                 continue
