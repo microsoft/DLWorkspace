@@ -173,6 +173,7 @@ def SubmitJob(jobParamsJsonStr):
     if "vcName" not in jobParams or len(jobParams["vcName"].strip()) == 0:
         ret["error"] = "ERROR: VC name cannot be empty"
         return ret
+    vc_name = jobParams["vcName"].strip()
     if jobParams.get("jobtrainingtype") == "PSDistJob":
         num_workers = None
         try:
@@ -218,8 +219,7 @@ def SubmitJob(jobParamsJsonStr):
     userName = getAlias(jobParams["userName"])
 
     if not AuthorizationManager.HasAccess(
-            jobParams["userName"], ResourceType.VC, jobParams["vcName"].strip(),
-            Permission.User):
+            jobParams["userName"], ResourceType.VC, vc_name, Permission.User):
         ret["error"] = "Access Denied!"
         return ret
 
@@ -294,6 +294,13 @@ def SubmitJob(jobParamsJsonStr):
         os.path.join("/", jobParams["jobPath"]))[1:]
 
     dataHandler = DataHandler()
+
+    vc_meta = walk_json_field_safe(dataHandler.GetVC(vc_name), "metadata")
+    vc_meta = {} if vc_meta is None else json.loads(vc_meta)
+    max_time = walk_json_field_safe(vc_meta, "admin", "job_max_time_second")
+    if max_time is not None:
+        jobParams["maxTimeSec"] = max_time
+
     if "logDir" in jobParams and len(jobParams["logDir"].strip()) > 0:
         tensorboardParams = jobParams.copy()
 
@@ -338,8 +345,7 @@ def SubmitJob(jobParamsJsonStr):
 
                 permission = Permission.User
                 if AuthorizationManager.HasAccess(jobParams["userName"],
-                                                  ResourceType.VC,
-                                                  jobParams["vcName"].strip(),
+                                                  ResourceType.VC, vc_name,
                                                   Permission.Admin):
                     permission = Permission.Admin
 
@@ -368,8 +374,7 @@ def get_job_list(username, vc_name, job_owner, num=20):
                 job.pop('jobMeta', None)
     except:
         logger.exception("Exception in getting job list for username %s",
-                         username,
-                         exc_info=True)
+                         username)
         jobs = []
 
     return jobs
@@ -387,8 +392,7 @@ def get_job_list_v2(username, vc_name, job_owner, num=None):
                     username, vc_name, num, ACTIVE_STATUS)
     except:
         logger.exception("Exception in getting job list v2 for username %s",
-                         username,
-                         exc_info=True)
+                         username)
         jobs = {}
 
     return jobs
@@ -483,11 +487,12 @@ def resume_job(username, job_id):
 def approve_job(username, job_id):
     return op_job(username, job_id, ApproveOp())
 
+
 def scale_inference_job(username, job_id, resourcegpu):
     dataHandler = DataHandler()
     try:
-        job = dataHandler.GetJobTextFields(
-            job_id, ["userName", "vcName", "jobParams"])
+        job = dataHandler.GetJobTextFields(job_id,
+                                           ["userName", "vcName", "jobParams"])
 
         if job is None:
             msg = "Job %s cannot be found in database" % job_id
@@ -504,19 +509,22 @@ def scale_inference_job(username, job_id, resourcegpu):
         job_params = json.loads(base64decode(job["jobParams"]))
         job_type = job_params["jobtrainingtype"]
         if job_type != "InferenceJob":
-            msg = "Only inference job could be scaled, current job %s is %s" % (job_id, job_type)
+            msg = "Only inference job could be scaled, current job %s is %s" % (
+                job_id, job_type)
             logger.error(msg)
             return msg, 403
 
         job_params["resourcegpu"] = resourcegpu
-        dataHandler.UpdateJobTextFields({"jobId": job_id},
-                                        {"jobParams": base64encode(json.dumps(job_params))})
+        dataHandler.UpdateJobTextFields(
+            {"jobId": job_id},
+            {"jobParams": base64encode(json.dumps(job_params))})
         return "Success", 200
     except Exception as e:
         logger.exception("Scale inference job exception")
     finally:
         dataHandler.Close()
     return "Server error", 500
+
 
 def _op_jobs_in_one_batch(username, job_ids, op, data_handler):
     op_name = op.name
@@ -1469,6 +1477,39 @@ def set_job_insight(job_id, username, insight):
               (job_id, username, e)
         logger.exception(msg)
         return msg, 500
+
+
+def set_job_max_time(username, job_id, second):
+    dataHandler = DataHandler()
+    try:
+        job = dataHandler.GetJobTextFields(job_id,
+                                           ["userName", "vcName", "jobParams"])
+
+        if job is None:
+            msg = "Job %s cannot be found in database" % job_id
+            logger.info(msg)
+            return msg, 404
+
+        is_admin = has_access(username, VC, job["vcName"], ADMIN)
+
+        if not is_admin:
+            msg = "%s is not admin so can not set max running time for job" % username
+            logger.info(msg)
+            return msg, 403
+
+        job_params = json.loads(base64decode(job["jobParams"]))
+
+        job_params["maxTimeSec"] = second
+        dataHandler.UpdateJobTextFields(
+            {"jobId": job_id},
+            {"jobParams": base64encode(json.dumps(job_params))})
+        return "Success", 200
+    except Exception as e:
+        logger.exception("set job %s/%s max time %s failed", username, job_id,
+                         second)
+    finally:
+        dataHandler.Close()
+    return "Server error", 500
 
 
 def getAlias(username):

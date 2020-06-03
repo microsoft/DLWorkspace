@@ -328,7 +328,6 @@ class DataHandler(object):
                 ret.append(record)
         except Exception as e:
             logger.exception('ListStorages Exception: %s', str(e))
-            pass
         self.conn.commit()
         cursor.close()
         return ret
@@ -395,7 +394,27 @@ class DataHandler(object):
                 ret.append(rec)
         except Exception as e:
             logger.exception('Exception: %s', str(e))
-            pass
+        self.conn.commit()
+        cursor.close()
+        return ret
+
+    @record
+    def GetVC(self, vc_name):
+        cursor = self.conn.cursor()
+        query = """SELECT `quota`,`metadata`,`resourceQuota`,`resourceMetadata`
+                    FROM `%s` WHERE vcName = %s """ % (self.vctablename, "%s")
+        ret = {}
+        try:
+            cursor.execute(query, (vc_name,))
+            for quota, metadata, resource_quota, resource_metadata in cursor:
+                ret = {
+                    "quota": quota,
+                    "metadata": metadata,
+                    "resourceQuota": resource_quota,
+                    "resourceMetadata": resource_metadata
+                }
+        except Exception as e:
+            logger.exception('Exception: %s', str(e))
         self.conn.commit()
         cursor.close()
         return ret
@@ -571,7 +590,6 @@ class DataHandler(object):
                 ret.append(record)
         except Exception as e:
             logger.exception('Exception: %s', str(e))
-            pass
         self.conn.commit()
         cursor.close()
         return ret
@@ -1296,7 +1314,6 @@ class DataHandler(object):
                 ret = value
         except Exception as e:
             logger.exception('Exception: %s', str(e))
-            pass
         self.conn.commit()
         cursor.close()
         return ret

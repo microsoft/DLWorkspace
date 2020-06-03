@@ -497,8 +497,11 @@ class run_job(object):
         except Exception:
             logger.exception("failed to kill job %s", self.jid)
 
-    def block_until_state_not_in(self, states):
-        return block_until_state_not_in(self.rest_url, self.jid, states)
+    def block_until_state_not_in(self, states, timeout=300):
+        return block_until_state_not_in(self.rest_url,
+                                        self.jid,
+                                        states,
+                                        timeout=timeout)
 
 
 def block_until_state(rest_url, jid, not_in, states, timeout=300):
@@ -664,6 +667,7 @@ def kube_get_pods(config_path, namespace, label_selector):
                  namespace, api_response)
     return api_response.items
 
+
 def kube_get_deployment(config_path, namespace, name):
     k8s_config = build_k8s_config(config_path)
     api_client = ApiClient(configuration=k8s_config)
@@ -675,8 +679,9 @@ def kube_get_deployment(config_path, namespace, name):
         name=name,
     )
     logger.debug("%s got deployment from namespace %s: api_response", name,
-                namespace, api_response)
+                 namespace, api_response)
     return api_response
+
 
 def kube_delete_pod(config_path, namespace, pod_name):
     k8s_config = build_k8s_config(config_path)
@@ -740,3 +745,13 @@ def kube_pod_exec(config_path,
         logger.exception("exec on pod %s error. cmd: %s", pod_name,
                          exec_command)
         return [-1, str(err)]
+
+
+def set_job_max_time(rest_url, email, job_id, second):
+    args = urllib.parse.urlencode({
+        "userName": email,
+        "jobId": job_id,
+        "second": second,
+    })
+    url = urllib.parse.urljoin(rest_url, "/JobMaxTime") + "?" + args
+    return requests.post(url)
