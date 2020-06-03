@@ -377,9 +377,9 @@ def get_lustre_pool_gauges():
             if pool_size is None:
                 continue
             total, used, avail = pool_size
-            total_gauge.add_metric([pool_name], total)
-            used_gauge.add_metric([pool_name], used)
-            avail_gauge.add_metric([pool_name], avail)
+            total_gauge.add_metric([fsname, pool_name], total)
+            used_gauge.add_metric([fsname, pool_name], used)
+            avail_gauge.add_metric([fsname, pool_name], avail)
 
     return [total_gauge, used_gauge, avail_gauge]
 
