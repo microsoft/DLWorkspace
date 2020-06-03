@@ -92,6 +92,10 @@ describe('Deep Learning Training Service', function () {
       await (
         await page.waitForSelector('form button[type="submit"]')
       ).click()
+
+      await page.waitForFunction(
+        (pathnamePrefix) => window.location.pathname.startsWith(pathnamePrefix),
+        { polling: 'mutation' }, `/jobs/${DLTS_CLUSTER_ID}`)
     })
 
     it('retrieve job log', async function () {
