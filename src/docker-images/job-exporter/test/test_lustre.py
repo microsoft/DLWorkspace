@@ -90,6 +90,65 @@ set_info                  262 samples [reqs]
                               "component": "obdfilter",
                               "target": "lustrefs-OST0001"}, sample.labels)
 
+    def test_parse_lustre_fsnames(self):
+        content = """
+192.168.0.2:/data/share on /host-fs/mntdlts/nfs/somepath type nfs4 (rw,relatime,vers=4.2,rsize=8192,wsize=1048576,namlen=255,hard,proto=tcp,timeo=14,retrans=2,sec=sys,clientaddr=xxxx,local_lock=none,addr=xxxx)
+192.168.0.1@tcp:/lustrefs on /host-fs/mntdlts/lustre type lustre (rw,flock,lazystatfs)
+/dev/sdc on /lustre type lustre (ro,context=system_u:object_r:fsadm_tmp_t:s0,svname=lustrefs-MDT0000,mgs,osd=osd-ldiskfs,user_xattr,errors=remount-ro)
+        """
+        fsnames = lustre.parse_lustre_fsnames(content)
+        self.assertEqual(1, len(fsnames))
+        self.assertEqual("lustrefs", fsnames[0])
+
+        # Ignore if there is no lustre mount
+        content = """
+192.168.0.2:/data/share on /host-fs/mntdlts/nfs/somepath type nfs4 (rw,relatime,vers=4.2,rsize=8192,wsize=1048576,namlen=255,hard,proto=tcp,timeo=14,retrans=2,sec=sys,clientaddr=xxxx,local_lock=none,addr=xxxx)
+/dev/sdc on /lustre type lustre (ro,context=system_u:object_r:fsadm_tmp_t:s0,svname=lustrefs-MDT0000,mgs,osd=osd-ldiskfs,user_xattr,errors=remount-ro)
+        """
+        fsnames = lustre.parse_lustre_fsnames(content)
+        self.assertEqual(0, len(fsnames))
+
+    def test_parse_lustre_pool_names(self):
+        content = """
+Pools from lustrefs:
+lustrefs.hdd
+lustrefs.nvme
+lustrefs.test
+        """
+        pool_names = lustre.parse_lustre_pool_names(content, "lustrefs")
+        self.assertEqual(3, len(pool_names))
+        self.assertEqual("lustrefs.hdd", pool_names[0])
+        self.assertEqual("lustrefs.nvme", pool_names[1])
+        self.assertEqual("lustrefs.test", pool_names[2])
+
+        content = """
+Pools from lustrefs:
+        """
+        pool_names = lustre.parse_lustre_pool_names(content, "lustrefs")
+        self.assertEqual(0, len(pool_names))
+
+    def test_parse_lustre_pool_size(self):
+        content = """
+UUID                   1K-blocks        Used   Available Use% Mounted on
+lustrefs-MDT0000_UUID     33285776     1187236    28954456   4% /mntdlts/lustre/[MDT:0]
+lustrefs-MDT0001_UUID     33285776       67620    30074072   1% /mntdlts/lustre/[MDT:1]
+lustrefs-MDT0002_UUID     33285776       67776    30073916   1% /mntdlts/lustre/[MDT:2]
+lustrefs-MDT0003_UUID     33285776       67624    30074068   1% /mntdlts/lustre/[MDT:3]
+lustrefs-OST0000_UUID  27853187524 25589008644  1982305268  93% /mntdlts/lustre/[OST:0]
+lustrefs-OST0001_UUID  27853187524 25607584292  1963729620  93% /mntdlts/lustre/[OST:1]
+lustrefs-OST0002_UUID  27853187524 25598612920  1972700992  93% /mntdlts/lustre/[OST:2]
+lustrefs-OST0003_UUID  27853187524 25612460316  1958853596  93% /mntdlts/lustre/[OST:3]
+
+filesystem_summary:  111412750096 102407666172  7877589476  93% /mntdlts/lustre
+
+        """
+        pool_size = lustre.parse_lustre_pool_size(content)
+        self.assertIsNotNone(pool_size)
+        total, used, avail = pool_size
+        self.assertEqual(111412750096, total)
+        self.assertEqual(102407666172, used)
+        self.assertEqual(7877589476, avail)
+
 
 if __name__ == '__main__':
     unittest.main()
