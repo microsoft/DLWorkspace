@@ -40,18 +40,6 @@ def create_log(logdir='/var/log/dlworkspace'):
         logging.config.dictConfig(logging_config)
 
 
-def check_cluster_status_change(o_cluster_status, cluster_status):
-    if o_cluster_status is None:
-        return True
-
-    check_list = ["available_job_num", "gpu_used", "user_status", "node_status"]
-    for item in check_list:
-        if item not in o_cluster_status or item not in cluster_status or \
-                o_cluster_status[item] != cluster_status[item]:
-            return True
-    return False
-
-
 def get_cluster_status():
     """Update in DB and returns cluster status.
 

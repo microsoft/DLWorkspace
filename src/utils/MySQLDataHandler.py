@@ -1036,19 +1036,21 @@ class DataHandler(object):
         ret = []
         cursor = self.conn.cursor()
         try:
-            query = "SELECT `jobId`, `userName`, `vcName`, `jobParams`, `jobStatus` FROM `%s` WHERE `jobStatus` = 'scheduling' OR `jobStatus` = 'running'" % (
+            query = "SELECT `jobId`, `userName`, `vcName`, `jobParams`, `jobStatus`, `endpoints` FROM `%s` WHERE `jobStatus` = 'scheduling' OR `jobStatus` = 'running'" % (
                 self.jobtablename)
 
             cursor.execute(query)
             data = cursor.fetchall()
 
-            for (jobId, userName, vcName, jobParams, jobStatus) in data:
+            for (jobId, userName, vcName, jobParams, jobStatus,
+                 endpoints) in data:
                 record = {}
                 record["jobId"] = jobId
                 record["userName"] = userName
                 record["vcName"] = vcName
                 record["jobParams"] = jobParams
                 record["jobStatus"] = jobStatus
+                record["endpoints"] = endpoints
                 ret.append(record)
         except Exception as e:
             logger.exception('GetActiveJobList Exception: %s', str(e))

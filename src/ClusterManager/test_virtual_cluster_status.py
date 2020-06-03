@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import os
+import logging
 import sys
 
-from unittest import TestCase
+import unittest
 from cluster_status import ClusterStatus, ClusterStatusFactory
 from virtual_cluster_status import VirtualClusterStatus, \
     VirtualClusterStatusesFactory
@@ -13,7 +14,7 @@ sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 
-class TestVirtualClusterStatus(TestCase):
+class TestVirtualClusterStatus(unittest.TestCase):
     def test_to_dict(self):
         inclusion = [
             "gpu_capacity",
@@ -80,3 +81,11 @@ class TestVirtualClusterStatus(TestCase):
 
         t_vc_statuses = test_cluster.vc_statuses
         self.assertEqual(t_vc_statuses, vc_statuses)
+
+
+if __name__ == '__main__':
+    logging.basicConfig(
+        format=
+        '%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s',
+        level=logging.DEBUG)
+    unittest.main()

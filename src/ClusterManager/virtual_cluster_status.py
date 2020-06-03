@@ -18,6 +18,10 @@ from quota import calculate_vc_resources
 logger = logging.getLogger(__name__)
 
 
+def override(func):
+    return func
+
+
 def get_vc_info(vc_list):
     vc_info = {}
     for vc in vc_list:
@@ -44,6 +48,7 @@ class VirtualClusterStatus(ClusterStatus):
             _vc_pod_statuses = vc_pod_statuses.get(_vc_name, {})
             self.vc_jobs_without_pods[_vc_name] = get_jobs_without_pods(
                 _vc_jobs, _vc_pod_statuses)
+        self.gpu_interactive_used = Gpu()
 
         pod_statuses = self.vc_pod_statuses.get(self.vc_name, {})
         jobs = self.vc_jobs.get(self.vc_name, [])
@@ -58,6 +63,7 @@ class VirtualClusterStatus(ClusterStatus):
         # node_status is the same as the one in cluster_status
         self.exclusion.append("node_status")
 
+    @override
     def gen_resource_status(self):
         vc_metrics_map = self.__get_vc_metrics_map()
         for r_type in ["cpu", "memory", "gpu"]:
@@ -68,6 +74,16 @@ class VirtualClusterStatus(ClusterStatus):
 
                 self.__dict__["%s_%s" % (r_type, metric)] = \
                     vc_metric.__dict__[r_type]
+        self.compute_interactive_used_gpu(self.vc_pod_statuses.get(
+            self.vc_name))
+
+    def compute_interactive_used_gpu(self, pod_statuses):
+        if pod_statuses is None:
+            return
+
+        for pod_name, pod_status in pod_statuses.items():
+            if pod_status.get("is_interactive"):
+                self.gpu_interactive_used += pod_status["gpu"]
 
     def __get_vc_metrics_map(self):
         capacity, avail, reserved = self.__get_cluster_resource_count()

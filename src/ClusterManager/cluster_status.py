@@ -115,6 +115,9 @@ class ClusterStatus(object):
 
         self.compute()
 
+    def __repr__(self):
+        return json.dumps(self.to_dict())
+
     def to_dict(self):
         return dictionarize({
             k: v
@@ -540,10 +543,26 @@ class ClusterStatusFactory(object):
 
             self.node_statuses[name] = node_status
 
+    def __is_job_interactive(self, job):
+        if job is None:
+            return False
+
+        endpoints = job.get("endpoints")
+        endpoints = {} if endpoints is None else json.loads(endpoints)
+        for end in endpoints.keys():
+            # if the job opened any endpoint except tensorboard, the job will
+            # be deemed as interactive
+            if not end.endswith("-tensorboard"):
+                return True
+        return False
+
     def __gen_pod_statuses(self):
         gpu_str = "nvidia.com/gpu"
         cpu_str = "cpu"
         mem_str = "memory"
+        jobs_by_id = {}
+        for job in self.jobs:
+            jobs_by_id[job["jobId"]] = job
 
         self.pod_statuses = {}
         for pod in self.pods:
@@ -602,6 +621,8 @@ class ClusterStatusFactory(object):
                 pod_name += " (gpu usage:%s%%)" % gpu_usage
                 if gpu_usage <= 25:
                     pod_name += "!!!!!!"
+
+            is_interactive = self.__is_job_interactive(jobs_by_id.get(job_id))
 
             gpu = Gpu()
             preemptable_gpu = Gpu()
@@ -665,6 +686,7 @@ class ClusterStatusFactory(object):
                 "preemptable_memory": preemptable_memory,
                 "gpuType": gpu_type,
                 "gpu_usage": gpu_usage,
+                "is_interactive": is_interactive,
             }
             self.pod_statuses[name] = pod_status
 
