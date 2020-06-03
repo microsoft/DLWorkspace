@@ -4,6 +4,8 @@ const {
   PUPPETEER_HEADLESS,
   PUPPETEER_USER_DATA_DIR = '.puppeteer',
   PUPPETEER_SCREENSHOT_FILE,
+  PUPPETEER_SCREENSHOT_WIDTH = '1024',
+  PUPPETEER_SCREENSHOT_HEIGHT = '768',
   DLTS_DASHBOARD_URL,
   DLTS_CLUSTER_ID
 } = process.env
@@ -36,7 +38,10 @@ describe('Deep Learning Training Service', function () {
     it('sign in', async function () {
       this.timeout('1m')
       await page.goto(DLTS_DASHBOARD_URL)
-      await page.setViewport({ width: 1920, height: 1080 })
+      await page.setViewport({
+        width: Number(PUPPETEER_SCREENSHOT_WIDTH),
+        height: Number(PUPPETEER_SCREENSHOT_HEIGHT)
+      })
 
       await (
         await page.waitForSelector('a[href^="/api/authenticate"]')
