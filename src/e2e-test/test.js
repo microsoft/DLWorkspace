@@ -7,6 +7,7 @@ const {
   PUPPETEER_SCREENSHOT_WIDTH = '1024',
   PUPPETEER_SCREENSHOT_HEIGHT = '768',
   DLTS_DASHBOARD_URL,
+  DLTS_TEAM_ID,
   DLTS_CLUSTER_ID
 } = process.env
 
@@ -55,6 +56,28 @@ describe('Deep Learning Training Service', function () {
         await page.waitForSelector('header h1')
       ).evaluate(node => node.textContent)
         .should.eventually.equal('DLTS')
+    })
+
+    it('switch team', async function () {
+      const $button = await page.waitForSelector('header.MuiAppBar-root .MuiGrid-item:nth-child(3) button')
+      if ((await $button.evaluate(node => node.textContent)) === DLTS_TEAM_ID) {
+        this.skip()
+      }
+
+      await $button.click()
+
+      const $popover = await page.waitForSelector('.MuiPopover-root')
+      for (const $menuItem of await $popover.$$('.MuiMenuItem-root')) {
+        if ((await $menuItem.evaluate(node => node.textContent)) === DLTS_TEAM_ID) {
+          await $menuItem.click()
+          break
+        }
+      }
+
+      await page.waitFor(1000)
+      await (
+        await page.waitForSelector('header.MuiAppBar-root .MuiGrid-item:nth-child(3) button')
+      ).evaluate(node => node.textContent).should.eventually.equal(DLTS_TEAM_ID)
     })
 
     it('submit job', async function () {
