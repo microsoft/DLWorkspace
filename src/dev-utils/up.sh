@@ -104,7 +104,6 @@ job-insighter
 reaper
 repairmanager
 repairmanageragent
-repairmanageretcd
 storagemanager
 user-synchronizer
 watchdog
