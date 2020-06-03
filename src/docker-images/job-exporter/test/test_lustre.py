@@ -94,6 +94,7 @@ set_info                  262 samples [reqs]
         content = """
 192.168.0.2:/data/share on /host-fs/mntdlts/nfs/somepath type nfs4 (rw,relatime,vers=4.2,rsize=8192,wsize=1048576,namlen=255,hard,proto=tcp,timeo=14,retrans=2,sec=sys,clientaddr=xxxx,local_lock=none,addr=xxxx)
 192.168.0.1@tcp:/lustrefs on /host-fs/mntdlts/lustre type lustre (rw,flock,lazystatfs)
+/dev/sdc on /lustre type lustre (ro,context=system_u:object_r:fsadm_tmp_t:s0,svname=lustrefs-MDT0000,mgs,osd=osd-ldiskfs,user_xattr,errors=remount-ro)
         """
         fsnames = lustre.parse_lustre_fsnames(content)
         self.assertEqual(1, len(fsnames))
@@ -102,6 +103,7 @@ set_info                  262 samples [reqs]
         # Ignore if there is no lustre mount
         content = """
 192.168.0.2:/data/share on /host-fs/mntdlts/nfs/somepath type nfs4 (rw,relatime,vers=4.2,rsize=8192,wsize=1048576,namlen=255,hard,proto=tcp,timeo=14,retrans=2,sec=sys,clientaddr=xxxx,local_lock=none,addr=xxxx)
+/dev/sdc on /lustre type lustre (ro,context=system_u:object_r:fsadm_tmp_t:s0,svname=lustrefs-MDT0000,mgs,osd=osd-ldiskfs,user_xattr,errors=remount-ro)
         """
         fsnames = lustre.parse_lustre_fsnames(content)
         self.assertEqual(0, len(fsnames))

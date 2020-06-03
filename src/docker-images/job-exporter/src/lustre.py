@@ -322,7 +322,9 @@ def parse_lustre_fsnames(content):
             if len(splits) < 5:
                 continue
             if splits[4] == "lustre":
-                lustre_fsnames.add(splits[0].split("/")[-1])
+                fsname_parts = splits[0].split(":/")
+                if len(fsname_parts) == 2:
+                    lustre_fsnames.add(fsname_parts[1])
         return list(lustre_fsnames)
 
     except Exception:
