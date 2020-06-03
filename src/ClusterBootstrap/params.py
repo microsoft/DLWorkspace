@@ -112,7 +112,6 @@ default_config_parameters = {
     # StorageManager mapping
     "storagemanager": "storagemanager",
     "repairmanager": "repairmanager",
-    "repairmanageretcd": "repairmanageretcd",
     "repairmanageragent": "repairmanageragent",
     "ssh_cert": "./deploy/sshkey/id_rsa",
     "admin_username": "core",
@@ -821,7 +820,7 @@ default_config_parameters = {
         ],
         "dashboard": ["dashboard"],
         "restfulapi": ["restfulapi"],
-        "repairmanager": ["repairmanager", "repairmanageretcd"],
+        "repairmanager": ["repairmanager"],
         "storagemanager": ["storagemanager"],
         "user-synchronizer": ["user-synchronizer"],
         "logging": ["azure-blob-adapter"]
@@ -829,7 +828,6 @@ default_config_parameters = {
     "infiniband_mounts": [],
     "custom_mounts": [],
     "enable_blobfuse": False,
-
     "enable_custom_registry_secrets": False,
 }
 
