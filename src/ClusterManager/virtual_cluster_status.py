@@ -109,12 +109,12 @@ class VirtualClusterStatus(ClusterStatus):
 
                 pod_preemptable_res = ClusterResource(
                     params={
-                        "preemptable_cpu":
+                        "cpu":
                             pod_status.get("preemptable_cpu", Cpu()).to_dict(),
-                        "preemptable_memory":
+                        "memory":
                             pod_status.get("preemptable_memory", Memory()
                                           ).to_dict(),
-                        "preemptable_gpu":
+                        "gpu":
                             pod_status.get("preemptable_gpu", Gpu()).to_dict(),
                     })
                 vc_preemptable_used[vc_name] += pod_preemptable_res
