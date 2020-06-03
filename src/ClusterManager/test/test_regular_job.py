@@ -962,6 +962,5 @@ def test_set_max_time_works(args):
         resp = utils.set_job_max_time(args.rest, args.email, job.jid, 1)
         assert resp.status_code == 200
 
-        assert state == "running"
         state = job.block_until_state_not_in({"running"}, timeout=30)
         assert state == "killed"

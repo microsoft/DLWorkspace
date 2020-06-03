@@ -364,8 +364,9 @@ def UpdateJobStatus(redis_conn,
         params = json.loads(base64decode(job["jobParams"]))
         max_time = params.get("maxTimeSec")
         if type(max_time) != int:
-            logger.info("unknown maxTimeSec %s for job %s", max_time,
-                        job["jobId"])
+            if max_time is not None:
+                logger.info("unknown maxTimeSec %s for job %s", max_time,
+                            job["jobId"])
         else:
             max_time = int(max_time)
             start_time = int(datetime.datetime.timestamp(job["lastUpdated"]))
