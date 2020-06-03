@@ -2,14 +2,13 @@
 
 import logging
 import logging.config
-import os
-import shutil
 import time
 
 from datetime import datetime
 from utils import override, \
     send_email, \
     bytes2human_readable, \
+    post_order_delete, \
     MAX_NODES_IN_REPORT
 
 logger = logging.getLogger(__name__)
@@ -152,15 +151,9 @@ class Rule(object):
                                "prevent mass deleting", node.path)
                 continue
             try:
-                if os.path.exists(node.path):
-                    if node.isdir:
-                        logger.info("Deleting directory %s...", node.path)
-                        shutil.rmtree(node.path)
-                    else:
-                        logger.info("Deleting file %s...", node.path)
-                        os.remove(node.path)
-                else:
-                    logger.warning("%s does not exist", node.path)
+                # Delete files with a slight nap in between to avoid locking
+                # the file system
+                post_order_delete(node.path, nap=0.01)
             except:
                 logger.exception("Exception in deleting path %s.", node.path,
                                  exc_info=True)

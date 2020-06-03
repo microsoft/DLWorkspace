@@ -5,7 +5,6 @@ import logging.config
 import time
 import os
 
-from prometheus_client import Histogram
 from prometheus_client.core import GaugeMetricFamily
 from path_tree import PathTree
 from rule import OverweightRule, ExpiredRule, ExpiredToDeleteRule, EmptyRule
