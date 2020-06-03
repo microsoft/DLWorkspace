@@ -82,7 +82,7 @@ const JobStatus: FunctionComponent<Props> = ({ cluster, job }) => {
   }, [statusData, detail]);
 
   useEffect(() => {
-    if (status === 'failed') {
+    if (status === 'failed' || status === 'killed') {
       get()
     }
     return abort;

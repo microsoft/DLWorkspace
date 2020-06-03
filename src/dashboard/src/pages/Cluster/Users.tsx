@@ -28,13 +28,13 @@ import CaptionColumnTitle from '../../components/CaptionColumnTitle';
 import TeamContext from '../../contexts/Team';
 import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
-import { formatBytes, formatPercent, formatHours } from '../../utils/formats';
+import { formatBytes, formatPercent } from '../../utils/formats';
 
 import QueryContext from './QueryContext';
 
 const humanHours = (seconds: number) => {
   if (typeof seconds !== 'number') return seconds;
-  return formatHours(seconds);
+  return Math.round(seconds / 60 / 60);
 }
 
 interface GpuMetrics {
@@ -194,20 +194,22 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
     title: 'GPU Idle',
     field: 'gpuMetrics.idle',
     type: 'numeric',
-    render: ({ gpuMetrics }) => gpuMetrics != null && typeof gpuMetrics.idle === 'number' && (
-      <Typography variant="inherit" color={gpuMetrics.idle > 0 ? "error" : "inherit"}>
-        {gpuMetrics.idle}
-      </Typography>
-    ),
+    render: ({ gpuMetrics }) => gpuMetrics != null && typeof gpuMetrics.idle === 'number'
+      ? (
+        <Typography variant="inherit" color={gpuMetrics.idle > 0 ? "error" : "inherit"}>
+          {gpuMetrics.idle}
+        </Typography>
+      )
+      : <>0</>,
     width: 'auto'
   } as Column<any>, {
-    title: <CaptionColumnTitle caption="Last 31 days">Booked GPU</CaptionColumnTitle>,
+    title: <CaptionColumnTitle caption="Last 31 days">Booked GPU Hours</CaptionColumnTitle>,
     field: 'gpuMetrics.bookedLast31Days',
     type: 'numeric',
     render: (data) => <>{humanHours(get(data, 'gpuMetrics.bookedLast31Days'))}</>,
     width: 'auto'
   } as Column<any>, {
-    title: <CaptionColumnTitle caption="Last 31 days">Idle GPU (%)</CaptionColumnTitle>,
+    title: <CaptionColumnTitle caption="Last 31 days">Idle GPU Hours (%)</CaptionColumnTitle>,
     field: 'gpu.idleLast31Days',
     type: 'numeric',
     render: (data) => {
@@ -218,19 +220,19 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
 
       if (booked === 0) return <>{humanHours(idle)}</>;
 
-      const percent = (idle / booked) * 100;
-      if (percent > 50) {
+      const ratio = idle / booked;
+      if (ratio > .5) {
         return (
           <>
             {humanHours(idle)}
             {" ("}
-            <Typography variant="inherit" color="error">{formatPercent(percent, 1)}</Typography>
+            <Typography variant="inherit" color="error">{formatPercent(ratio, 1)}</Typography>
             )
           </>
         );
       }
 
-      return <>{humanHours(idle)}{" ("}{formatPercent(percent, 1)})</>;
+      return <>{humanHours(idle)}{" ("}{formatPercent(ratio, 1)})</>;
     },
     width: 'auto'
   } as Column<any>]).current;

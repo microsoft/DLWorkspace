@@ -1,7 +1,4 @@
-import {
-  formatDistanceStrict,
-  formatDistanceToNow
-} from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 
 export function formatBytes(bytes: number) {
   if (bytes >= 1024 * 1024 * 1024 * 1024) {
@@ -28,13 +25,6 @@ export function formatFloat(float: number) {
 
 export function formatPercent(float: number, digits = 2) {
   return String(Math.round(float * 100).toFixed(digits)) + '%'
-}
-
-export function formatHours(seconds: number) {
-  return formatDistanceStrict(seconds * 1000, 0, {
-    roundingMethod: 'round',
-    unit: 'hour'
-  })
 }
 
 export function formatDateDistance(date: Date) {

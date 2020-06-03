@@ -122,14 +122,14 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
     title: 'Assigned GPU Utilization',
     field: 'gpuMetrics.utilization',
     type: 'numeric',
-    render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && <>{formatPercent(Number(gpuMetrics.utilization))}</>
+    render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && <>{formatPercent(Number(gpuMetrics.utilization) / 100)}</>
   } as Column<any>, {
     title: 'GPU Idle',
     field: 'gpuMetrics.idle',
     type: 'numeric',
-    render: ({ gpuMetrics }) => gpuMetrics && typeof gpuMetrics.idle === 'number' && (
-      <Typography variant="inherit" color={gpuMetrics.idle > 0 ? "error" : "inherit"}>
-        {gpuMetrics.idle}
+    render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && (
+      <Typography variant="inherit" color={(gpuMetrics.idle || 0) > 0 ? "error" : "inherit"}>
+        {(gpuMetrics.idle || 0)}
       </Typography>
     )
   } as Column<any>]).current;
