@@ -3,6 +3,7 @@ import {
   ChangeEvent,
   FunctionComponent,
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -29,6 +30,8 @@ import useFetch from 'use-http-2';
 import { useSnackbar } from 'notistack';
 import { map, mergeWith } from 'lodash';
 
+import Context from '../Context';
+
 import useConstant from '../../../hooks/useConstant';
 
 import useRouteParams from '../useRouteParams';
@@ -44,6 +47,7 @@ const logTheme = createMuiTheme({
 
 const useLogText = () => {
   const { clusterId, jobId } = useRouteParams();
+  const { job } = useContext(Context);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { data, loading, error, get } = useFetch(
     `/api/clusters/${clusterId}/jobs/${jobId}/log`, useConstant({
@@ -82,13 +86,24 @@ const useLogText = () => {
     if (loading) return;
 
     const cursor = data && data.cursor;
+    if (error == null) {
+      const status = job['jobStatus'];
+      if (
+        status === 'finished'
+        || status === 'failed'
+        || status === 'killed'
+        || status === 'paused'
+        || status === 'queued'
+        || status === 'scheduling'
+      ) return;
+    }
     const delay = error || cursor == null ? 3000 : 0;
     const querystring = cursor && `?cursor=${encodeURIComponent(cursor)}`;
     const timeout = setTimeout(get, delay, querystring);
     return () => {
       clearTimeout(timeout);
     }
-  }, [data, loading, error, get]);
+  }, [job, data, loading, error, get]);
 
   useEffect(() => {
     if (error === undefined) return;
