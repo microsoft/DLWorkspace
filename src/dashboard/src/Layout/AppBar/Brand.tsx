@@ -13,7 +13,7 @@ import {
 } from '@material-ui/core';
 
 const Brand: FunctionComponent = () => (
-  <Box component="header" p={1}>
+  <Box p={1}>
     <Typography component="h1" variant="h6" align="left">
       <Tooltip title="Back to index page" placement="right">
         <UILink color="inherit" component={Link} to="/">
