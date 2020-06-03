@@ -1,6 +1,8 @@
 import * as React from 'react';
 import {
+  ChangeEvent,
   FunctionComponent,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -13,7 +15,9 @@ import {
   Button,
   Fade,
   LinearProgress,
+  MenuItem,
   Paper,
+  Select,
   Toolbar,
   Typography,
   createMuiTheme,
@@ -23,7 +27,7 @@ import { ThemeProvider } from "@material-ui/styles";
 import { useWindowSize } from 'react-use';
 import useFetch from 'use-http-2';
 import { useSnackbar } from 'notistack';
-import { mergeWith } from 'lodash';
+import { map, mergeWith } from 'lodash';
 
 import useConstant from '../../../hooks/useConstant';
 
@@ -74,32 +78,6 @@ const useLogText = () => {
     }
   }, [data]);
 
-  const logText = useMemo(() => {
-    if (typeof log !== 'object') {
-      return log;
-    }
-    const logText: string[] = [];
-    const podNames = Object.keys(log).sort()
-    for (const podName of podNames) {
-      logText.push(`
-=========================================================
-=========================================================
-=========================================================
-        logs from pod: ${podName}
-=========================================================
-=========================================================
-=========================================================
-${log[podName]}
-=========================================================
-        end of logs from pod: ${podName}
-=========================================================
-
-
-`);
-    }
-    return logText.join("");
-  }, [log]);
-
   useEffect(() => {
     if (loading) return;
 
@@ -125,7 +103,7 @@ ${log[podName]}
     }
   }, [error, enqueueSnackbar, closeSnackbar, clusterId, jobId]);
 
-  return { loading, logText };
+  return { loading, log };
 }
 
 const Console: FunctionComponent = () => {
@@ -133,12 +111,32 @@ const Console: FunctionComponent = () => {
   const { height: windowHeight } = useWindowSize();
   const theme = useTheme();
   const box = useRef<HTMLElement>(null);
-  const { loading, logText } = useLogText();
+  const { loading, log } = useLogText();
   const [height, setHeight] = useState(0);
+  const [podName, setPodName] = useState<string>();
+  const logText = useMemo(() => {
+    if (typeof log === 'undefined') return log;
+    if (typeof log === 'string') return log;
+    if (typeof podName === 'undefined') return undefined;
+    return log[podName];
+  }, [log, podName]);
 
   const downloadHref = useMemo(() => {
     return `/api/v2/clusters/${clusterId}/jobs/${jobId}/log`;
   }, [clusterId, jobId]);
+  const handleSelectChange = useCallback((event: ChangeEvent<{ value: unknown }>) => {
+    setPodName(event.target.value as string);
+  }, []);
+
+  useEffect(() => {
+    if (typeof log === 'object') {
+      const podNames = Object.keys(log)
+      if (podNames.length > 0) {
+        setPodName(podNames[0])
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typeof log]);
 
   useLayoutEffect(() => {
     if (box.current == null) return;
@@ -177,6 +175,18 @@ const Console: FunctionComponent = () => {
         elevation={0}
       >
         <Toolbar variant="dense">
+          { podName !== undefined && (
+            <>
+              Select Pod:&nbsp;
+              <Select value={podName} onChange={handleSelectChange}>
+                {
+                  typeof log === 'object' && map(log, (_, key) => (
+                    <MenuItem key={key} value={key}>{key}</MenuItem>
+                  ))
+                }
+              </Select>
+            </>
+          ) }
           <Box flex={1}/>
           <Button color="inherit" href={downloadHref}>Download</Button>
         </Toolbar>
