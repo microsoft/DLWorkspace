@@ -357,14 +357,14 @@ def parse_lustre_pool_size(content):
 
 def get_lustre_pool_gauges():
     labels = ["fsname", "pool"]
-    total_gauge = GaugeMetricFamily("lustre_pool_total_kbytes",
-                                    "Total kbytes in lustre pool",
+    total_gauge = GaugeMetricFamily("lustre_pool_total_kilobytes",
+                                    "Total kilobytes in lustre pool",
                                     labels=labels)
-    used_gauge = GaugeMetricFamily("lustre_pool_used_kbytes",
-                                   "Used kbytes in lustre pool",
+    used_gauge = GaugeMetricFamily("lustre_pool_used_kilobytes",
+                                   "Used kilobytes in lustre pool",
                                    labels=labels)
-    avail_gauge = GaugeMetricFamily("lustre_pool_avail_kbytes",
-                                    "Available kbytes in lustre pool",
+    avail_gauge = GaugeMetricFamily("lustre_pool_avail_kilobytes",
+                                    "Available kilobytes in lustre pool",
                                     labels=labels)
 
     # Get pool metrics on Lustre client
