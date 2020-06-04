@@ -179,7 +179,7 @@ const Clusters: FunctionComponent = () => {
   }, []);
 
   return (
-    <Container>
+    <Container fixed maxWidth="xl">
       <SvgIconsMaterialTable
         title="Clusters"
         data={data}
