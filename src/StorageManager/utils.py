@@ -6,6 +6,9 @@ import logging.config
 import requests
 import smtplib
 import subprocess
+import os
+import shutil
+import time
 
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -179,3 +182,46 @@ def keep_ancestor_paths(paths):
         ancestors = remove_descendents(path, ancestors)
         ancestors.add(path)
     return sorted(list(ancestors))
+
+
+def post_order_delete(root, nap=None):
+    """Delete files in a directory one by one with a tiny sleep to avoid
+    locking the file system.
+
+    Args:
+        root: Path to delete
+        nap: Time to sleep in between deleting files
+    """
+    # Do nothing if path does not exist
+    if not os.path.exists(root):
+        logger.warning("%s does not exist", root)
+        return
+
+    # Delete file
+    if not os.path.isdir(root):
+        try:
+            logger.info("Deleting file %s...", root)
+            os.remove(root)
+            if nap is not None:
+                time.sleep(nap)
+        except:
+            logger.exception("Exception in deleting file %s", root)
+        return
+
+    # Delete all children then delete self
+    try:
+        pathnames = os.listdir(root)
+    except:
+        logger.warning("Ignore path %s due to exception", root, exc_info=True)
+        return
+
+    for pathname in pathnames:
+        path = os.path.join(root, pathname)
+        post_order_delete(path)
+
+    try:
+        # This should be an empty directory by now, no need for a nap
+        logger.info("Deleting directory %s...", root)
+        shutil.rmtree(root)
+    except:
+        logger.exception("Exception in deleting directory %s", root)
