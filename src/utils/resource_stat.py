@@ -328,6 +328,29 @@ class ResourceStat(object):
                     return False
             return True
 
+    def __le__(self, other):
+        if isinstance(other, numbers.Number):
+            for _, v in self.res.items():
+                if v > other:
+                    return False
+            return True
+        else:
+            if self.__class__ != other.__class__:
+                raise ValueError("Incompatible class %s and %s" %
+                                 (self.__class__, other.__class__))
+
+            # Pairwise compare
+            self_keys = set(self.res.keys())
+            other_keys = set(other.res.keys())
+            all_keys = self_keys.union(other_keys)
+
+            for k in all_keys:
+                self_v = self.res.get(k, 0)
+                other_v = other.res.get(k, 0)
+                if self_v > other_v:
+                    return False
+            return True
+
     def __eq__(self, other):
         if self.__class__ != other.__class__:
             return False

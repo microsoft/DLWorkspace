@@ -166,11 +166,11 @@ def update_job_state_latency(redis_conn, job_id, state, event_time=None):
         set_job_status(redis_conn, job_id, job_status)
 
 
-def GetJobTotalGpu(jobParams):
-    numWorkers = 1
-    if "numpsworker" in jobParams:
-        numWorkers = int(jobParams["numpsworker"])
-    return int(jobParams["resourcegpu"]) * numWorkers
+def get_job_total_gpu(job_params):
+    num_workers = 1
+    if "numpsworker" in job_params:
+        num_workers = int(job_params["numpsworker"])
+    return int(job_params["resourcegpu"]) * num_workers
 
 
 @record
@@ -185,7 +185,7 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
                                  event_time=job["jobTime"])
 
         jobParams = json.loads(b64decode(job["jobParams"]))
-        job_total_gpus = GetJobTotalGpu(jobParams)
+        job_total_gpus = get_job_total_gpu(jobParams)
 
         if dataHandlerOri is None:
             dataHandler = DataHandler()
@@ -239,7 +239,7 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
                 if "preemptionAllowed" in running_jobParams and running_jobParams[
                         "preemptionAllowed"] is True:
                     continue
-                running_job_total_gpus = GetJobTotalGpu(running_jobParams)
+                running_job_total_gpus = get_job_total_gpu(running_jobParams)
                 running_gpus += running_job_total_gpus
 
             logger.info(
