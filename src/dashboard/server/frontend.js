@@ -11,6 +11,6 @@ const index = (context, next) => {
 
 module.exports = compose([
   compress(),
-  serve('build', { maxage: 10 * 60 * 1000 }),
+  serve('build', { maxage: 30 * 60 * 60 * 1000 }),
   index
 ])
