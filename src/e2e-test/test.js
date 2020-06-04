@@ -78,6 +78,12 @@ describe('Deep Learning Training Service', function () {
       await (
         await page.waitForSelector('header.MuiAppBar-root .MuiGrid-item:nth-child(3) button')
       ).evaluate(node => node.textContent).should.eventually.equal(DLTS_TEAM_ID)
+
+      await page.waitFor(1000)
+      await page.screenshot({
+        path: PUPPETEER_SCREENSHOT_FILE,
+        fullPage: true
+      })
     })
 
     it('submit job', async function () {
