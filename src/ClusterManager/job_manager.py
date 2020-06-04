@@ -322,7 +322,8 @@ def UpdateJobStatus(redis_conn,
 
         dataFields = {
             "jobStatusDetail": b64encode(json.dumps(detail)),
-            "jobStatus": "finished"
+            "jobStatus": "finished",
+            "lastUpdated": datetime.datetime.now().isoformat(),
         }
         conditionFields = {"jobId": job["jobId"]}
         dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -344,9 +345,12 @@ def UpdateJobStatus(redis_conn,
                 "message": "started at: {}".format(started_at)
             }]
 
+            last_updated = datetime.datetime.now()
+
             dataFields = {
                 "jobStatusDetail": b64encode(json.dumps(detail)),
-                "jobStatus": "running"
+                "jobStatus": "running",
+                "lastUpdated": last_updated.isoformat(),
             }
             conditionFields = {"jobId": job["jobId"]}
             dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -355,6 +359,28 @@ def UpdateJobStatus(redis_conn,
                     notify.new_job_state_change_message(job["userName"],
                                                         job["jobId"],
                                                         result.strip()))
+            job["lastUpdated"] = last_updated
+
+        params = json.loads(base64decode(job["jobParams"]))
+        max_time = params.get("maxTimeSec")
+        if type(max_time) != int:
+            if max_time is not None:
+                logger.info("unknown maxTimeSec %s for job %s", max_time,
+                            job["jobId"])
+        else:
+            max_time = int(max_time)
+            start_time = int(datetime.datetime.timestamp(job["lastUpdated"]))
+            now = datetime.datetime.timestamp(datetime.datetime.now())
+            if start_time + max_time < now:
+                logger.info(
+                    "killing job %s for its running time exceed maxTimeSec %ss, start %s, now %s",
+                    job["jobId"], max_time, start_time, now)
+                dataFields = {
+                    "errorMsg": "running exceed pre-defined %ss" % (max_time),
+                }
+                conditionFields = {"jobId": job["jobId"]}
+                dataHandler.UpdateJobTextFields(conditionFields, dataFields)
+                launcher.kill_job(job["jobId"], "killed")
 
     elif result == "Failed":
         now = datetime.datetime.now()
@@ -380,7 +406,8 @@ def UpdateJobStatus(redis_conn,
         dataFields = {
             "jobStatusDetail": b64encode(json.dumps(detail)),
             "jobStatus": "failed",
-            "errorMsg": diagnostics
+            "errorMsg": diagnostics,
+            "lastUpdated": datetime.datetime.now().isoformat(),
         }
         conditionFields = {"jobId": job["jobId"]}
         dataHandler.UpdateJobTextFields(conditionFields, dataFields)

@@ -5,6 +5,7 @@ import logging.config
 import time
 import os
 
+from datetime import datetime
 from prometheus_client.core import GaugeMetricFamily
 from path_tree import PathTree
 from rule import OverweightRule, ExpiredRule, ExpiredToDeleteRule, EmptyRule
@@ -99,7 +100,9 @@ class StorageManager(object):
 
         usage_gauge = GaugeMetricFamily("storage_usage_in_bytes_by_user",
                                         "storage usage by each user",
-                                        labels=["vc", "mountpoint", "user"])
+                                        labels=["vc", "mountpoint", "user",
+                                                "snapshot_time"])
+        snapshot_time = str(datetime.timestamp(datetime.utcnow()))
         for sp in self.scan_points:
             if sp.get("path") not in ancestors:
                 continue
@@ -111,7 +114,8 @@ class StorageManager(object):
                 continue
 
             for user, usage in tree.usage_by_user.items():
-                usage_gauge.add_metric([vc, mountpoint, user], usage)
+                usage_gauge.add_metric([vc, mountpoint, user, snapshot_time],
+                                       usage)
 
         self.atomic_ref.set(usage_gauge)
 
