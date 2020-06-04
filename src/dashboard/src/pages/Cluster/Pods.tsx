@@ -90,40 +90,40 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
       </Tooltip>
     ),
     width: 'auto'
-  } as Column<any>, {
+  }, {
     title: 'Worker',
     field: 'worker',
     width: 'auto'
-  } as Column<any>, {
+  }, {
     title: 'Team',
     field: 'team',
     width: 'auto'
-  } as Column<any>, {
+  }, {
     title: 'User',
     field: 'user',
     width: 'auto'
-  } as Column<any>, {
+  }, {
     title: 'CPU',
     field: 'cpu',
     type: 'numeric',
     width: 'auto'
-  } as Column<any>, {
+  }, {
     title: 'GPU',
     field: 'gpu',
     type: 'numeric',
     width: 'auto'
-  } as Column<any>, {
+  }, {
     title: 'Memory',
     field: 'memoty',
     type: 'numeric',
     render: ({ memory }) => <>{formatBytes(memory)}</>,
     width: 'auto'
-  } as Column<any>, {
+  }, {
     title: 'Assigned GPU Utilization',
     field: 'gpuMetrics.utilization',
     type: 'numeric',
     render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && <>{formatPercent(Number(gpuMetrics.utilization) / 100)}</>
-  } as Column<any>, {
+  }, {
     title: 'GPU Idle',
     field: 'gpuMetrics.idle',
     type: 'numeric',
@@ -132,7 +132,7 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
         {(gpuMetrics.idle || 0)}
       </Typography>
     )
-  } as Column<any>]).current;
+  }]).current;
   const options = useMemo<Options>(() => ({
     padding: "dense",
     paging: false,

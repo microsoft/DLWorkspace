@@ -63,7 +63,7 @@ const useResourceColumns = (kinds: ResourceKind[]) => {
         sorting: false,
         searchable: false,
         width: 'auto'
-      } as Column<any>);
+      });
       for (const kind of kinds) {
         columns.push({
           title: (
@@ -80,7 +80,7 @@ const useResourceColumns = (kinds: ResourceKind[]) => {
           headerStyle: style,
           cellStyle: style,
           width: 'auto'
-        } as Column<any>);
+        });
       }
     }
     return columns;
