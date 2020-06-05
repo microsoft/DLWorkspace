@@ -7,11 +7,12 @@ import datetime
 
 logger = logging.getLogger(__name__)
 
+
 def format_url_query(prometheus_url, query):
     args = urllib.parse.urlencode({"query": query})
 
     return urllib.parse.urljoin(prometheus_url,
-            "/prometheus/api/v1/query") + "?" + args
+                                "/prometheus/api/v1/query") + "?" + args
 
 
 def format_url_query_range(prometheus_url, query, step, interval):
@@ -19,16 +20,16 @@ def format_url_query_range(prometheus_url, query, step, interval):
     delta = datetime.timedelta(minutes=interval)
     since = int(datetime.datetime.timestamp(now - delta))
     until = int(datetime.datetime.timestamp(now))
-    
+
     args = urllib.parse.urlencode({
         "query": query,
         "start": str(since),
         "end": str(until),
         "step": str(step),
-        })
+    })
 
     return urllib.parse.urljoin(prometheus_url,
-            "/prometheus/api/v1/query_range") + "?" + args
+                                "/prometheus/api/v1/query_range") + "?" + args
 
 
 def extract_ips_from_response(response):

@@ -20,7 +20,8 @@ activity_log = logging.getLogger('activity')
 
 def _create_email_for_dris(impacted_nodes, cluster_name):
     message = MIMEMultipart()
-    message['Subject'] = f'Repair Manager Alert [NVIDIA SMI LATENCY TOO LARGE] [{cluster_name}]'
+    message[
+        'Subject'] = f'Repair Manager Alert [NVIDIA SMI LATENCY TOO LARGE] [{cluster_name}]'
     body = '<p>95th nvidia-smi call latency is larger than 40s in the following nodes. ' \
     'Please check the GPU status.</p>'
     body += f'<table border="1"><tr><th>Node Name</th><th>Instance</th></tr>'
@@ -32,7 +33,6 @@ def _create_email_for_dris(impacted_nodes, cluster_name):
 
 
 class NvidiaSmiLatencyRule(Rule):
-
     def __init__(self, alert, config):
         self.rule = 'smi_latency_rule'
         self.config = config
@@ -41,36 +41,38 @@ class NvidiaSmiLatencyRule(Rule):
         self.node_info = {}
         self.alert = alert
 
-
     def load_latency_config(self):
         with open('/etc/RepairManager/config/latency-config.yaml', 'r') as file:
             return yaml.safe_load(file)
 
-
     def update_rule_cache_with_impacted_nodes(self):
         for node_name in self.impacted_nodes:
             cache_value = {
-                'time_found': datetime.utcnow().strftime(self.config['date_time_format']),
-                'instance': self.impacted_nodes[node_name]
+                'time_found':
+                    datetime.utcnow().strftime(self.config['date_time_format']),
+                'instance':
+                    self.impacted_nodes[node_name]
             }
             self.alert.update_rule_cache(self.rule, node_name, cache_value)
-    
-        logging.debug(f"rule_cache: {json.dumps(self.alert.rule_cache, default=str)}")
 
+        logging.debug(
+            f"rule_cache: {json.dumps(self.alert.rule_cache, default=str)}")
 
     def clean_expired_items_in_rule_cache(self):
         expired_nodes = []
         if self.rule in self.alert.rule_cache:
             for node in self.alert.rule_cache[self.rule]:
-                time_found_string = self.alert.rule_cache[self.rule][node]["time_found"]
-                time_found_datetime = datetime.strptime(time_found_string, self.config['date_time_format'])
-                alert_delta = timedelta(hours=self.latency_config.get("alert_expiry", 4))
+                time_found_string = self.alert.rule_cache[
+                    self.rule][node]["time_found"]
+                time_found_datetime = datetime.strptime(
+                    time_found_string, self.config['date_time_format'])
+                alert_delta = timedelta(
+                    hours=self.latency_config.get("alert_expiry", 4))
                 now = datetime.utcnow()
                 if now - time_found_datetime > alert_delta:
                     expired_nodes.append(node)
         for node in expired_nodes:
             self.alert.remove_from_rule_cache(self.rule, node)
-
 
     def check_status(self):
         self.clean_expired_items_in_rule_cache()
@@ -88,7 +90,8 @@ class NvidiaSmiLatencyRule(Rule):
                     address_map = k8s_util.get_node_address_info()
                     for ip in node_ips:
                         node_name = address_map[ip]
-                        if not self.alert.check_rule_cache(self.rule, node_name):
+                        if not self.alert.check_rule_cache(
+                                self.rule, node_name):
                             self.impacted_nodes[node_name] = ip
                     return len(self.impacted_nodes) > 0
                 else:
@@ -100,13 +103,12 @@ class NvidiaSmiLatencyRule(Rule):
 
         return False
 
-
     def take_action(self):
         dri_message = _create_email_for_dris(
             impacted_nodes=self.impacted_nodes,
-            cluster_name=self.config['cluster_name']
-        )
+            cluster_name=self.config['cluster_name'])
         alert_action = SendAlertAction(self.alert)
-        alert_action.execute(dri_message, additional_log={"impacted_nodes": self.impacted_nodes})
+        alert_action.execute(
+            dri_message, additional_log={"impacted_nodes": self.impacted_nodes})
 
         self.update_rule_cache_with_impacted_nodes()

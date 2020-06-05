@@ -7,8 +7,8 @@ from utils import k8s_util
 import time
 import requests
 
-class PauseJobAction(Action):
 
+class PauseJobAction(Action):
     def __init__(self, rest_url, max_attempts=5):
         self.action_logger = logging.getLogger('activity')
         self.rest_url = rest_url
@@ -33,7 +33,7 @@ class PauseJobAction(Action):
                         time.sleep(5)
                 except:
                     logging.exception(f'Error retrieving data from {pause_url}')
-                attempts+=1
+                attempts += 1
 
         self.action_logger.info({
             "action": "pause job",
@@ -42,5 +42,5 @@ class PauseJobAction(Action):
             "pause_url": pause_url,
             "dry_run": dry_run,
             "success": success
-            })
+        })
         return success

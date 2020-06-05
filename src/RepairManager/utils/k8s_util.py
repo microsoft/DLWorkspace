@@ -4,6 +4,7 @@ from kubernetes import client, config
 
 kubernetes_config_file = '/etc/kubernetes/restapi-kubeconfig.yaml'
 
+
 def cordon_node(node_name, dry_run=True):
     args = ['kubectl', 'cordon', node_name]
 
@@ -49,12 +50,10 @@ def list_node():
     return api_instance.list_node()
 
 
-
 def list_pod_for_all_namespaces():
     config.load_kube_config(config_file=kubernetes_config_file)
     api_instance = client.CoreV1Api()
     return api_instance.list_pod_for_all_namespaces()
-
 
 
 def list_namespaced_pod(namespace):
@@ -76,10 +75,13 @@ def get_job_info_indexed_by_job_id(nodes, portal_url, cluster_name):
                     vc_name = pod.metadata.labels['vcName']
                     if job_id not in jobs:
                         jobs[job_id] = {
-                            'user_name': user_name,
+                            'user_name':
+                                user_name,
                             'node_names': {node_name},
-                            'vc_name': vc_name,
-                            'job_link': f'https://{portal_url}/job/{vc_name}/{cluster_name}/{job_id}'
+                            'vc_name':
+                                vc_name,
+                            'job_link':
+                                f'https://{portal_url}/job/{vc_name}/{cluster_name}/{job_id}'
                         }
                     else:
                         jobs[job_id]['node_names'].add(node_name)
@@ -98,10 +100,14 @@ def get_job_info_indexed_by_node(nodes, portal_url, cluster_name):
                     node_name = pod.spec.node_name
                     vc_name = pod.metadata.labels['vcName']
                     job = {
-                        'job_id': job_id,
-                        'user_name': user_name,
-                        'vc_name': vc_name,
-                        'job_link': f'https://{portal_url}/job/{vc_name}/{cluster_name}/{job_id}'
+                        'job_id':
+                            job_id,
+                        'user_name':
+                            user_name,
+                        'vc_name':
+                            vc_name,
+                        'job_link':
+                            f'https://{portal_url}/job/{vc_name}/{cluster_name}/{job_id}'
                     }
                     if node_name not in jobs:
                         jobs[node_name] = [job]

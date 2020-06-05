@@ -7,13 +7,13 @@ from utils import k8s_util
 
 
 class SendAlertAction(Action):
-
     def __init__(self, alert_handler):
         self.action_logger = logging.getLogger('activity')
         self.alert_handler = alert_handler
 
     def execute(self, message, dry_run=False, additional_log=None):
-        default_email = self.alert_handler.email_handler.config['default_recepient']
+        default_email = self.alert_handler.email_handler.config[
+            'default_recepient']
         if 'To' not in message:
             message['To'] = default_email
         else:
