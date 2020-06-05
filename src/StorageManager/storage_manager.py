@@ -95,13 +95,15 @@ class StorageManager(object):
     def gen_usage_by_user_from_trees(self):
         """Generate usage by user from all trees in scan points for scraping"""
         ancestors = keep_ancestor_paths([
-            sp.get("path") for sp in self.scan_points
-            if sp.get("path") is not None])
+            sp.get("path")
+            for sp in self.scan_points
+            if sp.get("path") is not None
+        ])
 
-        usage_gauge = GaugeMetricFamily("storage_usage_in_bytes_by_user",
-                                        "storage usage by each user",
-                                        labels=["vc", "mountpoint", "user",
-                                                "snapshot_time"])
+        usage_gauge = GaugeMetricFamily(
+            "storage_usage_in_bytes_by_user",
+            "storage usage by each user",
+            labels=["vc", "mountpoint", "user", "snapshot_time"])
         snapshot_time = str(datetime.timestamp(datetime.utcnow()))
         for sp in self.scan_points:
             if sp.get("path") not in ancestors:
@@ -148,8 +150,8 @@ class StorageManager(object):
         # Log some info
         root = tree.root
         if root is not None:
-            logger.info("Total number of paths under %s found: %d",
-                        tree.path, root.num_subtree_nodes)
+            logger.info("Total number of paths under %s found: %d", tree.path,
+                        root.num_subtree_nodes)
         else:
             logger.warning("Tree root for %s is None.", tree.path)
             return
@@ -168,8 +170,9 @@ class StorageManager(object):
             scan_point["alias"] = scan_point["path"]
 
         if "used_percent_alert_threshold" not in scan_point:
-            logger.warning("user_percent_alert_threshold missing in "
-                           "%s. Setting to 90.", scan_point)
+            logger.warning(
+                "user_percent_alert_threshold missing in "
+                "%s. Setting to 90.", scan_point)
             scan_point["used_percent_alert_threshold"] = 90
         scan_point["used_percent_alert_threshold"] = \
             float(scan_point["used_percent_alert_threshold"])
@@ -180,25 +183,27 @@ class StorageManager(object):
         if used_percent is None:
             logger.warning("used_percent cannot be retrieved.")
         else:
-            logger.info("%s used percent is %s", scan_point["path"], 
+            logger.info("%s used percent is %s", scan_point["path"],
                         used_percent)
 
         if "overweight_threshold" not in scan_point:
-            logger.info("overweight_threshold does not exist in %s. "
-                        "Using parent overweight_threshold %d.",
-                        scan_point, self.overweight_threshold)
+            logger.info(
+                "overweight_threshold does not exist in %s. "
+                "Using parent overweight_threshold %d.", scan_point,
+                self.overweight_threshold)
             scan_point["overweight_threshold"] = self.overweight_threshold
 
         if "expiry_days" not in scan_point:
-            logger.info("expiry_days does not exist in %s. "
-                        "Using parent expiry_days %d.",
-                        scan_point, self.expiry_days)
+            logger.info(
+                "expiry_days does not exist in %s. "
+                "Using parent expiry_days %d.", scan_point, self.expiry_days)
             scan_point["expiry_days"] = self.expiry_days
 
         if "days_to_delete_after_expiry" not in scan_point:
-            logger.info("days_to_delete_after_expiry does not exist in "
-                        "%s. Using parent days_to_delete_after_expiry %s",
-                        scan_point, self.days_to_delete_after_expiry)
+            logger.info(
+                "days_to_delete_after_expiry does not exist in "
+                "%s. Using parent days_to_delete_after_expiry %s", scan_point,
+                self.days_to_delete_after_expiry)
             scan_point["days_to_delete_after_expiry"] = \
                 self.days_to_delete_after_expiry
 

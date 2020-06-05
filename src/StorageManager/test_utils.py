@@ -4,16 +4,14 @@ import os
 
 from pathlib import Path
 from unittest import TestCase
-from utils import keep_ancestor_paths ,post_order_delete
+from utils import keep_ancestor_paths, post_order_delete
 
 
 class TestUtils(TestCase):
     def test_keep_ancestor_paths(self):
         paths = [
-            "/data/share/storage/local",
-            "/data/share/work",
-            "/data/share/storage",
-            "/data/share/storage/users/local"
+            "/data/share/storage/local", "/data/share/work",
+            "/data/share/storage", "/data/share/storage/users/local"
             "/data/share/storage/users"
         ]
 

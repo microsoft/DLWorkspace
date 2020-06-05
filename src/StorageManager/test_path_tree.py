@@ -7,8 +7,6 @@ from unittest.mock import patch
 from path_tree import PathTree
 from utils import DAY
 from testcase_utils import EMPTY_DIR_SIZE, DummyNodeStat
-
-
 """Test Example:
 
 test_dir (1000)
@@ -108,10 +106,7 @@ class TestPathTree(TestCase):
     @patch("os.path.islink")
     @patch("os.path.isdir")
     @patch("os.stat")
-    def test_walk_on_valid_path(self,
-                                mock_stat,
-                                mock_isdir,
-                                mock_islink,
+    def test_walk_on_valid_path(self, mock_stat, mock_isdir, mock_islink,
                                 mock_listdir):
         mock_stat.side_effect = stat_side_effect
         mock_isdir.side_effect = isdir_side_effect

@@ -15,7 +15,6 @@ USER_NAME = "dummy"
 
 
 class TestPathNode(TestCase):
-
     @patch("os.path.isdir")
     @patch("os.stat")
     def test_path_node(self, mock_stat, mock_isdir):

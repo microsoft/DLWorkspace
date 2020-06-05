@@ -18,6 +18,7 @@ from email.mime.text import MIMEText
 
 activity_log = logging.getLogger('activity')
 
+
 def _extract_node_boot_time_info(response):
     node_boot_times = {}
 
@@ -27,11 +28,12 @@ def _extract_node_boot_time_info(response):
                 instance = m["metric"]["instance"].split(":")[0]
                 boot_datetime = datetime.utcfromtimestamp(float(m["value"][1]))
                 node_boot_times[instance] = boot_datetime
-    
+
     return node_boot_times
 
 
-def _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email):
+def _create_email_for_pause_resume_job(job_id, node_names, job_link,
+                                       job_owner_email):
     message = MIMEMultipart()
     message['Subject'] = f'Repair Manager Alert [{job_id} paused/resumed]'
     message['To'] = job_owner_email
@@ -46,7 +48,6 @@ def _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_e
 
 
 class EccRebootNodeRule(Rule):
-
     def __init__(self, alert, config):
         self.rule = 'ecc_rule'
         self.alert = alert
@@ -80,14 +81,22 @@ class EccRebootNodeRule(Rule):
                 reboot_times = _extract_node_boot_time_info(reboot_data)
             bad_nodes = self.alert.get_rule_cache_keys(self.rule)
             for node in bad_nodes:
-                instance = self.alert.get_rule_cache(self.rule, node)["instance"]
-                time_found_string = self.alert.get_rule_cache(self.rule, node)["time_found"]
-                time_found_datetime = datetime.strptime(time_found_string, self.config['date_time_format'])
+                instance = self.alert.get_rule_cache(self.rule,
+                                                     node)["instance"]
+                time_found_string = self.alert.get_rule_cache(
+                    self.rule, node)["time_found"]
+                time_found_datetime = datetime.strptime(
+                    time_found_string, self.config['date_time_format'])
                 last_reboot_time = reboot_times[instance]
                 if last_reboot_time > time_found_datetime:
                     uncordon_action.execute(node, dry_run)
                     self.alert.remove_from_rule_cache(self.rule, node)
-                    activity_log.info({"action":"marked as resolved from incorrectable ecc error","node":node})
+                    activity_log.info({
+                        "action":
+                            "marked as resolved from incorrectable ecc error",
+                        "node":
+                            node
+                    })
         except:
             logging.exception(f'Error checking if nodes have rebooted')
 
@@ -95,12 +104,13 @@ class EccRebootNodeRule(Rule):
         # if no jobs are running on node, take action on node
         bad_nodes = self.alert.get_rule_cache_keys(self.rule)
         self.all_jobs_indexed_by_node = k8s_util.get_job_info_indexed_by_node(
-           nodes=bad_nodes,
-           portal_url=self.config['portal_url'],
-           cluster_name=self.config['cluster_name'])
+            nodes=bad_nodes,
+            portal_url=self.config['portal_url'],
+            cluster_name=self.config['cluster_name'])
         for node in bad_nodes:
             node_has_no_jobs = node not in self.all_jobs_indexed_by_node
-            node_reboot_pending = 'reboot_requested' in self.alert.get_rule_cache(self.rule, node)
+            node_reboot_pending = 'reboot_requested' in self.alert.get_rule_cache(
+                self.rule, node)
             if node_has_no_jobs and not node_reboot_pending:
                 logging.debug(f'node {node} has no running jobs')
                 self.nodes_ready_for_action.add(node)
@@ -109,11 +119,15 @@ class EccRebootNodeRule(Rule):
         # if configured time has elapsed since initial detection, take action on node
         bad_nodes = self.alert.get_rule_cache_keys(self.rule)
         for node in bad_nodes:
-            time_found_string = self.alert.rule_cache[self.rule][node]["time_found"]
-            time_found_datetime = datetime.strptime(time_found_string, self.config['date_time_format'])
-            delta = timedelta(days=self.ecc_config.get("days_until_node_reboot", 5))
+            time_found_string = self.alert.rule_cache[
+                self.rule][node]["time_found"]
+            time_found_datetime = datetime.strptime(
+                time_found_string, self.config['date_time_format'])
+            delta = timedelta(
+                days=self.ecc_config.get("days_until_node_reboot", 5))
             now = datetime.utcnow()
-            node_reboot_pending = 'reboot_requested' in self.alert.get_rule_cache(self.rule, node)
+            node_reboot_pending = 'reboot_requested' in self.alert.get_rule_cache(
+                self.rule, node)
             if now - time_found_datetime > delta and not node_reboot_pending:
                 logging.debug(f'Configured time has passed for node {node}')
                 self.nodes_ready_for_action.add(node)
@@ -132,7 +146,8 @@ class EccRebootNodeRule(Rule):
                         "job_link": job["job_link"]
                     }
                 else:
-                    self.jobs_ready_for_migration[job_id]["node_names"].append(node)
+                    self.jobs_ready_for_migration[job_id]["node_names"].append(
+                        node)
 
     def migrate_jobs_and_alert_job_owners(self, dry_run):
         alert_action = SendAlertAction(self.alert)
@@ -149,22 +164,26 @@ class EccRebootNodeRule(Rule):
 
             # migrate all jobs
             migrate_job = MigrateJobAction(rest_url, max_attempts)
-            success = migrate_job.execute(
-                job_id=job_id,
-                job_owner_email=job_owner_email,
-                wait_time=wait_time, 
-                dry_run=dry_run)
+            success = migrate_job.execute(job_id=job_id,
+                                          job_owner_email=job_owner_email,
+                                          wait_time=wait_time,
+                                          dry_run=dry_run)
 
             # alert job owners
             if success:
-                message = _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email)
-                alert_dry_run = dry_run or not self.ecc_config['enable_alert_job_owners']
-                alert_action.execute(
-                    message=message,
-                    dry_run=alert_dry_run,
-                    additional_log={"job_id":job_id,"job_owner":job_owner})
+                message = _create_email_for_pause_resume_job(
+                    job_id, node_names, job_link, job_owner_email)
+                alert_dry_run = dry_run or not self.ecc_config[
+                    'enable_alert_job_owners']
+                alert_action.execute(message=message,
+                                     dry_run=alert_dry_run,
+                                     additional_log={
+                                         "job_id": job_id,
+                                         "job_owner": job_owner
+                                     })
             else:
-                logging.warning(f"Could not pause/resume the following job: {job_id}")
+                logging.warning(
+                    f"Could not pause/resume the following job: {job_id}")
                 # skip rebooting the node this iteration
                 # and try again later
                 for node in node_names:
@@ -173,11 +192,12 @@ class EccRebootNodeRule(Rule):
     def reboot_bad_nodes(self, dry_run):
         reboot_action = RebootNodeAction()
         for node in self.nodes_ready_for_action:
-           success = reboot_action.execute(node, self.etcd_config, dry_run)
-           if success:
+            success = reboot_action.execute(node, self.etcd_config, dry_run)
+            if success:
                 # update reboot status so action is not taken again
                 cache_value = self.alert.get_rule_cache(self.rule, node)
-                cache_value['reboot_requested'] =  datetime.utcnow().strftime(self.config['date_time_format'])
+                cache_value['reboot_requested'] = datetime.utcnow().strftime(
+                    self.config['date_time_format'])
                 self.alert.update_rule_cache(self.rule, node, cache_value)
 
     def check_status(self):
@@ -187,7 +207,6 @@ class EccRebootNodeRule(Rule):
         self.check_for_nodes_with_no_jobs()
         self.check_if_nodes_are_due_for_reboot()
         return len(self.nodes_ready_for_action) > 0
-
 
     def take_action(self):
         dry_run = not self.ecc_config["enable_reboot"]

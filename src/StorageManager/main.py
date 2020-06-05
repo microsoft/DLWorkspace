@@ -19,13 +19,11 @@ from storage_manager import StorageManager
 LOGGING_FILE = "logging.yaml"
 CONFIG_FILE = "config.yaml"
 
-
 dir_path = os.path.dirname(os.path.realpath(__file__))
 with open(os.path.join(dir_path, LOGGING_FILE), "r") as f:
     logging_config = yaml.safe_load(f)
     dictConfig(logging_config)
 logger = logging.getLogger(__name__)
-
 
 with open(os.path.join(dir_path, CONFIG_FILE), "r") as f:
     config = yaml.safe_load(f)
@@ -115,4 +113,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
