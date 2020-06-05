@@ -76,3 +76,15 @@ matrix:
       - pip install requests markdown_strings
     script:
       - python -m unittest discover .
+  - language: python
+    python: 3.6
+    before_install:
+      - cd src/docker-images/azure-blob-adapter
+    install:
+      - pip install pipenv
+      - pipenv install --dev
+    script:
+      - pipenv run test
+    after_success:
+      - pip install coveralls
+      - coveralls
