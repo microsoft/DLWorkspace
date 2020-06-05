@@ -19,9 +19,9 @@ yapf = "*"
 pytest-cov = "*"
 
 [requires]
-python_version = "3.5"
+python_version = "3.6"
 
 [scripts]
 start = "python -m werkzeug.serving --debug --reload wsgi:application"
 lint = "flake8 ."
-test = "pytest --cov=. --cov-report=xml:coverage.xml"
+test = "pytest --cov=."
