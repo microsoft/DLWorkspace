@@ -77,7 +77,7 @@ matrix:
     script:
       - python -m unittest discover .
   - language: python
-    python: 3.6
+    python: 3.5
     before_install:
       - cd src/docker-images/azure-blob-adapter
     install:
