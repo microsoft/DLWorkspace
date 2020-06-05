@@ -6,7 +6,7 @@ from werkzeug.wrappers import BaseResponse
 environ['AZURE_STORAGE_CONNECTION_STRING'] = 'UseDevelopmentStorage=true'
 environ['AZURE_STORAGE_CONTAINER_NAME'] = 'mycontainer'
 
-from wsgi import application  # noqa: E402
+from .wsgi import application  # noqa: E402
 
 
 def test_healthz(requests_mock):
