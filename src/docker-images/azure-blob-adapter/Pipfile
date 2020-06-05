@@ -4,7 +4,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-azure = "*"
+azure = "==4.0.0"
 python-dotenv = "*"
 simplejson = "*"
 werkzeug = "*"
@@ -13,6 +13,9 @@ werkzeug = "*"
 click = "*"
 flake8 = "*"
 watchdog = "*"
+pytest = "*"
+requests-mock = "*"
+yapf = "*"
 
 [requires]
 python_version = "3.5"
@@ -20,3 +23,4 @@ python_version = "3.5"
 [scripts]
 start = "python -m werkzeug.serving --debug --reload wsgi:application"
 lint = "flake8 ."
+test = "pytest"
