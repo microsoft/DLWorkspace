@@ -19,7 +19,7 @@ yapf = "*"
 pytest-cov = "*"
 
 [requires]
-python_version = "3.6"
+python_version = "3.5"
 
 [scripts]
 start = "python -m werkzeug.serving --debug --reload azure_blob_adapter.wsgi:application"
