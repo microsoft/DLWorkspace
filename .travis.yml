@@ -84,6 +84,7 @@ matrix:
       - pip install pipenv
       - pipenv install --dev
     script:
+      - pipenv run lint
       - pipenv run test
     after_success:
       - pip install coveralls
