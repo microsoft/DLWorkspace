@@ -8,7 +8,7 @@ matrix:
     - npm run check:frontend
     - npm run lint:backend
     - npm run coverage:backend
-    after_success: npx nyc --nycrc-path server/.nycrc.js report --reporter=text-lcov | npx coveralls
+    after_success: npx nyc --nycrc-path server/.nycrc.js report --reporter=text-lcov | COVERALLS_PARALLEL="true" npx coveralls
   - language: python
     python: 3.6
     before_install:
@@ -87,4 +87,4 @@ matrix:
       - pipenv run test
     after_success:
       - pip install coveralls
-      - COVERALLS_FLAG_NAME="azure-blob-adapter" coveralls
+      - COVERALLS_PARALLEL="true" coveralls
