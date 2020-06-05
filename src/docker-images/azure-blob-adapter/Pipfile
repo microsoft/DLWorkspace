@@ -15,7 +15,6 @@ flake8 = "*"
 watchdog = "*"
 pytest = "*"
 requests-mock = "*"
-yapf = "*"
 pytest-cov = "*"
 
 [requires]
