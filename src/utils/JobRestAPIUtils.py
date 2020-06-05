@@ -1342,28 +1342,25 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
                 walk_json(dataHandler.GetVC(job["vcName"]),
                           "metadata",
                           default="{}"))
-            interactive_ratio = float(
-                walk_json(vc_meta, "admin", "interactive_ratio", default=100.0))
+            interactive_limit = walk_json(vc_meta, "admin", "interactive_limit")
 
-            if interactive_ratio == 100.0:
+            if interactive_limit is None:
                 allowed = True
             else:
-                gpu_type = job_params["sku"]
+                interactive_limit = int(interactive_limit)
+                sku = job_params["sku"]
 
                 status, _ = dataHandler.GetClusterStatus()
                 vc_status = walk_json(status, "vc_statuses", job["vcName"])
-                required = Gpu({gpu_type: gpu_request})
+                required = Gpu({sku: gpu_request})
                 interactive_used = Gpu(
                     walk_json(vc_status, "gpu_interactive_used", default={}))
-                capacity = Gpu(walk_json(vc_status, "gpu_capacity", default={}))
-                if (required +
-                        interactive_used) / capacity <= interactive_ratio:
+                if required + interactive_used <= interactive_limit:
                     allowed = True
                 else:
                     allowed = False
-                    reason = "Can not open interactive port as required %s GPU and there are already %s/%s GPU are interactive, exceed limit of %s, you can ask admin to enable if you do want" % (
-                        gpu_request, interactive_used, capacity,
-                        interactive_ratio)
+                    reason = "Can not open interactive port as required %s GPU and %s GPUs are already in interactive usage, exceed limit of %s, you can ask admin to enable this endpoint if you do want" % (
+                        gpu_request, interactive_used, interactive_limit)
         if allowed:
             dataHandler.UpdateJobTextFields(
                 {"jobId": jobId}, {"endpoints": json.dumps(endpoints)})
