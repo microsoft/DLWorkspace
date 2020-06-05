@@ -87,4 +87,4 @@ matrix:
       - pipenv run test
     after_success:
       - pip install coveralls
-      - coveralls
+      - COVERALLS_FLAG_NAME="azure-blob-adapter" coveralls
