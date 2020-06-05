@@ -22,6 +22,6 @@ pytest-cov = "*"
 python_version = "3.6"
 
 [scripts]
-start = "python -m werkzeug.serving --debug --reload wsgi:application"
-lint = "flake8 ."
-test = "pytest --cov=."
+start = "python -m werkzeug.serving --debug --reload azure_blob_adapter.wsgi:application"
+lint = "flake8 azure_blob_adapter"
+test = "pytest --cov=. azure_blob_adapter"
