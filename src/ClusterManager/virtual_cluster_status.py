@@ -15,6 +15,8 @@ from cluster_status import ClusterStatus, get_jobs_without_pods
 from job_params_util import get_resource_params_from_job_params
 from quota import calculate_vc_resources
 
+from prometheus_client.core import GaugeMetricFamily
+
 logger = logging.getLogger(__name__)
 
 
@@ -76,6 +78,32 @@ class VirtualClusterStatus(ClusterStatus):
                     vc_metric.__dict__[r_type]
         self.compute_interactive_used_gpu(self.vc_pod_statuses.get(
             self.vc_name))
+
+    @override
+    def to_metrics(self):
+        result = []
+        for r_type in ["cpu", "gpu", "memory"]:
+            attrs = [
+                "capacity", "used", "preemptable_used", "available",
+                "unschedulable", "reserved"
+            ]
+            if r_type == "gpu":
+                attrs.append("interactive_used")
+
+            for attr in attrs:
+                desc = r_type + "_" + attr
+                attribute = self.__dict__[desc]
+                if attribute is None:
+                    continue
+
+                gauge = GaugeMetricFamily("job_manager_vc_" + desc,
+                                          desc + " from vc",
+                                          labels=["vc", "sku"])
+                result.append(gauge)
+
+                for sku, value in attribute.to_dict().items():
+                    gauge.add_metric([self.vc_name, sku], value)
+        return result
 
     def compute_interactive_used_gpu(self, pod_statuses):
         if pod_statuses is None:

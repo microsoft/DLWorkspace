@@ -17,6 +17,7 @@ import subprocess
 import faulthandler
 
 from prometheus_client.twisted import MetricsResource
+from prometheus_client.core import REGISTRY
 from prometheus_client import Histogram
 
 from twisted.web.server import Site
@@ -58,17 +59,75 @@ class HealthResource(Resource):
         return "<html>Ok</html>".encode("utf-8")
 
 
-def exporter_thread(port):
-    root = Resource()
-    root.putChild(b"metrics", MetricsResource())
-    root.putChild(b"healthz", HealthResource())
-    factory = Site(root)
-    reactor.listenTCP(port, factory)
-    reactor.run(installSignalHandlers=False)
+class AtomicRef(object):
+    """ a thread safe way to store and get object,
+    should not modify data get from this ref,
+    each get and set method should provide a time obj,
+    so this ref decide whether the data is out of date or not,
+    return None on expired """
+    def __init__(self, decay_time):
+        self.data = None
+        self.date_in_produced = datetime.datetime.now()
+        self.decay_time = decay_time
+        self.lock = threading.RLock()
+
+    def set(self, data, now):
+        with self.lock:
+            self.data, self.date_in_produced = data, now
+
+    def get(self, now):
+        with self.lock:
+            if self.decay_time.seconds != 0 and \
+                    self.date_in_produced + self.decay_time < now:
+                return None
+            return self.data
 
 
-def setup_exporter_thread(port):
-    t = threading.Thread(target=exporter_thread, args=(port,), name="exporter")
+class CustomCollector(object):
+    def __init__(self, atomic_refs):
+        self.atomic_refs = atomic_refs
+
+    def collect(self):
+        data = []
+
+        now = datetime.datetime.now()
+
+        for ref in self.atomic_refs:
+            d = ref.get(now)
+            if d is not None:
+                data.extend(d)
+
+        if len(data) > 0:
+            for datum in data:
+                yield datum
+        else:
+            # https://stackoverflow.com/a/6266586
+            # yield nothing
+            return
+            yield
+
+
+def exporter_thread(port, refs):
+    try:
+        if refs is not None:
+            REGISTRY.register(CustomCollector(refs))
+
+        root = Resource()
+        root.putChild(b"metrics", MetricsResource())
+        root.putChild(b"healthz", HealthResource())
+
+        factory = Site(root)
+        reactor.listenTCP(port, factory)
+        reactor.run(installSignalHandlers=False)
+    except Exception:
+        logger.exception("exporter thread failed")
+
+
+def setup_exporter_thread(port, refs=None):
+    t = threading.Thread(target=exporter_thread,
+                         args=(port, refs),
+                         name="exporter")
+    t.daemon = True
     t.start()
     return t
 
@@ -168,6 +227,9 @@ def run(args):
 
 def work(cmds, childs, FNULL):
     for key, cmd in list(cmds.items()):
+        sys.stdout.flush()
+        sys.stderr.flush()
+
         child = childs.get(key)
         need_start = False
 
@@ -184,8 +246,6 @@ def work(cmds, childs, FNULL):
             child.send_signal(signal.SIGTRAP) # try to print their stacktrace
             time.sleep(1)
             child.kill()
-            sys.stdout.flush()
-            sys.stderr.flush()
             need_start = True
 
         if need_start:

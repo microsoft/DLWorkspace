@@ -9,13 +9,14 @@ import yaml
 import logging
 import logging.config
 import copy
+import datetime
 
 sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 from cluster_manager import setup_exporter_thread, \
     manager_iteration_histogram, register_stack_trace_dump, \
-    update_file_modification_time
+    update_file_modification_time, AtomicRef
 from DataHandler import DataHandler
 from config import config
 
@@ -47,6 +48,7 @@ def get_cluster_status():
         A dictionary representing cluster status.
     """
     cluster_status = {}
+    metrics = []
 
     try:
         with DataHandler() as data_handler:
@@ -70,15 +72,17 @@ def get_cluster_status():
         # Set up virtual cluster views
         vc_statuses_factory = VirtualClusterStatusesFactory(cs, vc_list)
         vc_statuses = vc_statuses_factory.make()
-        vc_statuses = {
+        vc_statuses_dict = {
             vc_name: vc_status.to_dict()
             for vc_name, vc_status in vc_statuses.items()
         }
+        for _, vc_status in vc_statuses.items():
+            result = vc_status.to_metrics()
+            metrics.extend(result)
 
-        cluster_status["vc_statuses"] = vc_statuses
+        cluster_status["vc_statuses"] = vc_statuses_dict
     except:
-        logger.exception("Exception in setting up cluster status",
-                         exc_info=True)
+        logger.exception("Exception in setting up cluster status")
 
     try:
         if "cluster_status" in config and \
@@ -90,15 +94,21 @@ def get_cluster_status():
         else:
             logger.info("No diff in cluster status, skipping update in DB...")
     except:
-        logger.warning("Error in updating cluster status", exc_info=True)
+        logger.exception("Error in updating cluster status")
 
     config["cluster_status"] = copy.deepcopy(cluster_status)
-    return cluster_status
+    return metrics
 
 
-def run():
+def run(args):
     register_stack_trace_dump()
     create_log()
+
+    decay_time = datetime.timedelta(seconds=0) # do not retire old data
+    atomic_ref = AtomicRef(decay_time)
+
+    setup_exporter_thread(args.port, refs=[atomic_ref])
+
     logger.info("start to update nodes usage information ...")
     config["cluster_status"] = None
 
@@ -107,9 +117,10 @@ def run():
 
         with manager_iteration_histogram.labels("node_manager").time():
             try:
-                get_cluster_status()
+                metrics = get_cluster_status()
+                atomic_ref.set(metrics, datetime.datetime.now())
             except:
-                logger.exception("get cluster status failed", exc_info=True)
+                logger.exception("get cluster status failed")
         time.sleep(10)
 
 
@@ -121,6 +132,5 @@ if __name__ == '__main__':
                         type=int,
                         default=9202)
     args = parser.parse_args()
-    setup_exporter_thread(args.port)
 
-    run()
+    run(args)
