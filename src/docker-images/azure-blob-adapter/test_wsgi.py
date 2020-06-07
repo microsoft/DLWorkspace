@@ -174,11 +174,3 @@ def test_no_x_tag():
     client = Client(application, BaseResponse)
     response = client.post('/', data="log content")
     assert response.status_code == 400
-
-
-def test_azure_down(requests_mock):
-    requests_mock.put('/devstoreaccount1/mycontainer/jobs.d175?comp=appendblock',
-                      status_code=500)
-    client = Client(application, BaseResponse)
-    response = client.post('/', headers={'x-tag': 'jobs.d175'}, data="log content")
-    assert response.status_code == 502
