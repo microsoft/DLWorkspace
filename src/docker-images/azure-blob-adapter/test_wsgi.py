@@ -174,3 +174,40 @@ def test_no_x_tag():
     client = Client(application, BaseResponse)
     response = client.post('/', data="log content")
     assert response.status_code == 400
+
+
+def test_same_last_modified(requests_mock):
+    requests_mock.put('/devstoreaccount1/mycontainer/jobs.d175?comp=appendblock', complete_qs=True,
+                      status_code=409)  # 1
+    requests_mock.get('/devstoreaccount1/mycontainer?restype=container&comp=list&prefix=jobs.d175',
+                      complete_qs=True,
+                      headers={'Content-Type': 'application/xml'},
+                      text="""<?xml version="1.0" encoding="utf-8"?>
+<EnumerationResults>
+    <Blobs>
+        <Blob>
+            <Name>jobs.d175</Name>
+            <Properties>
+                <Last-Modified>Wed, 01 Jan 2020 00:00:00 GMT</Last-Modified>
+            </Properties>
+        </Blob>
+        <Blob>
+            <Name>jobs.d175.1</Name>
+            <Properties>
+                <Last-Modified>Wed, 01 Jan 2020 00:00:00 GMT</Last-Modified>
+            </Properties>
+        </Blob>
+    </Blobs>
+</EnumerationResults>
+""")  # 2
+    requests_mock.put(
+        '/devstoreaccount1/mycontainer/jobs.d175.1?comp=appendblock',
+        complete_qs=True,
+        response_list=[
+            dict(status_code=201, headers={'last-modified': 'Wed, 01 Jan 2020 00:00:00 GMT'})  # 3
+        ])
+
+    client = Client(application, BaseResponse)
+    response = client.post('/', headers={'x-tag': 'jobs.d175'}, data="log content")
+    assert response.status_code == 201
+    assert requests_mock.call_count == 3
