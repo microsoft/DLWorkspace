@@ -10,7 +10,7 @@ RUN pipenv install --system --deploy
 
 COPY . .
 
-ENV UWSGI_MODULE azure_blob_adapter.wsgi:application
+ENV UWSGI_WSGI_FILE wsgi.py
 ENV UWSGI_MASTER 1
 ENV UWSGI_ENABLE_THREADS 1
 ENV UWSGI_THUNDER_LOCK 1
