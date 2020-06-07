@@ -51,7 +51,7 @@ def application(request):
 
             blob_name = tag
 
-            while True:
+            for _ in range(10):
                 try:
                     append_blob_service.append_blob_from_bytes(
                         container_name=container_name,
