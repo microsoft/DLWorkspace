@@ -4,7 +4,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-azure = "==4.0.0"
+azure = "*"
 python-dotenv = "*"
 simplejson = "*"
 werkzeug = "*"
