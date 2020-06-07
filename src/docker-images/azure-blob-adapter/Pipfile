@@ -17,6 +17,7 @@ pytest = "*"
 requests-mock = "*"
 pytest-cov = "*"
 coverage = "<5.0.0"
+pytest-timeout = "*"
 
 [requires]
 python_version = "3.5"
