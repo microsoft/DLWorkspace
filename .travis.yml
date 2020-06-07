@@ -82,7 +82,7 @@ matrix:
       - cd src/docker-images/azure-blob-adapter
     install:
       - pip install pipenv
-      - pipenv install --dev
+      - pipenv install --dev --system --deploy
     script:
       - pipenv run lint
       - pipenv run test
