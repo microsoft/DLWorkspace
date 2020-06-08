@@ -102,13 +102,14 @@ if config.get("logging") == 'azure_blob':
         try:
             prefix = 'jobs.' + jobId
 
-            blobs = list(append_blob_service.list_blobs(container_name, prefix))
+            blobs = append_blob_service.list_blobs(container_name, prefix)
+            blobs = list(blobs)
 
             if len(blobs) == 0:
                 return None
                 yield
 
-            blobs = sorted(blobs, key=lambda blob: blob.properties.last_modified)
+            blobs = sorted(blobs, key=_get_blob_index)
 
             for blob in blobs:
                 try:
@@ -116,7 +117,7 @@ if config.get("logging") == 'azure_blob':
                     start_range = 0
                     while start_range < blob.properties.content_length:
                         end_range = min(
-                            start_range + CHUNK_SIZE,
+                            start_range + CHUNK_SIZE - 1,
                             blob.properties.content_length - 1)
                         blob = append_blob_service.get_blob_to_bytes(
                             container_name, blob.name,
