@@ -38,7 +38,7 @@ matrix:
     before_install:
       - cd src/utils
     install:
-      - pip install azure===4.0.0
+      - pip install -r ../ClusterManager/requirements.txt
     script:
       - python -m unittest discover .
   - language: python
