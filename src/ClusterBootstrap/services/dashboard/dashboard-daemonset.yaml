@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: dashboard
+spec:
+  selector:
+    matchLabels:
+      app: dashboard
+  template:
+    metadata:
+      name: dashboard
+      labels:
+        app: dashboard
+    spec:
+      {% if cnf["dnsPolicy"] %}    
+      dnsPolicy: {{cnf["dnsPolicy"]}}
+      {% endif %}
+      nodeSelector:
+        dashboard: active
+      hostNetwork: true
+      containers:
+      - name: dashboard
+        image: '{{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/dashboard:{{cnf["dockertag"]}}'
+        imagePullPolicy: Always
+        env:
+        - name: PORT
+          value: '{{cnf["dashboard"]["port"]}}'
+        ports:
+        - name: http
+          containerPort: {{cnf["dashboard"]["port"]}}
+        volumeMounts:
+        - name: config
+          mountPath: /usr/src/app/config
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
+      volumes:
+      - name: config
+        configMap:
+          name: dashboard
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule

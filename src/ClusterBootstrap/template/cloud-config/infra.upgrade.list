@@ -42,7 +42,6 @@
 ./deploy/WebUI/dashboardConfig.json,/etc/WebUI/dashboardConfig.json
 ./deploy/WebUI/Master-Templates.json,/etc/WebUI/Master-Templates.json
 ./deploy/RestfulAPI/config.yaml,/etc/RestfulAPI/config.yaml
-./deploy/dashboard/production.yaml,/etc/dashboard/production.yaml
 ./deploy/storage/auto_share/auto_share.timer,/etc/systemd/system/auto_share.timer
 ./deploy/storage/auto_share/auto_share.target,/etc/systemd/system/auto_share.target
 ./deploy/storage/auto_share/auto_share.service,/etc/systemd/system/auto_share.service

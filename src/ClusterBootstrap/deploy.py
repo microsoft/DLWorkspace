@@ -1670,11 +1670,6 @@ def deploy_webUI_on_node(ipAddress):
     utils.sudo_scp(config["ssh_cert"], "./deploy/RestfulAPI/config.yaml",
                    "/etc/RestfulAPI/config.yaml", sshUser, webUIIP)
 
-    utils.render_template_directory(
-        "./template/dashboard", "./deploy/dashboard", config)
-    utils.sudo_scp(config["ssh_cert"], "./deploy/dashboard/production.yaml",
-                   "/etc/dashboard/production.yaml", sshUser, webUIIP)
-
     print("===============================================")
     print("Web UI is running at: http://%s:%s" %
           (webUIIP, str(config["webuiport"])))
