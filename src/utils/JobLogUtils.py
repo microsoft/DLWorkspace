@@ -29,9 +29,9 @@ if config.get("logging") == 'azure_blob':
 
     CHUNK_SIZE = 1024 * 1024  # Assume each line in log is no more then 1MB
 
-    def _get_blob_index(blob_name):
+    def _get_blob_index(blob):
         try:
-            return int(blob_name.split('.', 2)[2])
+            return int(blob.name.split('.', 2)[2])
         except (IndexError, ValueError):
             return 0
 
