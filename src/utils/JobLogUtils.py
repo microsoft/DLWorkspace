@@ -29,12 +29,6 @@ if config.get("logging") == 'azure_blob':
 
     CHUNK_SIZE = 1024 * 1024  # Assume each line in log is no more then 1MB
 
-    def _get_blob_index(blob):
-        try:
-            return int(blob.name.split('.', 2)[2])
-        except (IndexError, ValueError):
-            return 0
-
     def GetJobLog(jobId, cursor=None, size=None):
         try:
             prefix = 'jobs.' + jobId
@@ -50,7 +44,7 @@ if config.get("logging") == 'azure_blob':
                 if len(blobs) == 0:
                     return ({}, None)
 
-                blob = max(blobs, key=_get_blob_index)
+                blob = max(blobs, key=lambda blob: blob.properties.last_modified)
                 start_range = max(0, blob.properties.content_length - CHUNK_SIZE)
                 chunk = append_blob_service.get_blob_to_bytes(
                     container_name=container_name,
