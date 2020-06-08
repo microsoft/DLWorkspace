@@ -51,20 +51,17 @@ def delete_old_cluster_status(days_ago):
                     table, days_ago, ret_status)
 
 
-def delete_old_inactive_jobs(days_ago):
-    table = "jobs"
+def delete_old_inactive_jobs(days_ago, update_fn):
     with DataHandler() as data_handler:
-        logger.info(
-            "Deleting inactive job records from table %s older than %s "
-            "day(s)", table, days_ago)
+        to_be_deleted = data_handler.get_old_inactive_jobs(days_ago)
+        logger.info("will delete %s old inactive jobs", len(to_be_deleted))
 
-        cond = {"jobStatus": ("IN", ["finished", "failed", "killed", "error"])}
-        ret = data_handler.delete_rows_from_table_older_than_days(
-            table, days_ago, col="lastUpdated", cond=cond)
-        ret_status = "succeeded" if ret is True else "failed"
-        logger.info(
-            "Deleting inactive job records from table %s older than %s "
-            "day(s) %s", table, days_ago, ret_status)
+        while len(to_be_deleted) > 0:
+            batch = []
+            while len(to_be_deleted) > 0 and len(batch) < 50:
+                batch.append(to_be_deleted.pop())
+            data_handler.delete_jobs(batch)
+            update_fn()
 
 
 def sleep_with_update(time_to_sleep, fn):
@@ -84,8 +81,7 @@ def run():
         with manager_iteration_histogram.labels("db_manager").time():
             try:
                 delete_old_cluster_status(CLUSTER_STATUS_EXPIRY)
-                # query below is too time consuming since lastUpdated in job table is not indexed
-                # delete_old_inactive_jobs(JOBS_EXPIRY)
+                delete_old_inactive_jobs(JOBS_EXPIRY, update)
             except:
                 logger.exception("Deleting old cluster status failed")
 

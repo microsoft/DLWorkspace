@@ -1651,6 +1651,25 @@ class DataHandler(object):
                 cursor.close()
         return ret
 
+    def get_old_inactive_jobs(self, days_ago):
+        sql = """SELECT jobId FROM jobs
+                WHERE `jobStatus` IN ('finished','failed','killed','error')
+                AND lastUpdated < NOW() - INTERVAL %s DAY
+                """ % (days_ago)
+        cursor = self.conn.cursor()
+        cursor.execute(sql)
+        result = list(map(lambda x: x[0], cursor))
+        cursor.close()
+        return result
+
+    def delete_jobs(self, jids):
+        cursor = self.conn.cursor()
+        for jid in jids:
+            sql = "DELETE FROM jobs WHERE jobId = %s"
+            cursor.execute(sql, (jid,))
+        self.conn.commit()
+        cursor.close()
+
     def __del__(self):
         logger.debug(
             "********************** deleted a DataHandler instance *******************"
