@@ -37,6 +37,8 @@ matrix:
     python: 3.6
     before_install:
       - cd src/utils
+    install:
+      - pip install azure===4.0.0
     script:
       - python -m unittest discover .
   - language: python
@@ -52,7 +54,6 @@ matrix:
       - python -m unittest test_virtual_cluster_status.py
       - python -m unittest test_mountpoint.py
       - python -m unittest test_job_manager.py
-      - python -m unittest test_job_log_utils.py
   - language: python
     python: 3.6
     before_install:
