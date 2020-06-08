@@ -1106,6 +1106,29 @@ def UpdateVC(userName, vcName, quota, metadata):
     return ret
 
 
+# TODO legacy code, please remove this after all clusters have been running this version(1.7) for
+# 1 month. Will have impact on old running job when querying endpoints.
+def infer_role_from_pod_name(pod_name):
+    """ refer doc string of endpoint_manager.py generate_service_selector """
+    parts = pod_name.split("-")
+    if len(parts) == 3:
+        # job created by framework controller
+        uuid, role, idx = parts
+        return role, idx
+    else:
+        if len(parts) == 5:
+            return "master", "0"
+        else:
+            p = re.compile("([a-z]+)([0-9])+")
+            match = p.search(parts[-1])
+            if match:
+                g = match.groups()
+                return g[0], g[1]
+            else:
+                # inference job, do not need this
+                return parts[-1], ""
+
+
 def GetEndpoints(userName, jobId):
     dataHandler = DataHandler()
     ret = []
@@ -1119,6 +1142,8 @@ def GetEndpoints(userName, jobId):
                 if job["endpoints"] is not None:
                     endpoints = json.loads(job["endpoints"])
                 for [_, endpoint] in list(endpoints.items()):
+                    role_name, role_idx = infer_role_from_pod_name(
+                        endpoint["podName"])
                     epItem = {
                         "id": endpoint["id"],
                         "name": endpoint["name"],
@@ -1127,6 +1152,8 @@ def GetEndpoints(userName, jobId):
                         "hostNetwork": endpoint["hostNetwork"],
                         "podName": endpoint["podName"],
                         "domain": config["domain"],
+                        "role-name": endpoint.get("role-name", role_name),
+                        "role-idx": endpoint.get("role-idx", role_idx),
                     }
                     if "podPort" in endpoint:
                         epItem["podPort"] = endpoint["podPort"]

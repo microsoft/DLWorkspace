@@ -140,6 +140,27 @@ def generate_service_selector(pod_name):
         return {"podName": pod_name}
 
 
+def infer_role_from_pod_name(pod_name):
+    """ refer doc string of generate_service_selector """
+    parts = pod_name.split("-")
+    if len(parts) == 3:
+        # job created by framework controller
+        uuid, role, idx = parts
+        return role, idx
+    else:
+        if len(parts) == 5:
+            return "master", "0"
+        else:
+            p = re.compile("([a-z]+)([0-9])+")
+            match = p.search(parts[-1])
+            if match:
+                g = match.groups()
+                return g[0], g[1]
+            else:
+                # inference job, do not need this
+                return parts[-1], ""
+
+
 def generate_node_port_service(job_id, pod_name, endpoint_id, name,
                                target_port):
     endpoint = {
@@ -303,6 +324,10 @@ def start_endpoints():
                         endpoint["endpointDescription"] = {
                             "spec": point.spec.to_dict()
                         }
+                        role, idx = infer_role_from_pod_name(
+                            endpoint["podName"])
+                        endpoint["role-name"] = role
+                        endpoint["role-idx"] = idx
                         pod = k8sUtils.get_pod("default", endpoint["podName"])
                         if pod is not None:
                             logger.info("update endpoint's nodeName %s, %s",

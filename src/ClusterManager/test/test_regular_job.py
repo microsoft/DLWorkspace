@@ -960,7 +960,32 @@ def test_set_max_time_works(args):
         assert state == "running"
 
         resp = utils.set_job_max_time(args.rest, args.email, job.jid, 1)
-        assert resp.status_code == 200
+        assert resp.status_code == 200, "get %d, are you admin?" % (
+            resp.status_code)
 
         state = job.block_until_state_not_in({"running"}, timeout=30)
         assert state == "killed"
+
+
+@utils.case()
+def test_endpoint_role(args):
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job:
+        endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
+                                          ["ssh"])
+        endpoints_ids = list(endpoints.keys())
+        assert len(endpoints_ids) == 1
+        endpoint_id = endpoints_ids[0]
+
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email, job.jid,
+                                                 endpoint_id)
+        role_name = ssh_endpoint.get("role-name")
+        role_idx = ssh_endpoint.get("role-idx")
+        assert role_name == "master", "unknown role-name " + str(role_name)
+        assert role_idx == "0", "unknown role-idx " + str(role_idx)

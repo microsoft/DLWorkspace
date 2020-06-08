@@ -277,6 +277,7 @@ class DistributeJobTemplate(JobTemplate):
         if "envs" not in pod:
             pod["envs"] = []
         pod["envs"].append({"name": "DLWS_ROLE_IDX", "value": pod["role_idx"]})
+        pod["envs"].append({"name": "DLTS_ROLE_IDX", "value": pod["role_idx"]})
 
         pod_yaml = self.template.render(job=pod)
         pod_obj = yaml.full_load(pod_yaml)
@@ -349,9 +350,6 @@ class DistributeJobTemplate(JobTemplate):
         # Set up system environment variables if any
         distributed_system_envs = job.get_distributed_system_envs()
         for env_name, env_val in distributed_system_envs.items():
-            params["envs"].append({
-                "name": env_name,
-                "value": env_val
-            })
+            params["envs"].append({"name": env_name, "value": env_val})
 
         return params, None
