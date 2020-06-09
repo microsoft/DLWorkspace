@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import os
+import logging
 import sys
 
-from unittest import TestCase
+import unittest
 from cluster_status import str2bool, ClusterStatus, ClusterStatusFactory
 from cluster_test_utils import BaseTestClusterSetup
 
@@ -11,7 +12,7 @@ sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 
-class TestUtils(TestCase):
+class TestUtils(unittest.TestCase):
     def test_str2bool(self):
         self.assertTrue(str2bool("True"))
         self.assertTrue(str2bool("1"))
@@ -22,7 +23,7 @@ class TestUtils(TestCase):
         self.assertFalse(str2bool("0"))
 
 
-class TestClusterStatus(TestCase):
+class TestClusterStatus(unittest.TestCase):
     def test_to_dict(self):
         inclusion = [
             "gpu_capacity",
@@ -80,3 +81,11 @@ class TestClusterStatus(TestCase):
 
         t_cluster_status = test_cluster.cluster_status
         self.assertEqual(t_cluster_status, cs)
+
+
+if __name__ == '__main__':
+    logging.basicConfig(
+        format=
+        '%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s',
+        level=logging.DEBUG)
+    unittest.main()

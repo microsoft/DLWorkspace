@@ -531,6 +531,7 @@ class BaseTestClusterSetup(object):
             "preemptable_memory": Memory(),
             "gpuType": "P40",
             "gpu_usage": None,
+            "is_interactive": False,
         }
 
         pod2_status = {
@@ -550,6 +551,7 @@ class BaseTestClusterSetup(object):
             "preemptable_memory": Memory(),
             "gpuType": "",
             "gpu_usage": None,
+            "is_interactive": False,
         }
 
         pod3_status = {
@@ -569,6 +571,7 @@ class BaseTestClusterSetup(object):
             "preemptable_memory": Memory(),
             "gpuType": "P40",
             "gpu_usage": None,
+            "is_interactive": False,
         }
 
         pod4_status = {
@@ -588,6 +591,7 @@ class BaseTestClusterSetup(object):
             "preemptable_memory": Memory(),
             "gpuType": "P40",
             "gpu_usage": None,
+            "is_interactive": False,
         }
 
         pod5_status = {
@@ -607,6 +611,7 @@ class BaseTestClusterSetup(object):
             "preemptable_memory": Memory(),
             "gpuType": "P40",
             "gpu_usage": None,
+            "is_interactive": False,
         }
 
         return [pod1_status, pod2_status, pod3_status, pod4_status, pod5_status]
@@ -699,9 +704,7 @@ class BaseTestClusterSetup(object):
         user_status_preemptable.append({
             "userName": "user3",
             "userGPU": Gpu(),
-            "userCPU": Cpu({
-                "m_type2": 1
-            }),
+            "userCPU": Cpu({"m_type2": 1}),
             "userMemory": Memory(),
         })
         cs.user_status_preemptable = user_status_preemptable
@@ -891,20 +894,17 @@ class BaseTestClusterSetup(object):
         ]
         vc2_status.user_status = user_status
 
-        user_status_preemptable = [
-            {
-                "userName": "user1",
-                "userGPU": Gpu(),
-                "userCPU": Cpu(),
-                "userMemory": Memory(),
-            },
-            {
-                "userName": "user3",
-                "userGPU": Gpu(),
-                "userCPU": Cpu({"m_type2": 1}),
-                "userMemory": Memory(),
-            }
-        ]
+        user_status_preemptable = [{
+            "userName": "user1",
+            "userGPU": Gpu(),
+            "userCPU": Cpu(),
+            "userMemory": Memory(),
+        }, {
+            "userName": "user3",
+            "userGPU": Gpu(),
+            "userCPU": Cpu({"m_type2": 1}),
+            "userMemory": Memory(),
+        }]
         vc2_status.user_status_preemptable = user_status_preemptable
 
         # Set vc2 active job count

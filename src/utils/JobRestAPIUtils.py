@@ -31,6 +31,7 @@ sys.path.append(
 
 from job_params_util import make_job_params
 from JobLogUtils import GetJobLog as UtilsGetJobLog
+from resource_stat import Gpu
 
 DEFAULT_JOB_PRIORITY = 100
 USER_JOB_PRIORITY_RANGE = (100, 200)
@@ -56,17 +57,24 @@ vc_cache = TTLCache(maxsize=10240, ttl=DEFAULT_EXPIRATION)
 vc_cache_lock = Lock()
 
 
-def walk_json_field_safe(obj, *fields):
+def walk_json(obj, *fields, default=None):
     """ for example a=[{"a": {"b": 2}}]
-    walk_json_field_safe(a, 0, "a", "b") will get 2
-    walk_json_field_safe(a, 0, "not_exist") will get None
+    walk_json(a, 0, "a", "b") will get 2
+    walk_json(a, 0, "not_exist") will get None
     """
     try:
         for f in fields:
             obj = obj[f]
         return obj
     except:
-        return None
+        return default
+
+
+def get_job_total_gpu(job_params):
+    num_workers = 1
+    if "numpsworker" in job_params:
+        num_workers = int(job_params["numpsworker"])
+    return int(job_params["resourcegpu"]) * num_workers
 
 
 def base64encode(str_val):
@@ -295,9 +303,9 @@ def SubmitJob(jobParamsJsonStr):
 
     dataHandler = DataHandler()
 
-    vc_meta = walk_json_field_safe(dataHandler.GetVC(vc_name), "metadata")
+    vc_meta = walk_json(dataHandler.GetVC(vc_name), "metadata")
     vc_meta = {} if vc_meta is None else json.loads(vc_meta)
-    max_time = walk_json_field_safe(vc_meta, "admin", "job_max_time_second")
+    max_time = walk_json(vc_meta, "admin", "job_max_time_second")
     if max_time is not None:
         jobParams["maxTimeSec"] = max_time
 
@@ -1136,9 +1144,9 @@ def GetEndpoints(userName, jobId):
                                        ["ports"][0]["port"])
                         else:
                             port = int(
-                                walk_json_field_safe(endpoint,
+                                walk_json(endpoint,
                                     "endpointDescription", "spec", "ports", 0, "nodePort") or \
-                                walk_json_field_safe(endpoint,
+                                walk_json(endpoint,
                                     "endpointDescription", "spec", "ports", 0, "node_port")
                                             )
                         epItem["port"] = port
@@ -1152,6 +1160,15 @@ def GetEndpoints(userName, jobId):
     return ret
 
 
+def is_interactive(endpoints):
+    for end in endpoints.keys():
+        # if the job opened any endpoint except tensorboard, the job will
+        # be deemed as interactive
+        if not end.endswith("-tensorboard"):
+            return True
+    return False
+
+
 def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
     dataHandler = DataHandler()
     try:
@@ -1161,17 +1178,23 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             msg = "Job %s cannot be found in database" % jobId
             logger.error(msg)
             return msg, 404
-        if job["userName"] != userName and (not AuthorizationManager.HasAccess(
-                userName, ResourceType.VC, job["vcName"], Permission.Admin)):
+
+        is_vc_admin = AuthorizationManager.HasAccess(userName, ResourceType.VC,
+                                                     job["vcName"],
+                                                     Permission.Admin)
+
+        if job["userName"] != userName and (not is_vc_admin):
             msg = "You are not authorized to enable endpoint for job %s" % jobId
             logger.error(msg)
             return msg, 403
 
         job_params = json.loads(base64decode(job["jobParams"]))
         job_type = job_params["jobtrainingtype"]
-        job_endpoints = {}
+        endpoints = {}
         if job["endpoints"] is not None:
-            job_endpoints = json.loads(job["endpoints"])
+            endpoints = json.loads(job["endpoints"])
+
+        is_interactive_before = is_interactive(endpoints)
 
         # get pods
         pod_names = []
@@ -1195,14 +1218,12 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
         # username
         username = getAlias(job["userName"])
 
-        endpoints = job_endpoints
-
         if "ssh" in requested_endpoints:
             # setup ssh for each pod
             for pod_name in pod_names:
                 endpoint_id = "e-" + pod_name + "-ssh"
 
-                if endpoint_id in job_endpoints:
+                if endpoint_id in endpoints:
                     logger.debug("Endpoint %s exists. Skip.", endpoint_id)
                     continue
                 logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
@@ -1230,7 +1251,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
 
             endpoint_id = "e-" + jobId + "-ipython"
 
-            if endpoint_id not in job_endpoints:
+            if endpoint_id not in endpoints:
                 logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
                     "id": endpoint_id,
@@ -1257,7 +1278,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
 
             endpoint_id = "e-" + jobId + "-tensorboard"
 
-            if endpoint_id not in job_endpoints:
+            if endpoint_id not in endpoints:
                 logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
                     "id": endpoint_id,
@@ -1284,7 +1305,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
 
             endpoint_id = "e-" + jobId + "-port-" + \
                 str(interactive_port["podPort"])
-            if endpoint_id not in job_endpoints:
+            if endpoint_id not in endpoints:
                 logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
                     "id": endpoint_id,
@@ -1300,9 +1321,53 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             else:
                 logger.debug("Endpoint %s exists. Skip.", endpoint_id)
 
-        dataHandler.UpdateJobTextFields({"jobId": jobId},
-                                        {"endpoints": json.dumps(endpoints)})
-        return endpoints, 200
+        is_interactive_after = is_interactive(endpoints)
+        allowed = False
+        reason = None
+
+        # is_interactive_before | is_interactive_after |  allowed
+        #         F             |        F             |     T
+        #         F             |        T             |   check
+        #         T             |        F             | impossible
+        #         T             |        T             |     T
+
+        gpu_request = get_job_total_gpu(job_params)
+
+        if is_vc_admin or \
+                gpu_request == 0 or \
+                (not (is_interactive_before is False and is_interactive_after is True)):
+            allowed = True
+        else:
+            vc_meta = json.loads(
+                walk_json(dataHandler.GetVC(job["vcName"]),
+                          "metadata",
+                          default="{}"))
+            interactive_limit = walk_json(vc_meta, "admin", "interactive_limit")
+
+            if interactive_limit is None:
+                allowed = True
+            else:
+                interactive_limit = int(interactive_limit)
+                sku = job_params["sku"]
+
+                status, _ = dataHandler.GetClusterStatus()
+                vc_status = walk_json(status, "vc_statuses", job["vcName"])
+                required = Gpu({sku: gpu_request})
+                interactive_used = Gpu(
+                    walk_json(vc_status, "gpu_interactive_used", default={}))
+                if required + interactive_used <= interactive_limit:
+                    allowed = True
+                else:
+                    allowed = False
+                    reason = "Cannot open interactive endpoint. There are already %s interactive GPUs in the VC, request another %s exceeds the limit of %s. You can ask admin to enable the interactive endpoint." % (
+                        interactive_used, gpu_request, interactive_limit)
+        if allowed:
+            dataHandler.UpdateJobTextFields(
+                {"jobId": jobId}, {"endpoints": json.dumps(endpoints)})
+            return endpoints, 200
+        else:
+            logger.error(reason)
+            return reason, 403
     except Exception as e:
         logger.error("Get endpoint exception, ex: %s", str(e))
     finally:
