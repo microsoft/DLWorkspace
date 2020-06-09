@@ -1359,8 +1359,8 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
                     allowed = True
                 else:
                     allowed = False
-                    reason = "Can not open interactive port as required %s GPU and %s GPUs are already in interactive usage, exceed limit of %s, you can ask admin to enable this endpoint if you do want" % (
-                        gpu_request, interactive_used, interactive_limit)
+                    reason = "Cannot open interactive endpoint. There are already %s interactive GPUs in the VC, request another %s exceeds the limit of %s. You can ask admin to enable the interactive endpoint." % (
+                        interactive_used, gpu_request, interactive_limit)
         if allowed:
             dataHandler.UpdateJobTextFields(
                 {"jobId": jobId}, {"endpoints": json.dumps(endpoints)})
