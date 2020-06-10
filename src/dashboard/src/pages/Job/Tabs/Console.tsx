@@ -203,7 +203,7 @@ const Console: FunctionComponent = () => {
             </>
           ) }
           <Box flex={1}/>
-          <Button color="inherit" href={downloadHref}>Download</Button>
+          <Button color="inherit" href={downloadHref}>Download Full Job Log</Button>
         </Toolbar>
       </AppBar>
     </Box>
