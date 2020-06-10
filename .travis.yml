@@ -37,6 +37,8 @@ matrix:
     python: 3.6
     before_install:
       - cd src/utils
+    install:
+      - pip install -r ../ClusterManager/requirements.txt
     script:
       - python -m unittest discover .
   - language: python
