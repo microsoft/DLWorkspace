@@ -661,3 +661,28 @@ def test_distributed_job_system_envs(args):
                 assert output.find(
                     expected_output) != -1, "could not find %s in log %s" % (
                         expected_output, output)
+
+
+@utils.case()
+def test_endpoint_role(args):
+    job_spec = utils.gen_default_job_description("distributed", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job:
+        endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
+                                          ["ssh"])
+        endpoints_ids = list(endpoints.keys())
+        assert len(endpoints_ids) == 2
+
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        for endpoint_id in endpoints_ids:
+            ssh_endpoint = utils.wait_endpoint_state(args.rest, args.email,
+                                                     job.jid, endpoint_id)
+            role_name = ssh_endpoint.get("role-name")
+            role_idx = ssh_endpoint.get("role-idx")
+            assert role_name in {"ps", "worker"
+                                }, "unknown role-name " + str(role_name)
+            assert role_idx == "0", "unknown role-idx " + str(role_idx)
