@@ -104,7 +104,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--process",
                         "-p",
-                        default=5,
+                        default=10,
                         type=int,
                         help="how many process used to run cases")
     parser.add_argument("--case",
