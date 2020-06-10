@@ -37,8 +37,8 @@ class Framework(object):
                  user_cmd, alias, email, gid, uid, mount_points, plugins,
                  family_token, vc_name, dns_policy, node_selector,
                  ssh_private_key, ssh_public_keys, priority_class,
-                 is_preemption_allowed, is_host_network, is_host_ipc,
-                 is_privileged, is_debug):
+                 max_retry_count, is_preemption_allowed, is_host_network,
+                 is_host_ipc, is_privileged, is_debug):
         self.init_image = init_image # str, maybe None
         self.labels = labels # map
         self.annotations = annotations # map
@@ -59,6 +59,7 @@ class Framework(object):
         self.ssh_private_key = ssh_private_key # str
         self.ssh_public_keys = ssh_public_keys # list of str
         self.priority_class = priority_class # str
+        self.max_retry_count = max_retry_count # int
         self.is_preemption_allowed = is_preemption_allowed # bool
         self.is_host_network = is_host_network # bool
         self.is_host_ipc = is_host_ipc # bool
@@ -624,7 +625,7 @@ def gen_framework_spec(job):
             "executionType": "Start",
             "retryPolicy": {
                 "fancyRetryPolicy": True,
-                "maxRetryCount": 3,
+                "maxRetryCount": job.max_retry_count,
             },
             "taskRoles": gen_task_roles(job)
         }
@@ -702,6 +703,7 @@ def transform_regular_job(params, cluster_config):
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
         params.get("priority_class"),
+        int(params.get("max_retry_count", "3")),
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
@@ -770,6 +772,7 @@ def transform_distributed_job(params, cluster_config):
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
         params.get("priority_class"),
+        int(params.get("max_retry_count", "3")),
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
@@ -834,6 +837,7 @@ def transform_inference_job(params, cluster_config):
         params.get("private_key", ""),
         params.get("ssh_public_keys", []),
         params.get("priority_class"),
+        int(params.get("max_retry_count", "3")),
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
