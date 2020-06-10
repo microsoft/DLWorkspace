@@ -8,7 +8,7 @@ matrix:
     - npm run check:frontend
     - npm run lint:backend
     - npm run coverage:backend
-    after_success: npx nyc --nycrc-path server/.nycrc.js report --reporter=text-lcov | npx coveralls
+    after_success: npx nyc --nycrc-path server/.nycrc.js report --reporter=text-lcov | COVERALLS_PARALLEL=true npx coveralls ../../
   - language: python
     python: 3.6
     before_install:
@@ -76,3 +76,19 @@ matrix:
       - pip install requests markdown_strings
     script:
       - python -m unittest discover .
+  - language: python
+    python: 3.5
+    before_install:
+      - cd src/docker-images/azure-blob-adapter
+    install:
+      - pip install pipenv
+      - pipenv install --dev --system --deploy
+    script:
+      - pipenv run lint
+      - pipenv run test
+    after_success:
+      - pip install python-coveralls
+      - COVERALLS_PARALLEL=true coveralls --base_dir ../../../
+
+notifications:
+  webhooks: https://coveralls.io/webhook
