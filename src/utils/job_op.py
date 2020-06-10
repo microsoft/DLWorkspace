@@ -10,7 +10,7 @@ class JobOp(object):
 
 
 class KillOp(JobOp):
-    def __init__(self):
+    def __init__(self, desc):
         from_states = {
             "unapproved",
             "queued",
@@ -20,6 +20,7 @@ class KillOp(JobOp):
             "paused",
         }
         super().__init__("kill", "killed", from_states, "killing")
+        self.desc = desc
 
 
 class PauseOp(JobOp):

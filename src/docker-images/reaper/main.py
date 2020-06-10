@@ -33,7 +33,11 @@ def kill():
             logger.info("processing alert of %s", alert)
             if not dry_run:
                 job_name = alert["labels"]["job_name"]
-                params = {"jobId": job_name, "userName": "Administrator"}
+                params = {
+                    "jobId": job_name,
+                    "userName": "Administrator",
+                    "desc": "killed because the job is being idle too long"
+                }
                 args = urllib.parse.urlencode(params)
                 url = restful_url + "/KillJob?" + args
 
