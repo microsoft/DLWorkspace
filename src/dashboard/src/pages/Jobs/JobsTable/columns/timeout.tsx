@@ -14,6 +14,7 @@ import { get, isFinite } from 'lodash';
 
 import {
   Input,
+  InputAdornment,
   Typography,
 } from '@material-ui/core';
 import { Column } from 'material-table';
@@ -87,7 +88,8 @@ const TimeoutField: FunctionComponent<TimeoutFieldProps> = ({ job }) => {
       <Input
         inputRef={input}
         type="number"
-        placeholder="(Disabled)"
+        placeholder="N/A"
+        endAdornment={<InputAdornment position="end">s</InputAdornment>}
         defaultValue={defaultTimeout}
         disabled={busy}
         fullWidth
@@ -105,9 +107,9 @@ const TimeoutField: FunctionComponent<TimeoutFieldProps> = ({ job }) => {
     );
   } else {
     if (isFinite(defaultTimeout)) {
-      return <>{defaultTimeout}</>;
+      return <>{defaultTimeout} s</>;
     } else {
-      return <Typography variant="inherit" color="textSecondary">(Disabled)</Typography>;
+      return <Typography variant="inherit" color="textSecondary">N/A</Typography>;
     }
   }
 };
