@@ -55,15 +55,15 @@ default_config_parameters = {
     "node-exporter": {
         "port": 9100
     },
-    "lustre-exporter": {
-        "port": 9103
-    },
     "watchdog": {
         "port": 9101
     },
     "grafana": {
         "port": 3000,
         "prometheus-ip": "localhost"
+    },
+    "dashboard": {
+        "port": 80,
     },
     "alert-manager": {
         "port": 9093,
@@ -115,7 +115,6 @@ default_config_parameters = {
     # StorageManager mapping
     "storagemanager": "storagemanager",
     "repairmanager": "repairmanager",
-    "repairmanageretcd": "repairmanageretcd",
     "repairmanageragent": "repairmanageragent",
     "ssh_cert": "./deploy/sshkey/id_rsa",
     "admin_username": "core",
@@ -310,6 +309,7 @@ default_config_parameters = {
         "storagemanager": "nfs_node",
         "user-synchronizer": "etcd_node_1",
         "job-insighter": "etcd_node_1",
+        "dashboard": "etcd_node_1",
     },
     "default_kube_labels_by_node_role": {
         'infra': {
@@ -832,11 +832,10 @@ default_config_parameters = {
             "gpu-reporter",
             "reaper",
             "job-exporter",
-            "lustre-exporter"
         ],
         "dashboard": ["dashboard"],
         "restfulapi": ["restfulapi"],
-        "repairmanager": ["repairmanager", "repairmanageretcd"],
+        "repairmanager": ["repairmanager"],
         "storagemanager": ["storagemanager"],
         "user-synchronizer": ["user-synchronizer"],
         "logging": ["azure-blob-adapter"]
@@ -844,7 +843,6 @@ default_config_parameters = {
     "infiniband_mounts": [],
     "custom_mounts": [],
     "enable_blobfuse": False,
-
     "enable_custom_registry_secrets": False,
 }
 

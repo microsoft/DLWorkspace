@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { Tooltip } from '@material-ui/core';
 
 import { formatDateDistance } from '../../../../../utils/formats';

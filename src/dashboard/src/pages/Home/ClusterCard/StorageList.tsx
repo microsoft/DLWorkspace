@@ -1,26 +1,24 @@
-import React, {
+import * as React from 'react';
+import {
   FunctionComponent,
-  MouseEvent,
   useCallback,
   useContext,
   useMemo
 } from 'react';
 import {
-  Avatar,
+  Box,
   List,
   ListItem,
   ListItemText,
+  ListSubheader,
   LinearProgress,
-  ListItemAvatar,
-  Tooltip,
+  Typography,
+  createStyles,
+  makeStyles,
 } from '@material-ui/core';
-import { Folder, FolderShared } from '@material-ui/icons';
-import { useSnackbar } from 'notistack';
-import copy from 'clipboard-copy';
 
 import {
   each,
-  endsWith,
   includes,
   get,
   last,
@@ -35,7 +33,91 @@ import UserContext from '../../../contexts/User';
 import { formatBytes, formatPercent } from '../../../utils/formats';
 import { useCluster } from './Context';
 
-const LIST_ITEM_HEIGHT = 64;
+const LIST_ITEM_HEIGHT = 48;
+const CONTAINER_HOME_PATH = '/data'
+
+const useListStyles = makeStyles(() => createStyles({
+  root: {
+    height: LIST_ITEM_HEIGHT * 3,
+    overflow: 'auto',
+  },
+}));
+
+const useListSubheaderStyles = makeStyles(() => createStyles({
+  root: {
+    height: LIST_ITEM_HEIGHT,
+    textAlign: 'center',
+  }
+}));
+
+const useListItemStyles = makeStyles((theme) => createStyles({
+  root: {
+    height: LIST_ITEM_HEIGHT,
+  },
+}))
+
+const useLinearProgressStyles = makeStyles((theme) => createStyles({
+  root: {
+    height: 10,
+  },
+  bar: {
+    backgroundColor: (ratio: number) => {
+      if (ratio <= .8) return theme.palette.success.main;
+      if (ratio <= .9) return theme.palette.warning.main;
+      return theme.palette.error.main;
+    }
+  },
+  colorPrimary: {
+    backgroundColor: theme.palette.grey[400],
+  },
+}));
+
+interface StorageListItemProps {
+  containerPath: string;
+  sambaPath: string;
+  size?: number;
+  available?: number;
+}
+
+const StorageListItem: FunctionComponent<StorageListItemProps> = ({ containerPath, size, available }) => {
+  const ratio = useMemo(() => {
+    if (size === undefined) return 0;
+    if (available === undefined) return 0;
+    return 1 - available / size;
+  }, [size, available]);
+  const listItemStyles = useListItemStyles();
+  const linearProgressStyles = useLinearProgressStyles(ratio);
+
+  const primary = (
+    <LinearProgress
+      variant="determinate"
+      value={ratio * 100}
+      classes={linearProgressStyles}
+    />
+  );
+  const secondary = (
+    <Box display="flex" justifyContent="space-between">
+      <Typography variant="caption" color="inherit">{containerPath}</Typography>
+      <Typography variant="caption" color="inherit">
+        {
+          available !== undefined && size !== undefined
+            ? `(${formatBytes(size - available)}/${formatBytes(size)}) ${formatPercent(ratio, 0)} used`
+            : 'Loading...'
+        }
+      </Typography>
+    </Box>
+  );
+
+  return (
+    <ListItem classes={listItemStyles}>
+      <ListItemText
+        primary={primary}
+        secondary={secondary}
+        disableTypography
+      />
+    </ListItem>
+  );
+}
 
 const joinPath = (...paths: string[]) => paths
   .filter(Boolean).map(path => path.replace(/^\/|\/$/g, '')).join('/')
@@ -43,7 +125,6 @@ const joinPath = (...paths: string[]) => paths
 const StorageList: FunctionComponent = () => {
   const { email } = useContext(UserContext);
   const { currentTeamId } = useContext(TeamContext);
-  const { enqueueSnackbar } = useSnackbar();
   const { status } = useCluster();
 
   const grafana = useMemo(() => {
@@ -56,7 +137,7 @@ const StorageList: FunctionComponent = () => {
 
   const getContainerPath = useCallback((mountpoint: string) => {
     if (!mountpoint) return;
-    if (endsWith(mountpoint, '/mntdlws/nfs')) return '~';
+    if (includes(mountpoint, '/mntdlws/nfs')) return CONTAINER_HOME_PATH;
     const directories = mountpoint.split('/');
     if (includes(directories, currentTeamId)) {
       return '/' + last(directories);
@@ -73,8 +154,8 @@ const StorageList: FunctionComponent = () => {
     return email.split('@', 1)[0]
   }, [email]);
   const getMountpointUrl = useCallback((containerPath: string) => {
-    if (!containerPath) return;
-    if (containerPath === '~') return joinPath(workStorage, userName);
+    if (!containerPath) return joinPath(workStorage);
+    if (containerPath === CONTAINER_HOME_PATH) return joinPath(workStorage, userName);
     return joinPath(workStorage, currentTeamId, containerPath);
   }, [workStorage, userName, currentTeamId]);
 
@@ -102,62 +183,40 @@ const StorageList: FunctionComponent = () => {
     })
     return sortBy(map(mountpointMap,
       ({ size, available }, containerPath) => ({ containerPath, size, available })
-    ), 'containerPath');
+    ), ({ containerPath }) => containerPath !== CONTAINER_HOME_PATH ? containerPath : '~');
   }, [size, available, getContainerPath]);
 
-  const handleClick = useCallback((event: MouseEvent<HTMLAnchorElement, unknown>) => {
-    event.preventDefault();
+  const listStyles = useListStyles();
+  const listHeaderStyles = useListSubheaderStyles();
 
-    const { href } = event.currentTarget;
-    copy(href);
-    enqueueSnackbar(<div>{'Copied '}<code>{href}</code>{' to clipboard'}</div>, {
-      variant: 'info'
-    });
-  }, [enqueueSnackbar]);
+  const subheader = (
+    <ListSubheader
+      disableSticky
+      color="inherit"
+      classes={listHeaderStyles}
+    >
+      <Typography variant="h6" color="inherit">
+        {mountpoints.length > 0 ? 'Storages' : 'Loading Storages...'}
+      </Typography>
+    </ListSubheader>
+  );
 
   return (
     <List
       dense
       disablePadding
-      component="div"
-      style={{ height: LIST_ITEM_HEIGHT * 2, overflow: 'auto' }}
+      subheader={subheader}
+      classes={listStyles}
     >
       { mountpoints.map(({ containerPath, size, available }) => {
-        const loading = size == null || available == null;
-        const href = getMountpointUrl(containerPath);
-        const tooltipTitle = <><code>{href}</code><br/>Click to copy to clipboard</>;
-        const primary = <code>{containerPath}</code>;
-        const ratio = loading ? 0 : 1 - available / size;
-        const secondary = (
-          <>
-            <LinearProgress
-              variant="determinate"
-              value={ratio * 100}
-              color={ratio > .8 ? 'secondary' : 'primary'}
-            />
-            {
-              loading
-                ? 'Loading...'
-                : `${formatBytes(size - available)} / ${formatBytes(size)} (${formatPercent(ratio, 0)})`
-            }
-
-          </>
-        );
+        const sambaPath = getMountpointUrl(containerPath);
         return (
-          <Tooltip key={containerPath} title={tooltipTitle}>
-            <ListItem button component="a" href={href} onClick={handleClick}>
-              <ListItemAvatar>
-                <Avatar>
-                  { containerPath === '~' ? <FolderShared/> : <Folder/>}
-                </Avatar>
-              </ListItemAvatar>
-              <ListItemText
-                primary={primary}
-                secondary={secondary}
-                secondaryTypographyProps={{ component: 'div' }}
-              />
-            </ListItem>
-          </Tooltip>
+          <StorageListItem
+            containerPath={containerPath}
+            sambaPath={sambaPath}
+            size={size}
+            available={available}
+          />
         );
       }) }
     </List>

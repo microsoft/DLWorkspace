@@ -9,13 +9,12 @@ from utils import k8s_util
 import time
 import requests
 
-class MigrateJobAction(Action):
 
+class MigrateJobAction(Action):
     def __init__(self, rest_url, max_attempts=5):
         self.action_logger = logging.getLogger('activity')
         self.rest_url = rest_url
         self.max_attempts = max_attempts
-
 
     def wait_for_job_to_pause(self, job_id, wait_time=30, dry_run=False):
         pause_complete = False
@@ -34,10 +33,10 @@ class MigrateJobAction(Action):
                         and status_resp["jobStatus"] == "paused":
                         pause_complete = True
                 except:
-                    logging.exception(f'Error retrieving data from {status_url}')
-                attempts+=1
+                    logging.exception(
+                        f'Error retrieving data from {status_url}')
+                attempts += 1
         return pause_complete
-
 
     def execute(self, job_id, job_owner_email, wait_time=30, dry_run=False):
         migrate_success = False
@@ -45,10 +44,12 @@ class MigrateJobAction(Action):
         pause_job = PauseJobAction(self.rest_url, self.max_attempts)
         pause_success = pause_job.execute(job_id, job_owner_email, dry_run)
         if pause_success:
-            pause_complete = self.wait_for_job_to_pause(job_id, wait_time, dry_run)
+            pause_complete = self.wait_for_job_to_pause(job_id, wait_time,
+                                                        dry_run)
             if pause_complete:
                 resume_job = ResumeJobAction(self.rest_url, self.max_attempts)
-                migrate_success = resume_job.execute(job_id, job_owner_email, dry_run)
+                migrate_success = resume_job.execute(job_id, job_owner_email,
+                                                     dry_run)
 
         self.action_logger.info({
             "action": "migrate job",
@@ -56,5 +57,5 @@ class MigrateJobAction(Action):
             "job_owner_email": job_owner_email,
             "dry_run": dry_run,
             "success": migrate_success
-            })
+        })
         return migrate_success

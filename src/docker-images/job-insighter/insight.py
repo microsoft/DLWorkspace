@@ -9,6 +9,7 @@ import requests
 import timeit
 import urllib.parse
 import time
+import markdown_strings as md
 
 from datetime import datetime, timedelta
 
@@ -243,7 +244,7 @@ class Insighter(object):
         self.max_memory_per_gpu = None
 
         # Generate insight messages
-        self.messages = []
+        self.diagnostics = ""
 
     def export(self):
         """Valid call after generate"""
@@ -251,17 +252,7 @@ class Insighter(object):
             "job_id": self.job_id,
             "since": self.since,
             "end": self.end,
-            "job_timespan": self.job_timespan,
-            "num_gpus": self.num_gpus,
-            "num_idle_gpus": len(self.idle_gpus),
-            "num_active_gpus": len(self.active_gpus),
-            "avg_active_gpu_util": self.active_gpu_util,
-            "avg_active_gpu_memory_util": self.active_gpu_memory_util,
-            "avg_cpu_per_active_gpu": self.cpu_per_active_gpu,
-            "avg_memory_per_active_gpu": self.memory_per_active_gpu,
-            "max_cpu_per_gpu": self.max_cpu_per_gpu,
-            "max_memory_per_gpu": self.max_memory_per_gpu,
-            "messages": self.messages,
+            "diagnostics": self.diagnostics,
         }
 
     def generate(self):
@@ -274,8 +265,8 @@ class Insighter(object):
         # Max resource limit for the job
         self.gen_usage_limit()
 
-        # Generate insight messages
-        self.gen_messages()
+        # Generate insight diagnostics
+        self.gen_diagnostics()
 
     def gen_job_timespan(self):
         timespans = [timespan(ts) for _, ts in self.job_util["gpu"].items()]
@@ -330,43 +321,50 @@ class Insighter(object):
         }
         return gpu, gpu_memory, cpu, memory
 
-    def gen_messages(self):
-        if self.job_timespan < 600:
-            self.messages.append("Insight will be available when more metric "
-                                 "samples are collected for the job.")
+    def gen_diagnostics(self):
+        insight_timespan_threshold = 10 * 60  # 10 min
+        if self.job_timespan < insight_timespan_threshold:
+            msg = "Insight will be available when more metric samples are " \
+                  "collected.\n"
+            self.diagnostics += msg
             return
 
         # Check idleness
+        self.diagnostics += md.header("GPU Idleness", 2) + "\n"
         if len(self.idle_gpus) == self.num_gpus:
-            self.messages.append(
-                "All of %s GPU(s) in the job are idle. Please consider killing "
-                "the job if you do not need it any more." % len(self.idle_gpus))
+            msg = md.bold("All of %s GPU(s) in the job are idle. " %
+                          len(self.idle_gpus))
+            msg += "Please consider killing the job if you no longer need it.\n"
+            self.diagnostics += msg
             return
         elif len(self.idle_gpus) > 0:
-            self.messages.append(
-                "There are %s idle GPU(s) in the job. If you are running a "
-                "job on all GPUs, please check if your job is hanging. If you "
-                "do not need all GPUs in the job, please consider killing the "
-                "job and request a new job with smaller number of GPUs." %
-                len(self.idle_gpus))
+            msg = md.bold("There are %s idle GPU(s) in the job.\n" %
+                          len(self.idle_gpus))
+            c1 = "If you are running a job on all GPUs, please check if the process(es) on the idle GPU(s) have died/hung"
+            c2 = "If you do not need all GPUs in the job, please consider killing the job and request a new job with fewer GPUs."
+            msg += md.unordered_list([c1, c2]) + "\n"
+            self.diagnostics += msg
         else:
-            self.messages.append("All GPU(s) are active.")
+            self.diagnostics += md.bold("All GPU(s) are active.") + "\n"
+        self.diagnostics += "\n"
 
         # Check Resource usage for active GPUs
+        self.diagnostics += md.header("Active GPU Utilization", 2) + "\n"
         good_gpu_util_threshold = 90
         good_gpu_mem_util_threshold = 50
         if self.active_gpu_util >= good_gpu_util_threshold:
-            self.messages.append("Average active GPU utilization over time "
-                                 "is good at %.2f%%." % self.active_gpu_util)
+            msg = "Average active GPU utilization over time is good at " \
+                  "%.2f%%.\n" % self.active_gpu_util
+            self.diagnostics += msg
         else:
-            self.messages.append(
-                "Average active GPU utilization over time is below "
-                "%s%%. You can take below suggestions to potentially "
-                "boost GPU utilization." % good_gpu_util_threshold)
+            msg = "Average active GPU utilization over time is " \
+                  "%.2f%% < %s%%. You can try below suggestions to boost " \
+                  "GPU utilization:\n" % \
+                  (self.active_gpu_util, good_gpu_util_threshold)
 
-            messages = []
+            suggestions = []
             if self.active_gpu_memory_util < good_gpu_mem_util_threshold:
-                messages.append(
+                suggestions.append(
                     "Average active GPU memory utilization over time is below "
                     "%s%%. Try increasing batch size to put more data "
                     "onto GPU memory to boost GPU utilization. For a "
@@ -378,7 +376,7 @@ class Insighter(object):
 
             if self.max_cpu_per_gpu is not None and \
                     self.cpu_per_active_gpu < self.max_cpu_per_gpu:
-                messages.append(
+                suggestions.append(
                     "The job uses %.2f CPU cores per active GPU on average"
                     "over time. The maximum CPU cores per GPU you can "
                     "use without interfering with other GPUs in this "
@@ -391,7 +389,7 @@ class Insighter(object):
 
             if self.max_memory_per_gpu is not None and \
                     self.memory_per_active_gpu < self.max_memory_per_gpu:
-                messages.append(
+                suggestions.append(
                     "The job uses %.2fG memory per active GPU on average"
                     "over time. The maximum memory per GPU you can "
                     "use without interfering with other GPUs in this "
@@ -402,20 +400,20 @@ class Insighter(object):
                                       self.max_memory_per_gpu / G)
                 )
 
-            messages.append(
+            suggestions.append(
                 "Please check if your program is waiting on NFS I/O. "
                 "If so, please consider using scalable storage, e.g. "
                 "Azure blob."
             )
 
-            messages.append(
-                "Suggestions above are purely based on average usage over "
-                "time. Please take a closer look at METRICS tab to better"
-                "understand the utilization pattern of GPU, GPU "
-                "memory, CPU and memory over time for further optimization. "
+            suggestions.append(
+                "Suggestions above are purely based on average usage over a "
+                "time window. Please take a closer look at METRICS tab to "
+                "better understand the utilization pattern of GPU, GPU "
+                "memory, CPU and memory over time for further optimization."
             )
-
-            self.messages.append(messages)
+            msg += md.unordered_list(suggestions) + "\n"
+            self.diagnostics += msg + "\n"
 
 
 def get_job_utils(task_gpu_percent, task_gpu_mem_percent, task_cpu_percent,
@@ -508,9 +506,9 @@ def upload_insights(insights, restful_url, dry_run):
             logger.exception("failed to upload insight for %s", job_id)
 
 
-def run(prometheus_url, hours_ago, restful_url, dry_run):
+def run(prometheus_url, mins_ago, restful_url, dry_run):
     now = datetime.now()
-    since = int(datetime.timestamp(now - timedelta(hours=hours_ago)))
+    since = int(datetime.timestamp(now - timedelta(minutes=mins_ago)))
     end = int(datetime.timestamp(now))
     step = "1m"
 
@@ -549,7 +547,7 @@ def run(prometheus_url, hours_ago, restful_url, dry_run):
 def main(params):
     while True:
         try:
-            run(params.prometheus_url, params.hours_ago, params.restful_url,
+            run(params.prometheus_url, params.mins_ago, params.restful_url,
                 params.dry_run)
         except:
             logger.exception("failed in current run of job insight")
@@ -569,11 +567,11 @@ if __name__ == "__main__":
                         "-p",
                         required=True,
                         help="Prometheus url, eg: http://localhost:9091")
-    parser.add_argument("--hours_ago",
+    parser.add_argument("--mins_ago",
                         "-a",
-                        default=1,
+                        default=15,
                         type=int,
-                        help="Collect metrics since hours ago. Default: 1")
+                        help="Collect metrics since minutes ago. Default: 15")
     parser.add_argument("--restful_url",
                         "-r",
                         required=True,

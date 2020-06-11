@@ -1,4 +1,5 @@
-import React, {
+import * as React from 'react';
+import {
   FunctionComponent,
   useCallback,
   useContext,
@@ -89,49 +90,49 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
       </Tooltip>
     ),
     width: 'auto'
-  } as Column<any>, {
+  }, {
     title: 'Worker',
     field: 'worker',
     width: 'auto'
-  } as Column<any>, {
+  }, {
     title: 'Team',
     field: 'team',
     width: 'auto'
-  } as Column<any>, {
+  }, {
     title: 'User',
     field: 'user',
     width: 'auto'
-  } as Column<any>, {
+  }, {
     title: 'CPU',
     field: 'cpu',
     type: 'numeric',
     width: 'auto'
-  } as Column<any>, {
+  }, {
     title: 'GPU',
     field: 'gpu',
     type: 'numeric',
     width: 'auto'
-  } as Column<any>, {
+  }, {
     title: 'Memory',
     field: 'memoty',
     type: 'numeric',
     render: ({ memory }) => <>{formatBytes(memory)}</>,
     width: 'auto'
-  } as Column<any>, {
+  }, {
     title: 'Assigned GPU Utilization',
     field: 'gpuMetrics.utilization',
     type: 'numeric',
-    render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && <>{formatPercent(Number(gpuMetrics.utilization))}</>
-  } as Column<any>, {
+    render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && <>{formatPercent(Number(gpuMetrics.utilization) / 100)}</>
+  }, {
     title: 'GPU Idle',
     field: 'gpuMetrics.idle',
     type: 'numeric',
-    render: ({ gpuMetrics }) => gpuMetrics && typeof gpuMetrics.idle === 'number' && (
-      <Typography variant="inherit" color={gpuMetrics.idle > 0 ? "error" : "inherit"}>
-        {gpuMetrics.idle}
+    render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && (
+      <Typography variant="inherit" color={(gpuMetrics.idle || 0) > 0 ? "error" : "inherit"}>
+        {(gpuMetrics.idle || 0)}
       </Typography>
     )
-  } as Column<any>]).current;
+  }]).current;
   const options = useMemo<Options>(() => ({
     padding: "dense",
     paging: false,

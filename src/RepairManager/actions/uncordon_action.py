@@ -5,8 +5,8 @@ import logging
 from action_abc import Action
 from utils import k8s_util
 
-class UncordonAction(Action):
 
+class UncordonAction(Action):
     def __init__(self):
         self.action_logger = logging.getLogger('activity')
 
@@ -18,5 +18,5 @@ class UncordonAction(Action):
             "node": node_name,
             "dry_run": dry_run,
             "status": uncordon_status
-            })
+        })
         return uncordon_status

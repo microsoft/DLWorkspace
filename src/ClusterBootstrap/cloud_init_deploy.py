@@ -521,7 +521,7 @@ def render_infra_node_specific(config, args):
     config["kube_labels"] = get_kube_labels_of_machine_name(config, hostname)
     # TODO zx: we may need to def get_file_modules_2_copy_by_node_role() to make it more extendable.
     config["file_modules_2_copy"] = ["kubernetes_common", "kubernetes_infra", "etcd",
-                                     "ip_resolve", "restfulapi", "dashboard", "nfs_client", "repairmanager"]
+                                     "ip_resolve", "restfulapi", "nfs_client", "repairmanager"]
     utils.render_template("./template/cloud-config/cloud_init_infra.txt.template",
                           "./deploy/cloud-config/cloud_init_infra.txt", config)
 

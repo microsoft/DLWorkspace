@@ -32,7 +32,7 @@ echo "{{ fileshare }} {{range}}(rw,fsid=1,nohide,insecure,sync,no_subtree_check,
 
 # Get number of CPU
 num_cores=$(grep -c ^processor /proc/cpuinfo)
-num_nfsd=$((${num_cores} * 2))
+num_nfsd=$((${num_cores} * 4))
 sudo sed -i "s/RPCNFSDCOUNT=8/RPCNFSDCOUNT=${num_nfsd}/" /etc/default/nfs-kernel-server
 grep RPCNFSDCOUNT /etc/default/nfs-kernel-server
 

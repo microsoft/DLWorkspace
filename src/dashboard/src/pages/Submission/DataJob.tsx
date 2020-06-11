@@ -1,4 +1,5 @@
-import React, {useEffect, useState} from "react";
+import * as React from 'react';
+import {useEffect, useState} from "react";
 import { TransitionProps } from '@material-ui/core/transitions';
 import {
   Card,
@@ -138,7 +139,7 @@ const DataJob: React.FC = (props: any) => {
       "cd /DataUtils && ./copy_data.sh",
       convertURI("adls", dataJob.fromFolder),
       convertURI("nfs", dataJob.toFolder),
-      "False 33554432 4 8 2>/dev/null"
+      "False 33554432 4 8"
     ].join(" ");
     return dataJob;
   }

@@ -1,4 +1,5 @@
-import React, {
+import * as React from 'react';
+import {
   FunctionComponent,
   useCallback,
   useContext,
@@ -38,7 +39,7 @@ const useClusterStatus = (clusterId: string) => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const { data, loading, error, get } = useFetch(
-    `/api/v2/teams/${currentTeamId}/clusters/${clusterId}`,
+    `/api/v2/clusters/${clusterId}/teams/${currentTeamId}`,
     undefined,
     [clusterId, currentTeamId]);
 
@@ -133,8 +134,6 @@ const Clusters: FunctionComponent = () => {
       render: (data) => data.clusterId == null
         ? <UILink variant="subtitle2" component={RouterLink} to={data.id}>{data.id}</UILink>
         : <Typography variant="subtitle2">{data.id}</Typography>,
-      // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-      // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
       width: 'auto'
     });
 
@@ -147,8 +146,6 @@ const Clusters: FunctionComponent = () => {
       render: ({ metrics }) => metrics !== undefined ? (
         <>{Number(metrics).toFixed(2)}%</>
       ): null,
-      // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-      // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
       width: 'auto'
     }, {
       title: 'Running Jobs',
@@ -161,8 +158,6 @@ const Clusters: FunctionComponent = () => {
           </UILink>
         </Tooltip>
       ) : null,
-      // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-      // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
       width: 'auto'
     });
 
@@ -178,7 +173,7 @@ const Clusters: FunctionComponent = () => {
   }, []);
 
   return (
-    <Container>
+    <Container fixed maxWidth="xl">
       <SvgIconsMaterialTable
         title="Clusters"
         data={data}

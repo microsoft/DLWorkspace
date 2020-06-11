@@ -322,7 +322,8 @@ class ScaleJob(Resource):
         job_id = args["jobId"]
         username = args["userName"]
         resourcegpu = int(args["resourcegpu"])
-        msg, status_code = JobRestAPIUtils.scale_inference_job(username, job_id, resourcegpu)
+        msg, status_code = JobRestAPIUtils.scale_inference_job(
+            username, job_id, resourcegpu)
         if status_code != 200:
             return msg, status_code
 
@@ -1017,6 +1018,23 @@ class JobPriority(Resource):
         return generate_response(job_priorities)
 
 
+@api.resource("/JobMaxTime")
+class JobMaxTime(Resource):
+    def __init__(self):
+        self.post_parser = reqparse.RequestParser()
+        self.post_parser.add_argument("userName", required=True)
+        self.post_parser.add_argument("jobId", required=True)
+        self.post_parser.add_argument("second", type=int, required=True)
+
+    def post(self):
+        args = self.post_parser.parse_args()
+        username = args["userName"]
+        job_id = args["jobId"]
+        second = args["second"]
+
+        return JobRestAPIUtils.set_job_max_time(username, job_id, second)
+
+
 @api.resource("/Insight")
 class Insight(Resource):
     def __init__(self):
@@ -1044,8 +1062,8 @@ class Insight(Resource):
         username = args.get("userName")
         payload = request.get_json(force=True, silent=True)
 
-        resp, status_code = JobRestAPIUtils.set_job_insight(job_id, username,
-                                                            payload)
+        resp, status_code = JobRestAPIUtils.set_job_insight(
+            job_id, username, payload)
         if status_code != 200:
             return resp, status_code
         return generate_response(resp)

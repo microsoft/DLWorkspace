@@ -76,7 +76,5 @@ class PathNode(object):
             self.subtree_mtime.strftime(DATETIME_FMT),
             self.subtree_ctime.strftime(DATETIME_FMT),
             self.subtree_time.strftime(DATETIME_FMT),
-            bytes2human_readable(self.subtree_size),
-            self.owner,
-            self.path)
+            bytes2human_readable(self.subtree_size), self.owner, self.path)
         return node_info

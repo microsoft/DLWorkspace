@@ -292,7 +292,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('AddStorage Exception: %s', str(e))
+            logger.exception('AddStorage Exception: %s', str(e))
             return False
 
     @record
@@ -306,7 +306,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('DeleteStorage Exception: %s', str(e))
+            logger.exception('DeleteStorage Exception: %s', str(e))
             return False
 
     @record
@@ -327,8 +327,7 @@ class DataHandler(object):
                 record["defaultMountPath"] = defaultMountPath
                 ret.append(record)
         except Exception as e:
-            logger.error('ListStorages Exception: %s', str(e))
-            pass
+            logger.exception('ListStorages Exception: %s', str(e))
         self.conn.commit()
         cursor.close()
         return ret
@@ -346,7 +345,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.exception('Exception: %s', str(e))
             return False
 
     def init_vc_sqls(self, config):
@@ -374,7 +373,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('AddVC Exception: %s', str(e))
+            logger.exception('AddVC Exception: %s', str(e))
             return False
 
     @record
@@ -394,8 +393,28 @@ class DataHandler(object):
                 }
                 ret.append(rec)
         except Exception as e:
-            logger.error('Exception: %s', str(e))
-            pass
+            logger.exception('Exception: %s', str(e))
+        self.conn.commit()
+        cursor.close()
+        return ret
+
+    @record
+    def GetVC(self, vc_name):
+        cursor = self.conn.cursor()
+        query = """SELECT `quota`,`metadata`,`resourceQuota`,`resourceMetadata`
+                    FROM `%s` WHERE vcName = %s """ % (self.vctablename, "%s")
+        ret = {}
+        try:
+            cursor.execute(query, (vc_name,))
+            for quota, metadata, resource_quota, resource_metadata in cursor:
+                ret = {
+                    "quota": quota,
+                    "metadata": metadata,
+                    "resourceQuota": resource_quota,
+                    "resourceMetadata": resource_metadata
+                }
+        except Exception as e:
+            logger.exception('Exception: %s', str(e))
         self.conn.commit()
         cursor.close()
         return ret
@@ -411,7 +430,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('DeleteVC Exception: %s', str(e))
+            logger.exception('DeleteVC Exception: %s', str(e))
             return False
 
     @record
@@ -425,7 +444,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.exception('Exception: %s', str(e))
             return False
 
     @record
@@ -502,7 +521,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('UpdateAce Exception: %s', str(e))
+            logger.exception('UpdateAce Exception: %s', str(e))
             return False
 
     @record
@@ -517,7 +536,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.exception('Exception: %s', str(e))
             return False
 
     @record
@@ -533,7 +552,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.exception('Exception: %s', str(e))
             return False
 
     @record
@@ -549,7 +568,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('DeleteAce Exception: %s', str(e))
+            logger.exception('DeleteAce Exception: %s', str(e))
             return False
 
     @record
@@ -570,8 +589,7 @@ class DataHandler(object):
                 record["isDeny"] = isDeny
                 ret.append(record)
         except Exception as e:
-            logger.error('Exception: %s', str(e))
-            pass
+            logger.exception('Exception: %s', str(e))
         self.conn.commit()
         cursor.close()
         return ret
@@ -594,7 +612,7 @@ class DataHandler(object):
                 record["isDeny"] = isDeny
                 ret.append(record)
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.exception('Exception: %s', str(e))
         self.conn.commit()
         cursor.close()
         return ret
@@ -613,7 +631,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.exception('Exception: %s', str(e))
             return False
 
     @record
@@ -674,7 +692,7 @@ class DataHandler(object):
                 record["lastUpdated"] = lastUpdated
                 ret.append(record)
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.exception('Exception: %s', str(e))
         self.conn.commit()
         cursor.close()
         return ret
@@ -745,7 +763,7 @@ class DataHandler(object):
                     ret["finishedJobs"].append(record)
             self.conn.commit()
         except Exception as e:
-            logger.error('GetJobListV2 Exception: %s', str(e))
+            logger.exception('GetJobListV2 Exception: %s', str(e))
         finally:
             if cursor is not None:
                 cursor.close()
@@ -858,9 +876,9 @@ class DataHandler(object):
 
             self.conn.commit()
         except:
-            logger.error("Exception in getting union job list. status %s",
-                         status,
-                         exc_info=True)
+            logger.exception("Exception in getting union job list. status %s",
+                             status,
+                             exc_info=True)
         finally:
             if cursor is not None:
                 cursor.close()
@@ -1018,22 +1036,24 @@ class DataHandler(object):
         ret = []
         cursor = self.conn.cursor()
         try:
-            query = "SELECT `jobId`, `userName`, `vcName`, `jobParams`, `jobStatus` FROM `%s` WHERE `jobStatus` = 'scheduling' OR `jobStatus` = 'running'" % (
+            query = "SELECT `jobId`, `userName`, `vcName`, `jobParams`, `jobStatus`, `endpoints` FROM `%s` WHERE `jobStatus` = 'scheduling' OR `jobStatus` = 'running'" % (
                 self.jobtablename)
 
             cursor.execute(query)
             data = cursor.fetchall()
 
-            for (jobId, userName, vcName, jobParams, jobStatus) in data:
+            for (jobId, userName, vcName, jobParams, jobStatus,
+                 endpoints) in data:
                 record = {}
                 record["jobId"] = jobId
                 record["userName"] = userName
                 record["vcName"] = vcName
                 record["jobParams"] = jobParams
                 record["jobStatus"] = jobStatus
+                record["endpoints"] = endpoints
                 ret.append(record)
         except Exception as e:
-            logger.error('GetActiveJobList Exception: %s', str(e))
+            logger.exception('GetActiveJobList Exception: %s', str(e))
         self.conn.commit()
         cursor.close()
         return ret
@@ -1086,7 +1106,7 @@ class DataHandler(object):
                 ret.append(record)
             self.conn.commit()
         except Exception as e:
-            logger.error('GetJobV2 Exception: %s', str(e))
+            logger.exception('GetJobV2 Exception: %s', str(e))
         finally:
             if cursor is not None:
                 cursor.close()
@@ -1295,8 +1315,7 @@ class DataHandler(object):
             for (jobId, value) in cursor:
                 ret = value
         except Exception as e:
-            logger.error('Exception: %s', str(e))
-            pass
+            logger.exception('Exception: %s', str(e))
         self.conn.commit()
         cursor.close()
         return ret
@@ -1321,7 +1340,7 @@ class DataHandler(object):
                 ret = dict(list(zip(columns, item)))
             self.conn.commit()
         except Exception as e:
-            logger.error('GetJobTextFields Exception: %s', str(e))
+            logger.exception('GetJobTextFields Exception: %s', str(e))
         finally:
             if cursor is not None:
                 cursor.close()
@@ -1362,7 +1381,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.exception('Exception: %s', str(e))
             return False
 
     @record
@@ -1378,7 +1397,7 @@ class DataHandler(object):
                 ret = json.loads(base64decode(value))
                 time = t
         except Exception as e:
-            logger.error('GetClusterStatus Exception: %s', str(e))
+            logger.exception('GetClusterStatus Exception: %s', str(e))
         self.conn.commit()
         cursor.close()
         return ret, time
@@ -1394,7 +1413,7 @@ class DataHandler(object):
             for (identityName, uid, public_key, private_key) in cursor:
                 ret.append((identityName, uid, public_key, private_key))
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.exception('Exception: %s', str(e))
         self.conn.commit()
         cursor.close()
         return ret
@@ -1452,7 +1471,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.exception('Exception: %s', str(e))
             return False
 
     @record
@@ -1465,7 +1484,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.exception('Exception: %s', str(e))
             return False
 
     @record
@@ -1598,14 +1617,17 @@ class DataHandler(object):
 
             self.conn.commit()
         except:
-            logger.error("Exception in counting rows for table %s", table)
+            logger.exception("Exception in counting rows for table %s", table)
         finally:
             if cursor is not None:
                 cursor.close()
         return ret
 
-    def delete_rows_from_table_older_than_days(self, table, days_ago,
-                                               col="time", cond=None):
+    def delete_rows_from_table_older_than_days(self,
+                                               table,
+                                               days_ago,
+                                               col="time",
+                                               cond=None):
         cursor = None
         ret = False
         try:
@@ -1623,13 +1645,32 @@ class DataHandler(object):
             self.conn.commit()
             ret = True
         except:
-            logger.error(
+            logger.exception(
                 "Exception in deleting rows older than %s in col %s "
                 "for table %s", days_ago, col, table)
         finally:
             if cursor is not None:
                 cursor.close()
         return ret
+
+    def get_old_inactive_jobs(self, days_ago):
+        sql = """SELECT jobId FROM jobs
+                WHERE `jobStatus` IN ('finished','failed','killed','error')
+                AND lastUpdated < NOW() - INTERVAL %s DAY
+                """ % (days_ago)
+        cursor = self.conn.cursor()
+        cursor.execute(sql)
+        result = list(map(lambda x: x[0], cursor))
+        cursor.close()
+        return result
+
+    def delete_jobs(self, jids):
+        cursor = self.conn.cursor()
+        for jid in jids:
+            sql = "DELETE FROM jobs WHERE jobId = %s"
+            cursor.execute(sql, (jid,))
+        self.conn.commit()
+        cursor.close()
 
     def __del__(self):
         logger.debug(

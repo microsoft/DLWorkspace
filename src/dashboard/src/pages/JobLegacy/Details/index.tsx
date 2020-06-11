@@ -1,4 +1,5 @@
-import React, {Fragment, useEffect, useState} from 'react';
+import * as React from 'react';
+import {Fragment, useEffect, useState} from 'react';
 import {
   Theme,
   useTheme,

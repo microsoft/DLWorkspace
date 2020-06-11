@@ -30,6 +30,7 @@ if (require.main === module) {
       cert: SSL_CERT
     })
   }
+
   server.on('request', app.callback())
-  server.listen(PORT, HOST)
+  server.listen(Number(PORT), HOST)
 }

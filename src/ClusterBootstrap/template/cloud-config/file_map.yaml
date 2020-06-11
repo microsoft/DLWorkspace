@@ -108,9 +108,6 @@ ip_resolve:
 restfulapi:
   - dst: /etc/RestfulAPI/config.yaml
     src: ./deploy/RestfulAPI/config.yaml
-dashboard:
-  - dst: /etc/dashboard/production.yaml
-    src: ./deploy/dashboard/production.yaml
 nfs_client:
   - dst: /etc/systemd/system/auto_share.timer
     src: ./deploy/storage/auto_share/auto_share.timer

@@ -1,4 +1,5 @@
-import React, {
+import * as React from 'react';
+import {
   FunctionComponent,
   ChangeEvent,
   FormEvent,
@@ -40,9 +41,13 @@ const EndpointListItem: FunctionComponent<{ endpoint: any }> = ({ endpoint }) =>
   if (endpoint.name === 'ssh') {
     const identify = `${cluster['workStorage'].replace(/^file:\/\//i, '//')}/${job['jobParams']['workPath']}/.ssh/id_rsa`
     const host = `${endpoint['nodeName']}.${endpoint['domain']}`;
-    const task = job['jobParams']['jobtrainingtype'] === 'PSDistJob' ? endpoint['podName'].split('-').pop() : '';
+    const task = job['jobParams']['jobtrainingtype'] === 'PSDistJob'
+      ? endpoint['role-name'] && endpoint['role-idx']
+        ? `SSH to ${endpoint['role-name']}-${endpoint['role-idx']}`
+        : `SSH to ${endpoint['podName'].split('-').pop()}`
+      : 'SSH';
     const command = `ssh -i ${identify} -p ${endpoint['port']} ${endpoint['username']}@${host}`
-    return <CopyableTextListItem primary={`SSH${task ? ` to ${task}` : ''}`} secondary={command}/>;
+    return <CopyableTextListItem primary={task} secondary={command}/>;
   }
   const url = `http://${endpoint['nodeName']}.${endpoint['domain']}:${endpoint['port']}/`
   if (endpoint.name === 'ipython') {

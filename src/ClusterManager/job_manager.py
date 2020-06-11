@@ -166,11 +166,11 @@ def update_job_state_latency(redis_conn, job_id, state, event_time=None):
         set_job_status(redis_conn, job_id, job_status)
 
 
-def GetJobTotalGpu(jobParams):
-    numWorkers = 1
-    if "numpsworker" in jobParams:
-        numWorkers = int(jobParams["numpsworker"])
-    return int(jobParams["resourcegpu"]) * numWorkers
+def get_job_total_gpu(job_params):
+    num_workers = 1
+    if "numpsworker" in job_params:
+        num_workers = int(job_params["numpsworker"])
+    return int(job_params["resourcegpu"]) * num_workers
 
 
 @record
@@ -185,7 +185,7 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
                                  event_time=job["jobTime"])
 
         jobParams = json.loads(b64decode(job["jobParams"]))
-        job_total_gpus = GetJobTotalGpu(jobParams)
+        job_total_gpus = get_job_total_gpu(jobParams)
 
         if dataHandlerOri is None:
             dataHandler = DataHandler()
@@ -239,7 +239,7 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
                 if "preemptionAllowed" in running_jobParams and running_jobParams[
                         "preemptionAllowed"] is True:
                     continue
-                running_job_total_gpus = GetJobTotalGpu(running_jobParams)
+                running_job_total_gpus = get_job_total_gpu(running_jobParams)
                 running_gpus += running_job_total_gpus
 
             logger.info(
@@ -322,7 +322,8 @@ def UpdateJobStatus(redis_conn,
 
         dataFields = {
             "jobStatusDetail": b64encode(json.dumps(detail)),
-            "jobStatus": "finished"
+            "jobStatus": "finished",
+            "lastUpdated": datetime.datetime.now().isoformat(),
         }
         conditionFields = {"jobId": job["jobId"]}
         dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -344,9 +345,12 @@ def UpdateJobStatus(redis_conn,
                 "message": "started at: {}".format(started_at)
             }]
 
+            last_updated = datetime.datetime.now()
+
             dataFields = {
                 "jobStatusDetail": b64encode(json.dumps(detail)),
-                "jobStatus": "running"
+                "jobStatus": "running",
+                "lastUpdated": last_updated.isoformat(),
             }
             conditionFields = {"jobId": job["jobId"]}
             dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -355,6 +359,28 @@ def UpdateJobStatus(redis_conn,
                     notify.new_job_state_change_message(job["userName"],
                                                         job["jobId"],
                                                         result.strip()))
+            job["lastUpdated"] = last_updated
+
+        params = json.loads(base64decode(job["jobParams"]))
+        max_time = params.get("maxTimeSec")
+        if type(max_time) != int:
+            if max_time is not None:
+                logger.info("unknown maxTimeSec %s for job %s", max_time,
+                            job["jobId"])
+        else:
+            max_time = int(max_time)
+            start_time = int(datetime.datetime.timestamp(job["lastUpdated"]))
+            now = datetime.datetime.timestamp(datetime.datetime.now())
+            if start_time + max_time < now:
+                logger.info(
+                    "killing job %s for its running time exceed maxTimeSec %ss, start %s, now %s",
+                    job["jobId"], max_time, start_time, now)
+                dataFields = {
+                    "errorMsg": "running exceed pre-defined %ss" % (max_time),
+                }
+                conditionFields = {"jobId": job["jobId"]}
+                dataHandler.UpdateJobTextFields(conditionFields, dataFields)
+                launcher.kill_job(job["jobId"], "killed")
 
     elif result == "Failed":
         now = datetime.datetime.now()
@@ -380,7 +406,8 @@ def UpdateJobStatus(redis_conn,
         dataFields = {
             "jobStatusDetail": b64encode(json.dumps(detail)),
             "jobStatus": "failed",
-            "errorMsg": diagnostics
+            "errorMsg": diagnostics,
+            "lastUpdated": datetime.datetime.now().isoformat(),
         }
         conditionFields = {"jobId": job["jobId"]}
         dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -562,6 +589,8 @@ def get_jobs_info(jobs):
                 "job_resource": job_resource,
                 "sort_key": sort_key,
                 "allowed": False,
+                "status": job_status,
+                "reason": None,
             }
 
             jobs_info.append(single_job_info)
@@ -572,6 +601,8 @@ def get_jobs_info(jobs):
 
 def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
                                           vc_schedulables):
+    stop_scheduling = None
+
     for job_info in jobs_info:
         job_resource = job_info["job_resource"]
         job_id = job_info["jobId"]
@@ -591,19 +622,40 @@ def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
         if preemption_allowed:
             continue # schedule non preemptable first
 
-        if cluster_schedulable >= job_resource and \
+        if job_info["status"] in ["scheduling", "running"]:
+            job_info["allowed"] = True # do not preempt non preemptable jobs
+            vc_schedulable -= job_resource
+            cluster_schedulable -= job_resource
+            continue
+
+        if stop_scheduling is None and \
+                cluster_schedulable >= job_resource and \
                 vc_schedulable >= job_resource:
             vc_schedulable -= job_resource
             cluster_schedulable -= job_resource
             job_info["allowed"] = True
-            logger.info("Allow non-preemptable job %s to run, job resource %s",
-                        job_id, job_resource)
-        else:
             logger.info(
-                "Do not allow non-preemptable job %s to run in vc %s."
-                "resource not enough, required job resource %s. "
+                "Allow non-preemptable job %s from %s to run, job resource %s",
+                job_id, vc_name, job_resource)
+        elif stop_scheduling is None:
+            reason = "resource not enough, required %s, vc schedulable %s, cluster schedulable %s" % (
+                job_resource, vc_schedulable, cluster_schedulable)
+            job_info["reason"] = reason
+            logger.info(
+                "Disallow non-preemptable job %s from vc %s to run."
+                "resource not enough, required %s. "
                 "cluster schedulable %s, vc schedulables %s", job_id, vc_name,
                 job_resource, cluster_schedulable, vc_schedulable)
+            # prevent later non preemptable job from scheduling
+            stop_scheduling = job_info
+        else:
+            reason = "blocked by job with higher priority/earlier time %s" % (
+                stop_scheduling['jobId'])
+            job_info["reason"] = reason
+            logger.info(
+                "Disallow non-preemptable job %s from vc %s to run."
+                "job with higher priority is disallowed %s", job_id, vc_name,
+                stop_scheduling["jobId"])
 
 
 def mark_schedulable_preemptable_jobs(jobs_info, cluster_schedulable):
@@ -624,7 +676,7 @@ def mark_schedulable_preemptable_jobs(jobs_info, cluster_schedulable):
                 job_info["allowed"] = True
             else:
                 logger.info(
-                    "Do not allow preemptable job %s to run, "
+                    "Disallow preemptable job %s to run, "
                     "insufficient cluster resource: "
                     "cluster schedulable %s, "
                     "required job resource %s.", job_id, cluster_schedulable,
@@ -654,9 +706,12 @@ def schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
                 logger.info("Preempting job %s : %s", job_id, sort_key)
             elif job_status == "queued" and (not allowed):
                 vc_schedulable = vc_schedulables[vc_name]
-                message = "Waiting for resource. Job request %s. " \
-                          "VC schedulable %s. Cluster schedulable %s" % \
-                          (job_resource, vc_schedulable, cluster_schedulable)
+                if job_info["reason"] is not None:
+                    message = job_info["reason"]
+                else:
+                    message = "Waiting for resource. Job request %s. " \
+                              "VC schedulable %s. Cluster schedulable %s" % \
+                              (job_resource, vc_schedulable, cluster_schedulable)
                 detail = [{"message": message}]
                 data_handler.UpdateJobTextFields(
                     {"jobId": job_id},

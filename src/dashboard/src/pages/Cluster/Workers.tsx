@@ -1,4 +1,5 @@
-import React, {
+import * as React from 'react';
+import {
   ChangeEvent,
   FunctionComponent,
   useCallback,
@@ -127,7 +128,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } })
       title: 'GPU Utilization',
       field: 'gpuUtilization',
       type: 'numeric',
-      render: ({ gpuUtilization }) => gpuUtilization && <>{Number(gpuUtilization).toFixed(2)}%</>
+      render: ({ gpuUtilization }) => <>{Number(gpuUtilization || 0).toFixed(2)}%</>
     });
     return columns;
   }, [resourceColumns, handleWorkerClick, linkStyles]);

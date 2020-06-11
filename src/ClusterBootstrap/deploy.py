@@ -1670,11 +1670,6 @@ def deploy_webUI_on_node(ipAddress):
     utils.sudo_scp(config["ssh_cert"], "./deploy/RestfulAPI/config.yaml",
                    "/etc/RestfulAPI/config.yaml", sshUser, webUIIP)
 
-    utils.render_template_directory(
-        "./template/dashboard", "./deploy/dashboard", config)
-    utils.sudo_scp(config["ssh_cert"], "./deploy/dashboard/production.yaml",
-                   "/etc/dashboard/production.yaml", sshUser, webUIIP)
-
     print("===============================================")
     print("Web UI is running at: http://%s:%s" %
           (webUIIP, str(config["webuiport"])))
@@ -2938,7 +2933,7 @@ def map_old_config_to_cloud(nargs):
         use general config settings in example_dir
     """
     old_Keys_in_use = ["default_cpurequest", "default_cpulimit", "default_memoryrequest",
-        "grafana", "system_envs", "default_memorylimit"]
+        "grafana", "distributed_system_envs", "default_memorylimit"]
     old_keys_with_default = ["WebUIregisterGroups", "network", "elasticsearch", "Dashboards",
                              "DeployAuthentications", "WebUIauthorizedGroups", "webuiport",
                              "WebUIadminGroups", "infiniband_mounts"]

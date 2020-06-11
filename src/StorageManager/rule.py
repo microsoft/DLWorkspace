@@ -2,14 +2,13 @@
 
 import logging
 import logging.config
-import os
-import shutil
 import time
 
 from datetime import datetime
 from utils import override, \
     send_email, \
     bytes2human_readable, \
+    post_order_delete, \
     MAX_NODES_IN_REPORT
 
 logger = logging.getLogger(__name__)
@@ -38,13 +37,11 @@ class Rule(object):
     def process(self):
         # Client should call this method
         if not self.enabled:
-            logger.warning("Rule %s is NOT enabled for %s",
-                           self.name,
+            logger.warning("Rule %s is NOT enabled for %s", self.name,
                            self.path)
             return
 
-        logger.info("Rule %s is enabled for %s. Processing ...",
-                    self.name,
+        logger.info("Rule %s is enabled for %s. Processing ...", self.name,
                     self.path)
         self.run_rule()
 
@@ -94,8 +91,8 @@ class Rule(object):
         send_email(self.smtp, recipients, cc, subject, content, [report])
 
     def generate_report(self, owner, nodes, preview_len=20):
-        logger.info("Generating %s report for owner %s under %s",
-                    self.name, owner, self.path)
+        logger.info("Generating %s report for owner %s under %s", self.name,
+                    owner, self.path)
         # Log all nodes
         for node in nodes:
             logger.info(node)
@@ -109,13 +106,9 @@ class Rule(object):
         preview = header
         for node in nodes[0:preview_len]:
             preview += "%s,%s,%s,%s,%s,%s,%s\n" % (
-                node.subtree_atime,
-                node.subtree_mtime,
-                node.subtree_time,
-                node.subtree_size,
-                bytes2human_readable(node.subtree_size),
-                node.owner,
-                node.path.replace(path, alias, 1))
+                node.subtree_atime, node.subtree_mtime, node.subtree_time,
+                node.subtree_size, bytes2human_readable(node.subtree_size),
+                node.owner, node.path.replace(path, alias, 1))
         if preview_len < len(nodes):
             preview += "...\n"
 
@@ -123,19 +116,17 @@ class Rule(object):
         max_len = min(MAX_NODES_IN_REPORT, len(nodes))
         for node in nodes[0:max_len]:
             cur_node = "%s,%s,%s,%s,%s,%s,%s\n" % (
-                node.subtree_atime,
-                node.subtree_mtime,
-                node.subtree_time,
-                node.subtree_size,
-                bytes2human_readable(node.subtree_size),
-                node.owner,
-                node.path.replace(path, alias, 1))
+                node.subtree_atime, node.subtree_mtime, node.subtree_time,
+                node.subtree_size, bytes2human_readable(node.subtree_size),
+                node.owner, node.path.replace(path, alias, 1))
             data += cur_node
 
         report = {
-            "filename": "%s_boundary_paths_%s.csv" % (
-                self.name, datetime.fromtimestamp(int(time.time()))),
-            "data": data
+            "filename":
+                "%s_boundary_paths_%s.csv" %
+                (self.name, datetime.fromtimestamp(int(time.time()))),
+            "data":
+                data
         }
 
         return preview, report
@@ -148,29 +139,23 @@ class Rule(object):
         logger.info("Deleting nodes for rule %s...", self.name)
         for node in self.nodes:
             if "*" in node.path:
-                logger.warning("Skip path %s containing wildcard '*' to "
-                               "prevent mass deleting", node.path)
+                logger.warning(
+                    "Skip path %s containing wildcard '*' to "
+                    "prevent mass deleting", node.path)
                 continue
             try:
-                if os.path.exists(node.path):
-                    if node.isdir:
-                        logger.info("Deleting directory %s...", node.path)
-                        shutil.rmtree(node.path)
-                    else:
-                        logger.info("Deleting file %s...", node.path)
-                        os.remove(node.path)
-                else:
-                    logger.warning("%s does not exist", node.path)
+                # Delete files with a slight nap in between to avoid locking
+                # the file system
+                post_order_delete(node.path, nap=0.01)
             except:
-                logger.exception("Exception in deleting path %s.", node.path,
+                logger.exception("Exception in deleting path %s.",
+                                 node.path,
                                  exc_info=True)
 
 
 class OverweightRule(Rule):
     def __init__(self, config, nodes):
-        super(OverweightRule, self).__init__(config,
-                                             nodes,
-                                             name="overweight")
+        super(OverweightRule, self).__init__(config, nodes, name="overweight")
 
         self.enabled = config.get("overweight_rule", True)
         self.used_percent = config["used_percent"]
@@ -180,8 +165,7 @@ class OverweightRule(Rule):
 
         if self.used_percent < self.used_percent_alert_threshold:
             logger.info("Usage %s%% < threshold %s%%. Disable rule %s.",
-                        self.used_percent,
-                        self.used_percent_alert_threshold,
+                        self.used_percent, self.used_percent_alert_threshold,
                         self.name)
             self.enabled = False
 
@@ -221,9 +205,7 @@ class OverweightRule(Rule):
 
 class ExpiredRule(Rule):
     def __init__(self, config, nodes):
-        super(ExpiredRule, self).__init__(config,
-                                          nodes,
-                                          name="expired")
+        super(ExpiredRule, self).__init__(config, nodes, name="expired")
 
         self.enabled = config.get("expired_rule", False)
         self.expiry_days = self.config.get("expiry_days", 31)

@@ -55,9 +55,8 @@ spec:
           limits:
             memory: 256Mi
       hostNetwork: true
-      imagePullSecrets:
-      - name: pai-secret
       {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
       - name: svccred
       {% endif %}
       tolerations:

@@ -31,6 +31,7 @@ sys.path.append(
 
 from job_params_util import make_job_params
 from JobLogUtils import GetJobLog as UtilsGetJobLog
+from resource_stat import Gpu
 
 DEFAULT_JOB_PRIORITY = 100
 USER_JOB_PRIORITY_RANGE = (100, 200)
@@ -56,17 +57,24 @@ vc_cache = TTLCache(maxsize=10240, ttl=DEFAULT_EXPIRATION)
 vc_cache_lock = Lock()
 
 
-def walk_json_field_safe(obj, *fields):
+def walk_json(obj, *fields, default=None):
     """ for example a=[{"a": {"b": 2}}]
-    walk_json_field_safe(a, 0, "a", "b") will get 2
-    walk_json_field_safe(a, 0, "not_exist") will get None
+    walk_json(a, 0, "a", "b") will get 2
+    walk_json(a, 0, "not_exist") will get None
     """
     try:
         for f in fields:
             obj = obj[f]
         return obj
     except:
-        return None
+        return default
+
+
+def get_job_total_gpu(job_params):
+    num_workers = 1
+    if "numpsworker" in job_params:
+        num_workers = int(job_params["numpsworker"])
+    return int(job_params["resourcegpu"]) * num_workers
 
 
 def base64encode(str_val):
@@ -173,6 +181,7 @@ def SubmitJob(jobParamsJsonStr):
     if "vcName" not in jobParams or len(jobParams["vcName"].strip()) == 0:
         ret["error"] = "ERROR: VC name cannot be empty"
         return ret
+    vc_name = jobParams["vcName"].strip()
     if jobParams.get("jobtrainingtype") == "PSDistJob":
         num_workers = None
         try:
@@ -218,8 +227,7 @@ def SubmitJob(jobParamsJsonStr):
     userName = getAlias(jobParams["userName"])
 
     if not AuthorizationManager.HasAccess(
-            jobParams["userName"], ResourceType.VC, jobParams["vcName"].strip(),
-            Permission.User):
+            jobParams["userName"], ResourceType.VC, vc_name, Permission.User):
         ret["error"] = "Access Denied!"
         return ret
 
@@ -294,6 +302,13 @@ def SubmitJob(jobParamsJsonStr):
         os.path.join("/", jobParams["jobPath"]))[1:]
 
     dataHandler = DataHandler()
+
+    vc_meta = walk_json(dataHandler.GetVC(vc_name), "metadata")
+    vc_meta = {} if vc_meta is None else json.loads(vc_meta)
+    max_time = walk_json(vc_meta, "admin", "job_max_time_second")
+    if max_time is not None:
+        jobParams["maxTimeSec"] = max_time
+
     if "logDir" in jobParams and len(jobParams["logDir"].strip()) > 0:
         tensorboardParams = jobParams.copy()
 
@@ -338,8 +353,7 @@ def SubmitJob(jobParamsJsonStr):
 
                 permission = Permission.User
                 if AuthorizationManager.HasAccess(jobParams["userName"],
-                                                  ResourceType.VC,
-                                                  jobParams["vcName"].strip(),
+                                                  ResourceType.VC, vc_name,
                                                   Permission.Admin):
                     permission = Permission.Admin
 
@@ -368,8 +382,7 @@ def get_job_list(username, vc_name, job_owner, num=20):
                 job.pop('jobMeta', None)
     except:
         logger.exception("Exception in getting job list for username %s",
-                         username,
-                         exc_info=True)
+                         username)
         jobs = []
 
     return jobs
@@ -387,8 +400,7 @@ def get_job_list_v2(username, vc_name, job_owner, num=None):
                     username, vc_name, num, ACTIVE_STATUS)
     except:
         logger.exception("Exception in getting job list v2 for username %s",
-                         username,
-                         exc_info=True)
+                         username)
         jobs = {}
 
     return jobs
@@ -483,11 +495,12 @@ def resume_job(username, job_id):
 def approve_job(username, job_id):
     return op_job(username, job_id, ApproveOp())
 
+
 def scale_inference_job(username, job_id, resourcegpu):
     dataHandler = DataHandler()
     try:
-        job = dataHandler.GetJobTextFields(
-            job_id, ["userName", "vcName", "jobParams"])
+        job = dataHandler.GetJobTextFields(job_id,
+                                           ["userName", "vcName", "jobParams"])
 
         if job is None:
             msg = "Job %s cannot be found in database" % job_id
@@ -504,19 +517,22 @@ def scale_inference_job(username, job_id, resourcegpu):
         job_params = json.loads(base64decode(job["jobParams"]))
         job_type = job_params["jobtrainingtype"]
         if job_type != "InferenceJob":
-            msg = "Only inference job could be scaled, current job %s is %s" % (job_id, job_type)
+            msg = "Only inference job could be scaled, current job %s is %s" % (
+                job_id, job_type)
             logger.error(msg)
             return msg, 403
 
         job_params["resourcegpu"] = resourcegpu
-        dataHandler.UpdateJobTextFields({"jobId": job_id},
-                                        {"jobParams": base64encode(json.dumps(job_params))})
+        dataHandler.UpdateJobTextFields(
+            {"jobId": job_id},
+            {"jobParams": base64encode(json.dumps(job_params))})
         return "Success", 200
     except Exception as e:
         logger.exception("Scale inference job exception")
     finally:
         dataHandler.Close()
     return "Server error", 500
+
 
 def _op_jobs_in_one_batch(username, job_ids, op, data_handler):
     op_name = op.name
@@ -894,19 +910,6 @@ def ListVCs(userName):
     return ret
 
 
-def get_gpu_idle(vc_name):
-    ret = None
-    try:
-        gpu_idle_url = config["gpu_reporter"] + '/gpu_idle'
-        gpu_idle_params = {"vc": vc_name}
-        gpu_idle_response = requests.get(gpu_idle_url, params=gpu_idle_params)
-        gpu_idle_json = gpu_idle_response.json()
-        ret = gpu_idle_json
-    except Exception:
-        logger.exception("Failed to fetch gpu_idle from " "gpu-exporter")
-    return ret
-
-
 def get_vc(username, vc_name):
     ret = None
     try:
@@ -929,9 +932,6 @@ def get_vc(username, vc_name):
                 # TODO: deprecate typo "AvaliableJobNum" in legacy code
                 ret["AvaliableJobNum"] = ret["available_job_num"]
 
-                gpu_idle = get_gpu_idle(vc_name)
-                if gpu_idle is not None:
-                    ret["gpu_idle"] = gpu_idle
                 break
     except:
         logger.exception("Exception in getting VC %s for user %s", vc_name,
@@ -1114,6 +1114,29 @@ def UpdateVC(userName, vcName, quota, metadata):
     return ret
 
 
+# TODO legacy code, please remove this after all clusters have been running this version(1.7) for
+# 1 month. Will have impact on old running job when querying endpoints.
+def infer_role_from_pod_name(pod_name):
+    """ refer doc string of endpoint_manager.py generate_service_selector """
+    parts = pod_name.split("-")
+    if len(parts) == 3:
+        # job created by framework controller
+        uuid, role, idx = parts
+        return role, idx
+    else:
+        if len(parts) == 5:
+            return "master", "0"
+        else:
+            p = re.compile("([a-z]+)([0-9])+")
+            match = p.search(parts[-1])
+            if match:
+                g = match.groups()
+                return g[0], g[1]
+            else:
+                # inference job, do not need this
+                return parts[-1], ""
+
+
 def GetEndpoints(userName, jobId):
     dataHandler = DataHandler()
     ret = []
@@ -1127,6 +1150,8 @@ def GetEndpoints(userName, jobId):
                 if job["endpoints"] is not None:
                     endpoints = json.loads(job["endpoints"])
                 for [_, endpoint] in list(endpoints.items()):
+                    role_name, role_idx = infer_role_from_pod_name(
+                        endpoint["podName"])
                     epItem = {
                         "id": endpoint["id"],
                         "name": endpoint["name"],
@@ -1135,6 +1160,8 @@ def GetEndpoints(userName, jobId):
                         "hostNetwork": endpoint["hostNetwork"],
                         "podName": endpoint["podName"],
                         "domain": config["domain"],
+                        "role-name": endpoint.get("role-name", role_name),
+                        "role-idx": endpoint.get("role-idx", role_idx),
                     }
                     if "podPort" in endpoint:
                         epItem["podPort"] = endpoint["podPort"]
@@ -1144,9 +1171,9 @@ def GetEndpoints(userName, jobId):
                                        ["ports"][0]["port"])
                         else:
                             port = int(
-                                walk_json_field_safe(endpoint,
+                                walk_json(endpoint,
                                     "endpointDescription", "spec", "ports", 0, "nodePort") or \
-                                walk_json_field_safe(endpoint,
+                                walk_json(endpoint,
                                     "endpointDescription", "spec", "ports", 0, "node_port")
                                             )
                         epItem["port"] = port
@@ -1160,6 +1187,15 @@ def GetEndpoints(userName, jobId):
     return ret
 
 
+def is_interactive(endpoints):
+    for end in endpoints.keys():
+        # if the job opened any endpoint except tensorboard, the job will
+        # be deemed as interactive
+        if not end.endswith("-tensorboard"):
+            return True
+    return False
+
+
 def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
     dataHandler = DataHandler()
     try:
@@ -1169,17 +1205,23 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             msg = "Job %s cannot be found in database" % jobId
             logger.error(msg)
             return msg, 404
-        if job["userName"] != userName and (not AuthorizationManager.HasAccess(
-                userName, ResourceType.VC, job["vcName"], Permission.Admin)):
+
+        is_vc_admin = AuthorizationManager.HasAccess(userName, ResourceType.VC,
+                                                     job["vcName"],
+                                                     Permission.Admin)
+
+        if job["userName"] != userName and (not is_vc_admin):
             msg = "You are not authorized to enable endpoint for job %s" % jobId
             logger.error(msg)
             return msg, 403
 
         job_params = json.loads(base64decode(job["jobParams"]))
         job_type = job_params["jobtrainingtype"]
-        job_endpoints = {}
+        endpoints = {}
         if job["endpoints"] is not None:
-            job_endpoints = json.loads(job["endpoints"])
+            endpoints = json.loads(job["endpoints"])
+
+        is_interactive_before = is_interactive(endpoints)
 
         # get pods
         pod_names = []
@@ -1203,14 +1245,12 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
         # username
         username = getAlias(job["userName"])
 
-        endpoints = job_endpoints
-
         if "ssh" in requested_endpoints:
             # setup ssh for each pod
             for pod_name in pod_names:
                 endpoint_id = "e-" + pod_name + "-ssh"
 
-                if endpoint_id in job_endpoints:
+                if endpoint_id in endpoints:
                     logger.debug("Endpoint %s exists. Skip.", endpoint_id)
                     continue
                 logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
@@ -1238,7 +1278,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
 
             endpoint_id = "e-" + jobId + "-ipython"
 
-            if endpoint_id not in job_endpoints:
+            if endpoint_id not in endpoints:
                 logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
                     "id": endpoint_id,
@@ -1265,7 +1305,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
 
             endpoint_id = "e-" + jobId + "-tensorboard"
 
-            if endpoint_id not in job_endpoints:
+            if endpoint_id not in endpoints:
                 logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
                     "id": endpoint_id,
@@ -1292,7 +1332,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
 
             endpoint_id = "e-" + jobId + "-port-" + \
                 str(interactive_port["podPort"])
-            if endpoint_id not in job_endpoints:
+            if endpoint_id not in endpoints:
                 logger.debug("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
                     "id": endpoint_id,
@@ -1308,9 +1348,53 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             else:
                 logger.debug("Endpoint %s exists. Skip.", endpoint_id)
 
-        dataHandler.UpdateJobTextFields({"jobId": jobId},
-                                        {"endpoints": json.dumps(endpoints)})
-        return endpoints, 200
+        is_interactive_after = is_interactive(endpoints)
+        allowed = False
+        reason = None
+
+        # is_interactive_before | is_interactive_after |  allowed
+        #         F             |        F             |     T
+        #         F             |        T             |   check
+        #         T             |        F             | impossible
+        #         T             |        T             |     T
+
+        gpu_request = get_job_total_gpu(job_params)
+
+        if is_vc_admin or \
+                gpu_request == 0 or \
+                (not (is_interactive_before is False and is_interactive_after is True)):
+            allowed = True
+        else:
+            vc_meta = json.loads(
+                walk_json(dataHandler.GetVC(job["vcName"]),
+                          "metadata",
+                          default="{}"))
+            interactive_limit = walk_json(vc_meta, "admin", "interactive_limit")
+
+            if interactive_limit is None:
+                allowed = True
+            else:
+                interactive_limit = int(interactive_limit)
+                sku = job_params["sku"]
+
+                status, _ = dataHandler.GetClusterStatus()
+                vc_status = walk_json(status, "vc_statuses", job["vcName"])
+                required = Gpu({sku: gpu_request})
+                interactive_used = Gpu(
+                    walk_json(vc_status, "gpu_interactive_used", default={}))
+                if required + interactive_used <= interactive_limit:
+                    allowed = True
+                else:
+                    allowed = False
+                    reason = "Cannot open interactive endpoint. There are already %s interactive GPUs in the VC, request another %s exceeds the limit of %s. You can ask admin to enable the interactive endpoint." % (
+                        interactive_used, gpu_request, interactive_limit)
+        if allowed:
+            dataHandler.UpdateJobTextFields(
+                {"jobId": jobId}, {"endpoints": json.dumps(endpoints)})
+            return endpoints, 200
+        else:
+            logger.error(reason)
+            return reason, 403
     except Exception as e:
         logger.error("Get endpoint exception, ex: %s", str(e))
     finally:
@@ -1485,6 +1569,39 @@ def set_job_insight(job_id, username, insight):
               (job_id, username, e)
         logger.exception(msg)
         return msg, 500
+
+
+def set_job_max_time(username, job_id, second):
+    dataHandler = DataHandler()
+    try:
+        job = dataHandler.GetJobTextFields(job_id,
+                                           ["userName", "vcName", "jobParams"])
+
+        if job is None:
+            msg = "Job %s cannot be found in database" % job_id
+            logger.info(msg)
+            return msg, 404
+
+        is_admin = has_access(username, VC, job["vcName"], ADMIN)
+
+        if not is_admin:
+            msg = "%s is not admin so can not set max running time for job" % username
+            logger.info(msg)
+            return msg, 403
+
+        job_params = json.loads(base64decode(job["jobParams"]))
+
+        job_params["maxTimeSec"] = second
+        dataHandler.UpdateJobTextFields(
+            {"jobId": job_id},
+            {"jobParams": base64encode(json.dumps(job_params))})
+        return "Success", 200
+    except Exception as e:
+        logger.exception("set job %s/%s max time %s failed", username, job_id,
+                         second)
+    finally:
+        dataHandler.Close()
+    return "Server error", 500
 
 
 def getAlias(username):

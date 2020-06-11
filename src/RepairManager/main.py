@@ -18,10 +18,12 @@ logger = logging.getLogger(__name__)
 
 alert = rule_alert_handler.RuleAlertHandler()
 
+
 def Run():
-    try:        
+    try:
         while True:
-            with open('/etc/RepairManager/config/rule-config.yaml', 'r') as config_file:
+            with open('/etc/RepairManager/config/rule-config.yaml',
+                      'r') as config_file:
                 config = yaml.safe_load(config_file)
 
             # execute all rules listed in config
@@ -35,7 +37,8 @@ def Run():
                     r_class = getattr(rule_module, class_name)
                     rule = r_class(alert, config)
 
-                    logger.debug(f'Executing {class_name} from module {module_name}')
+                    logger.debug(
+                        f'Executing {class_name} from module {module_name}')
 
                     if rule.check_status():
                         rule.take_action()
@@ -43,10 +46,14 @@ def Run():
                     time.sleep(config['rule_wait_time'])
 
                 except Exception:
-                    logger.exception(f'Error executing {class_name} from module {module_name}\n')
+                    logger.exception(
+                        f'Error executing {class_name} from module {module_name}\n'
+                    )
 
     except Exception:
-         logger.exception('Repair manager has stopped due to an unhandled exception.')
+        logger.exception(
+            'Repair manager has stopped due to an unhandled exception.')
+
 
 if __name__ == '__main__':
     Run()

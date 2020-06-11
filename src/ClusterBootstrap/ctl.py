@@ -354,6 +354,7 @@ def uncordon(config, args):
             " cordon".format(__file__))
     else:
         run_kubectl(config, args, ["uncordon {}".format(node)])
+        run_kubectl(config, args, ["annotate node {} cordon-note-".format(node)])
 
 
 def run_command(args, command):

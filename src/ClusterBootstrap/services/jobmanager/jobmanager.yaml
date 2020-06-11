@@ -89,7 +89,7 @@ spec:
           protocol: TCP
         readinessProbe:
           failureThreshold: 3
-          initialDelaySeconds: 3
+          initialDelaySeconds: 10
           periodSeconds: 30
           successThreshold: 1
           tcpSocket:
@@ -140,4 +140,10 @@ spec:
       - key: CriticalAddonsOnly
         operator: Exists
       - key: node-role.kubernetes.io/master
-        effect: NoSchedule           
+        effect: NoSchedule
+      - key: node.kubernetes.io/memory-pressure
+        operator: "Exists"
+      - key: node.kubernetes.io/disk-pressure
+        operator: "Exists"
+      - key: node-role.kubernetes.io/master
+        operator: "Exists"

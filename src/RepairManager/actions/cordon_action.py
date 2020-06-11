@@ -5,8 +5,8 @@ import logging
 from action_abc import Action
 from utils import k8s_util
 
-class CordonAction(Action):
 
+class CordonAction(Action):
     def __init__(self):
         self.action_logger = logging.getLogger('activity')
 
@@ -18,5 +18,5 @@ class CordonAction(Action):
             "node": node_name,
             "dry_run": dry_run,
             "status": cordon_status
-            })
+        })
         return cordon_status

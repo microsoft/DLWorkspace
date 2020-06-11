@@ -7,4 +7,4 @@ ADD StorageManager /DLWorkspace/src/StorageManager
 COPY run.sh /
 RUN chmod +x /run.sh
 
-CMD /run.sh
+CMD ["/run.sh"]

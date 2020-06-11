@@ -86,14 +86,16 @@ class PathTree(object):
             root_node = PathNode(root, uid_to_user=self.uid_to_user)
             self.usage_by_user[get_alias(root_node.owner)] += root_node.size
         except:
-            self.logger.warning("Ignore path %s due to exception", root,
+            self.logger.warning("Ignore path %s due to exception",
+                                root,
                                 exc_info=True)
             return None
 
         try:
             pathnames = os.listdir(root)
         except:
-            self.logger.warning("Ignore path %s due to exception", root,
+            self.logger.warning("Ignore path %s due to exception",
+                                root,
                                 exc_info=True)
             return None
 
@@ -175,5 +177,3 @@ class PathTree(object):
                     self.empty_boundary_nodes.append(child)
 
         return root_node
-
-

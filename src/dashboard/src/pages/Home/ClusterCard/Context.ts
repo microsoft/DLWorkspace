@@ -1,4 +1,5 @@
-import React, {
+import * as React from 'react';
+import {
   FunctionComponent,
   createContext,
   useContext,
@@ -27,7 +28,7 @@ const ClusterProvider: FunctionComponent<ClusterProviderProps> = ({ id, children
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const { data: status, loading, error, get } = useFetch(
-    `/api/v2/teams/${currentTeamId}/clusters/${id}`,
+    `/api/v2/clusters/${id}/teams/${currentTeamId}`,
     undefined,
     [id, currentTeamId]);
 

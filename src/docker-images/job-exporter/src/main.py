@@ -172,6 +172,7 @@ def main(args):
          ipoib_info_ref),
         ("nv_peer_mem_collector", interval, decay_time,
          collector.NvPeerMemCollector),
+        ("lustre_collector", interval, decay_time, collector.LustreCollector),
     ]
 
     refs = list(map(lambda x: collector.make_collector(*x), collector_args))

@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from 'react';
 import Typography from '@material-ui/core/Typography';
 import {Container, Grid, Paper, Toolbar, useTheme} from "@material-ui/core";
 import useCheckIsDesktop from "../../utlities/layoutUtlities";
@@ -13,8 +13,9 @@ interface TabPanelProps {
 
 export const DLTSTabPanel = (props: TabPanelProps) => {
   const { children, value, index, title,...other } = props;
+  const checkIsDesktop = useCheckIsDesktop();
   return (
-    <Container maxWidth={useCheckIsDesktop ? 'xl' : 'lg'}>
+    <Container maxWidth={checkIsDesktop ? 'xl' : 'lg'}>
       <Typography
         component="div"
         role="tabpanel"

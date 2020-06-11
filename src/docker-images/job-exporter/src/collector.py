@@ -37,6 +37,7 @@ import nvidia
 import ps
 import dcgm
 import infiniband
+import lustre
 
 logger = logging.getLogger(__name__)
 
@@ -125,8 +126,9 @@ def gen_nvsm_total_gauge():
 
 
 def gen_nv_peer_mem_gauge():
-    return GaugeMetricFamily("nv_peer_mem_count",
-                             "count of active nv_peer_mem (GPUDirect) module. 0 or 1")
+    return GaugeMetricFamily(
+        "nv_peer_mem_count",
+        "count of active nv_peer_mem (GPUDirect) module. 0 or 1")
 
 
 class ResourceGauges(object):
@@ -185,11 +187,9 @@ class ResourceGauges(object):
                        "how much data Infiniband transmits",
                        self.task_labels_infiniband)
         self.add_gauge("task_ipoib_receive_bytes_total",
-                       "how much data IPoIB receives",
-                       self.task_labels_ipoib)
+                       "how much data IPoIB receives", self.task_labels_ipoib)
         self.add_gauge("task_ipoib_transmit_bytes_total",
-                       "how much data IPoIB transmits",
-                       self.task_labels_ipoib)
+                       "how much data IPoIB transmits", self.task_labels_ipoib)
 
     def add_task_and_service_gauge(self, name_tmpl, desc_tmpl):
         self.add_gauge(name_tmpl.format("task"), desc_tmpl.format("task"),
@@ -200,7 +200,7 @@ class ResourceGauges(object):
 
     def add_dcgm_metric(self, dcgm_metrics, labels):
         for metric_name in dcgm_metrics._fields:
-            if metric_name == "uuid":
+            if metric_name in ["uuid", "minor"]:
                 continue
             val = dcgm_metrics.__getattribute__(metric_name)
             if val == "N/A":
@@ -665,18 +665,8 @@ class ContainerCollector(Collector):
                 # is like GPU-dc0671b0-61a4-443e-f456-f8fa6359b788. The mapping
                 # from uuid to minor_number is get via nvidia-smi, and gpu_infos
                 # should have key of this uuid.
-                if id.isdigit():
+                if len(id) > 0:
                     gpu_ids.append(id)
-                elif id and gpu_infos is not None:
-                    # id is in form of UUID like
-                    if gpu_infos.get(id) is not None:
-                        gpu_ids.append(gpu_infos[id].minor)
-                    else:
-                        logger.warning("gpu uuid %s can not be found in map %s",
-                                       id, gpu_infos)
-                else:
-                    logger.warning("unknown gpu id %s, gpu_infos is %s", id,
-                                   gpu_infos)
 
         return gpu_ids, result_labels
 
@@ -741,10 +731,9 @@ class ContainerCollector(Collector):
                         continue
 
                     nvidia_gpu_status = gpu_infos[id]
-                    uuid = nvidia_gpu_status.uuid
                     labels = copy.deepcopy(container_labels)
-                    labels["minor_number"] = id
-                    labels["uuid"] = uuid
+                    labels["minor_number"] = nvidia_gpu_status.minor
+                    labels["uuid"] = nvidia_gpu_status.uuid
 
                     gauges.add_value("task_gpu_percent", labels,
                                      nvidia_gpu_status.gpu_util)
@@ -756,10 +745,9 @@ class ContainerCollector(Collector):
                     if dcgm_infos.get(id) is None:
                         continue
                     dcgm_metric = dcgm_infos[id] # will be type of DCGMMetrics
-                    uuid = dcgm_metric.uuid
                     labels = copy.deepcopy(container_labels)
-                    labels["minor_number"] = id
-                    labels["uuid"] = uuid
+                    labels["minor_number"] = dcgm_metric.minor
+                    labels["uuid"] = dcgm_metric.uuid
                     gauges.add_dcgm_metric(dcgm_metric, labels)
 
             if is_host_network:
@@ -1197,7 +1185,7 @@ class NvPeerMemCollector(Collector):
             return utils.exec_cmd(
                 ["chroot", "/host-fs", "service", "nv_peer_mem", "status"],
                 histogram=NvPeerMemCollector.cmd_histogram,
-                stderr=subprocess.STDOUT,  # also capture stderr output
+                stderr=subprocess.STDOUT, # also capture stderr output
                 timeout=NvPeerMemCollector.cmd_timeout)
         except subprocess.TimeoutExpired as e:
             logger.warning("service nv_peer_mem status timeout")
@@ -1206,9 +1194,28 @@ class NvPeerMemCollector(Collector):
                 logger.warning("nv_peer_mem service cannot be found")
                 return None
             else:
-                logger.warning("service nv_peer_mem status returns %d, output %s",
-                               e.returncode, e.output)
+                logger.warning(
+                    "service nv_peer_mem status returns %d, output %s",
+                    e.returncode, e.output)
         except Exception:
             logger.exception("call nv_peer_mem failed")
 
         return ""
+
+
+class LustreCollector(Collector):
+    def __init__(self, name, sleep_time, atomic_ref, iteration_counter):
+        Collector.__init__(self, name, sleep_time, atomic_ref,
+                           iteration_counter)
+
+    def collect_impl(self):
+        try:
+            return lustre.get_lustre_gauges() + lustre.get_lustre_pool_gauges()
+        except subprocess.CalledProcessError as e:
+            if e.returncode == 127:
+                self.sleep_time = 86400
+                logger.info("lctl is not installed, reset sleep_time to %s",
+                            self.sleep_time)
+        except:
+            logger.exception("failed to collect lustre metrics")
+        return None

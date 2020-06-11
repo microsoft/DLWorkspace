@@ -8,9 +8,9 @@ groups:
       - record: aggregate:cluster:k8s_node_gpu_available:sum
         expr: sum(k8s_node_gpu_available)
       - record: aggregate:cluster:assigned_task_dcgm_gpu_util:avg
-        expr: avg(task_dcgm_gpu_util)
+        expr: avg(task_dcgm_gpu_util) by (preemptible)
       - record: aggregate:cluster:active_task_dcgm_gpu_util:avg
-        expr: avg(task_dcgm_gpu_util > 0)
+        expr: avg(task_dcgm_gpu_util > 0) by (preemptible)
       - record: aggregate:cluster:dcgm_retired_pages_pending:count
         expr: count(dcgm_retired_pages_pending > 0)
       - record: aggregate:cluster:cluster_booked_gpu_second:avg
@@ -30,9 +30,9 @@ groups:
       - record: aggregate:vc:k8s_vc_gpu_available:avg
         expr: avg(k8s_vc_gpu_available) by (vc_name)
       - record: aggregate:vc:assigned_task_dcgm_gpu_util:avg
-        expr: avg(task_dcgm_gpu_util) by (vc_name)
+        expr: avg(task_dcgm_gpu_util) by (vc_name, preemptible)
       - record: aggregate:vc:active_task_dcgm_gpu_util:avg
-        expr: avg(task_dcgm_gpu_util > 0) by (vc_name)
+        expr: avg(task_dcgm_gpu_util > 0) by (vc_name, preemptible)
       - record: aggregate:vc:vc_allocated_gpu_second:avg
         expr: avg(vc_allocated_gpu_second) by (vc, since, gpu_type)
       - record: aggregate:vc:vc_unschedulable_gpu_second:avg
@@ -48,13 +48,13 @@ groups:
     - name: aggregate.user
       rules:
       - record: aggregate:user:assigned_task_dcgm_gpu_util:count
-        expr: count(task_dcgm_gpu_util) by (vc_name, username)
+        expr: count(task_dcgm_gpu_util) by (vc_name, username, preemptible)
       - record: aggregate:user:active_task_dcgm_gpu_util:count
-        expr: count(task_dcgm_gpu_util > 0) by (vc_name, username)
+        expr: count(task_dcgm_gpu_util > 0) by (vc_name, username, preemptible)
       - record: aggregate:user:assigned_task_dcgm_gpu_util:avg
-        expr: avg(task_dcgm_gpu_util) by (vc_name, username)
+        expr: avg(task_dcgm_gpu_util) by (vc_name, username, preemptible)
       - record: aggregate:user:active_task_dcgm_gpu_util:avg
-        expr: avg(task_dcgm_gpu_util > 0) by (vc_name, username)
+        expr: avg(task_dcgm_gpu_util > 0) by (vc_name, username, preemptible)
       - record: aggregate:user:user_booked_gpu_second:avg
         expr: avg(user_booked_gpu_second) by (vc, user, since, preemptible)
       - record: aggregate:user:user_idle_gpu_second:avg
@@ -66,13 +66,13 @@ groups:
     - name: aggregate.job
       rules:
       - record: aggregate:job:assigned_task_dcgm_gpu_util:count
-        expr: count(task_dcgm_gpu_util) by (vc_name, username, job_name)
+        expr: count(task_dcgm_gpu_util) by (vc_name, username, job_name, preemptible)
       - record: aggregate:job:active_task_dcgm_gpu_util:count
-        expr: count(task_dcgm_gpu_util > 0) by (vc_name, username, job_name)
+        expr: count(task_dcgm_gpu_util > 0) by (vc_name, username, job_name, preemptible)
       - record: aggregate:job:assigned_task_dcgm_gpu_util:avg
-        expr: avg(task_dcgm_gpu_util) by (vc_name, username, job_name)
+        expr: avg(task_dcgm_gpu_util) by (vc_name, username, job_name, preemptible)
       - record: aggregate:job:active_task_dcgm_gpu_util:avg
-        expr: avg(task_dcgm_gpu_util > 0) by (vc_name, username, job_name)
+        expr: avg(task_dcgm_gpu_util > 0) by (vc_name, username, job_name, preemptible)
       - record: aggregate:job:job_booked_gpu_second:avg
         expr: avg(job_booked_gpu_second) by (vc, user, job_id, since, preemptible)
       - record: aggregate:job:job_idle_gpu_second:avg

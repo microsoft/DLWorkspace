@@ -1,4 +1,5 @@
-import React, { ReactElement, FunctionComponent, useMemo, useEffect } from 'react';
+import * as React from 'react';
+import { ReactElement, FunctionComponent, useMemo, useEffect } from 'react';
 import { capitalize, noop } from 'lodash';
 import {
   // colors,
@@ -81,7 +82,7 @@ const JobStatus: FunctionComponent<Props> = ({ cluster, job }) => {
   }, [statusData, detail]);
 
   useEffect(() => {
-    if (status === 'failed') {
+    if (status === 'failed' || status === 'killed') {
       get()
     }
     return abort;

@@ -16,4 +16,4 @@ RUN chmod +x /run.sh
 ADD RepairManager /DLWorkspace/src/RepairManager
 
 RUN pip3 install -r /DLWorkspace/src/RepairManager/requirements.txt
-CMD /run.sh
+CMD ["/run.sh"]

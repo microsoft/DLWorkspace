@@ -5,8 +5,8 @@ import logging
 import requests
 from action_abc import Action
 
-class RebootNodeAction(Action):
 
+class RebootNodeAction(Action):
     def __init__(self):
         self.action_logger = logging.getLogger('activity')
 
@@ -28,13 +28,14 @@ class RebootNodeAction(Action):
                 success = True
 
         except:
-            logging.exception(f'Error sending reboot signal for node {node_name}')
+            logging.exception(
+                f'Error sending reboot signal for node {node_name}')
 
         self.action_logger.info({
             "action": "reboot",
             "node": node_name,
             "dry_run": dry_run,
             "success": success
-            })
+        })
 
         return success

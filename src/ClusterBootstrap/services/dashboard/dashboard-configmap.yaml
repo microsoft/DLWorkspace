@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard
+data:
+  production.yaml: |
+    sign: {{cnf["master_token"]}}
+
+    masterToken: {{cnf["master_token"]}}
+
+    activeDirectory:
+      tenant: {{cnf["activeDirectory"]["tenant"]}}
+      clientId: {{cnf["activeDirectory"]["clientId"]}}
+      clientSecret: {{cnf["activeDirectory"]["clientSecret"]}}
+
+    clusters:
+      {{cnf["cluster_name"]}}:
+        restfulapi: http://{{cnf["kubernetes_master_node"][0]}}:{{cnf["restfulapiport"]}}
+        grafana: http://{{cnf["Dashboards"]["grafana"]["servers"]}}:{{cnf["Dashboards"]["grafana"]["port"]}}
+        workStorage: {{cnf["workFolderAccessPoint"]}}
+        dataStorage: {{cnf["dataFolderAccessPoint"]}}
+
+    frontend:
+      addGroup: https://dlts.azurewebsites.net/v2/htmlfiles/Overview/VirtualClusters.html
+      wiki: https://aka.ms/dltsuserwiki_v2

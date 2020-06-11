@@ -6,6 +6,9 @@ import logging.config
 import requests
 import smtplib
 import subprocess
+import os
+import shutil
+import time
 
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -16,9 +19,9 @@ logger = logging.getLogger(__name__)
 
 DATETIME_FMT = "%Y/%m/%d %H:%M:%S"
 ENCODING = "utf-8"
-K = 2 ** 10
-M = 2 ** 20
-G = 2 ** 30
+K = 2**10
+M = 2**20
+G = 2**30
 
 DAY = 86400
 
@@ -76,8 +79,8 @@ def send_email(smtp, recipients, cc, subject, content, csv_reports):
     Args:
         smtp: A dictionary containing smtp info:
             - smtp_url
-            - smtp_auth_username
-            - smtp_auth_password
+            - smtp_auth_username # optional
+            - smtp_auth_password # optional
             - smtp_from
         recipients: To whom to send the email.
         cc: To whom to cc the email.
@@ -97,10 +100,7 @@ def send_email(smtp, recipients, cc, subject, content, csv_reports):
     smtp_url = smtp.get("smtp_url", None)
     smtp_auth_username = smtp.get("smtp_auth_username", None)
     smtp_auth_password = smtp.get("smtp_auth_password", None)
-    if sender is None or \
-            smtp_url is None or \
-            smtp_auth_username is None or \
-            smtp_auth_password is None:
+    if sender is None or smtp_url is None:
         logger.warning("Some fields in smtp %s is None. Skip.", smtp)
         return
 
@@ -115,14 +115,13 @@ def send_email(smtp, recipients, cc, subject, content, csv_reports):
     # Create the body of the message (a plain-text version).
     content = content.encode(ENCODING)
     content = MIMEText(content, "plain", _charset=ENCODING)
-    body = MIMEMultipart("alternative")
-    body.attach(content)
-    full_email.attach(body)
+    full_email.attach(content)
 
     # Create the attachment of the message in text/csv.
     for report in csv_reports:
         attachment = MIMENonMultipart("text", "csv", charset=ENCODING)
-        attachment.add_header("Content-Disposition", "attachment",
+        attachment.add_header("Content-Disposition",
+                              "attachment",
                               filename=report["filename"])
         cs = Charset(ENCODING)
         cs.body_encoding = BASE64
@@ -131,11 +130,9 @@ def send_email(smtp, recipients, cc, subject, content, csv_reports):
 
     try:
         with smtplib.SMTP(smtp_url) as server:
-            server.starttls()
-
-            username = smtp_auth_username
-            password = smtp_auth_password
-            server.login(username, password)
+            if smtp_auth_username is not None and smtp_auth_password is not None:
+                server.starttls()
+                server.login(smtp_auth_username, smtp_auth_password)
 
             receivers = recipients + cc
             server.sendmail(sender, receivers, full_email.as_string())
@@ -185,3 +182,46 @@ def keep_ancestor_paths(paths):
         ancestors = remove_descendents(path, ancestors)
         ancestors.add(path)
     return sorted(list(ancestors))
+
+
+def post_order_delete(root, nap=None):
+    """Delete files in a directory one by one with a tiny sleep to avoid
+    locking the file system.
+
+    Args:
+        root: Path to delete
+        nap: Time to sleep in between deleting files
+    """
+    # Do nothing if path does not exist
+    if not os.path.exists(root):
+        logger.warning("%s does not exist", root)
+        return
+
+    # Delete file
+    if not os.path.isdir(root):
+        try:
+            logger.info("Deleting file %s...", root)
+            os.remove(root)
+            if nap is not None:
+                time.sleep(nap)
+        except:
+            logger.exception("Exception in deleting file %s", root)
+        return
+
+    # Delete all children then delete self
+    try:
+        pathnames = os.listdir(root)
+    except:
+        logger.warning("Ignore path %s due to exception", root, exc_info=True)
+        return
+
+    for pathname in pathnames:
+        path = os.path.join(root, pathname)
+        post_order_delete(path)
+
+    try:
+        # This should be an empty directory by now, no need for a nap
+        logger.info("Deleting directory %s...", root)
+        shutil.rmtree(root)
+    except:
+        logger.exception("Exception in deleting directory %s", root)
