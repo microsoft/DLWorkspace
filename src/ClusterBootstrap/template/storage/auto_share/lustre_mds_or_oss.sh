@@ -10,7 +10,7 @@ bash ./prepare_lustre_centos.sh
 bash ./dns.sh
 
 bash ./pre-worker-deploy.sh
-./cloud_init_mkdir_and_cp.py -p file_map.yaml -u $USER -m "kubernetes_common;kubelet_worker"
+./cloud_init_mkdir_and_cp.py -p file_map.yaml -u $USER -m $MOD_2_CP
 
 ./render_env_vars.sh kubelet_worker/deploy/kubelet/options.env.template /etc/flannel/options.env ETCD_ENDPOINTS
 ./render_env_vars.sh kubelet_worker/deploy/kubelet/worker-kubeconfig.yaml.template /etc/kubernetes/worker-kubeconfig.yaml KUBE_API_SERVER
@@ -51,15 +51,20 @@ elif [ ! -z "$OSS_ID" ] || [ ! -z "$MDT_ID" ]; then
         sudo mkdir -p ${paths_2_mount[$i]}
         sudo mount ${paths_2_mount[$i]}
     done
+    touch {{cnf["folder_auto_share"]}}/ost_mount_finished
+    sudo systemctl enable ost_mount_scan
 fi
 
-sudo mkdir -p /mnt/mgs_client
-until sudo mount $MGS_NODE_PRIVATE_IP:/$LUSTRE_FS_NAME /mnt/mgs_client -t lustre 2>&1 >/dev/null; do
-    sleep 1m;
-    echo 'waiting for mgs node';
-done;
-
 if [ ! -z "$MGS_ID" ] || [ ! -z "$MDT_ID" ]; then
+    # mount lustre FS to server itself, for ost, we do it in ost_mount_scan.sh
+    sudo mkdir -p /mnt/mgs_client
+    until sudo mount $MGS_NODE_PRIVATE_IP:/$LUSTRE_FS_NAME /mnt/mgs_client -t lustre 2>&1 >/dev/null; do
+        sleep 1m;
+        echo 'waiting for mgs node';
+    done;
+fi
+
+if [ ! -z "$MGS_ID" ] ; then
     # Lustre mount in jobs shows Permission denied even with drwxrwxrwx. E.g.
     # $ /lustre$ ls -l
     # ls: cannot open directory '.': Permission denied
@@ -71,7 +76,25 @@ if [ ! -z "$MGS_ID" ] || [ ! -z "$MDT_ID" ]; then
     done
     sudo lfs setquota -U -b ${SOFT_USR_QUOTA} -B ${HARD_USR_QUOTA} /mnt/mgs_client
     sudo lfs setquota -t -u --block-grace $USR_GRACE_PERIOD /mnt/mgs_client
+    # MDT need to make sure that every OST got mounted.
+    until sudo bash {{cnf["folder_auto_share"]}}/ost_mount_scan_on_mgs.sh 2>&1 >/dev/null ;do
+        sleep 1m;
+        echo "waiting, need to have all oss mounted before we set pool";
+    done;
+    while IFS= read -r line; do
+        vcname=$(echo $line | awk '{print $1}')
+        disk_ids=$(echo $line | awk '{print $2}')
+        poolname="lustrefs.$vcname"
+        sudo lctl pool_new $poolname
+        sudo lctl pool_add $poolname "OST[${disk_ids}]"
+        sudo lfs setstripe /mnt/mgs_client/${vcname} -p ${poolname} -c -1
+    done < {{cnf["folder_auto_share"]}}/lustre_disk_vc_map
 fi
 
 sudo rm {{cnf["folder_auto_share"]}}/lustre_setup_finished
 sudo systemctl disable lustre_server
+
+if [[ -z "$MGS_ID" && ! -z "$MDT_ID" || ! -z "$OSS_ID" ]]; then
+    # usually all paths won't be mounted for the 1st time
+    sudo systemctl start ost_mount_scan
+fi

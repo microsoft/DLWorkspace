@@ -136,5 +136,20 @@ repairmanager:
 lustre_server:
   - dst: /etc/systemd/system/lustre_server.service
     src: ./deploy/storage/auto_share/lustre_server.service
-  - dst: {{cnf["folder_auto_share"]}}/lustre_mdt_or_oss.sh
-    src: ./deploy/storage/auto_share/lustre_mdt_or_oss.sh
+  - dst: {{cnf["folder_auto_share"]}}/lustre_mds_or_oss.sh
+    src: ./deploy/storage/auto_share/lustre_mds_or_oss.sh
+lustre_mgs:
+  - dst: {{cnf["folder_auto_share"]}}/ost_mount_scan_on_mgs.sh
+    src: ./deploy/storage/auto_share/ost_mount_scan_on_mgs.sh
+  - dst: {{cnf["folder_auto_share"]}}/lustre_disk_vc_map
+    src: ./deploy/storage/auto_share/lustre_disk_vc_map
+lustre_oss:
+  - dst: /etc/systemd/system/ost_mount_scan.service
+    src: ./deploy/storage/auto_share/ost_mount_scan.service
+  - dst: {{cnf["folder_auto_share"]}}/ost_mount_scan_on_oss.sh
+    src: ./deploy/storage/auto_share/ost_mount_scan_on_oss.sh
+lustre_mds:
+  - dst: /etc/systemd/system/ost_mount_scan.service
+    src: ./deploy/storage/auto_share/ost_mount_scan.service
+  - dst: {{cnf["folder_auto_share"]}}/ost_mount_scan_on_oss.sh
+    src: ./deploy/storage/auto_share/ost_mount_scan_on_oss.sh

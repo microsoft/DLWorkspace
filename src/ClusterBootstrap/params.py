@@ -4,7 +4,7 @@ default_config_parameters = {
     "allroles": {
         "infra", "infrastructure", "worker", "nfs", "sql", "dev", "etcd",
         "kubernetes_master", "mysqlserver", "elasticsearch", "samba", "lustre",
-        "mdt", "oss", "mgs"
+        "mds", "oss", "mgs"
     },
     # Kubernetes setting
     "service_cluster_ip_range": "10.3.0.0/16",
@@ -343,6 +343,12 @@ default_config_parameters = {
         'lustre': {
             "lustre": "active"
         },
+        "oss": {
+            "oss": "active"
+        }, 
+        "mgs": {
+            "mgs": "active"
+        }
     },
     "kube_services_2_start": [
         "nvidia-device-plugin",
@@ -816,6 +822,7 @@ default_config_parameters = {
     "vc_config": {
         "VC-Default": ["*"],
     },
+    "ost_reboot_wait_time": "30s",
     "storage_quota": {"user_soft": "2G", "user_hard": "3G", "user_grace_period": "1w"}, 
     "registry_credential": {},
     "priority": "regular",
