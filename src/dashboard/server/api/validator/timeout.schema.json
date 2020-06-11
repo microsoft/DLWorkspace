@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "timeout": {
+      "type": "number"
+    }
+  },
+  "required": ["timeout"]
+}

@@ -51,6 +51,10 @@ router.put('/clusters/:clusterId/jobs/:jobId/priority',
   require('./middlewares/user')(),
   require('./middlewares/body')('priority'),
   require('./controllers/cluster/job/priority.put'))
+router.put('/clusters/:clusterId/jobs/:jobId/timeout',
+  require('./middlewares/user')(),
+  require('./middlewares/body')('timeout'),
+  require('./controllers/cluster/job/timeout.put'))
 router.get('/clusters/:clusterId/jobs/:jobId/log',
   require('./middlewares/user')(),
   require('./controllers/cluster/job/log'))
