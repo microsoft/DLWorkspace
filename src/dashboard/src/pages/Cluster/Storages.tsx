@@ -15,7 +15,9 @@ import {
   Box,
   MenuItem,
   Select,
-  colors
+  createStyles,
+  colors,
+  makeStyles,
 } from '@material-ui/core';
 
 import {
@@ -34,6 +36,13 @@ import TeamContext from '../../contexts/Team';
 import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
 import { formatBytes } from '../../utils/formats';
+
+const useLabelStyle = makeStyles((theme) => createStyles({
+  root: {
+    fill: theme.palette.text.primary,
+    stroke: "transparent"
+  }
+}))
 
 const getPieColor = (ratio: number) => colors.red[
   clamp(Math.floor(ratio * 10), .5, 9) * 100 as keyof typeof colors.red
@@ -77,6 +86,8 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data }) => {
     draggable: false
   }).current;
 
+  const labelStyle = useLabelStyle();
+
   const valueAccessor = useCallback(({ percent, payload }) => {
     if (percent < 0.05) return null;
     return payload.user;
@@ -119,10 +130,7 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data }) => {
             <LabelList
               position="outside"
               valueAccessor={valueAccessor}
-              // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-              // @ts-ignore
-              fill={colors.common.black}
-              stroke="transparent"
+              className={labelStyle.root}
             />
           </Pie>
         </PieChart>
