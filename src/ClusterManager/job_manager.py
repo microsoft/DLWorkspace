@@ -542,7 +542,7 @@ def get_vc_schedulables(cluster_status):
     return vc_schedulables
 
 
-def get_jobs_info(jobs):
+def get_jobs_info(jobs, cluster_schedulable, vc_schedulables):
     priority_dict = get_priority_dict()
 
     jobs_info = []
@@ -555,6 +555,22 @@ def get_jobs_info(jobs):
 
             job_res = get_resource_params_from_job_params(job_params)
             job_resource = ClusterResource(params=job_res)
+
+            vc_name = job["vcName"]
+            vc_schedulable = vc_schedulables.get(vc_name)
+            if vc_schedulable is None:
+                logger.warning(
+                    "vc %s does not exist as provided by %s, ignore this job",
+                    vc_name, job_id)
+                continue
+
+            if (not preemption_allowed) and job_status in [
+                    "scheduling", "running"
+            ]:
+                # do not preempt non preemptable jobs
+                vc_schedulable -= job_resource
+                cluster_schedulable -= job_resource
+                continue
 
             # Job lists will be sorted based on and in the order of below
             # 1. non-preemptible precedes preemptible
@@ -601,7 +617,7 @@ def get_jobs_info(jobs):
 
 def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
                                           vc_schedulables):
-    stop_scheduling = None
+    stop_schedulings = {} # vc_name -> the first blocking job of this vc
 
     for job_info in jobs_info:
         job_resource = job_info["job_resource"]
@@ -622,13 +638,7 @@ def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
         if preemption_allowed:
             continue # schedule non preemptable first
 
-        if job_info["status"] in ["scheduling", "running"]:
-            job_info["allowed"] = True # do not preempt non preemptable jobs
-            vc_schedulable -= job_resource
-            cluster_schedulable -= job_resource
-            continue
-
-        if stop_scheduling is None and \
+        if stop_schedulings.get(vc_name) is None and \
                 cluster_schedulable >= job_resource and \
                 vc_schedulable >= job_resource:
             vc_schedulable -= job_resource
@@ -637,7 +647,7 @@ def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
             logger.info(
                 "Allow non-preemptable job %s from %s to run, job resource %s",
                 job_id, vc_name, job_resource)
-        elif stop_scheduling is None:
+        elif stop_schedulings.get(vc_name) is None:
             reason = "resource not enough, required %s, vc schedulable %s, cluster schedulable %s" % (
                 job_resource, vc_schedulable, cluster_schedulable)
             job_info["reason"] = reason
@@ -647,15 +657,15 @@ def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
                 "cluster schedulable %s, vc schedulables %s", job_id, vc_name,
                 job_resource, cluster_schedulable, vc_schedulable)
             # prevent later non preemptable job from scheduling
-            stop_scheduling = job_info
+            stop_schedulings[vc_name] = job_info
         else:
             reason = "blocked by job with higher priority/earlier time %s" % (
-                stop_scheduling['jobId'])
+                stop_schedulings[vc_name]['jobId'])
             job_info["reason"] = reason
             logger.info(
                 "Disallow non-preemptable job %s from vc %s to run."
                 "job with higher priority is disallowed %s", job_id, vc_name,
-                stop_scheduling["jobId"])
+                stop_schedulings[vc_name]["jobId"])
 
 
 def mark_schedulable_preemptable_jobs(jobs_info, cluster_schedulable):
@@ -730,7 +740,7 @@ def take_job_actions(data_handler, redis_conn, launcher, jobs):
     vc_schedulables = get_vc_schedulables(cluster_status)
 
     # Parse and sort jobs based on priority and submission time
-    jobs_info = get_jobs_info(jobs)
+    jobs_info = get_jobs_info(jobs, cluster_schedulable, vc_schedulables)
 
     # Mark schedulable non-preemptable jobs
     mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
