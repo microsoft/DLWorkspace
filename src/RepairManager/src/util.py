@@ -4,6 +4,7 @@ import logging
 import json
 import os
 import requests
+import threading
 import urllib.parse
 
 from enum import Enum
@@ -14,6 +15,31 @@ from kubernetes.client.rest import ApiException
 logger = logging.getLogger(__name__)
 
 KUBERNETES_CONFIG_FILE = "/etc/kubernetes/restapi-kubeconfig.yaml"
+
+
+class AtomicRef(object):
+    """ a thread safe way to store and get object,
+    should not modify data get from this ref
+    """
+    def __init__(self):
+        self.data = None
+        self.lock = threading.RLock()
+
+    def set(self, data):
+        with self.lock:
+            self.data = data
+
+    def get(self):
+        with self.lock:
+            return self.data
+
+    def set_if_none(self, data):
+        """Set data if there is no existing data"""
+        with self.lock:
+            if self.data is None:
+                self.data = data
+                return True
+        return False
 
 
 class K8sUtil(object):

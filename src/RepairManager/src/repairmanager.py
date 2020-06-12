@@ -2,18 +2,21 @@
 
 import logging
 import requests
+import threading
+import time
 import urllib.parse
 
 from flask import Flask, Response, request
 from flask_cors import CORS
-from util import State, K8sUtil, RestUtil, parse_for_nodes
+from util import AtomicRef, State, K8sUtil, RestUtil, parse_for_nodes
 
 logger = logging.getLogger(__name__)
 
 
 class RepairManager(object):
-    def __init__(self, rules, dry_run=False):
+    def __init__(self, rules, agent_port, dry_run=False):
         self.rules = rules
+        self.agent_port = agent_port
         self.dry_run = dry_run
 
         self.k8s_util = K8sUtil()
@@ -24,7 +27,7 @@ class RepairManager(object):
     def get_repair_state(self):
         k8s_nodes = self.k8s_util.list_node()
         k8s_pods = self.k8s_util.list_pods()
-        vc_list = self.rest_util.list_vcs().get("result", {})["result"]
+        vc_list = self.rest_util.list_vcs().get("result", {})
         self.nodes = parse_for_nodes(k8s_nodes, k8s_pods, vc_list)
         [rule.update_metric_data() for rule in self.rules]
 
@@ -69,18 +72,22 @@ class RepairManager(object):
     def change_repair_state(self, node, target_state):
         return self.k8s_util.label(node.name, "REPAIR_STATE", target_state.name)
 
+    def change_unhealthy_rules(self, node, unhealthy_rules):
+        if not isinstance(unhealthy_rules, list) or len(unhealthy_rules) == 0:
+            value = None
+        else:
+            value = ",".join([rule.__class__.__name__
+                              for rule in unhealthy_rules])
+        return self.k8s_util.annotate(
+            node.name, "REPAIR_UNHEALTHY_RULES", value)
+
     def check_health(self, node, stat="interval"):
         unhealthy_rules = []
         for rule in self.rules:
             if not rule.check_health(node, stat):
                 unhealthy_rules.append(rule)
         node.unhealthy_rules = unhealthy_rules
-        if len(unhealthy_rules) > 0:
-            self.k8s_util.annotate(
-                node.name, "REPAIR_UNHEALTHY_RULES",
-                ",".join([rule.__class__.__name__ for rule in unhealthy_rules]))
-            return False
-        return True
+        return self.change_unhealthy_rules(node, unhealthy_rules)
 
     def prepare(self, node):
         for rule in node.unhealthy_rules:
@@ -89,7 +96,8 @@ class RepairManager(object):
         return True
 
     def send_repair_request(self, node):
-        url = urllib.parse.urljoin("http://%s:9180" % node.ip, "/repair")
+        url = urllib.parse.urljoin("http://%s:%s" % (node.ip, self.agent_port),
+                                   "/repair")
         try:
             resp = requests.post(url, json=[rule.__class__.__name__
                                             for rule in node.unhealthy_rules])
@@ -98,7 +106,8 @@ class RepairManager(object):
             return False
 
     def check_liveness(self, node):
-        url = urllib.parse.urljoin("http://%s:9180" % node.ip, "/liveness")
+        url = urllib.parse.urljoin("http://%s:%s" % (node.ip, self.agent_port),
+                                   "/liveness")
         try:
             resp = requests.get(url)
             return resp.status_code == 200
@@ -107,31 +116,65 @@ class RepairManager(object):
 
 
 class RepairManagerAgent(object):
-    def __init__(self, port):
+    def __init__(self, rules, port, dry_run=False):
+        self.rules = rules
         self.port = port
-        self.repair = None
+        self.dry_run = dry_run
+        self.repair_rules = AtomicRef()
+        self.repair_handler = threading.Thread(target=self.handle,
+                                               name="repair_handler",
+                                               daemon=True)
 
     def run(self):
+        self.repair_handler.start()
+        self.serve()
+
+    def serve(self):
         app = Flask(self.__class__.__name__)
         CORS(app)
 
         @app.route("/repair", methods=["POST"])
         def repair():
-            if self.repair is not None:
-                return Response(status=503)
             req_data = request.get_json()
             if not isinstance(req_data, list):
                 return Response(status=400)
-            self.repair = req_data
+            if not self.repair_rules.set_if_none(req_data):
+                return Response(status=503)
             return Response(status=200)
 
         @app.route("/liveness")
         def metrics():
-            if self.repair is not None:
+            if self.repair_rules.get() is not None:
                 return Response(status=503)
             return Response(status=200)
 
         app.run(host="0.0.0.0", port=self.port, debug=False, use_reloader=False)
+
+    def handle(self):
+        rules_mapping = {
+            rule.__class__.__name__: rule for rule in self.rules
+        }
+
+        while True:
+            repair_rules = self.repair_rules.get()
+            if repair_rules is not None:
+                logger.info("handle rule repair: %s", repair_rules)
+                try:
+                    for rule_name in repair_rules:
+                        rule = rules_mapping.get(rule_name)
+                        if rule is None:
+                            logger.warning(
+                                "skip rule with no definition: %s", rule_name)
+                            continue
+                        if not self.dry_run:
+                            rule.repair()
+                        else:
+                            logger.info("dry run rule repair: %s", rule_name)
+                except:
+                    logger.exception("failed to handle rule repair: %s",
+                                     repair_rules)
+                self.repair_rules.set(None)
+            time.sleep(3)
 
 
 if __name__ == "__main__":
@@ -139,9 +182,10 @@ if __name__ == "__main__":
         format="%(asctime)s - %(levelname)s - %(threadName)s - %(filename)s:%(lineno)s - %(message)s",
         level="INFO")
 
-    import threading
+    from rule import K8sGpuRule, DcgmEccDBERule
 
-    agent = RepairManagerAgent(9180)
+    agent = RepairManagerAgent([K8sGpuRule(), DcgmEccDBERule()], 9180,
+                               dry_run=True)
     t = threading.Thread(target=agent.run, name="agent_runner", daemon=True)
     t.start()
 
@@ -162,5 +206,12 @@ if __name__ == "__main__":
     resp = requests.post(repair_url, json=["K8sGpuRule", "DcgmEccDBERule"])
     logger.info("agent repair: %s", resp.status_code == 200)
 
-    resp = requests.get(liveness_url)
-    logger.info("agent liveness: %s", resp.status_code == 200)
+    while True:
+        try:
+            resp = requests.get(liveness_url)
+            logger.info("agent liveness: %s", resp.status_code == 200)
+            if resp.status_code == 200:
+                break
+            time.sleep(1)
+        except:
+            pass
