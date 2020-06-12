@@ -115,10 +115,11 @@ if config.get("logging") == 'azure_blob':
                 try:
                     buffer = b''
                     start_range = 0
-                    while start_range < blob.properties.content_length:
+                    content_length = blob.properties.content_length
+                    while start_range < content_length:
                         end_range = min(
                             start_range + CHUNK_SIZE - 1,
-                            blob.properties.content_length - 1)
+                            content_length - 1)
                         blob = append_blob_service.get_blob_to_bytes(
                             container_name, blob.name,
                             start_range=start_range,
