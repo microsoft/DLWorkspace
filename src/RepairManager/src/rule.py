@@ -116,6 +116,7 @@ class DcgmEccDBERule(Rule):
             return True
         except:
             logger.exception("check health failed")
+        return False
 
 
 class InfinibandRule(Rule):

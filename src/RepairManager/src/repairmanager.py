@@ -8,38 +8,44 @@ import urllib.parse
 
 from flask import Flask, Response, request
 from flask_cors import CORS
+from requests.exceptions import ConnectionError
 from util import AtomicRef, State, K8sUtil, RestUtil, parse_for_nodes
 
 logger = logging.getLogger(__name__)
 
 
 class RepairManager(object):
-    def __init__(self, rules, agent_port, dry_run=False):
+    def __init__(self, rules, agent_port, k8s_util, rest_util, dry_run=False):
         self.rules = rules
         self.agent_port = agent_port
         self.dry_run = dry_run
 
-        self.k8s_util = K8sUtil()
-        self.rest_util = RestUtil()
+        self.k8s_util = k8s_util
+        self.rest_util = rest_util
 
         self.nodes = []
 
     def get_repair_state(self):
-        k8s_nodes = self.k8s_util.list_node()
-        k8s_pods = self.k8s_util.list_pods()
-        vc_list = self.rest_util.list_vcs().get("result", {})
-        self.nodes = parse_for_nodes(k8s_nodes, k8s_pods, vc_list)
-        [rule.update_metric_data() for rule in self.rules]
+        try:
+            k8s_nodes = self.k8s_util.list_node()
+            k8s_pods = self.k8s_util.list_pods()
+            vc_list = self.rest_util.list_vcs().get("result", {})
+            self.nodes = parse_for_nodes(k8s_nodes, k8s_pods, vc_list)
+            [rule.update_metric_data() for rule in self.rules]
+        except:
+            logger.exception("failed to get repair state")
+            self.nodes = []
 
-    def step(self):
+    def run(self):
         self.get_repair_state()
         for node in self.nodes:
-            self.step_for_one_node(node)
+            self.update_one_node(node)
 
-    def step_for_one_node(self, node):
+    def update_one_node(self, node):
         try:
             if node.state == State.IN_SERVICE:
                 if self.check_health(node) is False:
+                    self.change_unhealthy_rules(node)
                     self.cordon(node)
                     self.change_repair_state(node, State.OUT_OF_POOL)
             elif node.state == State.OUT_OF_POOL:
@@ -53,9 +59,11 @@ class RepairManager(object):
                     self.change_repair_state(node, State.AFTER_REPAIR)
             elif node.state == State.AFTER_REPAIR:
                 if self.check_health(node, stat="current"):
+                    self.change_unhealthy_rules(node)
                     self.uncordon(node)
                     self.change_repair_state(node, State.IN_SERVICE)
                 else:
+                    self.change_unhealthy_rules(node)
                     self.change_repair_state(node, State.OUT_OF_POOL)
             else:
                 logger.error("Node % has unrecognized state: %s", node.name,
@@ -72,12 +80,12 @@ class RepairManager(object):
     def change_repair_state(self, node, target_state):
         return self.k8s_util.label(node.name, "REPAIR_STATE", target_state.name)
 
-    def change_unhealthy_rules(self, node, unhealthy_rules):
-        if not isinstance(unhealthy_rules, list) or len(unhealthy_rules) == 0:
+    def change_unhealthy_rules(self, node):
+        if not isinstance(node.unhealthy_rules, list) or len(node.unhealthy_rules) == 0:
             value = None
         else:
             value = ",".join([rule.__class__.__name__
-                              for rule in unhealthy_rules])
+                              for rule in node.unhealthy_rules])
         return self.k8s_util.annotate(
             node.name, "REPAIR_UNHEALTHY_RULES", value)
 
@@ -87,7 +95,7 @@ class RepairManager(object):
             if not rule.check_health(node, stat):
                 unhealthy_rules.append(rule)
         node.unhealthy_rules = unhealthy_rules
-        return self.change_unhealthy_rules(node, unhealthy_rules)
+        return len(unhealthy_rules) == 0
 
     def prepare(self, node):
         for rule in node.unhealthy_rules:
@@ -96,22 +104,41 @@ class RepairManager(object):
         return True
 
     def send_repair_request(self, node):
-        url = urllib.parse.urljoin("http://%s:%s" % (node.ip, self.agent_port),
-                                   "/repair")
+        url = urllib.parse.urljoin(
+            "http://%s:%s" % (node.ip, self.agent_port), "/repair")
+
+        if not isinstance(node.unhealthy_rules, list) or \
+                len(node.unhealthy_rules) == 0:
+            logger.info("nothing in unhealthy_rules for %s", url)
+            return True
+
+        repair_rules = [
+            rule.__class__.__name__ for rule in node.unhealthy_rules]
         try:
-            resp = requests.post(url, json=[rule.__class__.__name__
-                                            for rule in node.unhealthy_rules])
+            resp = requests.post(url, json=repair_rules)
             return resp.status_code == 200
+        except ConnectionError:
+            logger.error(
+                "connection error when sending repair request: %s, %s", url,
+                repair_rules)
+            return False
         except:
+            logger.exception(
+                "failed to send repair request: %s. %s", url, repair_rules)
             return False
 
     def check_liveness(self, node):
-        url = urllib.parse.urljoin("http://%s:%s" % (node.ip, self.agent_port),
-                                   "/liveness")
+        url = urllib.parse.urljoin(
+            "http://%s:%s" % (node.ip, self.agent_port), "/liveness")
         try:
             resp = requests.get(url)
             return resp.status_code == 200
+        except ConnectionError:
+            logger.error(
+                "connection error when sending liveness request: %s", url)
+            return False
         except:
+            logger.exception("failed to send liveness request: %s", url)
             return False
 
 
@@ -121,9 +148,8 @@ class RepairManagerAgent(object):
         self.port = port
         self.dry_run = dry_run
         self.repair_rules = AtomicRef()
-        self.repair_handler = threading.Thread(target=self.handle,
-                                               name="repair_handler",
-                                               daemon=True)
+        self.repair_handler = threading.Thread(
+            target=self.handle, name="repair_handler", daemon=True)
 
     def run(self):
         self.repair_handler.start()
@@ -182,10 +208,11 @@ if __name__ == "__main__":
         format="%(asctime)s - %(levelname)s - %(threadName)s - %(filename)s:%(lineno)s - %(message)s",
         level="INFO")
 
+    # Local test on repairmanager agent
     from rule import K8sGpuRule, DcgmEccDBERule
 
-    agent = RepairManagerAgent([K8sGpuRule(), DcgmEccDBERule()], 9180,
-                               dry_run=True)
+    agent = RepairManagerAgent(
+        [K8sGpuRule(), DcgmEccDBERule()], 9180, dry_run=True)
     t = threading.Thread(target=agent.run, name="agent_runner", daemon=True)
     t.start()
 
