@@ -560,7 +560,7 @@ def get_jobs_info(jobs, cluster_schedulable, vc_schedulables):
             vc_schedulable = vc_schedulables.get(vc_name)
             if vc_schedulable is None:
                 logger.warning(
-                    "vc %s is not exist as provided by %s, ignore this job",
+                    "vc %s does not exist as provided by %s, ignore this job",
                     vc_name, job_id)
                 continue
 
