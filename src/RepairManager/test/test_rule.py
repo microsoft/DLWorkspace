@@ -8,7 +8,7 @@ import unittest
 sys.path.append(os.path.abspath("../src/"))
 
 from util import State, Node, Job
-from rule import Rule, K8sGpuRule, DcgmDBERule
+from rule import Rule, K8sGpuRule, DcgmEccDBERule
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ class TestK8sGpuRule(TestRule):
              k8s_node_gpu_allocatable_data, k8s_node_gpu_allocatable_data])
 
         self.assertFalse(self.rule.check_health(self.node))
-        self.assertFalse(self.rule.check_health(self.node, stat="interval"))
+        self.assertFalse(self.rule.check_health(self.node, stat="current"))
 
         # expected > total && total == allocatable
         k8s_node_gpu_total_data = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'k8s_node_gpu_total', 'exporter_name': 'watchdog', 'host_ip': '192.168.0.1', 'instance': '192.168.255.1:9101', 'job': 'serivce_exporter', 'scraped_from': 'watchdog-664db8579f-69shf'}, 'value': [1591919499.601, '3']}]}}
@@ -105,7 +105,7 @@ class TestK8sGpuRule(TestRule):
              k8s_node_gpu_allocatable_data, k8s_node_gpu_allocatable_data])
 
         self.assertFalse(self.rule.check_health(self.node))
-        self.assertFalse(self.rule.check_health(self.node, stat="interval"))
+        self.assertFalse(self.rule.check_health(self.node, stat="current"))
 
         # expected == total && total > allocatable
         k8s_node_gpu_total_data = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'k8s_node_gpu_total', 'exporter_name': 'watchdog', 'host_ip': '192.168.0.1', 'instance': '192.168.255.1:9101', 'job': 'serivce_exporter', 'scraped_from': 'watchdog-664db8579f-69shf'}, 'value': [1591919499.601, '4']}]}}
@@ -116,7 +116,7 @@ class TestK8sGpuRule(TestRule):
              k8s_node_gpu_allocatable_data, k8s_node_gpu_allocatable_data])
 
         self.assertFalse(self.rule.check_health(self.node))
-        self.assertFalse(self.rule.check_health(self.node, stat="interval"))
+        self.assertFalse(self.rule.check_health(self.node, stat="current"))
 
         # expected == total == allocatable
         k8s_node_gpu_total_data = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'k8s_node_gpu_total', 'exporter_name': 'watchdog', 'host_ip': '192.168.0.1', 'instance': '192.168.255.1:9101', 'job': 'serivce_exporter', 'scraped_from': 'watchdog-664db8579f-69shf'}, 'value': [1591919499.601, '4']}]}}
@@ -127,16 +127,16 @@ class TestK8sGpuRule(TestRule):
              k8s_node_gpu_allocatable_data, k8s_node_gpu_allocatable_data])
 
         self.assertTrue(self.rule.check_health(self.node))
-        self.assertTrue(self.rule.check_health(self.node, stat="interval"))
+        self.assertTrue(self.rule.check_health(self.node, stat="current"))
 
     def test_prepare(self):
         # No need to prepare anything
         pass
 
 
-class TestDcgmDBERule(TestRule):
+class TestDcgmEccDBERule(TestRule):
     def create_rule(self):
-        self.rule = DcgmDBERule()
+        self.rule = DcgmEccDBERule()
 
     def test_check_health(self):
         # node has a ECC DBE on a GPU
@@ -145,7 +145,7 @@ class TestDcgmDBERule(TestRule):
             [dcgm_ecc_dbe_volatile_total, dcgm_ecc_dbe_volatile_total])
 
         self.assertFalse(self.rule.check_health(self.node))
-        self.assertFalse(self.rule.check_health(self.node, stat="interval"))
+        self.assertFalse(self.rule.check_health(self.node, stat="current"))
 
         # node has no ECC DBE on any GPUs
         dcgm_ecc_dbe_volatile_total = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'dcgm_ecc_dbe_volatile_total', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'minor_number': '0', 'scraped_from': 'job-exporter-zslkh', 'uuid': 'GPU-56d27439-dfc9-19d4-687b-ad6f2fdf0e9f'}, 'value': [1591920200.233, '0']}, {'metric': {'__name__': 'dcgm_ecc_dbe_volatile_total', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'minor_number': '1', 'scraped_from': 'job-exporter-zslkh', 'uuid': 'GPU-776cf9b1-fc9c-34c2-573b-33cac6cb496f'}, 'value': [1591920200.233, '0']}, {'metric': {'__name__': 'dcgm_ecc_dbe_volatile_total', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'minor_number': '2', 'scraped_from': 'job-exporter-zslkh', 'uuid': 'GPU-333595ba-3900-436e-9632-2e8d7b1577a3'}, 'value': [1591920200.233, '0']}, {'metric': {'__name__': 'dcgm_ecc_dbe_volatile_total', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'minor_number': '3', 'scraped_from': 'job-exporter-zslkh', 'uuid': 'GPU-cb1843c2-a39f-6b8a-a613-85fe145b405c'}, 'value': [1591920200.233, '0']}]}}
@@ -153,4 +153,4 @@ class TestDcgmDBERule(TestRule):
             [dcgm_ecc_dbe_volatile_total, dcgm_ecc_dbe_volatile_total])
 
         self.assertTrue(self.rule.check_health(self.node))
-        self.assertTrue(self.rule.check_health(self.node, stat="interval"))
+        self.assertTrue(self.rule.check_health(self.node, stat="current"))

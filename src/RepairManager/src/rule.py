@@ -94,9 +94,9 @@ class K8sGpuRule(Rule):
         os.system("systemctl restart kubelet")
 
 
-class DcgmDBERule(Rule):
+class DcgmEccDBERule(Rule):
     def __init__(self):
-        super(DcgmDBERule, self).__init__("dcgm_ecc_dbe_volatile_total")
+        super(DcgmEccDBERule, self).__init__("dcgm_ecc_dbe_volatile_total")
 
     def get_values(self, node, metric, stat):
         values = []

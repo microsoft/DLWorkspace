@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
 import logging
+import requests
 import urllib.parse
 
+from flask import Flask, Response, request
+from flask_cors import CORS
 from util import State, K8sUtil, RestUtil, parse_for_nodes
 
 logger = logging.getLogger(__name__)
@@ -86,20 +89,78 @@ class RepairManager(object):
         return True
 
     def send_repair_request(self, node):
-        args = urllib.parse.urlencode({
-            "repair": ",".join([rule.__class__.__name__
-                                for rule in node.unhealthy_rules])
-        })
         url = urllib.parse.urljoin("http://%s:9180" % node.ip, "/repair")
-
+        try:
+            resp = requests.post(url, json=[rule.__class__.__name__
+                                            for rule in node.unhealthy_rules])
+            return resp.status_code == 200
+        except:
+            return False
 
     def check_liveness(self, node):
-        return False
+        url = urllib.parse.urljoin("http://%s:9180" % node.ip, "/liveness")
+        try:
+            resp = requests.get(url)
+            return resp.status_code == 200
+        except:
+            return False
 
 
 class RepairManagerAgent(object):
-    def __init__(self):
-        pass
+    def __init__(self, port):
+        self.port = port
+        self.repair = None
 
     def run(self):
-        pass
+        app = Flask(self.__class__.__name__)
+        CORS(app)
+
+        @app.route("/repair", methods=["POST"])
+        def repair():
+            if self.repair is not None:
+                return Response(status=503)
+            req_data = request.get_json()
+            if not isinstance(req_data, list):
+                return Response(status=400)
+            self.repair = req_data
+            return Response(status=200)
+
+        @app.route("/liveness")
+        def metrics():
+            if self.repair is not None:
+                return Response(status=503)
+            return Response(status=200)
+
+        app.run(host="0.0.0.0", port=self.port, debug=False, use_reloader=False)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(threadName)s - %(filename)s:%(lineno)s - %(message)s",
+        level="INFO")
+
+    import threading
+
+    agent = RepairManagerAgent(9180)
+    t = threading.Thread(target=agent.run, name="agent_runner", daemon=True)
+    t.start()
+
+    liveness_url = urllib.parse.urljoin("http://localhost:9180", "/liveness")
+    repair_url = urllib.parse.urljoin("http://localhost:9180", "/repair")
+
+    while True:
+        try:
+            resp = requests.get(liveness_url)
+            if resp.status_code == 200:
+                break
+        except:
+            pass
+
+    resp = requests.get(liveness_url)
+    logger.info("agent liveness: %s", resp.status_code == 200)
+
+    resp = requests.post(repair_url, json=["K8sGpuRule", "DcgmEccDBERule"])
+    logger.info("agent repair: %s", resp.status_code == 200)
+
+    resp = requests.get(liveness_url)
+    logger.info("agent liveness: %s", resp.status_code == 200)
