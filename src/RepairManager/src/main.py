@@ -22,9 +22,7 @@ def start_repairmanager(params):
         ]
         repair_manager = RepairManager(rules)
         while True:
-            repair_manager.get_repair_state()
             repair_manager.step()
-            repair_manager.update_repair_state()
             time.sleep(interval)
     except:
         logger.exception("Exception in repairmanager step")

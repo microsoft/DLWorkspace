@@ -1,47 +1,11 @@
 #!/usr/bin/env python3
 
 import logging
+import urllib.parse
 
-from enum import IntEnum
-from util import K8sUtil, RestUtil
+from util import State, K8sUtil, RestUtil, parse_for_nodes
 
 logger = logging.getLogger(__name__)
-
-
-class State(IntEnum):
-    IN_SERVICE = 1
-    OUT_OF_POOL = 2
-    READY_FOR_REPAIR = 3
-    IN_REPAIR = 4
-    AFTER_REPAIR = 5
-
-
-class Pod(object):
-    def __init__(self, name, phase, job_id, username, vc_name):
-        self.name = name
-        self.phase = phase
-        self.job_id = job_id
-        self.username = username
-        self.vc_name = vc_name
-
-
-class Node(object):
-    def __init__(self, name, host_ip, state, ready, schedulable, unhealthy_rules, pods):
-        self.name = name
-        self.host_ip = host_ip
-        self.state = state
-        self.ready = ready
-        self.schedulable = schedulable
-        self.unhealthy_rules = unhealthy_rules
-        self.pods = pods
-
-
-class Job(object):
-    def __init__(self, job_id, status, username, vc_name):
-        self.job_id = job_id
-        self.status = status
-        self.username = username
-        self.vc_name = vc_name
 
 
 class RepairManager(object):
@@ -55,76 +19,81 @@ class RepairManager(object):
         self.nodes = []
 
     def get_repair_state(self):
-        nodes = self.k8s_util.list_node()
-        pods = self.k8s_util.list_pods()
-        for rule in self.rules:
-            rule.get_metric_data()
-
-    def update_repair_state(self):
-        pass
+        k8s_nodes = self.k8s_util.list_node()
+        k8s_pods = self.k8s_util.list_pods()
+        vc_list = self.rest_util.list_vcs().get("result", {})["result"]
+        self.nodes = parse_for_nodes(k8s_nodes, k8s_pods, vc_list)
+        [rule.update_metric_data() for rule in self.rules]
 
     def step(self):
-        [self.step_for_one_node(node) for node in self.nodes]
+        self.get_repair_state()
+        for node in self.nodes:
+            self.step_for_one_node(node)
 
     def step_for_one_node(self, node):
         try:
             if node.state == State.IN_SERVICE:
                 if self.check_health(node) is False:
-                    node.state = State.OUT_OF_POOL
-                    # cordon
+                    self.cordon(node)
+                    self.change_repair_state(node, State.OUT_OF_POOL)
             elif node.state == State.OUT_OF_POOL:
                 if self.prepare(node):
-                    node.state = State.READY_FOR_REPAIR
+                    self.change_repair_state(node, State.READY_FOR_REPAIR)
             elif node.state == State.READY_FOR_REPAIR:
                 if self.send_repair_request(node):
-                    node.state = State.IN_REPAIR
+                    self.change_repair_state(node, State.IN_REPAIR)
             elif node.state == State.IN_REPAIR:
                 if self.check_liveness(node):
-                    node.state = State.AFTER_REPAIR
+                    self.change_repair_state(node, State.AFTER_REPAIR)
             elif node.state == State.AFTER_REPAIR:
-                if self.check_health(node):
-                    node.state = State.IN_SERVICE
-                    # Uncordon
+                if self.check_health(node, stat="current"):
+                    self.uncordon(node)
+                    self.change_repair_state(node, State.IN_SERVICE)
                 else:
-                    node.state = State.OUT_OF_POOL
+                    self.change_repair_state(node, State.OUT_OF_POOL)
             else:
                 logger.error("Node % has unrecognized state: %s", node.name,
                              node.state)
         except:
             logger.exception("Exception in step for node %s", node.name)
 
-    def check_health(self, node):
+    def cordon(self, node):
+        return self.k8s_util.cordon(node.name)
+
+    def uncordon(self, node):
+        return self.k8s_util.uncordon(node.name)
+
+    def change_repair_state(self, node, target_state):
+        return self.k8s_util.label(node.name, "REPAIR_STATE", target_state.name)
+
+    def check_health(self, node, stat="interval"):
         unhealthy_rules = []
         for rule in self.rules:
-            if not rule.check_health(node):
+            if not rule.check_health(node, stat):
                 unhealthy_rules.append(rule)
         node.unhealthy_rules = unhealthy_rules
         if len(unhealthy_rules) > 0:
+            self.k8s_util.annotate(
+                node.name, "REPAIR_UNHEALTHY_RULES",
+                ",".join([rule.__class__.__name__ for rule in unhealthy_rules]))
             return False
         return True
 
     def prepare(self, node):
-        if self.dry_run:
-            return True
-
         for rule in node.unhealthy_rules:
             if not rule.prepare(node):
                 return False
         return True
 
     def send_repair_request(self, node):
-        if self.dry_run:
-            return True
+        args = urllib.parse.urlencode({
+            "repair": ",".join([rule.__class__.__name__
+                                for rule in node.unhealthy_rules])
+        })
+        url = urllib.parse.urljoin("http://%s:9180" % node.ip, "/repair")
 
-        for rule in node.unhealthy_rules:
-            if not rule.repair(node):
-                return False
-        return True
 
     def check_liveness(self, node):
-        if self.dry_run:
-            return True
-
         return False
 
 
