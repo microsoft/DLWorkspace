@@ -10,11 +10,10 @@ import urllib.parse
 from enum import Enum
 from kubernetes import client as k8s_client, config as k8s_config
 from kubernetes.client.rest import ApiException
+from constant import REPAIR_STATE, REPAIR_UNHEALTHY_RULES
 
 
 logger = logging.getLogger(__name__)
-
-KUBERNETES_CONFIG_FILE = "/etc/kubernetes/restapi-kubeconfig.yaml"
 
 
 class AtomicRef(object):
@@ -44,7 +43,7 @@ class AtomicRef(object):
 
 class K8sUtil(object):
     def __init__(self):
-        k8s_config.load_kube_config(config_file=KUBERNETES_CONFIG_FILE)
+        k8s_config.load_kube_config()
         self.k8s_core_api = k8s_client.CoreV1Api()
         self.pretty = "pretty_example"
 
@@ -226,13 +225,13 @@ def parse_nodes(k8s_nodes, metadata, rules, nodes):
                 state = State.IN_SERVICE
             else:
                 state = State(k8s_node.metadata.labels.get(
-                    "REPAIR_STATE", "IN_SERVICE"))
+                    REPAIR_STATE, "IN_SERVICE"))
 
             if k8s_node.metadata.annotations is None:
                 unhealthy_rules = []
             else:
                 unhealthy_rules = k8s_node.metadata.annotations.get(
-                    "REPAIR_UNHEALTHY_RULES", None)
+                    REPAIR_UNHEALTHY_RULES, None)
                 if unhealthy_rules is not None:
                     unhealthy_rules = unhealthy_rules.split(",")
                 else:

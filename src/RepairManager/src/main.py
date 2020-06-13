@@ -56,7 +56,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--service",
                         "-s",
-                        help="repairmanager or repairmanageragent")
+                        help="repairmanager or repairmanageragent",
+                        default="repairmanager")
     parser.add_argument("--log",
                         "-l",
                         help="log dir to store log",

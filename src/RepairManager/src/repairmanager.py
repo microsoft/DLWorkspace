@@ -10,6 +10,9 @@ import urllib.parse
 from flask import Flask, Response, request
 from flask_cors import CORS
 from requests.exceptions import ConnectionError
+from constant import REPAIR_STATE, \
+    REPAIR_STATE_LAST_UPDATE_TIME, \
+    REPAIR_UNHEALTHY_RULES
 from util import AtomicRef, State, parse_for_nodes
 
 logger = logging.getLogger(__name__)
@@ -158,10 +161,10 @@ class RepairManager(object):
 
     def from_any_to_out_of_pool(self, node):
         unschedulable = True
-        labels = {"REPAIR_STATE": State.OUT_OF_POOL.name}
+        labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
         annotations = {
-            "REPAIR_STATE_LAST_UPDATE_TIME": str(datetime.datetime.utcnow()),
-            "REPAIR_UNHEALTHY_RULES": None,
+            REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
+            REPAIR_UNHEALTHY_RULES: None,
         }
         if self.patch(node, unschedulable=unschedulable, labels=labels,
                       annotations=annotations):
@@ -173,10 +176,10 @@ class RepairManager(object):
 
     def from_in_service_to_out_of_pool(self, node):
         unschedulable = True
-        labels = {"REPAIR_STATE": State.OUT_OF_POOL.name}
+        labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
         annotations = {
-            "REPAIR_STATE_LAST_UPDATE_TIME": str(datetime.datetime.utcnow()),
-            "REPAIR_UNHEALTHY_RULES": self.get_unhealthy_rules_value(node),
+            REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
+            REPAIR_UNHEALTHY_RULES: self.get_unhealthy_rules_value(node),
         }
         if self.patch(node, unschedulable=unschedulable, labels=labels,
                       annotations=annotations):
@@ -187,9 +190,9 @@ class RepairManager(object):
             return False
 
     def from_out_of_pool_to_ready_for_repair(self, node):
-        labels = {"REPAIR_STATE": State.READY_FOR_REPAIR.name}
+        labels = {REPAIR_STATE: State.READY_FOR_REPAIR.name}
         annotations = {
-            "REPAIR_STATE_LAST_UPDATE_TIME": str(datetime.datetime.utcnow()),
+            REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
         }
         if self.patch(node, labels=labels, annotations=annotations):
             node.state = State.READY_FOR_REPAIR
@@ -198,9 +201,9 @@ class RepairManager(object):
             return False
 
     def from_ready_for_repair_to_in_repair(self, node):
-        labels = {"REPAIR_STATE": State.IN_REPAIR.name}
+        labels = {REPAIR_STATE: State.IN_REPAIR.name}
         annotations = {
-            "REPAIR_STATE_LAST_UPDATE_TIME": str(datetime.datetime.utcnow()),
+            REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
         }
         if self.patch(node, labels=labels, annotations=annotations):
             node.state = State.IN_REPAIR
@@ -209,9 +212,9 @@ class RepairManager(object):
             return False
 
     def from_in_repair_to_after_repair(self, node):
-        labels = {"REPAIR_STATE": State.AFTER_REPAIR.name}
+        labels = {REPAIR_STATE: State.AFTER_REPAIR.name}
         annotations = {
-            "REPAIR_STATE_LAST_UPDATE_TIME": str(datetime.datetime.utcnow()),
+            REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
         }
         if self.patch(node, labels=labels, annotations=annotations):
             node.state = State.AFTER_REPAIR
@@ -221,10 +224,10 @@ class RepairManager(object):
 
     def from_after_repair_to_in_service(self, node):
         unschedulable = False
-        labels = {"REPAIR_STATE": State.IN_SERVICE.name}
+        labels = {REPAIR_STATE: State.IN_SERVICE.name}
         annotations = {
-            "REPAIR_STATE_LAST_UPDATE_TIME": str(datetime.datetime.utcnow()),
-            "REPAIR_UNHEALTHY_RULES": None,
+            REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
+            REPAIR_UNHEALTHY_RULES: None,
         }
         if self.patch(node, unschedulable=unschedulable, labels=labels,
                       annotations=annotations):
@@ -235,10 +238,10 @@ class RepairManager(object):
             return False
 
     def from_after_repair_to_out_of_pool(self, node):
-        labels = {"REPAIR_STATE": State.OUT_OF_POOL.name}
+        labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
         annotations = {
-            "REPAIR_STATE_LAST_UPDATE_TIME": str(datetime.datetime.utcnow()),
-            "REPAIR_UNHEALTHY_RULES": self.get_unhealthy_rules_value(node),
+            REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
+            REPAIR_UNHEALTHY_RULES: self.get_unhealthy_rules_value(node),
         }
         if self.patch(node, labels=labels, annotations=annotations):
             node.state = State.OUT_OF_POOL
