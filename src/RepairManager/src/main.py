@@ -6,9 +6,10 @@ import logging
 import os
 import signal
 import sys
-import time
 
 from repairmanager import RepairManager, RepairManagerAgent
+from rule import instantiate_rules
+from util import K8sUtil, RestUtil
 
 
 logger = logging.getLogger(__name__)
@@ -16,21 +17,21 @@ logger = logging.getLogger(__name__)
 
 def start_repairmanager(params):
     try:
-        interval = int(params.interval)
-        rules = [
-
-        ]
-        repair_manager = RepairManager(rules)
-        while True:
-            repair_manager.step()
-            time.sleep(interval)
+        rules = instantiate_rules()
+        k8s_util = K8sUtil()
+        rest_util = RestUtil()
+        repair_manager = RepairManager(
+            rules, params.port, k8s_util, rest_util,
+            interval=params.interval, dry_run=params.dry_run)
+        repair_manager.run()
     except:
         logger.exception("Exception in repairmanager step")
 
 
 def start_repairmanager_agent(params):
     try:
-        agent = RepairManagerAgent()
+        rules = instantiate_rules()
+        agent = RepairManagerAgent(rules, params.port, dry_run=params.dry_run)
         agent.run()
     except:
         logger.exception("Exception in repairmanager agent run")
@@ -61,12 +62,17 @@ if __name__ == '__main__':
                         default="/var/log/repairmanager")
     parser.add_argument("--interval",
                         "-i",
-                        help="interval in seconds to sleep between runs",
-                        default=30)
+                        help="sleep time between repairmanager runs",
+                        default=30,
+                        type=int)
     parser.add_argument("--port",
                         "-p",
-                        help="port to expose metrics",
-                        default="9102")
+                        help="port for repairmanager agent",
+                        default="9180")
+    parser.add_argument("--dry_run",
+                        "-d",
+                        action="store_true",
+                        help="dry run flag")
     args = parser.parse_args()
 
     def get_logging_level():

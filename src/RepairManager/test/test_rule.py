@@ -8,7 +8,7 @@ import unittest
 sys.path.append(os.path.abspath("../src/"))
 
 from util import State, Node, Job
-from rule import Rule, K8sGpuRule, DcgmEccDBERule
+from rule import Rule, K8sGpuRule, DcgmEccDBERule, instantiate_rules
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,13 @@ class MockPrometheusUtil(object):
             return self.data.pop(0)
         except IndexError:
             return None
+
+
+class TestRuleInstantiation(unittest.TestCase):
+    def test_rule_instantiation(self):
+        rules = instantiate_rules()
+        for rule in rules:
+            self.assertTrue(rule.__class__.__name__ in Rule.subclasses)
 
 
 class TestRule(unittest.TestCase):

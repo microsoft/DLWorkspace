@@ -13,6 +13,15 @@ def override(func):
 
 
 class Rule(object):
+    subclasses = {}
+
+    @classmethod
+    def register_subclass(cls, rule_name):
+        def decorator(subclass):
+            cls.subclasses[rule_name] = subclass
+            return subclass
+        return decorator
+
     def __init__(self, metrics, interval="5m"):
         self.metrics = metrics if isinstance(metrics, list) else [metrics]
         self.interval = interval
@@ -22,7 +31,9 @@ class Rule(object):
         }
         self.rest_util = RestUtil()
         self.prometheus_util = PrometheusUtil()
+        self.enable = True
 
+    @override
     def update_data(self):
         for metric in self.metrics:
             query_current = metric
@@ -57,6 +68,34 @@ class Rule(object):
         os.system("reboot -f")
 
 
+@Rule.register_subclass("DefaultRule")
+class DefaultRule(Rule):
+    def __init__(self):
+        super(DefaultRule, self).__init__("default")
+
+    def update_data(self):
+        pass
+
+    def check_health(self, node, stat="interval"):
+        pass
+
+
+@Rule.register_subclass("UnschedulableRule")
+class UnschedulableRule(Rule):
+    def __init__(self):
+        super(UnschedulableRule, self).__init__("unschedulable")
+
+    def update_data(self):
+        pass
+
+    def check_health(self, node, stat="interval"):
+        if node.unschedulable:
+            return False
+        else:
+            return True
+
+
+@Rule.register_subclass("K8sGpuRule")
 class K8sGpuRule(Rule):
     def __init__(self):
         super(K8sGpuRule, self).__init__(["k8s_node_gpu_total",
@@ -94,6 +133,7 @@ class K8sGpuRule(Rule):
         os.system("systemctl restart kubelet")
 
 
+@Rule.register_subclass("DcgmEccDBERule")
 class DcgmEccDBERule(Rule):
     def __init__(self):
         super(DcgmEccDBERule, self).__init__("dcgm_ecc_dbe_volatile_total")
@@ -119,14 +159,18 @@ class DcgmEccDBERule(Rule):
         return False
 
 
+@Rule.register_subclass("InfinibandRule")
 class InfinibandRule(Rule):
     def __init__(self):
         super(InfinibandRule, self).__init__("infiniband_up")
+        self.enable = os.environ.get("INFINIBAND_RULE", "0") == "1"
 
 
+@Rule.register_subclass("IPoIBRule")
 class IPoIBRule(Rule):
     def __init__(self):
         super(IPoIBRule, self).__init__("ipoib_up")
+        self.enable = os.environ.get("IPOIB_RULE", "0") == "1"
 
     def prepare(self, node):
         # No need to wait for all jobs to finish
@@ -136,9 +180,11 @@ class IPoIBRule(Rule):
         os.system("systemctl restart walinuxagent")
 
 
+@Rule.register_subclass("NvPeerMemRule")
 class NvPeerMemRule(Rule):
     def __init__(self):
         super(NvPeerMemRule, self).__init__("nv_peer_mem_count")
+        self.enable = os.environ.get("NV_PEER_MEM_RULE", "0") == "1"
 
     def prepare(self, node):
         # No need to wait for all jobs to finish
@@ -148,7 +194,13 @@ class NvPeerMemRule(Rule):
         os.system("systemctl restart nv_peer_mem")
 
 
+@Rule.register_subclass("NVSMRule")
 class NVSMRule(Rule):
     def __init__(self):
-        super(NVSMRule, self).__init__(["nvsm_health_total_count",
-                                        "nvsm_health_good_count"])
+        super(NVSMRule, self).__init__(
+            ["nvsm_health_total_count", "nvsm_health_good_count"])
+        self.enable = os.environ.get("NVSM_RULE", "0") == "1"
+
+
+def instantiate_rules():
+    return [cls() for _, cls in Rule.subclasses.items()]

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import datetime
 import logging
 import requests
 import threading
@@ -9,19 +10,21 @@ import urllib.parse
 from flask import Flask, Response, request
 from flask_cors import CORS
 from requests.exceptions import ConnectionError
-from util import AtomicRef, State, K8sUtil, RestUtil, parse_for_nodes
+from util import AtomicRef, State, parse_for_nodes
 
 logger = logging.getLogger(__name__)
 
 
 class RepairManager(object):
-    def __init__(self, rules, agent_port, k8s_util, rest_util, dry_run=False):
+    def __init__(self, rules, agent_port, k8s_util, rest_util, interval=30,
+                 dry_run=False):
         self.rules = rules
         self.agent_port = agent_port
         self.dry_run = dry_run
 
         self.k8s_util = k8s_util
         self.rest_util = rest_util
+        self.interval = interval
 
         self.nodes = []
 
@@ -30,64 +33,57 @@ class RepairManager(object):
             k8s_nodes = self.k8s_util.list_node()
             k8s_pods = self.k8s_util.list_pods()
             vc_list = self.rest_util.list_vcs().get("result", {})
-            self.nodes = parse_for_nodes(k8s_nodes, k8s_pods, vc_list)
+            self.nodes = parse_for_nodes(
+                k8s_nodes, k8s_pods, vc_list, self.rules)
             [rule.update_metric_data() for rule in self.rules]
         except:
             logger.exception("failed to get repair state")
             self.nodes = []
 
     def run(self):
-        self.get_repair_state()
-        for node in self.nodes:
-            self.update_one_node(node)
+        while True:
+            try:
+                self.get_repair_state()
+                for node in self.nodes:
+                    if self.validate(node):
+                        self.update(node)
+                    else:
+                        logger.error("validation failed for node %s", node)
+            except:
+                logger.exception("failed to run")
+            time.sleep(self.interval)
 
-    def update_one_node(self, node):
+    def validate(self, node):
+        if node.state != State.IN_SERVICE and node.unschedulable is False:
+            if self.from_any_to_out_of_pool(node):
+                return True
+            else:
+                return False
+        return True
+
+    def update(self, node):
         try:
             if node.state == State.IN_SERVICE:
                 if self.check_health(node) is False:
-                    self.change_unhealthy_rules(node)
-                    self.cordon(node)
-                    self.change_repair_state(node, State.OUT_OF_POOL)
+                    self.from_in_service_to_out_of_pool(node)
             elif node.state == State.OUT_OF_POOL:
                 if self.prepare(node):
-                    self.change_repair_state(node, State.READY_FOR_REPAIR)
+                    self.from_out_of_pool_to_ready_for_repair(node)
             elif node.state == State.READY_FOR_REPAIR:
                 if self.send_repair_request(node):
-                    self.change_repair_state(node, State.IN_REPAIR)
+                    self.from_ready_for_repair_to_in_repair(node)
             elif node.state == State.IN_REPAIR:
                 if self.check_liveness(node):
-                    self.change_repair_state(node, State.AFTER_REPAIR)
+                    self.from_in_repair_to_after_repair(node)
             elif node.state == State.AFTER_REPAIR:
                 if self.check_health(node, stat="current"):
-                    self.change_unhealthy_rules(node)
-                    self.uncordon(node)
-                    self.change_repair_state(node, State.IN_SERVICE)
+                    self.from_after_repair_to_in_service(node)
                 else:
-                    self.change_unhealthy_rules(node)
-                    self.change_repair_state(node, State.OUT_OF_POOL)
+                    self.from_after_repair_to_out_of_pool(node)
             else:
-                logger.error("Node % has unrecognized state: %s", node.name,
-                             node.state)
+                logger.error("Node % has unrecognized state", node)
         except:
-            logger.exception("Exception in step for node %s", node.name)
-
-    def cordon(self, node):
-        return self.k8s_util.cordon(node.name)
-
-    def uncordon(self, node):
-        return self.k8s_util.uncordon(node.name)
-
-    def change_repair_state(self, node, target_state):
-        return self.k8s_util.label(node.name, "REPAIR_STATE", target_state.name)
-
-    def change_unhealthy_rules(self, node):
-        if not isinstance(node.unhealthy_rules, list) or len(node.unhealthy_rules) == 0:
-            value = None
-        else:
-            value = ",".join([rule.__class__.__name__
-                              for rule in node.unhealthy_rules])
-        return self.k8s_util.annotate(
-            node.name, "REPAIR_UNHEALTHY_RULES", value)
+            logger.exception("Exception in step for node %s", node)
 
     def check_health(self, node, stat="interval"):
         unhealthy_rules = []
@@ -121,11 +117,10 @@ class RepairManager(object):
             logger.error(
                 "connection error when sending repair request: %s, %s", url,
                 repair_rules)
-            return False
         except:
             logger.exception(
                 "failed to send repair request: %s. %s", url, repair_rules)
-            return False
+        return False
 
     def check_liveness(self, node):
         url = urllib.parse.urljoin(
@@ -136,9 +131,111 @@ class RepairManager(object):
         except ConnectionError:
             logger.error(
                 "connection error when sending liveness request: %s", url)
-            return False
         except:
             logger.exception("failed to send liveness request: %s", url)
+        return False
+
+    def get_unhealthy_rules_value(self, node):
+        if not isinstance(node.unhealthy_rules, list) or \
+                len(node.unhealthy_rules) == 0:
+            value = None
+        else:
+            value = ",".join([rule.__class__.__name__
+                              for rule in node.unhealthy_rules])
+        return value
+
+    def patch(self, node, unschedulable=None, labels=None, annotations=None):
+        return self.k8s_util.patch_node(
+            node.name, unschedulable, labels, annotations)
+
+    def from_any_to_out_of_pool(self, node):
+        unschedulable = True
+        labels = {"REPAIR_STATE": State.OUT_OF_POOL.name}
+        annotations = {
+            "REPAIR_STATE_LAST_UPDATE_TIME": str(datetime.datetime.utcnow()),
+            "REPAIR_UNHEALTHY_RULES": None,
+        }
+        if self.patch(node, unschedulable=unschedulable, labels=labels,
+                      annotations=annotations):
+            node.unschedulable = unschedulable
+            node.state = State.OUT_OF_POOL
+            return True
+        else:
+            return False
+
+    def from_in_service_to_out_of_pool(self, node):
+        unschedulable = True
+        labels = {"REPAIR_STATE": State.OUT_OF_POOL.name}
+        annotations = {
+            "REPAIR_STATE_LAST_UPDATE_TIME": str(datetime.datetime.utcnow()),
+            "REPAIR_UNHEALTHY_RULES": self.get_unhealthy_rules_value(node),
+        }
+        if self.patch(node, unschedulable=unschedulable, labels=labels,
+                      annotations=annotations):
+            node.unschedulable = unschedulable
+            node.state = State.OUT_OF_POOL
+            return True
+        else:
+            return False
+
+    def from_out_of_pool_to_ready_for_repair(self, node):
+        labels = {"REPAIR_STATE": State.READY_FOR_REPAIR.name}
+        annotations = {
+            "REPAIR_STATE_LAST_UPDATE_TIME": str(datetime.datetime.utcnow()),
+        }
+        if self.patch(node, labels=labels, annotations=annotations):
+            node.state = State.READY_FOR_REPAIR
+            return True
+        else:
+            return False
+
+    def from_ready_for_repair_to_in_repair(self, node):
+        labels = {"REPAIR_STATE": State.IN_REPAIR.name}
+        annotations = {
+            "REPAIR_STATE_LAST_UPDATE_TIME": str(datetime.datetime.utcnow()),
+        }
+        if self.patch(node, labels=labels, annotations=annotations):
+            node.state = State.IN_REPAIR
+            return True
+        else:
+            return False
+
+    def from_in_repair_to_after_repair(self, node):
+        labels = {"REPAIR_STATE": State.AFTER_REPAIR.name}
+        annotations = {
+            "REPAIR_STATE_LAST_UPDATE_TIME": str(datetime.datetime.utcnow()),
+        }
+        if self.patch(node, labels=labels, annotations=annotations):
+            node.state = State.AFTER_REPAIR
+            return True
+        else:
+            return False
+
+    def from_after_repair_to_in_service(self, node):
+        unschedulable = False
+        labels = {"REPAIR_STATE": State.IN_SERVICE.name}
+        annotations = {
+            "REPAIR_STATE_LAST_UPDATE_TIME": str(datetime.datetime.utcnow()),
+            "REPAIR_UNHEALTHY_RULES": None,
+        }
+        if self.patch(node, unschedulable=unschedulable, labels=labels,
+                      annotations=annotations):
+            node.unschedulable = unschedulable
+            node.state = State.IN_SERVICE
+            return True
+        else:
+            return False
+
+    def from_after_repair_to_out_of_pool(self, node):
+        labels = {"REPAIR_STATE": State.OUT_OF_POOL.name}
+        annotations = {
+            "REPAIR_STATE_LAST_UPDATE_TIME": str(datetime.datetime.utcnow()),
+            "REPAIR_UNHEALTHY_RULES": self.get_unhealthy_rules_value(node),
+        }
+        if self.patch(node, labels=labels, annotations=annotations):
+            node.state = State.OUT_OF_POOL
+            return True
+        else:
             return False
 
 
@@ -219,26 +316,21 @@ if __name__ == "__main__":
     liveness_url = urllib.parse.urljoin("http://localhost:9180", "/liveness")
     repair_url = urllib.parse.urljoin("http://localhost:9180", "/repair")
 
-    while True:
-        try:
-            resp = requests.get(liveness_url)
-            if resp.status_code == 200:
-                break
-        except:
-            pass
+    def wait_for_alive():
+        while True:
+            try:
+                resp = requests.get(liveness_url)
+                logger.info("agent liveness: %s", resp.status_code == 200)
+                if resp.status_code == 200:
+                    break
+            except:
+                pass
 
+    wait_for_alive()
     resp = requests.get(liveness_url)
     logger.info("agent liveness: %s", resp.status_code == 200)
 
     resp = requests.post(repair_url, json=["K8sGpuRule", "DcgmEccDBERule"])
     logger.info("agent repair: %s", resp.status_code == 200)
 
-    while True:
-        try:
-            resp = requests.get(liveness_url)
-            logger.info("agent liveness: %s", resp.status_code == 200)
-            if resp.status_code == 200:
-                break
-            time.sleep(1)
-        except:
-            pass
+    wait_for_alive()

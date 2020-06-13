@@ -69,48 +69,28 @@ class K8sUtil(object):
                              "label_selector: %s", namespace, label_selector)
         return None
 
-    def cordon(self, node):
+    def patch_node(self, node, unschedulable=None, labels=None,
+                   annotations=None):
         try:
-            api_call_body = k8s_client.V1Node(
-                spec=k8s_client.V1NodeSpec(unschedulable=True))
-            self.k8s_core_api.patch_node(node, api_call_body)
-            logger.info("node %s cordoned", node)
-            return True
-        except ApiException:
-            logger.exception("cordon failed for node %s", node)
-        return False
-
-    def uncordon(self, node):
-        try:
-            api_call_body = k8s_client.V1Node(
-                spec=k8s_client.V1NodeSpec(unschedulable=False))
-            self.k8s_core_api.patch_node(node, api_call_body)
-            logger.info("node %s uncordoned", node)
-            return True
-        except ApiException:
-            logger.exception("uncordon failed for node %s", node)
-        return False
-
-    def label(self, node, key, value):
-        try:
-            api_call_body = k8s_client.V1Node(
-                metadata=k8s_client.V1ObjectMeta(labels={key: value}))
+            api_call_body = k8s_client.V1Node()
+            if unschedulable is not None:
+                api_call_body.spec = k8s_client.V1NodeSpec(unschedulable=unschedulable)
+            metadata = k8s_client.V1ObjectMeta()
+            if labels is not None:
+                metadata.labels = labels
+            if annotations is not None:
+                metadata.annotations = annotations
+            api_call_body.metadata = metadata
+            # api_call_body = k8s_client.V1Node(
+            #     spec=k8s_client.V1NodeSpec(unschedulable=unschedulable),
+            #     metadata=k8s_client.V1ObjectMeta(
+            #         labels=labels, annotations=annotations))
             self.k8s_core_api.patch_node(node, api_call_body)
             return True
         except ApiException:
-            logger.exception("label failed for node %s, key %s, value %s",
-                             node, key, value)
-        return False
-
-    def annotate(self, node, key, value):
-        try:
-            api_call_body = k8s_client.V1Node(
-                metadata=k8s_client.V1ObjectMeta(annotations={key: value}))
-            self.k8s_core_api.patch_node(node, api_call_body)
-            return True
-        except ApiException:
-            logger.exception("annotate failed for node %s, key %s, value %s",
-                             node, key, value)
+            logger.exception(
+                "patch failed for node: %s, unschedulable: %s, labels: %s, "
+                "annotations: %s", node, unschedulable, labels, annotations)
         return False
 
 
@@ -199,7 +179,7 @@ class Node(object):
         self.unschedulable = unschedulable
         self.gpu_expected = gpu_expected
         self.state = state
-        self.unhealthy_rules = unhealthy_rules
+        self.unhealthy_rules = unhealthy_rules if unhealthy_rules else []
         self.jobs = {}
 
     def __repr__(self):
@@ -226,7 +206,10 @@ def get_ready(k8s_node):
     return ready
 
 
-def parse_nodes(k8s_nodes, metadata, nodes):
+def parse_nodes(k8s_nodes, metadata, rules, nodes):
+    rules_mapping = {
+        rule.__class__.__name__: rule for rule in rules
+    }
     for k8s_node in k8s_nodes:
         try:
             hostname, internal_ip = get_hostname_and_internal_ip(k8s_node)
@@ -246,12 +229,14 @@ def parse_nodes(k8s_nodes, metadata, nodes):
                     "REPAIR_STATE", "IN_SERVICE"))
 
             if k8s_node.metadata.annotations is None:
-                unhealthy_rules = None
+                unhealthy_rules = []
             else:
                 unhealthy_rules = k8s_node.metadata.annotations.get(
                     "REPAIR_UNHEALTHY_RULES", None)
-            if unhealthy_rules is not None:
-                unhealthy_rules = unhealthy_rules.split(",")
+                if unhealthy_rules is not None:
+                    unhealthy_rules = unhealthy_rules.split(",")
+                else:
+                    unhealthy_rules = []
 
             node = Node(hostname, internal_ip, ready, unschedulable,
                         gpu_expected, state, unhealthy_rules)
@@ -285,7 +270,7 @@ def parse_pods(k8s_pods, nodes):
             logger.exception("failed to parse k8s pod %s", k8s_pod)
 
 
-def parse_for_nodes(k8s_nodes, k8s_pods, vc_list):
+def parse_for_nodes(k8s_nodes, k8s_pods, vc_list, rules):
     metadata = {}
     # Merge metadata from all VCs together
     for vc in vc_list:
@@ -294,7 +279,7 @@ def parse_for_nodes(k8s_nodes, k8s_pods, vc_list):
         metadata.update(gpu_metadata)
 
     nodes = {}
-    parse_nodes(k8s_nodes, metadata, nodes)
+    parse_nodes(k8s_nodes, metadata, rules, nodes)
     parse_pods(k8s_pods, nodes)
     return list(nodes.values())
 
@@ -330,55 +315,55 @@ if __name__ == "__main__":
                                    first_node_name
     logger.info("node: %s, unschedulable: %s", first_node_name, unschedulable)
 
-    # Cordon a node
-    ret = k8s_util.cordon(first_node_name)
-    logger.info("node: %s cordon success: %s", first_node_name, ret)
-    assert ret is True, "node %s should be cordoned" % first_node_name
+    # Cordon, label, annotate a node
+    ret = k8s_util.patch_node(
+        first_node_name,
+        unschedulable=True,
+        labels={"TEST_LABEL_KEY": "TEST_LABEL_VALUE"},
+        annotations={"TEST_ANNOTATION_KEY": "TEST_ANNOTATION_VALUE"})
+    logger.info("node: %s patch success: %s", first_node_name, ret)
+    assert ret is True, "node %s should be patched" % first_node_name
+    first_node = k8s_util.list_node(
+        label_selector="kubernetes.io/hostname=%s" % first_node_name)[0]
+    unschedulable = first_node.spec.unschedulable is True
+    logger.info("node: %s, unschedulable: %s, TEST_LABEL_KEY: %s, "
+                "TEST_ANNOTATION_KEY: %s", first_node_name, unschedulable,
+                first_node.metadata.labels.get("TEST_LABEL_KEY"),
+                first_node.metadata.annotations.get("TEST_ANNOTATION_KEY"))
+    assert unschedulable is True
+    assert first_node.metadata.labels.get("TEST_LABEL_KEY") == \
+        "TEST_LABEL_VALUE"
+    assert first_node.metadata.annotations.get("TEST_ANNOTATION_KEY") == \
+        "TEST_ANNOTATION_VALUE"
+
+    # Uncordon, un-label, un-annotate a node
+    ret = k8s_util.patch_node(
+        first_node_name,
+        unschedulable=False,
+        labels={"TEST_LABEL_KEY": None},
+        annotations={"TEST_ANNOTATION_KEY": None})
+    logger.info("node: %s patch success: %s", first_node_name, ret)
+    assert ret is True, "node %s should be patched" % first_node_name
+    first_node = k8s_util.list_node(
+        label_selector="kubernetes.io/hostname=%s" % first_node_name)[0]
+    unschedulable = first_node.spec.unschedulable is True
+    logger.info("node: %s, unschedulable: %s, TEST_LABEL_KEY: %s, "
+                "TEST_ANNOTATION_KEY: %s", first_node_name, unschedulable,
+                first_node.metadata.labels.get("TEST_LABEL_KEY"),
+                first_node.metadata.annotations.get("TEST_ANNOTATION_KEY"))
+    assert unschedulable is False
+    assert first_node.metadata.labels.get("TEST_LABEL_KEY") is None
+    assert first_node.metadata.annotations.get("TEST_ANNOTATION_KEY") is None
+
+    # Patch empty stuff
+    ret = k8s_util.patch_node(first_node_name)
+    logger.info("node: %s patch success: %s", first_node_name, ret)
+    assert ret is True, "node %s should be patched" % first_node_name
     first_node = k8s_util.list_node(
         label_selector="kubernetes.io/hostname=%s" % first_node_name)[0]
     unschedulable = first_node.spec.unschedulable is True
     logger.info("node: %s, unschedulable: %s", first_node_name, unschedulable)
-
-    # Uncordon a node
-    ret = k8s_util.uncordon(first_node_name)
-    logger.info("node: %s uncordon success: %s", first_node_name, ret)
-    assert ret is True, "node %s should be uncordoned"
-    first_node = k8s_util.list_node(
-        label_selector="kubernetes.io/hostname=%s" % first_node_name)[0]
-    unschedulable = first_node.spec.unschedulable is True
-    logger.info("node: %s, unschedulable: %s", first_node_name, unschedulable)
-
-    # Label a node
-    ret = k8s_util.label(first_node_name, "TEST_KEY", "TEST_VALUE")
-    logger.info("node: %s label success: %s", first_node_name, ret)
-    assert ret is True, "node %s should be labeled" % first_node_name
-    first_node = k8s_util.list_node(
-        label_selector="kubernetes.io/hostname=%s" % first_node_name)[0]
-    assert first_node.metadata.labels.get("TEST_KEY") == "TEST_VALUE"
-
-    # Un-label a node
-    ret = k8s_util.label(first_node_name, "TEST_KEY", None)
-    logger.info("node: %s un-label success: %s", first_node_name, ret)
-    assert ret is True, "node %s should be un-labeled" % first_node_name
-    first_node = k8s_util.list_node(
-        label_selector="kubernetes.io/hostname=%s" % first_node_name)[0]
-    assert first_node.metadata.labels.get("TEST_KEY") is None
-
-    # Annotate a node
-    ret = k8s_util.annotate(first_node_name, "TEST_KEY", "TEST_VALUE")
-    logger.info("node: %s annotate success: %s", first_node_name, ret)
-    assert ret is True, "node %s should be annotated" % first_node_name
-    first_node = k8s_util.list_node(
-        label_selector="kubernetes.io/hostname=%s" % first_node_name)[0]
-    assert first_node.metadata.annotations.get("TEST_KEY") == "TEST_VALUE"
-
-    # Un-annotate a node
-    ret = k8s_util.annotate(first_node_name, "TEST_KEY", None)
-    logger.info("node: %s un-annotate success: %s", first_node_name, ret)
-    assert ret is True, "node %s should be un-annotated" % first_node_name
-    first_node = k8s_util.list_node(
-        label_selector="kubernetes.io/hostname=%s" % first_node_name)[0]
-    assert first_node.metadata.annotations.get("TEST_KEY") is None
+    assert unschedulable is False
 
     logger.info("pods:")
     k8s_pods = k8s_util.list_pods()
@@ -407,7 +392,9 @@ if __name__ == "__main__":
                     vc.get("resourceMetadata"))
 
     # parse_for_nodes
-    nodes = parse_for_nodes(k8s_nodes, k8s_pods, vc_list)
+    from rule import K8sGpuRule, DcgmEccDBERule
+    nodes = parse_for_nodes(
+        k8s_nodes, k8s_pods, vc_list, [K8sGpuRule(), DcgmEccDBERule()])
     for node in nodes:
         logger.info("%s", node)
 
