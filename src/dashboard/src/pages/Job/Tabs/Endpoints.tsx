@@ -121,10 +121,18 @@ const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoint
     enqueueSnackbar(`Enabling ${name}...`);
     post({
       endpoints: [name.toLowerCase()]
-    }).then(() => {
-      enqueueSnackbar(`${name} enabled`, { variant: 'success' })
-    }, () => {
-      enqueueSnackbar(`Failed to enable ${name}`, { variant: 'error' })
+    }).then((response) => {
+      if (response.ok) {
+        enqueueSnackbar(`${name} enabled`, { variant: 'success' })
+      } else {
+        return response.text().then((text: string) => Promise.reject(Error(text)))
+      }
+    }).catch((error) => {
+      const message = error && error.message
+        ? `Failed to enable ${name}: ${error.message}`
+        : `Failed to enable ${name}`
+
+      enqueueSnackbar(message, { variant: 'error' })
     });
   }, [post, enqueueSnackbar]);
   const onSubmit = useCallback((event: FormEvent) => {
