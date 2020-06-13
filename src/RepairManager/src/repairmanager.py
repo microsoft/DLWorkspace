@@ -145,6 +145,14 @@ class RepairManager(object):
         return value
 
     def patch(self, node, unschedulable=None, labels=None, annotations=None):
+        if self.dry_run:
+            logger.info(
+                "node %s (%s) dry run. current state: %s, current "
+                "unschedulable: %s, unschedulable: %s, labels: %s, "
+                "annotations: %s", node.name, node.ip, node.state.name,
+                node.unschedulable, unschedulable, labels, annotations)
+            return True
+
         return self.k8s_util.patch_node(
             node.name, unschedulable, labels, annotations)
 

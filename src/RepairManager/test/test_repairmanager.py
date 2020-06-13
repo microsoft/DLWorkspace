@@ -66,6 +66,8 @@ class TestRepairManager(unittest.TestCase):
         self.node = Node(self.ip, self.ip, True, False, 4, State.IN_SERVICE, [])
 
     def test_validate(self):
+        self.repairmanager.dry_run = False
+
         # Node is in valid state
         self.assertTrue(self.repairmanager.validate(self.node))
 

@@ -21,7 +21,7 @@ def start_repairmanager(params):
         k8s_util = K8sUtil()
         rest_util = RestUtil()
         repair_manager = RepairManager(
-            rules, params.port, k8s_util, rest_util,
+            rules, int(params.port), k8s_util, rest_util,
             interval=params.interval, dry_run=params.dry_run)
         repair_manager.run()
     except:
@@ -31,7 +31,8 @@ def start_repairmanager(params):
 def start_repairmanager_agent(params):
     try:
         rules = instantiate_rules()
-        agent = RepairManagerAgent(rules, params.port, dry_run=params.dry_run)
+        agent = RepairManagerAgent(
+            rules, int(params.port), dry_run=params.dry_run)
         agent.run()
     except:
         logger.exception("Exception in repairmanager agent run")
