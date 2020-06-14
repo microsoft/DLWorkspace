@@ -6,7 +6,9 @@ import logging
 import os
 import signal
 import sys
+import yaml
 
+from logging import handlers
 from repairmanager import RepairManager, RepairManagerAgent
 from rule import instantiate_rules
 from util import K8sUtil, RestUtil
@@ -15,9 +17,16 @@ from util import K8sUtil, RestUtil
 logger = logging.getLogger(__name__)
 
 
+def get_config(config_path):
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+    return config
+
+
 def start_repairmanager(params):
     try:
-        rules = instantiate_rules()
+        config = get_config(params.config)
+        rules = instantiate_rules(config)
         k8s_util = K8sUtil()
         rest_util = RestUtil()
         repair_manager = RepairManager(
@@ -25,12 +34,13 @@ def start_repairmanager(params):
             interval=params.interval, dry_run=params.dry_run)
         repair_manager.run()
     except:
-        logger.exception("Exception in repairmanager step")
+        logger.exception("Exception in repairmanager run")
 
 
 def start_repairmanager_agent(params):
     try:
-        rules = instantiate_rules()
+        config = get_config(params.config)
+        rules = instantiate_rules(config)
         agent = RepairManagerAgent(
             rules, int(params.port), dry_run=params.dry_run)
         agent.run()
@@ -45,11 +55,12 @@ def register_stack_trace_dump():
 def main(params):
     register_stack_trace_dump()
 
-    service = params.service
-    if service == "repairmanager":
+    if params.service == "repairmanager":
         start_repairmanager(params)
-    elif service == "repairmanageragent":
+    elif params.service == "repairmanageragent":
         start_repairmanager_agent(params)
+    else:
+        logger.fatal("Unrecognized service %s", params.service)
 
 
 if __name__ == '__main__':
@@ -58,6 +69,10 @@ if __name__ == '__main__':
                         "-s",
                         help="repairmanager or repairmanageragent",
                         default="repairmanager")
+    parser.add_argument("--config",
+                        "-c",
+                        help="directory path containing config.yaml",
+                        default="/etc/repairmanager")
     parser.add_argument("--log",
                         "-l",
                         help="log dir to store log",
@@ -96,9 +111,13 @@ if __name__ == '__main__':
 
         return result
 
+    console_handler = logging.StreamHandler(sys.stdout)
+    file_handler = handlers.RotatingFileHandler(
+        os.path.join(args.log, args.service, ".log"),
+        maxBytes=10240000, backupCount=10)
     logging.basicConfig(
-        format=
-        "%(asctime)s - %(levelname)s - %(threadName)s - %(filename)s:%(lineno)s - %(message)s",
-        level=get_logging_level())
+        format="%(asctime)s - %(levelname)s - %(threadName)s - %(filename)s:%(lineno)s - %(message)s",
+        level=get_logging_level(),
+        handlers=[console_handler, file_handler])
 
     main(args)

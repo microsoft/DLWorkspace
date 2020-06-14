@@ -80,10 +80,6 @@ class K8sUtil(object):
             if annotations is not None:
                 metadata.annotations = annotations
             api_call_body.metadata = metadata
-            # api_call_body = k8s_client.V1Node(
-            #     spec=k8s_client.V1NodeSpec(unschedulable=unschedulable),
-            #     metadata=k8s_client.V1ObjectMeta(
-            #         labels=labels, annotations=annotations))
             self.k8s_core_api.patch_node(node, api_call_body)
             return True
         except ApiException:
@@ -227,15 +223,21 @@ def parse_nodes(k8s_nodes, metadata, rules, nodes):
                 state = State(k8s_node.metadata.labels.get(
                     REPAIR_STATE, "IN_SERVICE"))
 
-            if k8s_node.metadata.annotations is None:
-                unhealthy_rules = []
-            else:
-                unhealthy_rules = k8s_node.metadata.annotations.get(
+            # Parse unhealthy rules on the node
+            unhealthy_rules = []
+            if k8s_node.metadata.annotations is not None:
+                unhealthy_rule_names = k8s_node.metadata.annotations.get(
                     REPAIR_UNHEALTHY_RULES, None)
-                if unhealthy_rules is not None:
-                    unhealthy_rules = unhealthy_rules.split(",")
-                else:
-                    unhealthy_rules = []
+                if unhealthy_rule_names is not None:
+                    unhealthy_rule_names = unhealthy_rule_names.split(",")
+                    for rule_name in unhealthy_rule_names:
+                        rule = rules_mapping.get(rule_name)
+                        if rule is None:
+                            logger.error(
+                                "skip non-existent rule %s for node %s (%s)",
+                                rule_name, hostname, internal_ip)
+                            continue
+                        unhealthy_rules.append(rule)
 
             node = Node(hostname, internal_ip, ready, unschedulable,
                         gpu_expected, state, unhealthy_rules)

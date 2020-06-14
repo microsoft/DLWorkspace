@@ -37,7 +37,11 @@ class MockPrometheusUtil(object):
 
 class TestRuleInstantiation(unittest.TestCase):
     def test_rule_instantiation(self):
-        rules = instantiate_rules()
+        # Sanity check on all rules
+        config = {
+            "rules": list(Rule.subclasses.keys())
+        }
+        rules = instantiate_rules(config)
         for rule in rules:
             self.assertTrue(rule.__class__.__name__ in Rule.subclasses)
 

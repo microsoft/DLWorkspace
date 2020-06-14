@@ -31,7 +31,6 @@ class Rule(object):
         }
         self.rest_util = RestUtil()
         self.prometheus_util = PrometheusUtil()
-        self.enable = True
 
     @override
     def update_data(self):
@@ -46,7 +45,7 @@ class Rule(object):
 
     @override
     def check_health(self, node, stat="interval"):
-        pass
+        return True
 
     @override
     def prepare(self, node):
@@ -66,18 +65,6 @@ class Rule(object):
         # The default is to reboot node
         os.system("sync")
         os.system("reboot -f")
-
-
-@Rule.register_subclass("DefaultRule")
-class DefaultRule(Rule):
-    def __init__(self):
-        super(DefaultRule, self).__init__("default")
-
-    def update_data(self):
-        pass
-
-    def check_health(self, node, stat="interval"):
-        pass
 
 
 @Rule.register_subclass("UnschedulableRule")
@@ -127,7 +114,7 @@ class K8sGpuRule(Rule):
 
     def prepare(self, node):
         # No need to wait for all jobs to finish
-        pass
+        return True
 
     def repair(self):
         os.system("systemctl restart kubelet")
@@ -163,18 +150,16 @@ class DcgmEccDBERule(Rule):
 class InfinibandRule(Rule):
     def __init__(self):
         super(InfinibandRule, self).__init__("infiniband_up")
-        self.enable = os.environ.get("INFINIBAND_RULE", "0") == "1"
 
 
 @Rule.register_subclass("IPoIBRule")
 class IPoIBRule(Rule):
     def __init__(self):
         super(IPoIBRule, self).__init__("ipoib_up")
-        self.enable = os.environ.get("IPOIB_RULE", "0") == "1"
 
     def prepare(self, node):
         # No need to wait for all jobs to finish
-        pass
+        return True
 
     def repair(self):
         os.system("systemctl restart walinuxagent")
@@ -184,11 +169,10 @@ class IPoIBRule(Rule):
 class NvPeerMemRule(Rule):
     def __init__(self):
         super(NvPeerMemRule, self).__init__("nv_peer_mem_count")
-        self.enable = os.environ.get("NV_PEER_MEM_RULE", "0") == "1"
 
     def prepare(self, node):
         # No need to wait for all jobs to finish
-        pass
+        return True
 
     def repair(self):
         os.system("systemctl restart nv_peer_mem")
@@ -199,8 +183,20 @@ class NVSMRule(Rule):
     def __init__(self):
         super(NVSMRule, self).__init__(
             ["nvsm_health_total_count", "nvsm_health_good_count"])
-        self.enable = os.environ.get("NVSM_RULE", "0") == "1"
+
+    def repair(self):
+        os.environ["TERM"] = "xterm"
+        os.system("nvsm show health")
+        os.system("sync")
+        os.system("reboot -f")
 
 
-def instantiate_rules():
-    return [cls() for _, cls in Rule.subclasses.items()]
+def instantiate_rules(config):
+    rule_names = config.get("rules", [])
+    rules = []
+    for rule_name in rule_names:
+        if rule_name not in Rule.subclasses:
+            logger.warning("rule %s does not have definition", rule_name)
+        else:
+            rules.append(Rule.subclasses[rule_name]())
+    return rules
