@@ -59,6 +59,7 @@ class Cluster extends ClusterV1 {
       jobId
     })
     const response = await this.fetch('/GetJobRawLog?' + params)
+    this.context.assert(response.ok, 502)
     return response.body
   }
 }
