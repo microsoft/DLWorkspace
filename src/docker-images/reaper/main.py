@@ -33,10 +33,16 @@ def kill():
             logger.info("processing alert of %s", alert)
             if not dry_run:
                 job_name = alert["labels"]["job_name"]
+                idle_hour_desc = alert.get("annotations",
+                                           {}).get("idle_hour", "too long")
                 params = {
-                    "jobId": job_name,
-                    "userName": "Administrator",
-                    "desc": "killed because the job is being idle too long"
+                    "jobId":
+                        job_name,
+                    "userName":
+                        "Administrator",
+                    "desc":
+                        "killed because the job is being idle for %s" %
+                        (idle_hour_desc)
                 }
                 args = urllib.parse.urlencode(params)
                 url = restful_url + "/KillJob?" + args
@@ -53,7 +59,7 @@ def kill():
         return "Ok", 200
     except Exception as e:
         logger.exception("caught exception while processing kill, data is %s",
-                         requests.data)
+                         request.data)
         raise e
 
 

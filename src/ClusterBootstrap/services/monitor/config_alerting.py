@@ -21,12 +21,15 @@ kill_template = """
       expr: avg(task_gpu_percent{vc_name="%s"}) by (user_email, job_name, vc_name) == 0
       labels:
         type: reaper
+      annotations:
+        idle_hour: %dh
 """
 
 
 def config_kill_rule(m):
     for vc_name, hour in m.items():
-        print(kill_template % (vc_name, hour, vc_name, vc_name, hour, vc_name))
+        print(kill_template %
+              (vc_name, hour, vc_name, vc_name, hour, vc_name, hour))
 
 
 def extract_relevant_config(config_map):
