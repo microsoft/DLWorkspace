@@ -30,7 +30,7 @@ import notify
 import k8sUtils
 from cluster_resource import ClusterResource
 from job_params_util import get_resource_params_from_job_params
-from common import base64decode, base64encode
+from common import base64decode, base64encode, walk_json
 
 logger = logging.getLogger(__name__)
 
@@ -616,7 +616,8 @@ def get_jobs_info(jobs, cluster_schedulable, vc_schedulables):
 
 
 def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
-                                          vc_schedulables):
+                                          vc_schedulables,
+                                          vc_scheduling_policies):
     stop_schedulings = {} # vc_name -> the first blocking job of this vc
 
     for job_info in jobs_info:
@@ -638,34 +639,55 @@ def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
         if preemption_allowed:
             continue # schedule non preemptable first
 
-        if stop_schedulings.get(vc_name) is None and \
-                cluster_schedulable >= job_resource and \
-                vc_schedulable >= job_resource:
-            vc_schedulable -= job_resource
-            cluster_schedulable -= job_resource
-            job_info["allowed"] = True
-            logger.info(
-                "Allow non-preemptable job %s from %s to run, job resource %s",
-                job_id, vc_name, job_resource)
-        elif stop_schedulings.get(vc_name) is None:
-            reason = "resource not enough, required %s, vc schedulable %s, cluster schedulable %s" % (
-                job_resource, vc_schedulable, cluster_schedulable)
-            job_info["reason"] = reason
-            logger.info(
-                "Disallow non-preemptable job %s from vc %s to run."
-                "resource not enough, required %s. "
-                "cluster schedulable %s, vc schedulables %s", job_id, vc_name,
-                job_resource, cluster_schedulable, vc_schedulable)
-            # prevent later non preemptable job from scheduling
-            stop_schedulings[vc_name] = job_info
+        scheduling_policy = vc_scheduling_policies.get(vc_name, "RF")
+
+        if scheduling_policy == "FIFO":
+            if stop_schedulings.get(vc_name) is None and \
+                    cluster_schedulable >= job_resource and \
+                    vc_schedulable >= job_resource:
+                vc_schedulable -= job_resource
+                cluster_schedulable -= job_resource
+                job_info["allowed"] = True
+                logger.info(
+                    "Allow non-preemptable job %s from %s to run, job resource %s",
+                    job_id, vc_name, job_resource)
+            elif stop_schedulings.get(vc_name) is None:
+                reason = "resource not enough, required %s, vc schedulable %s, cluster schedulable %s" % (
+                    job_resource, vc_schedulable, cluster_schedulable)
+                job_info["reason"] = reason
+                logger.info(
+                    "Disallow non-preemptable job %s from vc %s to run."
+                    "resource not enough, required %s. "
+                    "cluster schedulable %s, vc schedulables %s", job_id,
+                    vc_name, job_resource, cluster_schedulable, vc_schedulable)
+                # prevent later non preemptable job from scheduling
+                stop_schedulings[vc_name] = job_info
+            else:
+                reason = "blocked by job with higher priority/earlier time %s" % (
+                    stop_schedulings[vc_name]['jobId'])
+                job_info["reason"] = reason
+                logger.info(
+                    "Disallow non-preemptable job %s from vc %s to run."
+                    "job with higher priority is disallowed %s", job_id,
+                    vc_name, stop_schedulings[vc_name]["jobId"])
         else:
-            reason = "blocked by job with higher priority/earlier time %s" % (
-                stop_schedulings[vc_name]['jobId'])
-            job_info["reason"] = reason
-            logger.info(
-                "Disallow non-preemptable job %s from vc %s to run."
-                "job with higher priority is disallowed %s", job_id, vc_name,
-                stop_schedulings[vc_name]["jobId"])
+            if scheduling_policy != "RF":
+                logger.error("unknown scheduling_policy %s, default to RF",
+                             scheduling_policy)
+            if cluster_schedulable >= job_resource and \
+                    vc_schedulable >= job_resource:
+                vc_schedulable -= job_resource
+                cluster_schedulable -= job_resource
+                job_info["allowed"] = True
+                logger.info(
+                    "Allow non-preemptable job %s from %s to run, job resource %s",
+                    job_id, vc_name, job_resource)
+            else:
+                logger.info(
+                    "Disallow non-preemptable job %s from vc %s to run."
+                    "Requiring %s, vc_schedulable %s, cluster_schedulable %s",
+                    job_id, vc_name, job_resource, vc_schedulable,
+                    cluster_schedulable)
 
 
 def mark_schedulable_preemptable_jobs(jobs_info, cluster_schedulable):
@@ -739,12 +761,24 @@ def take_job_actions(data_handler, redis_conn, launcher, jobs):
     cluster_schedulable = get_cluster_schedulable(cluster_status)
     vc_schedulables = get_vc_schedulables(cluster_status)
 
+    vcs = data_handler.ListVCs()
+    vc_scheduling_policies = {} # vc_name -> policy
+    for vc in vcs:
+        # Support following scheduling_policy:
+        # * FIFO: This policy allows big job blocks small jobs, might cause low GPU utils
+        # * RF: Runnable first: sort according to submission time and priority, submit jobs not exceeding quota
+        vc_scheduling_policies[vc["vcName"]] = walk_json(vc,
+                                                         "admin",
+                                                         "scheduling_policy",
+                                                         default="RF")
+
     # Parse and sort jobs based on priority and submission time
     jobs_info = get_jobs_info(jobs, cluster_schedulable, vc_schedulables)
 
     # Mark schedulable non-preemptable jobs
     mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
-                                          vc_schedulables)
+                                          vc_schedulables,
+                                          vc_scheduling_policies)
 
     # Mark schedulable preemptable jobs
     mark_schedulable_preemptable_jobs(jobs_info, cluster_schedulable)

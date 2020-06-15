@@ -564,8 +564,7 @@ def test_image_pull_msg(args):
         for _ in range(50):
             details = utils.get_job_detail(args.rest, args.email, job.jid)
 
-            message = utils.walk_json_safe(details, "jobStatusDetail", 0,
-                                           "message")
+            message = utils.walk_json(details, "jobStatusDetail", 0, "message")
             if expected in message:
                 break
 

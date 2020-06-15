@@ -26,17 +26,17 @@ from kubernetes.stream.ws_client import ERROR_CHANNEL, STDERR_CHANNEL, STDOUT_CH
 logger = logging.getLogger(__file__)
 
 
-def walk_json_safe(obj, *fields):
+def walk_json(obj, *fields, default=None):
     """ for example a=[{"a": {"b": 2}}]
-    walk_json_safe(a, 0, "a", "b") will get 2
-    walk_json_safe(a, 0, "not_exist") will get None
+    walk_json(a, 0, "a", "b") will get 2
+    walk_json(a, 0, "not_exist") will get None
     """
     try:
         for f in fields:
             obj = obj[f]
         return obj
     except:
-        return None
+        return default
 
 
 def case(unstable=False):
@@ -132,7 +132,7 @@ def get_config(config_path):
 
 def get_launcher(config_path):
     config = get_config(config_path)
-    launcher = walk_json_safe(config, "job-manager", "launcher")
+    launcher = walk_json(config, "job-manager", "launcher")
     if launcher is None:
         launcher = "python"
     return launcher
@@ -140,18 +140,18 @@ def get_launcher(config_path):
 
 def load_azure_blob_config(config_path, mount_path):
     config = get_config(config_path)
-    blob_config = walk_json_safe(config, "integration-test", "azure-blob")
+    blob_config = walk_json(config, "integration-test", "azure-blob")
 
-    if walk_json_safe(blob_config, "account") is None or \
-            walk_json_safe(blob_config, "key") is None or \
-            walk_json_safe(blob_config, "container") is None:
+    if walk_json(blob_config, "account") is None or \
+            walk_json(blob_config, "key") is None or \
+            walk_json(blob_config, "container") is None:
         raise RuntimeError("no azure blob configured for integration test")
 
     return {
         "blobfuse": [{
-            "accountName": walk_json_safe(blob_config, "account"),
-            "accountKey": walk_json_safe(blob_config, "key"),
-            "containerName": walk_json_safe(blob_config, "container"),
+            "accountName": walk_json(blob_config, "account"),
+            "accountKey": walk_json(blob_config, "key"),
+            "containerName": walk_json(blob_config, "container"),
             "mountPath": mount_path,
         }]
     }
@@ -159,14 +159,14 @@ def load_azure_blob_config(config_path, mount_path):
 
 def load_cluster_nfs_mountpoints(args, job_id):
     config = get_config(args.config)
-    cluster_nfs = walk_json_safe(config, "cluster_nfs")
+    cluster_nfs = walk_json(config, "cluster_nfs")
 
-    if walk_json_safe(cluster_nfs, "server") is None or \
-            walk_json_safe(cluster_nfs, "path") is None:
+    if walk_json(cluster_nfs, "server") is None or \
+            walk_json(cluster_nfs, "path") is None:
         raise RuntimeError("no cluster_nfs configured")
 
-    server = walk_json_safe(cluster_nfs, "server")
-    path = walk_json_safe(cluster_nfs, "path")
+    server = walk_json(cluster_nfs, "server")
+    path = walk_json(cluster_nfs, "path")
     alias = get_alias(args.email)
 
     job_path = get_job_detail(args.rest, args.email,
@@ -209,7 +209,7 @@ def load_cluster_nfs_mountpoints(args, job_id):
 
 def load_system_mountpoints(args):
     config = get_config(args.config)
-    sys_mps = walk_json_safe(config, "system_mountpoints")
+    sys_mps = walk_json(config, "system_mountpoints")
     if sys_mps is None:
         sys_mps = []
     mps = []
@@ -225,7 +225,7 @@ def load_system_mountpoints(args):
 
 def load_infiniband_mounts(args):
     config = get_config(args.config)
-    mps = walk_json_safe(config, "infiniband_mounts")
+    mps = walk_json(config, "infiniband_mounts")
     if mps is None:
         mps = []
     return [{
@@ -237,7 +237,7 @@ def load_infiniband_mounts(args):
 
 def load_distributed_system_envs(args):
     config = get_config(args.config)
-    distributed_system_envs = walk_json_safe(config, "distributed_system_envs")
+    distributed_system_envs = walk_json(config, "distributed_system_envs")
     if distributed_system_envs is None or \
             not isinstance(distributed_system_envs, dict):
         distributed_system_envs = {}
