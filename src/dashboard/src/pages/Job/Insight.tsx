@@ -1,12 +1,14 @@
 import * as React from 'react';
 import {
   FunctionComponent,
+  useCallback,
   useContext,
   useMemo,
 } from 'react';
 
 import {
   Box,
+  Button,
   Paper,
   Typography,
   createStyles,
@@ -15,6 +17,9 @@ import {
 
 import { Info } from '@material-ui/icons';
 
+import useActions from '../../hooks/useActions';
+
+import useRouteParams from './useRouteParams';
 import Context from './Context';
 
 const usePaperStyle = makeStyles(theme => createStyles({
@@ -26,12 +31,23 @@ const usePaperStyle = makeStyles(theme => createStyles({
   },
 }))
 
-const Message: FunctionComponent<{ children: string }> = ({ children }) => {
+interface MessageProps {
+  job: any;
+  children: string;
+}
+
+const Message: FunctionComponent<MessageProps> = ({ children, job }) => {
+  const { clusterId } = useRouteParams();
+  const { support } = useActions(clusterId);
+  const handleSupportClick = useCallback((event: any) => {
+    support(job).onClick(event, job);
+  }, [support, job]);
   const paperStyle = usePaperStyle();
   return (
     <Paper variant="outlined" classes={paperStyle}>
       <Info fontSize="small" color="primary"/>
       <Typography variant="body2" component={Box} flex={1} paddingLeft={1}>{children}</Typography>
+      <Button size="small" color="primary" onClick={handleSupportClick}>support</Button>
     </Paper>
   );
 }
@@ -50,7 +66,7 @@ const Insight: FunctionComponent = () => {
     <>
       {
         messages.map((message, index) => (
-          <Message key={index}>{message}</Message>
+          <Message key={index} job={job}>{message}</Message>
         ))
       }
     </>
