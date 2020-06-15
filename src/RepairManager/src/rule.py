@@ -161,15 +161,7 @@ class InfinibandRule(Rule):
         super(InfinibandRule, self).__init__("infiniband_up")
 
     def check_health(self, node, stat="interval"):
-        try:
-            values = self.get_values(node, "infiniband_up", stat)
-            for value in values:
-                if value > 0:
-                    return False
-            return True
-        except:
-            logger.exception("check health failed")
-        return False
+        return True
 
 
 @Rule.register_subclass("IPoIBRule")
@@ -220,13 +212,8 @@ class NVSMRule(Rule):
         os.system("reboot -f")
 
 
-def instantiate_rules(rule_names):
-    if not isinstance(rule_names, list) or len(rule_names) == 0:
-        return []
+def instantiate_rules():
     rules = []
-    for rule_name in rule_names:
-        if rule_name not in Rule.subclasses:
-            logger.warning("rule %s does not have definition", rule_name)
-        else:
-            rules.append(Rule.subclasses[rule_name]())
+    for rule_name in Rule.subclasses:
+        rules.append(Rule.subclasses[rule_name]())
     return rules

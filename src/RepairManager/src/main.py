@@ -26,7 +26,7 @@ def get_config(config_path):
 def start_repairmanager(params):
     try:
         config = get_config(params.config)
-        rules = instantiate_rules(config.get("rules", []))
+        rules = instantiate_rules()
         k8s_util = K8sUtil()
         rest_util = RestUtil()
         repair_manager = RepairManager(
@@ -39,8 +39,7 @@ def start_repairmanager(params):
 
 def start_repairmanager_agent(params):
     try:
-        # Instantiate all available rule definitions for agent
-        rules = instantiate_rules(list(Rule.subclasses.keys()))
+        rules = instantiate_rules()
         agent = RepairManagerAgent(
             rules, int(params.port), dry_run=params.dry_run)
         agent.run()
@@ -117,7 +116,7 @@ if __name__ == '__main__':
 
     console_handler = logging.StreamHandler(sys.stdout)
     file_handler = handlers.RotatingFileHandler(
-        os.path.join(args.log, args.service, ".log"),
+        os.path.join(args.log, args.service + ".log"),
         maxBytes=10240000, backupCount=10)
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(threadName)s - %(filename)s:%(lineno)s - %(message)s",

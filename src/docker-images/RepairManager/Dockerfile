@@ -1,11 +1,9 @@
-FROM ubuntu:18.04
-MAINTAINER Deborah Sandoval <Deborah.Sandoval@microsoft.com>
+FROM python:3.7
 
-RUN apt-get update && apt-get --no-install-recommends install -y \
-    python3.7 \
-    python3-pip
+RUN pip3 install requests kubernetes flask flask-cors prometheus_client
 
-RUN pip3 install wheel setuptools requests kubernetes flask flask-cors prometheus_client
+WORKDIR /repairmanager
 
 ADD RepairManager/src/* /repairmanager/
+
 

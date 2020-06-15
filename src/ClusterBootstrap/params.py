@@ -85,6 +85,8 @@ default_config_parameters = {
         "port": 9094
     },
     "repair-manager": {
+        "port": 9080,
+        "agent_port": 9081,
         "prometheus-ip": "localhost",
         "prometheus-port": 9091,
         "etcd": {

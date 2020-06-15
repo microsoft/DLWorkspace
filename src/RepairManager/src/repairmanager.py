@@ -38,7 +38,7 @@ class RepairManager(object):
             vc_list = self.rest_util.list_vcs().get("result", {})
             self.nodes = parse_for_nodes(
                 k8s_nodes, k8s_pods, vc_list, self.rules)
-            [rule.update_metric_data() for rule in self.rules]
+            [rule.update_data() for rule in self.rules]
         except:
             logger.exception("failed to get repair state")
             self.nodes = []
