@@ -18,7 +18,7 @@ const Metrics: FunctionComponent = () => {
   }, [cluster, job]);
 
   return (
-    <Card>
+    <Card elevation={0}>
       <CardMedia
         component="iframe"
         src={url}
