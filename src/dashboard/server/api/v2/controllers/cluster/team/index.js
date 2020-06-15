@@ -15,6 +15,12 @@ module.exports = async context => {
 
   const _team = _.chain(team)
   const _setBody = _.partial(_.set, body)
+  /**
+   * @param {string | readonly string[]} path
+   * @returns {this}
+   */
+  const _increaseBody = (path) =>
+    _.set(body, path, _.get(body, path, 0) + 1)
 
   _setBody('config', cluster.config)
   _setBody('runningJobs', _team.get('AvaliableJobNum'))
@@ -152,6 +158,18 @@ module.exports = async context => {
     }
     for (const number of _pod.get('memory').values()) {
       _setBody(['workers', nodeName, 'pods', podName, 'memory'], number)
+    }
+  }
+
+  for (const { type, healthy, pods } of _.values(body['workers'])) {
+    _increaseBody(['types', type, 'workers', 'total'])
+    if (!healthy) {
+      _increaseBody(['types', type, 'workers', 'unschedulable'])
+    }
+    if (_.keys(pods).length > 0) {
+      _increaseBody(['types', type, 'workers', 'used'])
+    } else {
+      _increaseBody(['types', type, 'workers', 'available'])
     }
   }
 }
