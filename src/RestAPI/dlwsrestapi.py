@@ -225,12 +225,14 @@ class KillJob(Resource):
         self.get_parser = reqparse.RequestParser()
         self.get_parser.add_argument("jobId", required=True)
         self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("desc", required=False)
 
     def get(self):
         args = self.get_parser.parse_args()
         job_id = args["jobId"]
         username = args["userName"]
-        result = JobRestAPIUtils.kill_job(username, job_id)
+        desc = args.get("desc")
+        result = JobRestAPIUtils.kill_job(username, job_id, desc)
         ret = {}
         if result:
             # NOTE "Success" prefix is used in reaper, please also update reaper code

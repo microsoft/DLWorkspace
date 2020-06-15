@@ -120,7 +120,7 @@ def test_op_job(args):
         # KillJob
         utils.block_until_state_in(args.rest, job_id, {"running"})
         logger.info("kill job %s" % job_id)
-        resp = utils.kill_job(args.rest, args.email, job_id)
+        resp = utils.kill_job(args.rest, args.email, job_id, "testing kill job")
         assert "Success, the job is scheduled to be terminated." == resp[
             "result"]
 
@@ -705,6 +705,7 @@ def test_fault_tolerance(args):
         assert output == "dummy\n", "output is %s" % (output)
 
 
+@utils.case()
 def test_no_resource_info(args):
     expected = "Insufficient nvidia.com/gpu"
 
@@ -989,3 +990,24 @@ def test_endpoint_role(args):
         role_idx = ssh_endpoint.get("role-idx")
         assert role_name == "master", "unknown role-name " + str(role_name)
         assert role_idx == "0", "unknown role-idx " + str(role_idx)
+
+
+@utils.case()
+def test_kill_job_with_message(args):
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+        expected = "dummy"
+
+        utils.kill_job(args.rest, args.email, job.jid, expected)
+
+        state = job.block_until_state_not_in({"running", "killing"}, timeout=30)
+        assert state == "killed"
+
+        details = utils.get_job_detail(args.rest, args.email, job.jid)
+        message = details.get("errorMsg")
+        assert message == expected, "unexpected message " + message

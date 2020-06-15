@@ -470,6 +470,8 @@ def op_job(username, job_id, op):
 
         data_fields = {"jobStatus": to_state}
         cond_fields = {"jobId": job_id}
+        if isinstance(op, KillOp) and op.desc is not None:
+            data_fields["errorMsg"] = op.desc
         ret = data_handler.UpdateJobTextFields(cond_fields, data_fields)
         if ret is True:
             logger.info("%s (%s) successfully %s job %s", username, role,
@@ -480,8 +482,8 @@ def op_job(username, job_id, op):
     return ret
 
 
-def kill_job(username, job_id):
-    return op_job(username, job_id, KillOp())
+def kill_job(username, job_id, desc):
+    return op_job(username, job_id, KillOp(desc))
 
 
 def pause_job(username, job_id):
@@ -614,7 +616,7 @@ def op_jobs(username, job_ids, op, batch_size=20):
 
 
 def kill_jobs(username, job_ids):
-    return op_jobs(username, job_ids, KillOp())
+    return op_jobs(username, job_ids, KillOp(None))
 
 
 def pause_jobs(username, job_ids):

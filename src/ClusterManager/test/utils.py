@@ -357,18 +357,20 @@ def get_job_detail(rest_url, email, job_id):
     return resp.json()
 
 
-def _op_job(rest_url, email, job_id, op):
-    args = urllib.parse.urlencode({
+def _op_job(rest_url, email, job_id, op, **kwargs):
+    args = {
         "userName": email,
         "jobId": job_id,
-    })
+    }
+    args.update(kwargs)
+    args = urllib.parse.urlencode(args)
     url = urllib.parse.urljoin(rest_url, "/%sJob" % op) + "?" + args
     resp = requests.get(url)
     return resp.json()
 
 
-def kill_job(rest_url, email, job_id):
-    return _op_job(rest_url, email, job_id, "Kill")
+def kill_job(rest_url, email, job_id, desc):
+    return _op_job(rest_url, email, job_id, "Kill", desc=desc)
 
 
 def pause_job(rest_url, email, job_id):
@@ -492,7 +494,10 @@ class run_job(object):
     def __exit__(self, type, value, traceback):
         email = self.job_spec["userName"]
         try:
-            resp = kill_job(self.rest_url, email, self.jid)
+            resp = kill_job(
+                self.rest_url, email, self.jid,
+                "kill from testing with type %s, value %s, traceback %s" %
+                (type, value, traceback))
             logger.info("killed job %s", self.jid)
         except Exception:
             logger.exception("failed to kill job %s", self.jid)
