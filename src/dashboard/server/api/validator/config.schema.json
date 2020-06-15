@@ -52,6 +52,11 @@
               "title": "Samba endpoint of the cluster's data directory",
               "description": "Starting with file://, exclude the tailing slash",
               "type": "string"
+            },
+            "isPureCPU": {
+              "title": "Whether it is a pure CPU cluster",
+              "description": "Set to true if it is a pure CPU cluster.",
+              "type": "boolean"
             }
           }
         }
