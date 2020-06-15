@@ -1,3 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: repairmanager-configmap
+  namespace: kube-system
+data:
+  config.yaml: |-
+    rules: {{cnf["repairmanager"]}}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,7 +30,16 @@ spec:
       containers:
       - name: repairmanager
         image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["repairmanager"]}}:{{cnf["dockertag"]}}
-        command: ["/run.sh"]
+        command:
+          - "python3"
+          - "/repairmanager/src/main.py"
+        args:
+          - '--service=repairmanager'
+          - '--config=/etc/repairmanager'
+          - '--log=/var/log/repairmanager'
+          - '--interval=30'
+          - '--agent_port={{cnf["repairmanager"]["agent_port"]}}'
+          - '--dry_run'
         imagePullPolicy: Always
         volumeMounts:
         - mountPath: /etc/kubernetes/ssl
@@ -29,7 +47,7 @@ spec:
         - mountPath: /root/.kube/config
           name: kubeconfig
         - mountPath: /etc/repairmanager
-          name: config
+          name: config-volume
         - mountPath: /var/log/repairmanager
           name: log
       {% if cnf["private_docker_registry_username"] %}
@@ -43,7 +61,7 @@ spec:
       - name: kubeconfig
         hostPath:
           path: /etc/kubernetes/restapi-kubeconfig.yaml
-      - name: config
+      - name: config-volume
         configMap:
           name: repairmanager-configmap
       - name: log
@@ -86,9 +104,19 @@ spec:
         securityContext:
           capabilities:
             add: ["SYS_BOOT"]
-        command: ["/run.sh"]
+        command:
+          - "python3"
+          - "/repairmanager/src/main.py"
+        args:
+          - '--service=repairmanageragent'
+          - '--config=/etc/repairmanager'
+          - '--log=/var/log/repairmanager'
+          - '--agent_port={{cnf["repairmanager"]["agent_port"]}}'
+          - '--dry_run'
         imagePullPolicy: Always
         volumeMounts:
+        - mountPath: /etc/repairmanager
+          name: config-volume
         - mountPath: /var/log/repairmanager
           name: log
       {% if cnf["private_docker_registry_username"] %}
@@ -96,6 +124,9 @@ spec:
       - name: svccred
       {% endif %}
       volumes:
+      - name: config-volume
+        configMap:
+          name: repairmanager-configmap
       - name: log
         hostPath:
           path: /var/log/repairmanager

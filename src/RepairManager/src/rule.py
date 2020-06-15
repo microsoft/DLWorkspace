@@ -82,6 +82,15 @@ class UnschedulableRule(Rule):
             return True
 
 
+@Rule.register_subclass("ReadyRule")
+class ReadyRule(Rule):
+    def __init__(self):
+        super(ReadyRule, self).__init__("k8s_node_count")
+
+    def check_health(self, node, stat="interval"):
+        return True
+
+
 @Rule.register_subclass("K8sGpuRule")
 class K8sGpuRule(Rule):
     def __init__(self):
@@ -151,11 +160,25 @@ class InfinibandRule(Rule):
     def __init__(self):
         super(InfinibandRule, self).__init__("infiniband_up")
 
+    def check_health(self, node, stat="interval"):
+        try:
+            values = self.get_values(node, "infiniband_up", stat)
+            for value in values:
+                if value > 0:
+                    return False
+            return True
+        except:
+            logger.exception("check health failed")
+        return False
+
 
 @Rule.register_subclass("IPoIBRule")
 class IPoIBRule(Rule):
     def __init__(self):
         super(IPoIBRule, self).__init__("ipoib_up")
+
+    def check_health(self, node, stat="interval"):
+        pass
 
     def prepare(self, node):
         # No need to wait for all jobs to finish
@@ -169,6 +192,9 @@ class IPoIBRule(Rule):
 class NvPeerMemRule(Rule):
     def __init__(self):
         super(NvPeerMemRule, self).__init__("nv_peer_mem_count")
+
+    def check_health(self, node, stat="interval"):
+        pass
 
     def prepare(self, node):
         # No need to wait for all jobs to finish
@@ -184,15 +210,19 @@ class NVSMRule(Rule):
         super(NVSMRule, self).__init__(
             ["nvsm_health_total_count", "nvsm_health_good_count"])
 
+    def check_health(self, node, stat="interval"):
+        pass
+
     def repair(self):
         os.environ["TERM"] = "xterm"
-        os.system("nvsm show health")
+        os.system("nvsm dump health")
         os.system("sync")
         os.system("reboot -f")
 
 
-def instantiate_rules(config):
-    rule_names = config.get("rules", [])
+def instantiate_rules(rule_names):
+    if not isinstance(rule_names, list) or len(rule_names) == 0:
+        return []
     rules = []
     for rule_name in rule_names:
         if rule_name not in Rule.subclasses:

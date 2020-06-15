@@ -167,13 +167,18 @@ class Job(object):
 
 class Node(object):
     def __init__(self, name, ip, ready, unschedulable, gpu_expected, state,
-                 unhealthy_rules):
+                 infiniband=None, ipoib=None, nv_peer_mem=None, nvsm=None,
+                 unhealthy_rules=None):
         self.name = name
         self.ip = ip
         self.ready = ready
         self.unschedulable = unschedulable
         self.gpu_expected = gpu_expected
         self.state = state
+        self.infiniband = infiniband
+        self.ipoib = ipoib
+        self.nv_peer_mem = nv_peer_mem
+        self.nvsm = nvsm
         self.unhealthy_rules = unhealthy_rules if unhealthy_rules else []
         self.jobs = {}
 
@@ -207,21 +212,34 @@ def parse_nodes(k8s_nodes, metadata, rules, nodes):
     }
     for k8s_node in k8s_nodes:
         try:
+            # Parse node name and ip
             hostname, internal_ip = get_hostname_and_internal_ip(k8s_node)
             if hostname is None or internal_ip is None:
                 logger.error("skip None hostname/internal_ip: %s", k8s_node)
                 continue
 
+            # Parse ready and unschedulable
             ready = get_ready(k8s_node)
             unschedulable = k8s_node.spec.unschedulable is True
+
             sku = k8s_node.metadata.labels.get("sku")
+            # Parse expected gpu
             gpu_expected = metadata.get(sku, {}).get("per_node", 0)
 
+            # Parse repair state
             if k8s_node.metadata.labels is None:
                 state = State.IN_SERVICE
             else:
                 state = State(k8s_node.metadata.labels.get(
                     REPAIR_STATE, "IN_SERVICE"))
+
+            # Parse infiniband
+
+            # Parse ipoib
+
+            # Parse nv_peer_mem
+
+            # Parse nvsm
 
             # Parse unhealthy rules on the node
             unhealthy_rules = []

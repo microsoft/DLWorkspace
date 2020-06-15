@@ -10,7 +10,7 @@ import yaml
 
 from logging import handlers
 from repairmanager import RepairManager, RepairManagerAgent
-from rule import instantiate_rules
+from rule import Rule, instantiate_rules
 from util import K8sUtil, RestUtil
 
 
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_config(config_path):
-    with open(config_path, "r") as f:
+    with open(os.path.join(config_path, "config.yaml"), "r") as f:
         config = yaml.safe_load(f)
     return config
 
@@ -26,7 +26,7 @@ def get_config(config_path):
 def start_repairmanager(params):
     try:
         config = get_config(params.config)
-        rules = instantiate_rules(config)
+        rules = instantiate_rules(config.get("rules", []))
         k8s_util = K8sUtil()
         rest_util = RestUtil()
         repair_manager = RepairManager(
@@ -39,8 +39,8 @@ def start_repairmanager(params):
 
 def start_repairmanager_agent(params):
     try:
-        config = get_config(params.config)
-        rules = instantiate_rules(config)
+        # Instantiate all available rule definitions for agent
+        rules = instantiate_rules(list(Rule.subclasses.keys()))
         agent = RepairManagerAgent(
             rules, int(params.port), dry_run=params.dry_run)
         agent.run()
@@ -84,8 +84,12 @@ if __name__ == '__main__':
                         type=int)
     parser.add_argument("--port",
                         "-p",
+                        help="port for repairmanager",
+                        default="9080")
+    parser.add_argument("--agent_port",
+                        "-a",
                         help="port for repairmanager agent",
-                        default="9180")
+                        default="9081")
     parser.add_argument("--dry_run",
                         "-d",
                         action="store_true",
