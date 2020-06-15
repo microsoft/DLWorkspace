@@ -76,19 +76,10 @@ class UnschedulableRule(Rule):
         pass
 
     def check_health(self, node, stat="interval"):
-        if node.unschedulable:
+        if node.unschedulable is True:
             return False
         else:
             return True
-
-
-@Rule.register_subclass("ReadyRule")
-class ReadyRule(Rule):
-    def __init__(self):
-        super(ReadyRule, self).__init__("k8s_node_count")
-
-    def check_health(self, node, stat="interval"):
-        return True
 
 
 @Rule.register_subclass("K8sGpuRule")
@@ -100,7 +91,7 @@ class K8sGpuRule(Rule):
     def get_value(self, node, metric, stat="interval"):
         for item in self.data[stat].get(metric, []):
             if node.ip == item.get("metric", {}).get("host_ip"):
-                return item.get("value")
+                return int(item.get("value")[1])
         return None
 
     def check_health(self, node, stat="interval"):
@@ -109,11 +100,6 @@ class K8sGpuRule(Rule):
             gpu_total = self.get_value(node, "k8s_node_gpu_total", stat)
             gpu_allocatable = self.get_value(node, "k8s_node_gpu_allocatable",
                                              stat)
-            if gpu_total is None or gpu_allocatable is None:
-                return False
-
-            gpu_total = int(gpu_total[1])
-            gpu_allocatable = int(gpu_allocatable[1])
             if gpu_expected > gpu_total or gpu_total > gpu_allocatable:
                 return False
             return True
@@ -160,8 +146,34 @@ class InfinibandRule(Rule):
     def __init__(self):
         super(InfinibandRule, self).__init__("infiniband_up")
 
+    def get_values(self, node, metric, stat):
+        values = {}
+        for item in self.data[stat].get(metric, []):
+            instance = item.get("metric", {}).get("instance")
+            instance_ip = instance.split(":")[0]
+            if node.ip == instance_ip:
+                device = item.get("metric", {}).get("device")
+                port = item.get("metric", {}).get("port")
+                values["%s:%s" % (device, port)] = int(item.get("value")[1])
+        return values
+
     def check_health(self, node, stat="interval"):
-        return True
+        if node.infiniband is None:
+            return True
+
+        if not isinstance(node.infiniband, list):
+            logger.warning("infiniband in %s is not a list.", node)
+            return True
+
+        try:
+            values = self.get_values(node, "infiniband_up", stat)
+            for infiniband in node.infiniband:
+                if values.get(infiniband) != 1:
+                    return False
+            return True
+        except:
+            logger.exception("check health failed")
+        return False
 
 
 @Rule.register_subclass("IPoIBRule")
@@ -169,8 +181,32 @@ class IPoIBRule(Rule):
     def __init__(self):
         super(IPoIBRule, self).__init__("ipoib_up")
 
+    def get_values(self, node, metric, stat):
+        values = {}
+        for item in self.data[stat].get(metric, []):
+            instance = item.get("metric", {}).get("instance")
+            instance_ip = instance.split(":")[0]
+            if node.ip == instance_ip:
+                device = item.get("metric", {}).get("device")
+                values["%s" % device] = int(item.get("value")[1])
+        return values
+
     def check_health(self, node, stat="interval"):
-        pass
+        if node.ipoib is None:
+            return True
+
+        if not isinstance(node.ipoib, list):
+            return True
+
+        try:
+            values = self.get_values(node, "ipoib_up", stat)
+            for ipoib in node.ipoib:
+                if values.get(ipoib) != 1:
+                    return False
+            return True
+        except:
+            logger.exception("check health failed")
+        return False
 
     def prepare(self, node):
         # No need to wait for all jobs to finish
@@ -185,8 +221,28 @@ class NvPeerMemRule(Rule):
     def __init__(self):
         super(NvPeerMemRule, self).__init__("nv_peer_mem_count")
 
+    def get_value(self, node, metric, stat="interval"):
+        for item in self.data[stat].get(metric, []):
+            instance = item.get("metric", {}).get("instance")
+            instance_ip = instance.split(":")[0]
+            if node.ip == instance_ip:
+                return int(item.get("value")[1])
+        return None
+
     def check_health(self, node, stat="interval"):
-        pass
+        if node.nv_peer_mem is None:
+            return True
+
+        try:
+            expected_count = int(node.nv_peer_mem)
+            count = self.get_value(node, "nv_peer_mem_count", stat)
+            if count != expected_count:
+                return False
+            else:
+                return True
+        except:
+            logger.exception("check health failed")
+        return False
 
     def prepare(self, node):
         # No need to wait for all jobs to finish
@@ -202,8 +258,28 @@ class NVSMRule(Rule):
         super(NVSMRule, self).__init__(
             ["nvsm_health_total_count", "nvsm_health_good_count"])
 
+    def get_value(self, node, metric, stat="interval"):
+        for item in self.data[stat].get(metric, []):
+            instance = item.get("metric", {}).get("instance")
+            instance_ip = instance.split(":")[0]
+            if node.ip == instance_ip:
+                return int(item.get("value")[1])
+        return None
+
     def check_health(self, node, stat="interval"):
-        pass
+        if node.nvsm is None:
+            return True
+
+        try:
+            total = self.get_value(node, "nvsm_health_total_count", stat)
+            good = self.get_value(node, "nvsm_health_good_count", stat)
+            if good < total:
+                return False
+            else:
+                return True
+        except:
+            logger.exception("check health failed")
+        return False
 
     def repair(self):
         os.environ["TERM"] = "xterm"

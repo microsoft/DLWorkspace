@@ -19,9 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 class RepairManager(object):
-    def __init__(self, rules, agent_port, k8s_util, rest_util, interval=30,
+    def __init__(self, rules, config, agent_port, k8s_util, rest_util, interval=30,
                  dry_run=False):
         self.rules = rules
+        self.config = config
         self.agent_port = agent_port
         self.dry_run = dry_run
 
@@ -37,7 +38,7 @@ class RepairManager(object):
             k8s_pods = self.k8s_util.list_pods()
             vc_list = self.rest_util.list_vcs().get("result", {})
             self.nodes = parse_for_nodes(
-                k8s_nodes, k8s_pods, vc_list, self.rules)
+                k8s_nodes, k8s_pods, vc_list, self.rules, self.config)
             [rule.update_data() for rule in self.rules]
         except:
             logger.exception("failed to get repair state")

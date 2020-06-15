@@ -25,7 +25,6 @@ def get_config(config_path):
 
 def start_repairmanager(params):
     try:
-        config = get_config(params.config)
         rules = instantiate_rules()
         k8s_util = K8sUtil()
         rest_util = RestUtil()
@@ -41,7 +40,7 @@ def start_repairmanager_agent(params):
     try:
         rules = instantiate_rules()
         agent = RepairManagerAgent(
-            rules, int(params.port), dry_run=params.dry_run)
+            rules, int(params.agent_port), dry_run=params.dry_run)
         agent.run()
     except:
         logger.exception("Exception in repairmanager agent run")

@@ -59,7 +59,7 @@ class TestRepairManager(unittest.TestCase):
         self.rules = [RuleForTest()]
         self.k8s_util = K8sUtilForTest()
         self.repairmanager = RepairManager(
-            self.rules, self.agent_port, self.k8s_util, None, dry_run=True)
+            self.rules, {}, self.agent_port, self.k8s_util, None, dry_run=True)
         self.agent = RepairManagerAgent(self.rules, self.agent_port, dry_run=True)
         self.server = threading.Thread(
             target=self.agent.serve, name="agent_server", daemon=True)

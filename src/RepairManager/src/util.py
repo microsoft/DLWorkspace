@@ -206,7 +206,7 @@ def get_ready(k8s_node):
     return ready
 
 
-def parse_nodes(k8s_nodes, metadata, rules, nodes):
+def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
     rules_mapping = {
         rule.__class__.__name__: rule for rule in rules
     }
@@ -234,12 +234,23 @@ def parse_nodes(k8s_nodes, metadata, rules, nodes):
                     REPAIR_STATE, "IN_SERVICE"))
 
             # Parse infiniband
+            infiniband = config.get("infiniband", {}).get(sku, [])
 
             # Parse ipoib
+            ipoib = config.get("ipoib", {}).get(sku, [])
 
             # Parse nv_peer_mem
+            nv_peer_mem = config.get("nv_peer_mem", {}).get(sku)
 
             # Parse nvsm
+            nvsm = config.get("nvsm", {}).get(sku)
+            # Both DGX-2 and DGX-2 equivalent have label "DGX-2"
+            # An DGX-2 equivalent does not have nvsm installed.
+            # TODO: relabel DGX-2 equivalent with a unique sku
+            if nvsm is not None:
+                exception = config.get("nvsm_exception", [])
+                if hostname in exception:
+                    nvsm = None
 
             # Parse unhealthy rules on the node
             unhealthy_rules = []
@@ -258,7 +269,8 @@ def parse_nodes(k8s_nodes, metadata, rules, nodes):
                         unhealthy_rules.append(rule)
 
             node = Node(hostname, internal_ip, ready, unschedulable,
-                        gpu_expected, state, unhealthy_rules)
+                        gpu_expected, state, infiniband, ipoib, nv_peer_mem,
+                        nvsm, unhealthy_rules)
             nodes[internal_ip] = node
         except:
             logger.exception("failed to parse k8s node %s", k8s_node)
@@ -289,7 +301,7 @@ def parse_pods(k8s_pods, nodes):
             logger.exception("failed to parse k8s pod %s", k8s_pod)
 
 
-def parse_for_nodes(k8s_nodes, k8s_pods, vc_list, rules):
+def parse_for_nodes(k8s_nodes, k8s_pods, vc_list, rules, config):
     metadata = {}
     # Merge metadata from all VCs together
     for vc in vc_list:
@@ -298,7 +310,7 @@ def parse_for_nodes(k8s_nodes, k8s_pods, vc_list, rules):
         metadata.update(gpu_metadata)
 
     nodes = {}
-    parse_nodes(k8s_nodes, metadata, rules, nodes)
+    parse_nodes(k8s_nodes, metadata, rules, config, nodes)
     parse_pods(k8s_pods, nodes)
     return list(nodes.values())
 
@@ -412,8 +424,16 @@ if __name__ == "__main__":
 
     # parse_for_nodes
     from rule import K8sGpuRule, DcgmEccDBERule
+    hostname, _ = get_hostname_and_internal_ip(k8s_nodes[1])
+    config = {
+        "infiniband": {"Standard_ND24rs": ["mlx4_0:1"]},
+        "ipoib": {"Standard_ND24rs": ["ib0"]},
+        "nv_peer_mem": {"Standard_ND24rs": 1},
+        "nvsm": {"Standard_ND24rs": True},
+        "nvsm_exception": [hostname],
+    }
     nodes = parse_for_nodes(
-        k8s_nodes, k8s_pods, vc_list, [K8sGpuRule(), DcgmEccDBERule()])
+        k8s_nodes, k8s_pods, vc_list, [K8sGpuRule(), DcgmEccDBERule()], config)
     for node in nodes:
         logger.info("%s", node)
 

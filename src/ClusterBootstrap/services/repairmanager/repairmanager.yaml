@@ -110,14 +110,11 @@ spec:
           - "/repairmanager/main.py"
         args:
           - '--service=repairmanageragent'
-          - '--config=/etc/repairmanager'
           - '--log=/var/log/repairmanager'
           - '--agent_port={{cnf["repair-manager"]["agent_port"]}}'
           - '--dry_run'
         imagePullPolicy: Always
         volumeMounts:
-        - mountPath: /etc/repairmanager
-          name: config-volume
         - mountPath: /var/log/repairmanager
           name: log
       {% if cnf["private_docker_registry_username"] %}
@@ -125,9 +122,6 @@ spec:
       - name: svccred
       {% endif %}
       volumes:
-      - name: config-volume
-        configMap:
-          name: repairmanager-configmap
       - name: log
         hostPath:
           path: /var/log/repairmanager

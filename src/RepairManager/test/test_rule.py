@@ -8,7 +8,9 @@ import unittest
 sys.path.append(os.path.abspath("../src/"))
 
 from util import State, Node, Job
-from rule import Rule, K8sGpuRule, DcgmEccDBERule, instantiate_rules
+from rule import Rule, UnschedulableRule, K8sGpuRule, \
+    DcgmEccDBERule, InfinibandRule, IPoIBRule, NvPeerMemRule, NVSMRule, \
+    instantiate_rules
 
 logger = logging.getLogger(__name__)
 
@@ -37,14 +39,8 @@ class MockPrometheusUtil(object):
 
 class TestRuleInstantiation(unittest.TestCase):
     def test_rule_instantiation(self):
-        rules = instantiate_rules(None)
-        self.assertEqual(0, len(rules))
-
-        rules = instantiate_rules([])
-        self.assertEqual(0, len(rules))
-
         # Sanity check on all rules
-        rules = instantiate_rules(list(Rule.subclasses.keys()))
+        rules = instantiate_rules()
         for rule in rules:
             self.assertTrue(rule.__class__.__name__ in Rule.subclasses)
 
@@ -59,7 +55,8 @@ class TestRule(unittest.TestCase):
         self.rule.prometheus_util = MockPrometheusUtil()
         self.job = Job("job1", "user1", "vc1")
         self.node = Node("node1", "192.168.0.1", True, False, 4,
-                         State.IN_SERVICE, None)
+                         State.IN_SERVICE, infiniband=["mlx4_0:1", "mlx4_1:1"],
+                         ipoib=["ib0", "ib1"], nv_peer_mem=1, nvsm=True)
         self.node.jobs = {"job1": self.job}
 
     def update_data_and_validate(self, query_data):
@@ -92,6 +89,22 @@ class TestRule(unittest.TestCase):
         # Job is in finished
         self.rule.rest_util.data.append({"jobStatus": "finished"})
         self.assertTrue(self.rule.prepare(self.node))
+
+
+class TestUnschedulableRule(TestRule):
+    def create_rule(self):
+        self.rule = UnschedulableRule()
+
+    def test_check_health(self):
+        # Node is marked as unschedulable
+        self.node.unschedulable = True
+        self.assertFalse(self.rule.check_health(self.node))
+        self.assertFalse(self.rule.check_health(self.node, stat="current"))
+
+        # Node is schedulable
+        self.node.unschedulable = False
+        self.assertTrue(self.rule.check_health(self.node))
+        self.assertTrue(self.rule.check_health(self.node, stat="current"))
 
 
 class TestK8sGpuRule(TestRule):
@@ -166,5 +179,116 @@ class TestDcgmEccDBERule(TestRule):
         self.update_data_and_validate(
             [dcgm_ecc_dbe_volatile_total, dcgm_ecc_dbe_volatile_total])
 
+        self.assertTrue(self.rule.check_health(self.node))
+        self.assertTrue(self.rule.check_health(self.node, stat="current"))
+
+
+class TestInfinibandRule(TestRule):
+    def create_rule(self):
+        self.rule = InfinibandRule()
+
+    def test_check_health(self):
+        # An infiniband device is down
+        infiniband_up = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'infiniband_up', 'device': 'mlx4_0', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'link_layer': 'InfiniBand', 'phys_state': 'LinkUp', 'port': '1', 'rate': '40 Gb/sec (4X QDR)', 'scraped_from': 'job-exporter-zslkh', 'state': 'ACTIVE'}, 'value': [1592254588.528, '1']}, {'metric': {'__name__': 'infiniband_up', 'device': 'mlx4_1', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'link_layer': 'InfiniBand', 'phys_state': 'LinkUp', 'port': '1', 'rate': '40 Gb/sec (4X QDR)', 'scraped_from': 'job-exporter-zslkh', 'state': 'ACTIVE'}, 'value': [1592254588.528, '0']}]}}
+        self.update_data_and_validate([infiniband_up, infiniband_up])
+
+        self.assertFalse(self.rule.check_health(self.node))
+        self.assertFalse(self.rule.check_health(self.node, stat="current"))
+
+        # Infinibands devices are up
+        infiniband_up = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'infiniband_up', 'device': 'mlx4_0', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'link_layer': 'InfiniBand', 'phys_state': 'LinkUp', 'port': '1', 'rate': '40 Gb/sec (4X QDR)', 'scraped_from': 'job-exporter-zslkh', 'state': 'ACTIVE'}, 'value': [1592254588.528, '1']}, {'metric': {'__name__': 'infiniband_up', 'device': 'mlx4_1', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'link_layer': 'InfiniBand', 'phys_state': 'LinkUp', 'port': '1', 'rate': '40 Gb/sec (4X QDR)', 'scraped_from': 'job-exporter-zslkh', 'state': 'ACTIVE'}, 'value': [1592254588.528, '1']}]}}
+        self.update_data_and_validate([infiniband_up, infiniband_up])
+
+        self.assertTrue(self.rule.check_health(self.node))
+        self.assertTrue(self.rule.check_health(self.node, stat="current"))
+
+
+class TestIPoIBRule(TestRule):
+    def create_rule(self):
+        self.rule = IPoIBRule()
+
+    def test_check_health(self):
+        # An IPoIB is down
+        ipoib_up = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'ipoib_up', 'device': 'ib0', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'scraped_from': 'job-exporter-zslkh', 'state': 'UP'}, 'value': [1592255865.342, '1']}, {'metric': {'__name__': 'ipoib_up', 'device': 'ib1', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'scraped_from': 'job-exporter-zslkh', 'state': 'DOWN'}, 'value': [1592255865.342, '0']}]}}
+        self.update_data_and_validate([ipoib_up, ipoib_up])
+
+        self.assertFalse(self.rule.check_health(self.node))
+        self.assertFalse(self.rule.check_health(self.node, stat="current"))
+
+        # All IPoIB interfaces are up
+        ipoib_up = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'ipoib_up', 'device': 'ib0', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'scraped_from': 'job-exporter-zslkh', 'state': 'UP'}, 'value': [1592255865.342, '1']}, {'metric': {'__name__': 'ipoib_up', 'device': 'ib1', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'scraped_from': 'job-exporter-zslkh', 'state': 'UP'}, 'value': [1592255865.342, '1']}]}}
+        self.update_data_and_validate([ipoib_up, ipoib_up])
+
+        self.assertTrue(self.rule.check_health(self.node))
+        self.assertTrue(self.rule.check_health(self.node, stat="current"))
+
+    def test_prepare(self):
+        # Job is in scheduling state
+        self.rule.rest_util.data.append({"jobStatus": "scheduling"})
+        self.assertTrue(self.rule.prepare(self.node))
+
+        # Job is in running state
+        self.rule.rest_util.data.append({"jobStatus": "running"})
+        self.assertTrue(self.rule.prepare(self.node))
+
+
+class TestNvPeerMemRule(TestRule):
+    def create_rule(self):
+        self.rule = NvPeerMemRule()
+
+    def test_check_health(self):
+        # nv_peer_mem is down
+        nv_peer_mem_count = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'nv_peer_mem_count', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'scraped_from': 'job-exporter-zslkh'}, 'value': [1592256663.895, '0']}]}}
+        self.update_data_and_validate([nv_peer_mem_count, nv_peer_mem_count])
+
+        self.assertFalse(self.rule.check_health(self.node))
+        self.assertFalse(self.rule.check_health(self.node, stat="current"))
+
+        # nv_peer_mem is up
+        nv_peer_mem_count = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'nv_peer_mem_count', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'scraped_from': 'job-exporter-zslkh'}, 'value': [1592256663.895, '1']}]}}
+        self.update_data_and_validate([nv_peer_mem_count, nv_peer_mem_count])
+
+        self.assertTrue(self.rule.check_health(self.node))
+        self.assertTrue(self.rule.check_health(self.node, stat="current"))
+
+    def test_prepare(self):
+        # Job is in scheduling state
+        self.rule.rest_util.data.append({"jobStatus": "scheduling"})
+        self.assertTrue(self.rule.prepare(self.node))
+
+        # Job is in running state
+        self.rule.rest_util.data.append({"jobStatus": "running"})
+        self.assertTrue(self.rule.prepare(self.node))
+
+
+class TestNVSMRule(TestRule):
+    def create_rule(self):
+        self.rule = NVSMRule()
+
+    def test_check_health(self):
+        # There is some failure in nvsm health check
+        nvsm_health_total_count = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'nvsm_health_total_count', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'scraped_from': 'job-exporter-zslkh'}, 'value': [1592257205.813, '169']}]}}
+        nvsm_health_good_count = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'nvsm_health_good_count', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'scraped_from': 'job-exporter-zslkh'}, 'value': [1592257205.813, '168']}]}}
+        self.update_data_and_validate([
+            nvsm_health_total_count, nvsm_health_total_count,
+            nvsm_health_good_count, nvsm_health_good_count
+        ])
+
+        self.assertFalse(self.rule.check_health(self.node))
+        self.assertFalse(self.rule.check_health(self.node, stat="current"))
+
+        # All checks are good
+        nvsm_health_total_count = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'nvsm_health_total_count', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'scraped_from': 'job-exporter-zslkh'}, 'value': [1592257205.813, '169']}]}}
+        nvsm_health_good_count = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'nvsm_health_good_count', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'scraped_from': 'job-exporter-zslkh'}, 'value': [1592257205.813, '169']}]}}
+        self.update_data_and_validate([
+            nvsm_health_total_count, nvsm_health_total_count,
+            nvsm_health_good_count, nvsm_health_good_count
+        ])
+
+        self.assertTrue(self.rule.check_health(self.node))
+        self.assertTrue(self.rule.check_health(self.node, stat="current"))
+
+        # Node is in exception list:
+        self.node.nvsm = None
         self.assertTrue(self.rule.check_health(self.node))
         self.assertTrue(self.rule.check_health(self.node, stat="current"))
