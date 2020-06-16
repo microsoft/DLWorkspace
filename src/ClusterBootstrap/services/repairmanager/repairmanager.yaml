@@ -40,7 +40,6 @@ spec:
           - '--interval=30'
           - '--port={{cnf["repair-manager"]["port"]}}'
           - '--agent_port={{cnf["repair-manager"]["agent-port"]}}'
-          - '--dry_run'
         imagePullPolicy: Always
         volumeMounts:
         - mountPath: /etc/kubernetes/ssl
@@ -116,7 +115,6 @@ spec:
           - '--service=repairmanageragent'
           - '--log=/var/log/repairmanager'
           - '--agent_port={{cnf["repair-manager"]["agent-port"]}}'
-          - '--dry_run'
         imagePullPolicy: Always
         volumeMounts:
         - mountPath: /var/log/repairmanager

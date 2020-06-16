@@ -52,9 +52,6 @@ class RepairManager(object):
     def run(self):
         # Main loop for repair cycle of nodes.
         while True:
-            logger.info(
-                "Running repair update on nodes against rules: %s", 
-                [rule.__class__.__name__ for rule in self.rules])
             try:
                 self.get_repair_state()
                 logger.info(
@@ -63,7 +60,14 @@ class RepairManager(object):
                     [rule.__class__.__name__ for rule in self.rules])
                 for node in self.nodes:
                     if self.validate(node):
+                        state = node.state
                         self.update(node)
+                        if node.state != state:
+                            logger.info(
+                                "node %s (%s) repair state: %s -> %s. "
+                                "unhealthy rules: %s", node.name, node.ip, 
+                                state.name, node.state.name, 
+                                self.get_unhealthy_rules_value(node))
                     else:
                         logger.error("validation failed for node %s", node)
             except:
@@ -149,21 +153,26 @@ class RepairManager(object):
 
         if not isinstance(node.unhealthy_rules, list) or \
                 len(node.unhealthy_rules) == 0:
-            logger.info("nothing in unhealthy_rules for %s", url)
+            logger.debug("nothing in unhealthy_rules for %s", url)
             return True
 
         repair_rules = [
             rule.__class__.__name__ for rule in node.unhealthy_rules]
         try:
             resp = requests.post(url, json=repair_rules)
-            return resp.status_code == 200
+            code = resp.status_code
+            logger.debug(
+                "sent repair request to %s: %s, %s. response: %s", node.name,
+                url, repair_rules, code)
+            return code == 200
         except ConnectionError:
             logger.error(
-                "connection error when sending repair request: %s, %s", url,
-                repair_rules)
+                "connection error when sending repair request to %s: %s, %s",
+                node.name, url, repair_rules)
         except:
             logger.exception(
-                "failed to send repair request: %s. %s", url, repair_rules)
+                "failed to send repair request to %s: %s, %s", node.name, url,
+                repair_rules)
         return False
 
     def check_liveness(self, node):
@@ -172,12 +181,18 @@ class RepairManager(object):
             "http://%s:%s" % (node.ip, self.agent_port), "/liveness")
         try:
             resp = requests.get(url)
-            return resp.status_code == 200
+            code = resp.status_code
+            logger.debug(
+                "sent liveness request to %s: %s. response: %s", 
+                node.name, url, code)
+            return code == 200
         except ConnectionError:
             logger.error(
-                "connection error when sending liveness request: %s", url)
+                "connection error when sending liveness request to %s: %s",
+                node.name, url)
         except:
-            logger.exception("failed to send liveness request: %s", url)
+            logger.exception(
+                "failed to send liveness request to %s: %s", node.name, url)
         return False
 
     def get_unhealthy_rules_value(self, node):
