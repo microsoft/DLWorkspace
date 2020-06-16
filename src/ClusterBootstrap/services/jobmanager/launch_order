@@ -1,2 +1,4 @@
 dlws-scripts.yaml
+job-manager-config.yaml
+job-manager-kubeconfig.yaml
 jobmanager.yaml

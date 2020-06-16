@@ -17,10 +17,10 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/metrics"
     spec:
-      {% if cnf["dnsPolicy"] %}    
+      {% if cnf["dnsPolicy"] %}
       dnsPolicy: {{cnf["dnsPolicy"]}}
       {% endif %}
-      hostNetwork: true    
+      hostNetwork: true
       nodeSelector:
         jobmanager: active
       containers:
@@ -34,14 +34,14 @@ spec:
         volumeMounts:
         - mountPath: /etc/kubernetes/ssl
           name: certs
-        - mountPath: /root/.kube/config 
+        - mountPath: /root/.kube
           name: kubeconfig
-        - mountPath: /RestfulAPI 
+        - mountPath: /RestfulAPI
           name: restfulapiconfig
         - mountPath: {{cnf["storage-mount-path"]}}/work
           name: dlwsdatawork
         - mountPath: {{cnf["storage-mount-path"]}}/storage
-          name: dlwsdatadata 
+          name: dlwsdatadata
         - mountPath: {{cnf["storage-mount-path"]}}/jobfiles
           name: dlwsdatajobfiles
         - mountPath: {{cnf["dltsdata-storage-mount-path"]}}
@@ -103,7 +103,7 @@ spec:
           hostPort: 9300
           name: prom-ign-redis
           protocol: TCP
-      
+
       {% if cnf["private_docker_registry_username"] %}
       imagePullSecrets:
       - name: svccred
@@ -113,20 +113,20 @@ spec:
         hostPath:
           path: /etc/kubernetes/ssl
       - name: kubeconfig
-        hostPath:
-          path: /etc/kubernetes/restapi-kubeconfig.yaml
+        configMap:
+          name: job-manager-kubeconfig
       - name: restfulapiconfig
-        hostPath:
-          path: /etc/RestfulAPI
+        configMap:
+          name: job-manager-config
       - name: dlwsdatawork
         hostPath:
-          path: {{cnf["storage-mount-path"]}}/work 
+          path: {{cnf["storage-mount-path"]}}/work
       - name: dlwsdatadata
         hostPath:
           path: {{cnf["storage-mount-path"]}}/storage
       - name: dlwsdatajobfiles
         hostPath:
-          path: {{cnf["storage-mount-path"]}}/jobfiles           
+          path: {{cnf["storage-mount-path"]}}/jobfiles
       - name: dltsdata
         hostPath:
           path: {{cnf["dltsdata-storage-mount-path"]}}
@@ -135,7 +135,7 @@ spec:
           path: {{cnf["folder_auto_share"]}}
       - name: log
         hostPath:
-          path: /var/log/clustermanager   
+          path: /var/log/clustermanager
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists

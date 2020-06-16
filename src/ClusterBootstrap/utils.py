@@ -29,7 +29,6 @@ import urllib
 import socket
 import struct
 
-
 verbose = False
 
 
@@ -54,18 +53,25 @@ def render_template(template_file, target_file, config, verbose=False):
     if ("render-exclude" in config and basename in config["render-exclude"]):
         # Don't render/copy the file.
         return
-    if ("render-by-copy-ext" in config and file_extension in config["render-by-copy-ext"]) or ("render-by-copy" in config and basename in config["render-by-copy"]):
+    if ("render-by-copy-ext" in config and
+            file_extension in config["render-by-copy-ext"]) or (
+                "render-by-copy" in config and
+                basename in config["render-by-copy"]):
         copyfile(template_file, target_file)
         if verbose:
             print("Copy tempalte " + template_file + " --> " + target_file)
-    elif "render-by-copy-full" in config and template_file in config["render-by-copy-full"]:
+    elif "render-by-copy-full" in config and template_file in config[
+            "render-by-copy-full"]:
         copyfile(template_file, target_file)
         if verbose:
             print("Copy tempalte " + template_file + " --> " + target_file)
-    elif ("render-by-line-ext" in config and file_extension in config["render-by-line-ext"]) or ("render-by-line" in config and basename in config["render-by-line"]):
+    elif ("render-by-line-ext" in config and
+          file_extension in config["render-by-line-ext"]) or (
+              "render-by-line" in config and
+              basename in config["render-by-line"]):
         if verbose:
-            print("Render template " + template_file +
-                  " --> " + target_file + " Line by Line .... ")
+            print("Render template " + template_file + " --> " + target_file +
+                  " Line by Line .... ")
         ENV_local = Environment(loader=FileSystemLoader("/"))
         with open(target_file, 'w') as f:
             with open(template_file, 'r') as fr:
@@ -75,7 +81,7 @@ def render_template(template_file, target_file, config, verbose=False):
                         template = ENV_local.Template(line)
                         content = template.render(cnf=config)
                         print(content)
-                        f.write(content+"\n")
+                        f.write(content + "\n")
                     except:
                         pass
                 fr.close()
@@ -100,12 +106,16 @@ def render_template(template_file, target_file, config, verbose=False):
             pass
 
 
-def render_template_directory(template_dir, target_dir, config, verbose=False, exclude_dir=None):
+def render_template_directory(template_dir,
+                              target_dir,
+                              config,
+                              verbose=False,
+                              exclude_dir=None):
     if target_dir in StaticVariable.rendered_target_directory:
         return
     else:
         StaticVariable.rendered_target_directory[target_dir] = template_dir
-        os.system("mkdir -p "+target_dir)
+        os.system("mkdir -p " + target_dir)
         markfile = os.path.join(target_dir, "DO_NOT_WRITE")
         # print "Evaluate %s" % markfile
         if not os.path.exists(markfile):
@@ -127,29 +137,41 @@ def render_template_directory(template_dir, target_dir, config, verbose=False, e
                     # Allow target directory to be re-rendered
                     StaticVariable.rendered_target_directory.pop(
                         target_dir, None)
-                    render_template_directory(
-                        fullname_copy_dir, target_dir, config, verbose, exclude_dir=template_dir)
+                    render_template_directory(fullname_copy_dir,
+                                              target_dir,
+                                              config,
+                                              verbose,
+                                              exclude_dir=template_dir)
             elif os.path.isfile(os.path.join(template_dir, filename)):
                 if exclude_dir is not None:
                     check_file = os.path.join(exclude_dir, filename)
                     if os.path.exists(check_file):
                         continue
-                render_template(os.path.join(template_dir, filename), os.path.join(
-                    target_dir, filename), config, verbose)
+                render_template(os.path.join(template_dir, filename),
+                                os.path.join(target_dir, filename), config,
+                                verbose)
             else:
                 srcdir = os.path.join(template_dir, filename)
                 dstdir = os.path.join(target_dir, filename)
-                if ("render-by-copy" in config and filename in config["render-by-copy"]):
+                if ("render-by-copy" in config and
+                        filename in config["render-by-copy"]):
                     os.system("rm -rf %s" % dstdir)
                     os.system("cp -r %s %s" % (srcdir, dstdir))
                 else:
                     if exclude_dir is None:
-                        render_template_directory(
-                            srcdir, dstdir, config, verbose)
+                        render_template_directory(srcdir, dstdir, config,
+                                                  verbose)
                     else:
                         exdir = os.path.join(exclude_dir, filename)
-                        render_template_directory(
-                            srcdir, dstdir, config, verbose, exclude_dir=exdir)
+                        render_template_directory(srcdir,
+                                                  dstdir,
+                                                  config,
+                                                  verbose,
+                                                  exclude_dir=exdir)
+        if os.path.isfile(os.path.join(target_dir, "post-render.sh")):
+            post_reder = os.path.join(target_dir, "post-render.sh")
+            os.system("sh " + post_reder)
+
 
 # Execute a remote SSH cmd with identity file (private SSH key), user, host
 
@@ -158,10 +180,13 @@ def SSH_exec_cmd(identity_file, user, host, cmd, showCmd=True):
     if len(cmd) == 0:
         return
     if showCmd or verbose:
-        print("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """ %
-              (identity_file, user, host, cmd))
-    os.system("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """ %
-              (identity_file, user, host, cmd))
+        print(
+            """ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """
+            % (identity_file, user, host, cmd))
+    os.system(
+        """ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """
+        % (identity_file, user, host, cmd))
+
 
 # SSH Connect to a remote host with identity file (private SSH key), user, host
 # Program usually exit here.
@@ -169,10 +194,13 @@ def SSH_exec_cmd(identity_file, user, host, cmd, showCmd=True):
 
 def SSH_connect(identity_file, user, host):
     if verbose:
-        print("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" """ %
-              (identity_file, user, host))
-    os.system("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" """ %
-              (identity_file, user, host))
+        print(
+            """ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" """
+            % (identity_file, user, host))
+    os.system(
+        """ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" """
+        % (identity_file, user, host))
+
 
 # Copy a local file or directory (source) to remote (target) with identity file (private SSH key), user, host
 
@@ -184,15 +212,23 @@ def scp(identity_file, source, target, user, host, verbose=False):
         print(cmd)
     os.system(cmd)
 
+
 # Copy a local file (source) or directory to remote (target) with identity file (private SSH key), user, host, and
 
 
-def sudo_scp(identity_file, source, target, user, host, changePermission=False, verbose=False):
+def sudo_scp(identity_file,
+             source,
+             target,
+             user,
+             host,
+             changePermission=False,
+             verbose=False):
     tmp = str(uuid.uuid4())
     scp(identity_file, source, "~/%s" % tmp, user, host, verbose)
     if (os.path.isfile(source)):
         target_path, target_base = os.path.split(target)
-        target_base = os.path.basename(source) if target_base == '' else target_base
+        target_base = os.path.basename(
+            source) if target_base == '' else target_base
         target = os.path.join(target_path, target_base)
         cmd = "sudo mkdir -p %s ; sudo mv ~/%s %s" % (target_path, tmp, target)
     else:
@@ -206,18 +242,23 @@ def sudo_scp(identity_file, source, target, user, host, changePermission=False, 
         print(cmd)
     SSH_exec_cmd(identity_file, user, host, cmd, verbose)
 
+
 # Execute a remote SSH cmd with identity file (private SSH key), user, host
 # Return the output of the remote command to local
 
 
-def SSH_exec_cmd_with_output1(identity_file, user, host, cmd, supressWarning=False):
+def SSH_exec_cmd_with_output1(identity_file,
+                              user,
+                              host,
+                              cmd,
+                              supressWarning=False):
     tmpname = os.path.join("/tmp", str(uuid.uuid4()))
     execcmd = cmd + " > " + tmpname
     if supressWarning:
         execcmd += " 2>/dev/null"
     SSH_exec_cmd(identity_file, user, host, execcmd)
-    scpcmd = 'scp -i %s "%s@%s:%s" "%s"' % (
-        identity_file, user, host, tmpname, tmpname)
+    scpcmd = 'scp -i %s "%s@%s:%s" "%s"' % (identity_file, user, host, tmpname,
+                                            tmpname)
     # print scpcmd
     os.system(scpcmd)
     SSH_exec_cmd(identity_file, user, host, "rm " + tmpname)
@@ -227,7 +268,11 @@ def SSH_exec_cmd_with_output1(identity_file, user, host, cmd, supressWarning=Fal
     return output
 
 
-def SSH_exec_cmd_with_output(identity_file, user, host, cmd, supressWarning=False):
+def SSH_exec_cmd_with_output(identity_file,
+                             user,
+                             host,
+                             cmd,
+                             supressWarning=False):
     if len(cmd) == 0:
         return ""
     if supressWarning:
@@ -270,11 +315,11 @@ def scan_nodes(identity_file, user, iprange):
         print("IP range %s need to be formated as x.x.x.x/n" % iprange)
     else:
         ip = infos[0]
-        size = 32-int(infos[1])
+        size = 32 - int(infos[1])
         mask = (1 << size) - 1
         ipnum = struct.unpack("!L", socket.inet_aton(ip))[0]
         ipbase = ipnum & (~mask)
-        for i in range(mask+1):
+        for i in range(mask + 1):
             ipexamine = ipbase + i
             low8 = ipexamine & 0xff
             if low8 >= 2:
@@ -288,17 +333,14 @@ def scan_nodes(identity_file, user, iprange):
 
 
 def json_load_byteified(file_handle):
-    return _byteify(
-        json.load(file_handle, object_hook=_byteify),
-        ignore_dicts=True
-    )
+    return _byteify(json.load(file_handle, object_hook=_byteify),
+                    ignore_dicts=True)
 
 
 def json_loads_byteified(json_text):
-    return _byteify(
-        json.loads(json_text, object_hook=_byteify),
-        ignore_dicts=True
-    )
+    return _byteify(json.loads(json_text, object_hook=_byteify),
+                    ignore_dicts=True)
+
 
 # Get string objects instead of Unicode from JSON
 
@@ -328,7 +370,10 @@ def exec_cmd_local(execmd, verbose=False, max_run=1200, supressWarning=False):
     if verbose:
         print(execmd)
     try:
-        output = subprocess.check_output(execmd, timeout=max_run, shell=True, universal_newlines=True)
+        output = subprocess.check_output(execmd,
+                                         timeout=max_run,
+                                         shell=True,
+                                         universal_newlines=True)
     except subprocess.CalledProcessError as e:
         output = "Return code: " + \
             str(e.returncode) + ", output: " + e.output.strip()
@@ -337,7 +382,12 @@ def exec_cmd_local(execmd, verbose=False, max_run=1200, supressWarning=False):
     return output
 
 
-def execute_or_dump_locally(cmd, verbose, dryrun, output_file, max_run=1200, supress_warning=False):
+def execute_or_dump_locally(cmd,
+                            verbose,
+                            dryrun,
+                            output_file,
+                            max_run=1200,
+                            supress_warning=False):
     cmd = ' '.join(cmd.split())
     if output_file:
         with open(output_file, 'a') as wf:
@@ -375,16 +425,18 @@ def get_host_name(identity_file, user, host):
 def get_mac_address(identity_file, user, host, show=True):
     output = SSH_exec_cmd_with_output(identity_file, user, host, "ifconfig")
     etherMatch = re.compile(
-        "ether [0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]")
+        "ether [0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]"
+    )
     iterator = etherMatch.finditer(output)
     if show:
-        print("Node "+host + " Mac address...")
+        print("Node " + host + " Mac address...")
         for match in iterator:
             print(match.group())
     macs = []
     for match in iterator:
         macs.append(match.group()[6:])
     return macs
+
 
 # Execute a remote SSH cmd with identity file (private SSH key), user, host,
 # Copy all directory of srcdir into a temporary folder, execute the command,
@@ -393,7 +445,15 @@ def get_mac_address(identity_file, user, host, show=True):
 # If dstdir is given, the remote command will be executed at dstdir, and its content won't be removed
 
 
-def SSH_exec_cmd_with_directory(identity_file, user, host, srcdir, cmd, supressWarning=False, preRemove=True, removeAfterExecution=True, dstdir=None):
+def SSH_exec_cmd_with_directory(identity_file,
+                                user,
+                                host,
+                                srcdir,
+                                cmd,
+                                supressWarning=False,
+                                preRemove=True,
+                                removeAfterExecution=True,
+                                dstdir=None):
     if dstdir is None:
         tmpdir = os.path.join("/tmp", str(uuid.uuid4()))
         preRemove = False
@@ -404,7 +464,7 @@ def SSH_exec_cmd_with_directory(identity_file, user, host, srcdir, cmd, supressW
     if preRemove:
         SSH_exec_cmd(identity_file, user, host, "sudo rm -rf " + tmpdir)
     scp(identity_file, srcdir, tmpdir, user, host, not supressWarning)
-    dstcmd = "cd "+tmpdir + "; "
+    dstcmd = "cd " + tmpdir + "; "
     if supressWarning:
         dstcmd += cmd + " 2>/dev/null; "
     else:
@@ -418,10 +478,15 @@ def SSH_exec_cmd_with_directory(identity_file, user, host, srcdir, cmd, supressW
 # Execute a remote SSH cmd with identity file (private SSH key), user, host,
 # Copy a bash script a temporary folder, execute the script,
 # and then remove the temporary file.
-def SSH_exec_script(identity_file, user, host, script, supressWarning=False, removeAfterExecution=True):
-    tmpfile = os.path.join("/tmp", str(uuid.uuid4())+".sh")
+def SSH_exec_script(identity_file,
+                    user,
+                    host,
+                    script,
+                    supressWarning=False,
+                    removeAfterExecution=True):
+    tmpfile = os.path.join("/tmp", str(uuid.uuid4()) + ".sh")
     scp(identity_file, script, tmpfile, user, host)
-    cmd = "bash --verbose "+tmpfile
+    cmd = "bash --verbose " + tmpfile
     dstcmd = ""
     if supressWarning:
         dstcmd += cmd + " 2>/dev/null; "
@@ -437,14 +502,16 @@ def get_ETCD_discovery_URL(size):
         output = "we don't use discovery url for 1 node etcd"
     else:
         try:
-            output = urllib.urlopen(
-                "https://discovery.etcd.io/new?size=%d" % size).read()
+            output = urllib.urlopen("https://discovery.etcd.io/new?size=%d" %
+                                    size).read()
             if not "https://discovery.etcd.io" in output:
                 raise Exception(
-                    "ERROR: we cannot get etcd discovery url from 'https://discovery.etcd.io/new?size=%d', got message %s" % (size, output))
+                    "ERROR: we cannot get etcd discovery url from 'https://discovery.etcd.io/new?size=%d', got message %s"
+                    % (size, output))
         except Exception as e:
             raise Exception(
-                "ERROR: we cannot get etcd discovery url from 'https://discovery.etcd.io/new?size=%d'" % size)
+                "ERROR: we cannot get etcd discovery url from 'https://discovery.etcd.io/new?size=%d'"
+                % size)
     return output
 
 
@@ -506,8 +573,9 @@ def execute_backup_and_encrypt(clusterName, fname, key):
         os.system("cp -r ./deploy/acs_kubeclusterconfig %s/" % backupdir)
     os.system("tar -czvf %s.tar.gz %s" % (fname, backupdir))
     if not key is None:
-        os.system("openssl enc -aes-256-cbc -k %s -in %s.tar.gz -out %s.tar.gz.enc" %
-                  (key, fname, fname))
+        os.system(
+            "openssl enc -aes-256-cbc -k %s -in %s.tar.gz -out %s.tar.gz.enc" %
+            (key, fname, fname))
         os.system("rm %s.tar.gz" % fname)
     os.system("rm -rf ./deploy_backup/backup")
 
@@ -627,8 +695,8 @@ def addressInNetwork(ip, net):
     try:
         ipaddr = struct.unpack('!I', socket.inet_aton(ip))[0]
         netaddr, bits = net.split('/')
-        netmask = struct.unpack('!I', socket.inet_aton(netaddr))[
-            0] & ((2 << int(bits)-1) - 1)
+        netmask = struct.unpack('!I', socket.inet_aton(netaddr))[0] & (
+            (2 << int(bits) - 1) - 1)
         ret = ipaddr & netmask == netmask
     except Exception as e:
         ret = False
@@ -650,7 +718,8 @@ def shellquote(s):
 def tryuntil(cmdLambda, stopFn, updateFn, waitPeriod=5):
     while not stopFn():
         try:
-            output = cmdLambda()  # if exception occurs here, update does not occur
+            output = cmdLambda(
+            ) # if exception occurs here, update does not occur
             #print "Output: {0}".format(output)
             updateFn()
             toStop = False
@@ -668,12 +737,15 @@ def tryuntil(cmdLambda, stopFn, updateFn, waitPeriod=5):
             print("Not done yet - Sleep for 5 seconds and continue")
             time.sleep(waitPeriod)
 
+
 # Run until stop condition and success
 
 
 def subproc_tryuntil(cmd, stopFn, shell=True, waitPeriod=5):
     bFirst = ValClass(True)
-    return tryuntil(lambda: subprocess.check_output(cmd, shell), lambda: not bFirst.val and stopFn(), lambda: bFirst.set(False), waitPeriod)
+    return tryuntil(lambda: subprocess.check_output(cmd, shell),
+                    lambda: not bFirst.val and stopFn(),
+                    lambda: bFirst.set(False), waitPeriod)
 
 
 def subprocrun(cmd, shellArg):
@@ -681,20 +753,24 @@ def subprocrun(cmd, shellArg):
     # embed()
     return subprocess.check_output(cmd, shell=shellArg)
 
+
 # Run once until success (no exception)
 
 
 def subproc_runonce(cmd, shell=True, waitPeriod=5):
     bFirst = ValClass(True)
     #print "Running cmd:{0} Shell:{1}".format(cmd, shell)
-    return tryuntil(lambda: subprocrun(cmd, shell), lambda: not bFirst.val, lambda: bFirst.set(False), waitPeriod)
+    return tryuntil(lambda: subprocrun(cmd, shell), lambda: not bFirst.val,
+                    lambda: bFirst.set(False), waitPeriod)
+
 
 # Run for N success
 
 
 def subproc_runN(cmd, n, shell=True, waitPeriod=5):
     bCnt = ValClass(0)
-    return tryuntil(lambda: subprocess.check_output(cmd, shell), lambda: (bCnt.val < n), lambda: bCnt.set(bCnt.val+1), waitPeriod)
+    return tryuntil(lambda: subprocess.check_output(cmd, shell), lambda:
+                    (bCnt.val < n), lambda: bCnt.set(bCnt.val + 1), waitPeriod)
 
 
 def mergeDict(configDst, configSrc, bOverwrite):
@@ -711,7 +787,8 @@ def mergeDict(configDst, configSrc, bOverwrite):
             else:
                 #print "settingkey:{0} val:{1}".format(entry, configSrc[entry])
                 configDst[entry] = configSrc[entry]
-        elif isinstance(configSrc[entry], dict) and isinstance(configDst[entry], dict):
+        elif isinstance(configSrc[entry], dict) and isinstance(
+                configDst[entry], dict):
             mergeDict(configDst[entry], configSrc[entry], bOverwrite)
 
 
@@ -720,11 +797,11 @@ def ip2int(addr):
 
 
 def mask_num(valid_bit):
-    return int('1'*valid_bit+'0'*(32 - valid_bit), 2)
+    return int('1' * valid_bit + '0' * (32 - valid_bit), 2)
 
 
 def remain_num(valid_bit):
-    return int('0'*valid_bit+'1'*(32 - valid_bit), 2)
+    return int('0' * valid_bit + '1' * (32 - valid_bit), 2)
 
 
 def check_covered_by_ipvals(ipvals, masked2check):
@@ -771,4 +848,3 @@ def multiprocess_exec(func, args_list, process_num):
     pool = Pool(process_num)
     pool.map(func, args_list)
     pool.close()
-
