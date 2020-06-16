@@ -3,8 +3,7 @@ import {
   FunctionComponent,
   ChangeEvent,
   useCallback,
-  useMemo,
-  useState
+  useMemo
 } from 'react';
 import {
   Paper,
@@ -12,6 +11,8 @@ import {
   Tab
 } from '@material-ui/core';
 import SwipeableViews from 'react-swipeable-views';
+
+import useHashTab from '../../../hooks/useHashTab';
 
 import Brief from './Brief';
 import Endpoints from './Endpoints';
@@ -23,7 +24,10 @@ const JobTabs: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => 
     ? [Brief, Endpoints, Metrics, Console]
     : [Brief, Metrics, Console]
   , [manageable]);
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useHashTab(
+    ...components.map(
+      Component =>
+        String(Component.displayName || Component.name).toLowerCase()));
   const onChange = useCallback((event: ChangeEvent<{}>, value: any) => {
     setIndex(value as number);
   }, [setIndex]);

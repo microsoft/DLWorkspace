@@ -4,8 +4,7 @@ import {
   FunctionComponent,
   useCallback,
   useContext,
-  useEffect,
-  useState
+  useEffect
 } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
@@ -25,6 +24,7 @@ import { useSnackbar } from 'notistack';
 
 import TeamContext from '../../contexts/Team';
 import Loading from '../../components/Loading';
+import useHashTab from '../../hooks/useHashTab';
 
 import { QueryProvider } from './QueryContext';
 import Users from './Users';
@@ -52,7 +52,7 @@ interface TabViewProps {
 }
 
 const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useHashTab('users', 'workers', 'storages', 'pods', 'metrics');
 
   const handleChange = useCallback((event: ChangeEvent<{}>, value: number) => {
     setIndex(value);

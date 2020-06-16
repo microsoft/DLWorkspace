@@ -4,8 +4,7 @@ import {
   FunctionComponent,
   useCallback,
   useContext,
-  useMemo,
-  useState
+  useMemo
 } from 'react';
 import {
   useHistory,
@@ -26,6 +25,7 @@ import ClustersContext from '../../contexts/Clusters';
 import ClusterSelector from '../../components/ClusterSelector';
 
 import Loading from '../../components/Loading';
+import useHashTab from '../../hooks/useHashTab';
 import ClusterContext from './ClusterContext';
 import MyJobs from './MyJobs';
 import AllJobs from './AllJobs';
@@ -35,7 +35,7 @@ interface RouteParams {
 }
 
 const TabView: FunctionComponent = () => {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useHashTab('my', 'all');
   const onChange = useCallback((event: ChangeEvent<{}>, value: any) => {
     setIndex(value as number);
   }, [setIndex]);
