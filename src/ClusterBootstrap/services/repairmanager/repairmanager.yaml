@@ -99,9 +99,10 @@ spec:
         task: repair
         app: repairmanageragent
     spec:
-      hostNetwork: true
       nodeSelector:
         repairmanageragent: active
+      hostNetwork: true
+      hostPID: true
       containers:
       - name: repairmanageragent
         image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["repairmanager"]}}:{{cnf["dockertag"]}}
