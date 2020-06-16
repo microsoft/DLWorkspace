@@ -292,3 +292,7 @@ class TestNVSMRule(TestRule):
         self.node.nvsm = None
         self.assertTrue(self.rule.check_health(self.node))
         self.assertTrue(self.rule.check_health(self.node, stat="current"))
+
+
+if __name__ == '__main__':
+    unittest.main()

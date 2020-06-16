@@ -90,6 +90,28 @@ class TestRepairManager(unittest.TestCase):
             self.assertEqual(state, self.node.state)
             self.assertEqual(False, self.node.unschedulable)
 
+    def wait_for_alive(self, timeout=10):
+        start = time.time()
+        while True:
+            if time.time() - start > timeout:
+                return False
+            try:
+                if self.repairmanager.check_liveness():
+                    return True
+            except:
+                pass
+
+
+    def wait_for_repair(self, timeout=10):
+        start = time.time()
+        while True:
+            self.repairmanager.update(self.node)
+            if time.time() - start > timeout:
+                return False
+            if self.node.state == State.AFTER_REPAIR:
+                return True
+            time.sleep(1)
+
     def test_repair_cycle_update(self):
         # IN_SERVICE -> OUT_OF_POOL
         self.rules[0].health = True
@@ -122,6 +144,7 @@ class TestRepairManager(unittest.TestCase):
 
         # Agent becomes alive
         self.server.start()
+        self.wait_for_alive()
 
         self.repairmanager.update(self.node)
         self.assertEqual(State.IN_REPAIR, self.node.state)
@@ -192,6 +215,7 @@ class TestRepairManager(unittest.TestCase):
 
         # Agent is running
         self.server.start()
+        self.wait_for_alive()
         self.assertTrue(self.repairmanager.send_repair_request(self.node))
 
         # Cannot send a new repair request before the previous one finishes
@@ -203,6 +227,7 @@ class TestRepairManager(unittest.TestCase):
 
         # Agent is running
         self.server.start()
+        self.wait_for_alive()
         self.assertTrue(self.repairmanager.check_liveness(self.node))
 
         # Post a repair
@@ -241,21 +266,24 @@ class TestRepairManagerAgent(unittest.TestCase):
                 "http://%s:%s" % (self.ip, self.port), "/liveness")
             return requests.get(url)
 
-        def wait_for_liveness(timeout=10):
+        def wait_for_alive(timeout=10):
             start = time.time()
             while True:
                 if time.time() - start > timeout:
                     return False
-                resp = check_liveness()
-                if resp.status_code == 200:
-                    return True
+                try:
+                    resp = check_liveness()
+                    if resp.status_code == 200:
+                        return resp
+                except:
+                    pass
 
         def post_repair(rules):
             repair_url = urllib.parse.urljoin(
                 "http://%s:%s" % (self.ip, self.port), "/repair")
             return requests.post(repair_url, json=rules)
 
-        alive = wait_for_liveness()
+        alive = wait_for_alive()
         self.assertTrue(alive)
         resp = check_liveness()
         self.assertEqual(200, resp.status_code)
@@ -300,3 +328,7 @@ class TestRepairManagerAgent(unittest.TestCase):
                     return True
 
         self.assertTrue(wait_for_rule_cleanup())
+
+
+if __name__ == '__main__':
+    unittest.main()
