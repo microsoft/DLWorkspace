@@ -92,7 +92,7 @@ class RepairManager(object):
         except:
             logger.exception("Exception in step for node %s", node)
 
-    def check_health(self, node, stat="interval"):
+    def check_health(self, node, stat=None):
         unhealthy_rules = []
         for rule in self.rules:
             if not rule.check_health(node, stat):

@@ -120,6 +120,8 @@ spec:
         volumeMounts:
         - mountPath: /var/log/repairmanager
           name: log
+        - mountPath: /host-fs
+          name: host-fs
         ports:
         - name: agent
           containerPort: {{cnf["repair-manager"]["agent-port"]}}
@@ -131,6 +133,9 @@ spec:
       - name: log
         hostPath:
           path: /var/log/repairmanager
+      - name: host-fs
+        hostPath:
+          path: /
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists

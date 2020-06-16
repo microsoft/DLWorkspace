@@ -12,6 +12,16 @@ def override(func):
     return func
 
 
+CHROOT_HOST_FS = "chroot /host-fs "
+
+
+def exec_command(commands):
+    for command in commands:
+        command = CHROOT_HOST_FS + command
+        logger.info("Executing command: %s", command)
+        os.system(command)
+
+
 class Rule(object):
     subclasses = {}
 
@@ -22,12 +32,13 @@ class Rule(object):
             return subclass
         return decorator
 
-    def __init__(self, metrics, interval="5m"):
+    def __init__(self, metrics, stat="avg", interval="5m"):
         self.metrics = metrics if isinstance(metrics, list) else [metrics]
+        self.stat = stat  # min, max, avg
         self.interval = interval
         self.data = {
             "current": {},
-            "interval": {},
+            stat: {},
         }
         self.rest_util = RestUtil()
         self.prometheus_util = PrometheusUtil()
@@ -39,12 +50,13 @@ class Rule(object):
             resp = self.prometheus_util.query(query_current)
             self.data["current"][metric] = walk_json(resp, "data", "result")
 
-            query_over_time = "avg_over_time(%s[%s])" % (metric, self.interval)
+            query_over_time = \
+                "%s_over_time(%s[%s])" % (self.stat, metric, self.interval)
             resp = self.prometheus_util.query(query_over_time)
-            self.data["interval"][metric] = walk_json(resp, "data", "result")
+            self.data[self.stat][metric] = walk_json(resp, "data", "result")
 
     @override
-    def check_health(self, node, stat="interval"):
+    def check_health(self, node, stat=None):
         return True
 
     @override
@@ -63,8 +75,7 @@ class Rule(object):
     @override
     def repair(self):
         # The default is to reboot node
-        os.system("sync")
-        os.system("reboot -f")
+        exec_command(["sync", "reboot -f"])
 
 
 @Rule.register_subclass("UnschedulableRule")
@@ -75,7 +86,7 @@ class UnschedulableRule(Rule):
     def update_data(self):
         pass
 
-    def check_health(self, node, stat="interval"):
+    def check_health(self, node, stat=None):
         if node.unschedulable is True:
             return False
         else:
@@ -85,16 +96,18 @@ class UnschedulableRule(Rule):
 @Rule.register_subclass("K8sGpuRule")
 class K8sGpuRule(Rule):
     def __init__(self):
-        super(K8sGpuRule, self).__init__(["k8s_node_gpu_total",
-                                          "k8s_node_gpu_allocatable"])
+        super(K8sGpuRule, self).__init__(
+            ["k8s_node_gpu_total", "k8s_node_gpu_allocatable"], "max")
 
-    def get_value(self, node, metric, stat="interval"):
+    def get_value(self, node, metric, stat):
         for item in self.data[stat].get(metric, []):
             if node.ip == item.get("metric", {}).get("host_ip"):
                 return float(item.get("value")[1])
         return None
 
-    def check_health(self, node, stat="interval"):
+    def check_health(self, node, stat=None):
+        if stat is None:
+            stat = self.stat
         try:
             gpu_expected = int(node.gpu_expected)
             gpu_total = self.get_value(node, "k8s_node_gpu_total", stat)
@@ -112,7 +125,7 @@ class K8sGpuRule(Rule):
         return True
 
     def repair(self):
-        os.system("systemctl restart kubelet")
+        exec_command(["systemctl restart kubelet"])
 
 
 @Rule.register_subclass("DcgmEccDBERule")
@@ -129,7 +142,9 @@ class DcgmEccDBERule(Rule):
                 values.append(float(item.get("value")[1]))
         return values
 
-    def check_health(self, node, stat="interval"):
+    def check_health(self, node, stat=None):
+        if stat is None:
+            stat = self.stat
         try:
             values = self.get_values(node, "dcgm_ecc_dbe_volatile_total", stat)
             for value in values:
@@ -157,7 +172,7 @@ class InfinibandRule(Rule):
                 values["%s:%s" % (device, port)] = float(item.get("value")[1])
         return values
 
-    def check_health(self, node, stat="interval"):
+    def check_health(self, node, stat=None):
         if node.infiniband is None:
             return True
 
@@ -165,6 +180,8 @@ class InfinibandRule(Rule):
             logger.warning("infiniband in %s is not a list.", node)
             return True
 
+        if stat is None:
+            stat = self.stat
         try:
             values = self.get_values(node, "infiniband_up", stat)
             for infiniband in node.infiniband:
@@ -191,12 +208,15 @@ class IPoIBRule(Rule):
                 values["%s" % device] = float(item.get("value")[1])
         return values
 
-    def check_health(self, node, stat="interval"):
+    def check_health(self, node, stat=None):
         if node.ipoib is None:
             return True
 
         if not isinstance(node.ipoib, list):
             return True
+
+        if stat is None:
+            stat = self.stat
 
         try:
             values = self.get_values(node, "ipoib_up", stat)
@@ -213,7 +233,7 @@ class IPoIBRule(Rule):
         return True
 
     def repair(self):
-        os.system("systemctl restart walinuxagent")
+        exec_command(["systemctl restart walinuxagent"])
 
 
 @Rule.register_subclass("NvPeerMemRule")
@@ -221,7 +241,7 @@ class NvPeerMemRule(Rule):
     def __init__(self):
         super(NvPeerMemRule, self).__init__("nv_peer_mem_count")
 
-    def get_value(self, node, metric, stat="interval"):
+    def get_value(self, node, metric, stat):
         for item in self.data[stat].get(metric, []):
             instance = item.get("metric", {}).get("instance")
             instance_ip = instance.split(":")[0]
@@ -229,10 +249,12 @@ class NvPeerMemRule(Rule):
                 return float(item.get("value")[1])
         return None
 
-    def check_health(self, node, stat="interval"):
+    def check_health(self, node, stat=None):
         if node.nv_peer_mem is None:
             return True
 
+        if stat is None:
+            stat = self.stat
         try:
             expected_count = int(node.nv_peer_mem)
             count = self.get_value(node, "nv_peer_mem_count", stat)
@@ -249,16 +271,16 @@ class NvPeerMemRule(Rule):
         return True
 
     def repair(self):
-        os.system("systemctl restart nv_peer_mem")
+        exec_command(["systemctl restart nv_peer_mem"])
 
 
 @Rule.register_subclass("NVSMRule")
 class NVSMRule(Rule):
     def __init__(self):
         super(NVSMRule, self).__init__(
-            ["nvsm_health_total_count", "nvsm_health_good_count"])
+            ["nvsm_health_total_count", "nvsm_health_good_count"], "max", "10m")
 
-    def get_value(self, node, metric, stat="interval"):
+    def get_value(self, node, metric, stat):
         for item in self.data[stat].get(metric, []):
             instance = item.get("metric", {}).get("instance")
             instance_ip = instance.split(":")[0]
@@ -266,10 +288,12 @@ class NVSMRule(Rule):
                 return float(item.get("value")[1])
         return None
 
-    def check_health(self, node, stat="interval"):
+    def check_health(self, node, stat=None):
         if node.nvsm is None:
             return True
 
+        if stat is None:
+            stat = self.stat
         try:
             total = self.get_value(node, "nvsm_health_total_count", stat)
             good = self.get_value(node, "nvsm_health_good_count", stat)
@@ -283,9 +307,7 @@ class NVSMRule(Rule):
 
     def repair(self):
         os.environ["TERM"] = "xterm"
-        os.system("nvsm dump health")
-        os.system("sync")
-        os.system("reboot -f")
+        exec_command(["nvsm dump health", "sync", "reboot -f"])
 
 
 def instantiate_rules():

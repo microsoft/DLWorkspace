@@ -33,7 +33,7 @@ class RuleForTest(Rule):
     def update_data(self):
         pass
 
-    def check_health(self, node, stat="interval"):
+    def check_health(self, node, stat=None):
         return self.health
 
     def prepare(self, node):
@@ -100,7 +100,6 @@ class TestRepairManager(unittest.TestCase):
                     return True
             except:
                 pass
-
 
     def wait_for_repair(self, timeout=10):
         start = time.time()

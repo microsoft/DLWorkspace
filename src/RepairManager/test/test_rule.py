@@ -71,7 +71,7 @@ class TestRule(unittest.TestCase):
                              self.rule.data["current"][metric])
             i += 1
             self.assertEqual(query_data[i]["data"]["result"],
-                             self.rule.data["interval"][metric])
+                             self.rule.data[self.rule.stat][metric])
             i += 1
 
     def test_check_health(self):
