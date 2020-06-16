@@ -162,14 +162,14 @@ module.exports = async context => {
   }
 
   for (const { type, healthy, pods } of _.values(body['workers'])) {
-    _increaseBody(['types', type, 'workers', 'total'])
+    _increaseBody(['types', type, 'nodes', 'total'])
     if (!healthy) {
-      _increaseBody(['types', type, 'workers', 'unschedulable'])
+      _increaseBody(['types', type, 'nodes', 'unschedulable'])
     }
     if (_.keys(pods).length > 0) {
-      _increaseBody(['types', type, 'workers', 'used'])
+      _increaseBody(['types', type, 'nodes', 'used'])
     } else {
-      _increaseBody(['types', type, 'workers', 'available'])
+      _increaseBody(['types', type, 'nodes', 'available'])
     }
   }
 }
