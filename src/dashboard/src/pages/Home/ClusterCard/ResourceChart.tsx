@@ -62,36 +62,44 @@ const pieProps: ComponentPropsWithoutRef<typeof Pie> = {
 
 const ResourceChart: FunctionComponent = () => {
   const { status } = useCluster();
+  const isPureCPU = get(status, ['config', 'isPureCPU'], false);
 
   const [active, setActive] = useState<{
-    pie: 'cpu' | 'gpu';
+    pie: 'cpu' | 'gpu' | 'node';
     index: number;
   }>();
 
-  const { cpu, gpu } = useMemo(() => {
-    const { cpu, gpu } = transform(status && status.types, (data, type) => {
-      data.cpu.available += get(type, ['cpu', 'available'], 0);
-      data.cpu.used += get(type, ['cpu', 'used'], 0);
-      data.cpu.unschedulable += get(type, ['cpu', 'unschedulable'], 0);
-      data.gpu.available += get(type, ['gpu', 'available'], 0);
-      data.gpu.used += get(type, ['gpu', 'used'], 0);
-      data.gpu.unschedulable += get(type, ['gpu', 'unschedulable'], 0);
+  const { cpu, gpu, node } = useMemo(() => {
+    const { cpu, gpu, node } = transform(status && status.types, ({ cpu, gpu, node }, type) => {
+      cpu.available += get(type, ['cpu', 'available'], 0);
+      cpu.used += get(type, ['cpu', 'used'], 0);
+      cpu.unschedulable += get(type, ['cpu', 'unschedulable'], 0);
+      gpu.available += get(type, ['gpu', 'available'], 0);
+      gpu.used += get(type, ['gpu', 'used'], 0);
+      gpu.unschedulable += get(type, ['gpu', 'unschedulable'], 0);
+      node.available += get(type, ['node', 'available'], 0);
+      node.used += get(type, ['node', 'used'], 0);
+      node.unschedulable += get(type, ['node', 'unschedulable'], 0);
     }, {
       cpu: { available: 0, used: 0, unschedulable: 0 },
-      gpu: { available: 0, used: 0, unschedulable: 0 }
+      gpu: { available: 0, used: 0, unschedulable: 0 },
+      node: { available: 0, used: 0, unschedulable: 0 },
     });
     return {
       cpu: map(cpu, (value, name) => ({ name, value })),
       gpu: map(gpu, (value, name) => ({ name, value })),
+      node: map(node, (value, name) => ({ name, value })),
     }
   }, [status]);
+  console.log(node)
   const cpuTotal = useMemo(() => sumBy(cpu, 'value'), [cpu]);
   const gpuTotal = useMemo(() => sumBy(gpu, 'value'), [gpu]);
+  const nodeTotal = useMemo(() => sumBy(node, 'value'), [node]);
 
   const cpuLabelProps = useMemo(() => {
     if (cpu === undefined) return {};
     const totalCPUs = `${cpuTotal} CPU${cpuTotal === 1 ? '' : 's'}`;
-    if (active === undefined || active.pie === 'gpu') {
+    if (active === undefined || active.pie !== 'cpu') {
       return { children: totalCPUs }
     }
     const { name, value } = cpu[active.index];
@@ -105,7 +113,7 @@ const ResourceChart: FunctionComponent = () => {
   const gpuLabelProps = useMemo(() => {
     if (gpu === undefined) return {};
     const totalGPUs = `${gpuTotal} GPU${gpuTotal === 1 ? '' : 's'}`;
-    if (active === undefined || active.pie === 'cpu') {
+    if (active === undefined || active.pie !== 'gpu') {
       return { children: totalGPUs }
     }
     const { name, value } = gpu[active.index];
@@ -116,12 +124,29 @@ const ResourceChart: FunctionComponent = () => {
       return { children };
     }
   }, [active, gpu, gpuTotal]);
+  const nodeLabelProps = useMemo(() => {
+    if (node === undefined) return {};
+    const totalNodes = `${nodeTotal} node${nodeTotal === 1 ? '' : 's'}`;
+    if (active === undefined || active.pie !== 'node') {
+      return { children: totalNodes }
+    }
+    const { name, value } = node[active.index];
+    const children = `${value} of ${totalNodes} ${capitalize(name)}`;
+    if (name === 'unschedulable') {
+      return { fill: colors.red[500] , children };
+    } else {
+      return { children };
+    }
+  }, [active, node, nodeTotal]);
 
   const handleCPUMouseEnter = useCallback((data: unknown, index: number) => {
     setActive({ pie: 'cpu', index })
   }, [setActive]);
   const handleGPUMouseEnter = useCallback((data: unknown, index: number) => {
     setActive({ pie: 'gpu', index })
+  }, [setActive]);
+  const handleNodeMouseEnter = useCallback((data: unknown, index: number) => {
+    setActive({ pie: 'node', index })
   }, [setActive]);
 
   return (
@@ -142,7 +167,7 @@ const ResourceChart: FunctionComponent = () => {
             <Cell key='unschedulable'  fill={colors.red[100]}/>
           </Pie>
         ) }
-        { gpu && gpuTotal && (
+        { !isPureCPU && gpu && gpuTotal && (
           <Pie
             data={gpu}
             innerRadius={90}
@@ -154,6 +179,21 @@ const ResourceChart: FunctionComponent = () => {
             <Label content={getLabelContent} fill={colors.lightBlue[500]} {...gpuLabelProps}/>
             <Cell key='available' fill={colors.lightBlue[500]}/>
             <Cell key='used'  fill={colors.lightBlue[100]}/>
+            <Cell key='unschedulable'  fill={colors.red[100]}/>
+          </Pie>
+        ) }
+        { isPureCPU && node && nodeTotal && (
+          <Pie
+            data={node}
+            innerRadius={90}
+            outerRadius={114}
+            activeIndex={active && active.pie === 'node' ? active.index : undefined}
+            onMouseEnter={handleNodeMouseEnter}
+            {...pieProps}
+          >
+            <Label content={getLabelContent} fill={colors.blueGrey[500]} {...nodeLabelProps}/>
+            <Cell key='available' fill={colors.blueGrey[500]}/>
+            <Cell key='used'  fill={colors.blueGrey[100]}/>
             <Cell key='unschedulable'  fill={colors.red[100]}/>
           </Pie>
         ) }
