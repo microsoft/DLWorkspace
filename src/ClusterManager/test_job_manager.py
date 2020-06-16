@@ -222,7 +222,8 @@ class TestJobManager(unittest.TestCase):
 
         jobs_info_list = copy.deepcopy(jobs_info)
         mark_schedulable_non_preemptable_jobs(jobs_info_list, c_schedulable,
-                                              copy.deepcopy(vc_schedulables))
+                                              copy.deepcopy(vc_schedulables),
+                                              {})
 
         self.assertTrue(jobs_info_list[0]["allowed"])
         self.assertTrue(jobs_info_list[1]["allowed"])
@@ -235,7 +236,8 @@ class TestJobManager(unittest.TestCase):
 
         jobs_info_list = copy.deepcopy(jobs_info)
         mark_schedulable_non_preemptable_jobs(jobs_info_list, c_schedulable,
-                                              copy.deepcopy(vc_schedulables))
+                                              copy.deepcopy(vc_schedulables),
+                                              {})
 
         self.assertTrue(jobs_info_list[0]["allowed"])
         self.assertTrue(jobs_info_list[1]["allowed"])
