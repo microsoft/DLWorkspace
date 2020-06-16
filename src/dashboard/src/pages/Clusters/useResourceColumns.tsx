@@ -17,23 +17,26 @@ import { formatBytes, formatFloat } from '../../utils/formats';
 export type ResourceType = 'cpu' | 'gpu' | 'memory';
 export type ResourceKind = 'total' | 'unschedulable' | 'used' | 'preemptable' | 'available';
 
-const useResourceColumns = (kinds: ResourceKind[]) => {
+const useResourceColumns = (kinds: ResourceKind[], isPureCPU = false) => {
   const theme = useTheme();
 
-  const [expandedResourceType, setExpandedResourceType] = useState<ResourceType>('gpu');
+  const [expandedResourceType, setExpandedResourceType] = useState<ResourceType>(isPureCPU ? 'cpu' : 'gpu');
 
-  const typeColor = useMemo(() => ({
+  const typeColor = useMemo(() => (isPureCPU ? {
+    cpu: theme.palette.background.paper,
+    memory: theme.palette.background.paper,
+  } : {
     cpu: theme.palette.background.default,
     gpu: theme.palette.background.paper,
     memory: theme.palette.background.default,
-  }), [theme]);
+  }), [isPureCPU, theme]);
 
   const expandable = kinds.indexOf('used') > -1 && kinds.indexOf('total') > -1;
 
   return useMemo(() => {
     const columns: Column<any>[] = [];
 
-    for (const title of ['CPU', 'GPU', 'Memory']) {
+    for (const title of isPureCPU ? ['CPU', 'Memory'] : ['CPU', 'GPU', 'Memory']) {
       const type = title.toLowerCase() as ResourceType;
       const process = type === 'memory' ? formatBytes : formatFloat;
       const style = { backgroundColor: typeColor[type] };
@@ -84,7 +87,7 @@ const useResourceColumns = (kinds: ResourceKind[]) => {
       }
     }
     return columns;
-  }, [kinds, expandable, expandedResourceType, typeColor]);
+  }, [isPureCPU, kinds, expandable, expandedResourceType, typeColor]);
 };
 
 export default useResourceColumns;

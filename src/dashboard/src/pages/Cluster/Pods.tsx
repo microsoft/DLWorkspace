@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 
-import { filter, flatMap, map, set } from 'lodash';
+import { compact, filter, flatMap, map, set } from 'lodash';
 
 import {
   Button,
@@ -80,7 +80,7 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
     setFilterCurrentTeam((filterCurrentTeam) => !filterCurrentTeam)
   }, []);
 
-  const columns = useRef<Column<any>[]>([{
+  const columns = useRef<Column<any>[]>(compact([{
     field: 'id',
     render: ({ id, jobId }) => (
       <Tooltip title={`See Job ${jobId}`}>
@@ -107,7 +107,7 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
     field: 'cpu',
     type: 'numeric',
     width: 'auto'
-  }, {
+  }, !config['isPureCPU'] && {
     title: 'GPU',
     field: 'gpu',
     type: 'numeric',
@@ -118,12 +118,12 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
     type: 'numeric',
     render: ({ memory }) => <>{formatBytes(memory)}</>,
     width: 'auto'
-  }, {
+  }, !config['isPureCPU'] && {
     title: 'Assigned GPU Utilization',
     field: 'gpuMetrics.utilization',
     type: 'numeric',
     render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && <>{formatPercent(Number(gpuMetrics.utilization) / 100)}</>
-  }, {
+  }, !config['isPureCPU'] && {
     title: 'GPU Idle',
     field: 'gpuMetrics.idle',
     type: 'numeric',
@@ -132,7 +132,7 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
         {(gpuMetrics.idle || 0)}
       </Typography>
     )
-  }]).current;
+  }])).current;
   const options = useMemo<Options>(() => ({
     padding: "dense",
     paging: false,

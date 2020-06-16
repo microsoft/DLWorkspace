@@ -94,7 +94,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } })
   const resourceKinds = useRef<ResourceKind[]>(
     ['total', 'unschedulable', 'used', 'preemptable', 'available']
   ).current;
-  const resourceColumns = useResourceColumns(resourceKinds);
+  const resourceColumns = useResourceColumns(resourceKinds, config['isPureCPU']);
   const columns = useMemo(() => {
     const columns: Column<any>[] = [{
       field: 'id',
@@ -124,14 +124,16 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } })
       }
     }];
     columns.push(...resourceColumns);
-    columns.push({
-      title: 'GPU Utilization',
-      field: 'gpuUtilization',
-      type: 'numeric',
-      render: ({ gpuUtilization }) => <>{Number(gpuUtilization || 0).toFixed(2)}%</>
-    });
+    if (!config['isPureCPU']) {
+      columns.push({
+        title: 'GPU Utilization',
+        field: 'gpuUtilization',
+        type: 'numeric',
+        render: ({ gpuUtilization }) => <>{Number(gpuUtilization || 0).toFixed(2)}%</>
+      });
+    }
     return columns;
-  }, [resourceColumns, handleWorkerClick, linkStyles]);
+  }, [config, resourceColumns, handleWorkerClick, linkStyles]);
 
   const options = useRef<Options>({
     padding: 'dense',

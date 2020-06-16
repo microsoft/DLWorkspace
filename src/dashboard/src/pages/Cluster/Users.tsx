@@ -7,7 +7,7 @@ import {
   useRef,
   useState
 } from 'react';
-import { entries, find, get, keys, set, union } from 'lodash';
+import { compact, entries, find, get, keys, set, union } from 'lodash';
 
 import {
   Button,
@@ -137,7 +137,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
     setQuery(userName);
   }, [setQuery]);
 
-  const columns = useRef<Column<any>[]>([{
+  const columns = useRef<Column<any>[]>(compact([{
     field: 'id',
     render: (row) =>
       row.id === undefined
@@ -168,7 +168,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
     ),
     searchable: false,
     width: 'auto'
-  }, {
+  }, !config['isPureCPU'] && {
     title: <CaptionColumnTitle caption="Used (Preemptable)">GPU</CaptionColumnTitle>,
     field: 'status.gpu.used',
     render: ({ status }) => status && (
@@ -190,7 +190,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
     ),
     searchable: false,
     width: 'auto'
-  }, {
+  }, !config['isPureCPU'] && {
     title: 'GPU Idle',
     field: 'gpuMetrics.idle',
     type: 'numeric',
@@ -202,13 +202,13 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
       )
       : <>0</>,
     width: 'auto'
-  }, {
+  }, !config['isPureCPU'] && {
     title: <CaptionColumnTitle caption="Last 31 days">Booked GPU Hours</CaptionColumnTitle>,
     field: 'gpuMetrics.bookedLast31Days',
     type: 'numeric',
     render: (data) => <>{humanHours(get(data, 'gpuMetrics.bookedLast31Days'))}</>,
     width: 'auto'
-  }, {
+  }, !config['isPureCPU'] && {
     title: <CaptionColumnTitle caption="Last 31 days">Idle GPU Hours (%)</CaptionColumnTitle>,
     field: 'gpu.idleLast31Days',
     type: 'numeric',
@@ -235,7 +235,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
       return <>{humanHours(idle)}{" ("}{formatPercent(ratio, 1)})</>;
     },
     width: 'auto'
-  }]).current;
+  }])).current;
 
   const options = useRef<Options>({
     padding: 'dense',
