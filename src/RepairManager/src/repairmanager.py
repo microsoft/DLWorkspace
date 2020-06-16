@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 class RepairManager(object):
+    """RepairManager controls the logic of repair cycle of each worker node.
+    """
     def __init__(self, rules, config, agent_port, k8s_util, rest_util, interval=30,
                  dry_run=False):
         self.rules = rules
@@ -33,6 +35,9 @@ class RepairManager(object):
         self.nodes = []
 
     def get_repair_state(self):
+        """Refresh nodes based on new info from kubernetes and DB. Refresh
+        metrics data in rules Prometheus.
+        """
         try:
             k8s_nodes = self.k8s_util.list_node()
             k8s_pods = self.k8s_util.list_pods()
@@ -45,12 +50,17 @@ class RepairManager(object):
             self.nodes = []
 
     def run(self):
+        # Main loop for repair cycle of nodes.
         while True:
             logger.info(
                 "Running repair update on nodes against rules: %s", 
                 [rule.__class__.__name__ for rule in self.rules])
             try:
                 self.get_repair_state()
+                logger.info(
+                    "Running repair update on %s nodes against rules: %s",
+                    len(self.nodes),
+                    [rule.__class__.__name__ for rule in self.rules])
                 for node in self.nodes:
                     if self.validate(node):
                         self.update(node)
@@ -61,6 +71,9 @@ class RepairManager(object):
             time.sleep(self.interval)
 
     def validate(self, node):
+        """Validate (and correct if needed) the node status. Returns True if
+        the node is validated (corrected if necessary), False otherwise.
+        """
         if node.state != State.IN_SERVICE and node.unschedulable is False:
             if self.from_any_to_out_of_pool(node):
                 return True
@@ -69,6 +82,27 @@ class RepairManager(object):
         return True
 
     def update(self, node):
+        """Defines the status change of node.
+
+        IN_SERVICE --check_health True--> IN_SERVICE
+                  \--check_health False--> OUT_OF_POOL
+
+        OUT_OF_POOL --prepare True--> READ_FOR_REPAIR
+                   \--prepare False--> OUT_OF_POOL
+
+        READ_FOR_REPAIR --send_repair_signal True--> IN_REPAIR
+                       \--send_repair_signal False--> READ_FOR_REPAIR
+
+        IN_REPAIR --check_liveness True--> AFTER_REPAIR
+                 \--check_liveness False--> IN_REPAIR
+
+        AFTER_REPAIR --check_health True--> IN_SERVICE
+                    \--check_health False--> OUT_OF_POOL
+
+        FIXME:
+        check_health may return False even if check_liveness returns True.
+        This can happen when metrics have not get populated into Prometheus.
+        """
         try:
             if node.state == State.IN_SERVICE:
                 if self.check_health(node) is False:
@@ -93,6 +127,7 @@ class RepairManager(object):
             logger.exception("Exception in step for node %s", node)
 
     def check_health(self, node, stat=None):
+        """Check the health against all rules."""
         unhealthy_rules = []
         for rule in self.rules:
             if not rule.check_health(node, stat):
@@ -101,12 +136,14 @@ class RepairManager(object):
         return len(unhealthy_rules) == 0
 
     def prepare(self, node):
+        """Prepare for each rule"""
         for rule in node.unhealthy_rules:
             if not rule.prepare(node):
                 return False
         return True
 
     def send_repair_request(self, node):
+        """Send the list of unhealthy rules to RepairManagerAgent"""
         url = urllib.parse.urljoin(
             "http://%s:%s" % (node.ip, self.agent_port), "/repair")
 
@@ -130,6 +167,7 @@ class RepairManager(object):
         return False
 
     def check_liveness(self, node):
+        """Check the liveness of RepairManagerAgent"""
         url = urllib.parse.urljoin(
             "http://%s:%s" % (node.ip, self.agent_port), "/liveness")
         try:
@@ -143,6 +181,7 @@ class RepairManager(object):
         return False
 
     def get_unhealthy_rules_value(self, node):
+        """Get string value of unhealth rules for node."""
         if not isinstance(node.unhealthy_rules, list) or \
                 len(node.unhealthy_rules) == 0:
             value = None
@@ -152,6 +191,9 @@ class RepairManager(object):
         return value
 
     def patch(self, node, unschedulable=None, labels=None, annotations=None):
+        """Patch unschedulable, labels, annotations at one go. This is to
+        ensure that the repair state change is atomic for a node.
+        """
         if self.dry_run:
             logger.info(
                 "node %s (%s) dry run. current state: %s, current "
@@ -165,6 +207,7 @@ class RepairManager(object):
             node.name, unschedulable, labels, annotations)
 
     def from_any_to_out_of_pool(self, node):
+        """Move from any state into OUT_OF_POOL"""
         unschedulable = True
         labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
         annotations = {
@@ -180,6 +223,7 @@ class RepairManager(object):
             return False
 
     def from_in_service_to_out_of_pool(self, node):
+        """Move from IN_SERVICE into OUT_OF_POOL"""
         unschedulable = True
         labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
         annotations = {
@@ -195,6 +239,7 @@ class RepairManager(object):
             return False
 
     def from_out_of_pool_to_ready_for_repair(self, node):
+        """Move from OUT_OF_POOL into READY_FOR_REPAIR"""
         labels = {REPAIR_STATE: State.READY_FOR_REPAIR.name}
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
@@ -206,6 +251,7 @@ class RepairManager(object):
             return False
 
     def from_ready_for_repair_to_in_repair(self, node):
+        """Move from READY_FOR_REPAIR into IN_REPAIR"""
         labels = {REPAIR_STATE: State.IN_REPAIR.name}
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
@@ -217,6 +263,7 @@ class RepairManager(object):
             return False
 
     def from_in_repair_to_after_repair(self, node):
+        """Move from IN_REPAIR into AFTER_REPAIR"""
         labels = {REPAIR_STATE: State.AFTER_REPAIR.name}
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
@@ -228,6 +275,7 @@ class RepairManager(object):
             return False
 
     def from_after_repair_to_in_service(self, node):
+        """Move from AFTER_REPAIR into IN_SERVICE"""
         unschedulable = False
         labels = {REPAIR_STATE: State.IN_SERVICE.name}
         annotations = {
@@ -243,6 +291,7 @@ class RepairManager(object):
             return False
 
     def from_after_repair_to_out_of_pool(self, node):
+        """Move from AFTER_REPAIR into OUT_OF_POOL"""
         labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
@@ -256,6 +305,8 @@ class RepairManager(object):
 
 
 class RepairManagerAgent(object):
+    """RepairManagerAgent listens on incoming repair signal and executes repair.
+    """
     def __init__(self, rules, port, dry_run=False):
         self.rules = rules
         self.port = port
@@ -283,6 +334,7 @@ class RepairManagerAgent(object):
 
         @app.route("/liveness")
         def metrics():
+            # Agent is not alive if there is a repair going on.
             if self.repair_rules.get() is not None:
                 return Response(status=503)
             return Response(status=200)
@@ -296,6 +348,7 @@ class RepairManagerAgent(object):
 
         while True:
             repair_rules = self.repair_rules.get()
+            # Execute repair rules is there is a repair request
             if repair_rules is not None:
                 logger.info("handle rule repair: %s", repair_rules)
                 try:
@@ -306,12 +359,13 @@ class RepairManagerAgent(object):
                                 "skip rule with no definition: %s", rule_name)
                             continue
                         if not self.dry_run:
+                            logger.info("rule repair: %s", rule_name)
                             rule.repair()
                         else:
-                            logger.info("dry run rule repair: %s", rule_name)
+                            logger.info("DRY RUN rule repair: %s", rule_name)
                 except:
-                    logger.exception("failed to handle rule repair: %s",
-                                     repair_rules)
+                    logger.exception(
+                        "failed to handle rule repair: %s", repair_rules)
                 self.repair_rules.set(None)
             time.sleep(3)
 

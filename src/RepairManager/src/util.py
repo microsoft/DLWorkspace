@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 class AtomicRef(object):
-    """ a thread safe way to store and get object,
-    should not modify data get from this ref
+    """A thread safe way to store and get object. Data retrieved from this ref
+    should not be modified.
     """
     def __init__(self):
         self.data = None
