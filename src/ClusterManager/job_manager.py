@@ -375,12 +375,17 @@ def UpdateJobStatus(redis_conn,
                 logger.info(
                     "killing job %s for its running time exceed maxTimeSec %ss, start %s, now %s",
                     job["jobId"], max_time, start_time, now)
+                error_msg = "running exceed pre-defined %ss" % (max_time)
                 dataFields = {
-                    "errorMsg": "running exceed pre-defined %ss" % (max_time),
+                    "errorMsg": error_msg,
                 }
                 conditionFields = {"jobId": job["jobId"]}
                 dataHandler.UpdateJobTextFields(conditionFields, dataFields)
                 launcher.kill_job(job["jobId"], "killed")
+                if notifier is not None:
+                    notifier.notify(
+                        notify.new_job_killed_message(job["userName"],
+                                                      job["jobId"], error_msg))
 
     elif result == "Failed":
         now = datetime.datetime.now()

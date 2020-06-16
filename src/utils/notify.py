@@ -43,8 +43,25 @@ class JobStateChangedMsg(NotifyMsg):
                                                            self.job_state)
 
 
+class JobKilledMsg(NotifyMsg):
+    def __init__(self, email, alert_name, job_name, reason):
+        super(JobKilledMsg, self).__init__(email, alert_name)
+        self.job_name = job_name
+        self.reason = reason
+
+    def labels(self):
+        return {"job_name": self.job_name, "reason": self.reason}
+
+    def subject(self):
+        return "Your job %s was killed" % (self.job_name)
+
+
 def new_job_state_change_message(email, job_name, state):
     return JobStateChangedMsg(email, "job-state-changed", job_name, state)
+
+
+def new_job_killed_message(email, job_name, reason):
+    return JobKilledMsg(email, "kill-job", job_name, reason)
 
 
 class Notifier(object):
