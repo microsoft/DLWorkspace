@@ -63,7 +63,8 @@ class TestRepairManager(unittest.TestCase):
         self.agent = RepairManagerAgent(self.rules, self.agent_port, dry_run=True)
         self.server = threading.Thread(
             target=self.agent.serve, name="agent_server", daemon=True)
-        self.node = Node(self.ip, self.ip, True, False, 4, State.IN_SERVICE, [])
+        self.node = Node(self.ip, self.ip, True, False, 4, 4, 4,
+                         State.IN_SERVICE, [])
 
     def test_validate(self):
         self.repairmanager.dry_run = False

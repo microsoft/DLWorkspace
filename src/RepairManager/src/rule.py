@@ -194,24 +194,21 @@ class K8sGpuRule(Rule):
     """Rule for GPU numbers on the node"""
     def __init__(self):
         super(K8sGpuRule, self).__init__(
-            ["k8s_node_gpu_total", "k8s_node_gpu_allocatable"], "max")
-
-    def get_value(self, node, metric, stat):
-        for item in self.data[stat].get(metric, []):
-            if node.ip == item.get("metric", {}).get("host_ip"):
-                return float(item.get("value")[1])
-        return None
+            ["k8s_node_gpu_total", "k8s_node_gpu_allocatable"])
 
     def check_health_impl(self, node, stat):
+        # k8s_node_gpu_allocatable shows 0 for any unschedulable node.
+        # Use gpu info from k8s to check health.
+
         # Unhealthy if expected > total or total > allocatable
         try:
             gpu_expected = int(node.gpu_expected)
-            gpu_total = self.get_value(node, "k8s_node_gpu_total", stat)
-            gpu_allocatable = self.get_value(
-                node, "k8s_node_gpu_allocatable", stat)
+            gpu_total = int(node.gpu_total)
+            gpu_allocatable = int(node.gpu_allocatable)
             if gpu_expected > gpu_total or gpu_total > gpu_allocatable:
                 return False
-            return True
+            else:
+                return True
         except:
             logger.exception("check health failed")
         return False

@@ -54,7 +54,7 @@ class TestRule(unittest.TestCase):
         self.rule.rest_util = MockRestUtil()
         self.rule.prometheus_util = MockPrometheusUtil()
         self.job = Job("job1", "user1", "vc1")
-        self.node = Node("node1", "192.168.0.1", True, False, 4,
+        self.node = Node("node1", "192.168.0.1", True, False, 4, 4, 4,
                          State.IN_SERVICE, infiniband=["mlx4_0:1", "mlx4_1:1"],
                          ipoib=["ib0", "ib1"], nv_peer_mem=1, nvsm=True)
         self.node.jobs = {"job1": self.job}
@@ -113,45 +113,29 @@ class TestK8sGpuRule(TestRule):
 
     def test_check_health(self):
         # expected > total && total > allocatable
-        k8s_node_gpu_total_data = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'k8s_node_gpu_total', 'exporter_name': 'watchdog', 'host_ip': '192.168.0.1', 'instance': '192.168.255.1:9101', 'job': 'serivce_exporter', 'scraped_from': 'watchdog-664db8579f-69shf'}, 'value': [1591919499.601, '3']}]}}
-        k8s_node_gpu_allocatable_data = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'k8s_node_gpu_allocatable', 'exporter_name': 'watchdog', 'host_ip': '192.168.0.1', 'instance': '192.168.255.1:9101', 'job': 'serivce_exporter', 'scraped_from': 'watchdog-664db8579f-69shf'}, 'value': [1591919627.21, '0']}]}}
-
-        self.update_data_and_validate(
-            [k8s_node_gpu_total_data, k8s_node_gpu_total_data,
-             k8s_node_gpu_allocatable_data, k8s_node_gpu_allocatable_data])
+        self.node.gpu_total = 3
+        self.node.gpu_allocatable = 2
 
         self.assertFalse(self.rule.check_health(self.node))
         self.assertFalse(self.rule.check_health(self.node, stat="current"))
 
         # expected > total && total == allocatable
-        k8s_node_gpu_total_data = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'k8s_node_gpu_total', 'exporter_name': 'watchdog', 'host_ip': '192.168.0.1', 'instance': '192.168.255.1:9101', 'job': 'serivce_exporter', 'scraped_from': 'watchdog-664db8579f-69shf'}, 'value': [1591919499.601, '3']}]}}
-        k8s_node_gpu_allocatable_data = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'k8s_node_gpu_allocatable', 'exporter_name': 'watchdog', 'host_ip': '192.168.0.1', 'instance': '192.168.255.1:9101', 'job': 'serivce_exporter', 'scraped_from': 'watchdog-664db8579f-69shf'}, 'value': [1591919627.21, '3']}]}}
-
-        self.update_data_and_validate(
-            [k8s_node_gpu_total_data, k8s_node_gpu_total_data,
-             k8s_node_gpu_allocatable_data, k8s_node_gpu_allocatable_data])
+        self.node.gpu_total = 3
+        self.node.gpu_allocatable = 3
 
         self.assertFalse(self.rule.check_health(self.node))
         self.assertFalse(self.rule.check_health(self.node, stat="current"))
 
         # expected == total && total > allocatable
-        k8s_node_gpu_total_data = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'k8s_node_gpu_total', 'exporter_name': 'watchdog', 'host_ip': '192.168.0.1', 'instance': '192.168.255.1:9101', 'job': 'serivce_exporter', 'scraped_from': 'watchdog-664db8579f-69shf'}, 'value': [1591919499.601, '4']}]}}
-        k8s_node_gpu_allocatable_data = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'k8s_node_gpu_allocatable', 'exporter_name': 'watchdog', 'host_ip': '192.168.0.1', 'instance': '192.168.255.1:9101', 'job': 'serivce_exporter', 'scraped_from': 'watchdog-664db8579f-69shf'}, 'value': [1591919627.21, '1']}]}}
-
-        self.update_data_and_validate(
-            [k8s_node_gpu_total_data, k8s_node_gpu_total_data,
-             k8s_node_gpu_allocatable_data, k8s_node_gpu_allocatable_data])
+        self.node.gpu_total = 4
+        self.node.gpu_allocatable = 3
 
         self.assertFalse(self.rule.check_health(self.node))
         self.assertFalse(self.rule.check_health(self.node, stat="current"))
 
         # expected == total == allocatable
-        k8s_node_gpu_total_data = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'k8s_node_gpu_total', 'exporter_name': 'watchdog', 'host_ip': '192.168.0.1', 'instance': '192.168.255.1:9101', 'job': 'serivce_exporter', 'scraped_from': 'watchdog-664db8579f-69shf'}, 'value': [1591919499.601, '4']}]}}
-        k8s_node_gpu_allocatable_data = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'k8s_node_gpu_allocatable', 'exporter_name': 'watchdog', 'host_ip': '192.168.0.1', 'instance': '192.168.255.1:9101', 'job': 'serivce_exporter', 'scraped_from': 'watchdog-664db8579f-69shf'}, 'value': [1591919627.21, '4']}]}}
-
-        self.update_data_and_validate(
-            [k8s_node_gpu_total_data, k8s_node_gpu_total_data,
-             k8s_node_gpu_allocatable_data, k8s_node_gpu_allocatable_data])
+        self.node.gpu_total = 4
+        self.node.gpu_allocatable = 4
 
         self.assertTrue(self.rule.check_health(self.node))
         self.assertTrue(self.rule.check_health(self.node, stat="current"))

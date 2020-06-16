@@ -166,14 +166,16 @@ class Job(object):
 
 
 class Node(object):
-    def __init__(self, name, ip, ready, unschedulable, gpu_expected, state,
-                 infiniband=None, ipoib=None, nv_peer_mem=None, nvsm=None,
-                 unhealthy_rules=None):
+    def __init__(self, name, ip, ready, unschedulable, gpu_expected, gpu_total,
+                 gpu_allocatable, state, infiniband=None, ipoib=None,
+                 nv_peer_mem=None, nvsm=None, unhealthy_rules=None):
         self.name = name
         self.ip = ip
         self.ready = ready
         self.unschedulable = unschedulable
         self.gpu_expected = gpu_expected
+        self.gpu_total = gpu_total
+        self.gpu_allocatable = gpu_allocatable
         self.state = state
         self.infiniband = infiniband
         self.ipoib = ipoib
@@ -206,6 +208,17 @@ def get_ready(k8s_node):
     return ready
 
 
+def get_gpu_total_and_allocatable(k8s_node):
+    if k8s_node.status is None:
+        return 0, 0
+    total = allocatable = 0
+    if k8s_node.status.capacity is not None:
+        total = int(k8s_node.status.capacity.get("nvidia.com/gpu", 0))
+    if k8s_node.status.allocatable is not None:
+        allocatable = int(k8s_node.status.allocatable.get("nvidia.com/gpu", 0))
+    return total, allocatable
+
+
 def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
     rules_mapping = {
         rule.__class__.__name__: rule for rule in rules
@@ -225,6 +238,9 @@ def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
             sku = k8s_node.metadata.labels.get("sku")
             # Parse expected gpu
             gpu_expected = metadata.get(sku, {}).get("per_node", 0)
+
+            # Parse total and allocatable gpu
+            gpu_total, gpu_allocatable = get_gpu_total_and_allocatable(k8s_node)
 
             # Parse repair state
             if k8s_node.metadata.labels is None:
@@ -269,8 +285,8 @@ def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
                         unhealthy_rules.append(rule)
 
             node = Node(hostname, internal_ip, ready, unschedulable,
-                        gpu_expected, state, infiniband, ipoib, nv_peer_mem,
-                        nvsm, unhealthy_rules)
+                        gpu_expected, gpu_total, gpu_allocatable, state,
+                        infiniband, ipoib, nv_peer_mem, nvsm, unhealthy_rules)
             nodes[internal_ip] = node
         except:
             logger.exception("failed to parse k8s node %s", k8s_node)
