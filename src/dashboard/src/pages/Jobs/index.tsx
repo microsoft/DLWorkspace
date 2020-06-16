@@ -8,7 +8,8 @@ import {
 } from 'react';
 import {
   useHistory,
-  useParams
+  useLocation,
+  useParams,
 } from 'react-router-dom';
 import {
   Container,
@@ -79,6 +80,7 @@ const Jobs: FunctionComponent = () => {
   const { clusters } = useContext(ClustersContext);
 
   const history = useHistory();
+  const { hash } = useLocation();
   const { clusterId } = useParams<RouteParams>();
 
   const cluster = useMemo(() => {
@@ -86,8 +88,8 @@ const Jobs: FunctionComponent = () => {
   }, [clusters, clusterId]);
 
   const onClusterChange = useCallback((cluster: any) => {
-    history.replace(`/jobs/${cluster.id}`)
-  }, [history]);
+    history.replace({ pathname: `../${cluster.id}/`, hash });
+  }, [history, hash]);
 
   return (
     <Container fixed maxWidth="xl">
