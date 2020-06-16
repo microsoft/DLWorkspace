@@ -23,7 +23,7 @@ const useResourceColumns = (kinds: ResourceKind[], isPureCPU = false) => {
   const [expandedResourceType, setExpandedResourceType] = useState<ResourceType>(isPureCPU ? 'cpu' : 'gpu');
 
   const typeColor = useMemo(() => (isPureCPU ? {
-    cpu: theme.palette.background.paper,
+    cpu: theme.palette.background.default,
     memory: theme.palette.background.paper,
   } : {
     cpu: theme.palette.background.default,
