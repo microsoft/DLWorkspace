@@ -91,7 +91,7 @@ class K8sGpuRule(Rule):
     def get_value(self, node, metric, stat="interval"):
         for item in self.data[stat].get(metric, []):
             if node.ip == item.get("metric", {}).get("host_ip"):
-                return int(item.get("value")[1])
+                return float(item.get("value")[1])
         return None
 
     def check_health(self, node, stat="interval"):
@@ -126,7 +126,7 @@ class DcgmEccDBERule(Rule):
             instance = item.get("metric", {}).get("instance")
             instance_ip = instance.split(":")[0]
             if node.ip == instance_ip:
-                values.append(int(item.get("value")[1]))
+                values.append(float(item.get("value")[1]))
         return values
 
     def check_health(self, node, stat="interval"):
@@ -154,7 +154,7 @@ class InfinibandRule(Rule):
             if node.ip == instance_ip:
                 device = item.get("metric", {}).get("device")
                 port = item.get("metric", {}).get("port")
-                values["%s:%s" % (device, port)] = int(item.get("value")[1])
+                values["%s:%s" % (device, port)] = float(item.get("value")[1])
         return values
 
     def check_health(self, node, stat="interval"):
@@ -188,7 +188,7 @@ class IPoIBRule(Rule):
             instance_ip = instance.split(":")[0]
             if node.ip == instance_ip:
                 device = item.get("metric", {}).get("device")
-                values["%s" % device] = int(item.get("value")[1])
+                values["%s" % device] = float(item.get("value")[1])
         return values
 
     def check_health(self, node, stat="interval"):
@@ -226,7 +226,7 @@ class NvPeerMemRule(Rule):
             instance = item.get("metric", {}).get("instance")
             instance_ip = instance.split(":")[0]
             if node.ip == instance_ip:
-                return int(item.get("value")[1])
+                return float(item.get("value")[1])
         return None
 
     def check_health(self, node, stat="interval"):
@@ -263,7 +263,7 @@ class NVSMRule(Rule):
             instance = item.get("metric", {}).get("instance")
             instance_ip = instance.split(":")[0]
             if node.ip == instance_ip:
-                return int(item.get("value")[1])
+                return float(item.get("value")[1])
         return None
 
     def check_health(self, node, stat="interval"):

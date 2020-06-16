@@ -24,12 +24,14 @@ def get_config(config_path):
 
 
 def start_repairmanager(params):
+    logger.info("Start repairmanager")
     try:
         rules = instantiate_rules()
+        config = get_config(params.config)
         k8s_util = K8sUtil()
         rest_util = RestUtil()
         repair_manager = RepairManager(
-            rules, int(params.port), k8s_util, rest_util,
+            rules, config, int(params.port), k8s_util, rest_util,
             interval=params.interval, dry_run=params.dry_run)
         repair_manager.run()
     except:
@@ -113,7 +115,7 @@ if __name__ == '__main__':
 
         return result
 
-    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler = logging.StreamHandler()
     file_handler = handlers.RotatingFileHandler(
         os.path.join(args.log, args.service + ".log"),
         maxBytes=10240000, backupCount=10)

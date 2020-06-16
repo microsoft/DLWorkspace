@@ -39,7 +39,7 @@ spec:
           - '--log=/var/log/repairmanager'
           - '--interval=30'
           - '--port={{cnf["repair-manager"]["port"]}}'
-          - '--agent_port={{cnf["repair-manager"]["agent_port"]}}'
+          - '--agent_port={{cnf["repair-manager"]["agent-port"]}}'
           - '--dry_run'
         imagePullPolicy: Always
         volumeMounts:
@@ -51,6 +51,9 @@ spec:
           name: config-volume
         - mountPath: /var/log/repairmanager
           name: log
+        ports:
+        - name: repairmanager
+          containerPort: {{cnf["repair-manager"]["port"]}}
       {% if cnf["private_docker_registry_username"] %}
       imagePullSecrets:
       - name: svccred
@@ -111,12 +114,15 @@ spec:
         args:
           - '--service=repairmanageragent'
           - '--log=/var/log/repairmanager'
-          - '--agent_port={{cnf["repair-manager"]["agent_port"]}}'
+          - '--agent_port={{cnf["repair-manager"]["agent-port"]}}'
           - '--dry_run'
         imagePullPolicy: Always
         volumeMounts:
         - mountPath: /var/log/repairmanager
           name: log
+        ports:
+        - name: agent
+          containerPort: {{cnf["repair-manager"]["agent-port"]}}
       {% if cnf["private_docker_registry_username"] %}
       imagePullSecrets:
       - name: svccred

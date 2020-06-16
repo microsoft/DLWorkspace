@@ -46,6 +46,9 @@ class RepairManager(object):
 
     def run(self):
         while True:
+            logger.info(
+                "Running repair update on nodes against rules: %s", 
+                [rule.__class__.__name__ for rule in self.rules])
             try:
                 self.get_repair_state()
                 for node in self.nodes:
