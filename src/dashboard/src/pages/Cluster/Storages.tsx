@@ -15,6 +15,7 @@ import {
   Box,
   MenuItem,
   Select,
+  Typography,
   createStyles,
   colors,
   makeStyles,
@@ -57,9 +58,10 @@ interface StoragesContentProps {
       ratio: number;
     }[];
   }[];
+  snapshot: Date;
 }
 
-const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data }) => {
+const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data, snapshot }) => {
   const [index, setIndex] = useState(0);
   const { data: mountpoint } = data[index];
 
@@ -98,13 +100,18 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data }) => {
       <SvgIconsMaterialTable
         style={{ flex: 1 }}
         title={
-          <Select value={index} onChange={handleSelectChange}>
-            {data.map(({ mountpoint }, index) => (
-              <MenuItem key={index} value={index}>
-                {mountpoint}
-              </MenuItem>
-            ))}
-          </Select>
+          <Box display="flex" alignItems="baseline">
+            <Select value={index} onChange={handleSelectChange}>
+              {data.map(({ mountpoint }, index) => (
+                <MenuItem key={index} value={index}>
+                  {mountpoint}
+                </MenuItem>
+              ))}
+            </Select>
+            <Typography variant="caption" component={Box} paddingLeft={1}>
+              Snapshot at {snapshot.toLocaleString()}
+            </Typography>
+          </Box>
         }
         data={tableData}
         columns={columns}
@@ -147,20 +154,24 @@ const Storages: FunctionComponent<Props> = ({ data: { config } }) => {
   const { currentTeamId } = useContext(TeamContext);
   const metrics = usePrometheus(config['grafana'], `storage_usage_in_bytes_by_user{vc="${currentTeamId}"} or storage_usage_in_bytes_by_user{vc="cluster"}`);
 
-  const data = useMemo(() => {
-    if (metrics == null || metrics.result == null) return undefined;
+  const [data, snapshot] = useMemo(() => {
+    if (metrics == null || metrics.result == null) return [undefined, 0] as const;
 
     const mountpointUserBytes = Object.create(null);
+    let latestSnapshot = 0;
     for (const { metric, value } of metrics.result) {
-      const { mountpoint, user } = metric;
+      const { mountpoint, user, snapshot_time: snapshot } = metric;
       const bytes = Number(value[1]);
 
       if (!bytes) continue;
 
       set(mountpointUserBytes, [mountpoint, user], bytes);
+      if (latestSnapshot < snapshot) {
+        latestSnapshot = snapshot;
+      }
     }
 
-    return sortBy(map(mountpointUserBytes, (userBytes, mountpoint) => {
+    return [sortBy(map(mountpointUserBytes, (userBytes, mountpoint) => {
       let sum = 0;
 
       const data = sortBy(map(userBytes, (bytes: number, user) => {
@@ -171,7 +182,7 @@ const Storages: FunctionComponent<Props> = ({ data: { config } }) => {
       each(data, (obj) => { obj.ratio = obj.bytes / sum });
 
       return { mountpoint, data }
-    }), 'mountpoint')
+    }), 'mountpoint'), latestSnapshot] as const;
   }, [metrics]);
 
   if (data === undefined) {
@@ -182,7 +193,8 @@ const Storages: FunctionComponent<Props> = ({ data: { config } }) => {
     return null;
   }
 
-  return <StoragesContent data={data}/>
+  console.log(snapshot)
+  return <StoragesContent data={data} snapshot={new Date(snapshot * 1000)}/>
 };
 
 export default Storages;
