@@ -2,7 +2,7 @@ import * as React from 'react';
 import {
   FunctionComponent,
   createContext,
-  useCallback,
+  useContext,
   useEffect,
   useState
 } from 'react';
@@ -10,26 +10,58 @@ import useFetch from "use-http-2";
 
 import { find } from "lodash";
 
+import UserContext from './User';
+
 interface TeamContext {
   teams?: any[];
   currentTeamId: string;
   setCurrentTeamId(teamId: string): void;
-  clearCurrentTeamId(): void;
 }
 
 const TeamContext = createContext<TeamContext>({
   currentTeamId: '',
   setCurrentTeamId (teamId: string) { return; },
-  clearCurrentTeamId () { return; }
 });
 
 const Provider: FunctionComponent = ({ children }) => {
-  const { data: teams } = useFetch<any[]>('/api/teams', []);
+  const { email } = useContext(UserContext);
+
+  const [teams, setTeams] = useState<any[] | undefined>(() => {
+    try {
+      const teams = JSON.parse(window.localStorage.getItem('teams') || '')
+      if (Array.isArray(teams)) {
+        return teams;
+      }
+    } catch (e) { /* ignored */ }
+  });
   const [currentTeamId, setCurrentTeamId] = useState<string>(
     () => (window.localStorage.getItem('currentTeamId') || ''));
-  const clearCurrentTeamId = useCallback(() => {
-    window.localStorage.removeItem('currentTeamId');
-  }, []);
+
+  const { get } = useFetch<any[]>('/api/teams');
+
+  useEffect(() => {
+    if (email === undefined) { // Not signed in
+      // Clean teams cache
+      window.localStorage.removeItem('teams')
+    }
+  }, [email]);
+
+  useEffect(() => {
+    if (
+      teams == null && // No cached team
+      email !== undefined // Signed in
+    ) {
+      // Fetch teams from backend
+      get().then((teams) => {
+        if (teams.length > 0) {
+          window.localStorage.setItem('teams', JSON.stringify(teams))
+        }
+        setTeams(teams)
+      }, () => {
+        setTeams([])
+      })
+    }
+  }, [teams, email, get]);
 
   useEffect(() => {
     // Validate currentTeamId
@@ -50,7 +82,7 @@ const Provider: FunctionComponent = ({ children }) => {
 
   return (
     <TeamContext.Provider
-      value={{ teams, currentTeamId, setCurrentTeamId, clearCurrentTeamId }}
+      value={{ teams, currentTeamId, setCurrentTeamId }}
       children={children}
     />
   );
