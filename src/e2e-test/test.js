@@ -65,24 +65,30 @@ describe('Deep Learning Training Service', function () {
 
       await $button.click()
 
-      const $popover = await page.waitForSelector('.MuiPopover-root')
-      for (const $menuItem of await $popover.$$('.MuiMenuItem-root')) {
-        if ((await $menuItem.evaluate(node => node.textContent)) === DLTS_TEAM_ID) {
-          await $menuItem.click()
-          break
+      await (async () => {
+        const $popover = await page.waitForSelector('.MuiPopover-root')
+        for (const $menuItem of await $popover.$$('.MuiMenuItem-root')) {
+          if ((await $menuItem.evaluate(node => node.textContent)) === DLTS_TEAM_ID) {
+            await $menuItem.click()
+            return true
+          }
         }
-      }
+        return false
+      })().should.eventually.be.true()
 
       await page.waitFor(1000)
       await (
         await page.waitForSelector('header.MuiAppBar-root .MuiGrid-item:nth-child(3) button')
       ).evaluate(node => node.textContent).should.eventually.equal(DLTS_TEAM_ID)
 
-      await page.waitFor(1000)
-      await page.screenshot({
-        path: PUPPETEER_SCREENSHOT_FILE,
-        fullPage: true
-      })
+      await (async () => {
+        for (const $cardHeaderTitle of await page.$$('.MuiCard-root .MuiCardHeader-root .MuiCardHeader-title')) {
+          if ((await $cardHeaderTitle.evaluate(node => node.textContent)) === DLTS_CLUSTER_ID) {
+            return true
+          }
+        }
+        return false
+      })().should.eventually.be.true()
     })
 
     it('submit job', async function () {
