@@ -4,12 +4,12 @@ import {
   FunctionComponent,
   useCallback,
   useContext,
-  useMemo,
-  useState
+  useMemo
 } from 'react';
 import {
   useHistory,
-  useParams
+  useLocation,
+  useParams,
 } from 'react-router-dom';
 import {
   Container,
@@ -26,6 +26,7 @@ import ClustersContext from '../../contexts/Clusters';
 import ClusterSelector from '../../components/ClusterSelector';
 
 import Loading from '../../components/Loading';
+import useHashTab from '../../hooks/useHashTab';
 import ClusterContext from './ClusterContext';
 import MyJobs from './MyJobs';
 import AllJobs from './AllJobs';
@@ -35,7 +36,7 @@ interface RouteParams {
 }
 
 const TabView: FunctionComponent = () => {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useHashTab('my', 'all');
   const onChange = useCallback((event: ChangeEvent<{}>, value: any) => {
     setIndex(value as number);
   }, [setIndex]);
@@ -79,6 +80,7 @@ const Jobs: FunctionComponent = () => {
   const { clusters } = useContext(ClustersContext);
 
   const history = useHistory();
+  const { hash } = useLocation();
   const { clusterId } = useParams<RouteParams>();
 
   const cluster = useMemo(() => {
@@ -86,8 +88,8 @@ const Jobs: FunctionComponent = () => {
   }, [clusters, clusterId]);
 
   const onClusterChange = useCallback((cluster: any) => {
-    history.replace(`/jobs/${cluster.id}`)
-  }, [history]);
+    history.replace({ pathname: `../${cluster.id}/`, hash });
+  }, [history, hash]);
 
   return (
     <Container fixed maxWidth="xl">
