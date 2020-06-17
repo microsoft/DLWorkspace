@@ -59,7 +59,7 @@ const CopyableTextField: FunctionComponent<CopyableTextFieldProps> = ({ label, v
         readOnly: true,
         endAdornment: (
           <InputAdornment position="end">
-            <Tooltip title="Copy" placement="right">
+            <Tooltip title="Open or Copy" placement="right">
               <IconButton onClick={handleClick}>
                 <OpenInNew/>
               </IconButton>
