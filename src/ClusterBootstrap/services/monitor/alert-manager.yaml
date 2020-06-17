@@ -147,6 +147,12 @@ data:
         match_re:
           type: kill_idle_job_email
           alertname: "kill-idle-jobs-email"
+      - receiver: kill_job_email
+        group_by: [alertname, user_email, cluster]
+        group_wait: 0s
+        match_re:
+          type: user_alert
+          alertname: "kill-job"
     receivers:
     - name: "alert-email"
       email_configs:
@@ -197,6 +203,20 @@ data:
         - to: '{{ alert_info["receiver"] }}'
         {% endif %}
           html: '{{ "{{" }} template "kill_idle.html" . {{ "}}" }}'
+          headers:
+            {% if cnf["alert-manager"]["alert_users"] %}
+            To: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }}'
+            CC: '{{ alert_info["receiver"] }}'
+            {% endif %}
+            subject: '{{ "{{" }} .GroupLabels.cluster {{ "}}" }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
+    - name: "kill_job_email"
+      email_configs:
+        {% if cnf["alert-manager"]["alert_users"] %}
+        - to: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }},{{ alert_info["receiver"] }}'
+        {% else %}
+        - to: '{{ alert_info["receiver"] }}'
+        {% endif %}
+          html: '{{ "{{" }} template "kill_job.html" . {{ "}}" }}'
           headers:
             {% if cnf["alert-manager"]["alert_users"] %}
             To: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }}'
