@@ -133,6 +133,7 @@ describe('Deep Learning Training Service', function () {
     })
 
     it('retrieve job log', async function () {
+      this.timeout('10m')
       await page.waitForFunction(() => {
         const $chip = window.document.querySelector('.MuiChip-root')
         if ($chip == null) return false
