@@ -44,18 +44,18 @@ const TimeoutField: FunctionComponent<TimeoutFieldProps> = ({ job }) => {
   const editable = useMemo(() => {
     return EDITABLE_STATUSES.has(job['jobStatus'])
   }, [job])
-  const defaultDays = useMemo<number>(() => {
+  const defaultHours = useMemo<number>(() => {
     return get(job, ['jobParams', 'maxTimeSec'], NaN) / 60 / 60;
   }, [job]);
-  const setDays = useCallback((days: number) => {
-    if (isNaN(days)) return;
-    if (days === defaultDays) return;
+  const setHours = useCallback((hours: number) => {
+    if (isNaN(hours)) return;
+    if (hours === defaultHours) return;
     enqueueSnackbar('Timeout is being set...');
     setBusy(true);
 
     fetch(`/api/clusters/${cluster.id}/jobs/${job['jobId']}/timeout`, {
       method: 'PUT',
-      body: JSON.stringify({ timeout: days * 60 * 60 }),
+      body: JSON.stringify({ timeout: hours * 60 * 60 }),
       headers: { 'Content-Type': 'application/json' }
     }).then((response) => {
       if (response.ok) {
@@ -68,20 +68,20 @@ const TimeoutField: FunctionComponent<TimeoutFieldProps> = ({ job }) => {
     }).then(() => {
       setBusy(false);
     });
-  }, [defaultDays, enqueueSnackbar, job, cluster.id]);
+  }, [defaultHours, enqueueSnackbar, job, cluster.id]);
   const onBlur = useCallback((event: FocusEvent<HTMLInputElement>) => {
     if (input.current === undefined) return;
-    setDays(input.current.valueAsNumber);
-  }, [setDays]);
+    setHours(input.current.valueAsNumber);
+  }, [setHours]);
   const onKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
     if (input.current === undefined) return;
     if (event.key === 'Enter') {
-      setDays(input.current.valueAsNumber);
+      setHours(input.current.valueAsNumber);
     }
     if (event.key === 'Escape') {
-      input.current.valueAsNumber = defaultDays;
+      input.current.valueAsNumber = defaultHours;
     }
-  }, [setDays, defaultDays]);
+  }, [setHours, defaultHours]);
 
   if (editable) {
     return (
@@ -89,8 +89,8 @@ const TimeoutField: FunctionComponent<TimeoutFieldProps> = ({ job }) => {
         inputRef={input}
         type="number"
         placeholder="N/A"
-        endAdornment={<InputAdornment position="end">d</InputAdornment>}
-        defaultValue={defaultDays}
+        endAdornment={<InputAdornment position="end">h</InputAdornment>}
+        defaultValue={defaultHours}
         disabled={busy}
         fullWidth
         style={{ color: 'inherit', fontSize: 'inherit' }}
@@ -106,8 +106,8 @@ const TimeoutField: FunctionComponent<TimeoutFieldProps> = ({ job }) => {
       />
     );
   } else {
-    if (isFinite(defaultDays)) {
-      return <>{defaultDays} d</>;
+    if (isFinite(defaultHours)) {
+      return <>{defaultHours} h</>;
     } else {
       return <Typography variant="inherit" color="textSecondary">N/A</Typography>;
     }
