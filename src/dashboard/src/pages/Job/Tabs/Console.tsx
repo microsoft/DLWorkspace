@@ -32,6 +32,7 @@ import { map, mergeWith } from 'lodash';
 
 import Context from '../Context';
 
+import BottomKeepingBox from '../../../components/BottomKeepingBox';
 import useConstant from '../../../hooks/useConstant';
 
 import useRouteParams from '../useRouteParams';
@@ -175,11 +176,11 @@ const Console: FunctionComponent = () => {
             <Fade in={loading}><LinearProgress/></Fade>
           </Box>
           <Paper square elevation={0} style={{ height: '100%' }}>
-            <Box height="100%" m={0} p={1} overflow="auto">
+            <BottomKeepingBox height="100%" m={0} p={1}>
               <Typography variant="inherit" component="pre">
                 {logText}
               </Typography>
-            </Box>
+            </BottomKeepingBox>
           </Paper>
         </ThemeProvider>
       </Box>
