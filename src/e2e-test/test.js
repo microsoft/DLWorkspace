@@ -37,7 +37,6 @@ describe('Deep Learning Training Service', function () {
     })
 
     it('sign in', async function () {
-      this.timeout('1m')
       await page.goto(DLTS_DASHBOARD_URL)
       await page.setViewport({
         width: Number(PUPPETEER_SCREENSHOT_WIDTH),
@@ -128,7 +127,6 @@ describe('Deep Learning Training Service', function () {
     })
 
     it('retrieve job log', async function () {
-      this.timeout('10m')
       await page.waitForFunction(() => {
         const $chip = window.document.querySelector('.MuiChip-root')
         if ($chip == null) return false
