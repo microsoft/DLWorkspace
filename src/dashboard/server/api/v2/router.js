@@ -20,3 +20,6 @@ router.get('/clusters/:clusterId/teams/:teamId/jobs',
 router.get('/clusters/:clusterId/jobs/:jobId',
   require('../middlewares/user')(),
   require('./controllers/cluster/job'))
+router.get('/clusters/:clusterId/jobs/:jobId/log',
+  require('../middlewares/user')(),
+  require('./controllers/cluster/job/log'))

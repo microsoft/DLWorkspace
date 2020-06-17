@@ -59,7 +59,7 @@ const LayoutContent: FunctionComponent = ({ children }) => {
 };
 
 const Layout: FunctionComponent = ({ children }) => (
-  <Box width="100vw" minHeight="100vh" display="flex">
+  <Box width="100%" minHeight="100vh" display="flex">
     <LayoutContent>
       {children}
     </LayoutContent>
