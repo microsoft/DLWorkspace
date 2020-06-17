@@ -15,7 +15,7 @@ import {
   Tooltip,
 } from '@material-ui/core';
 import {
-  FileCopyRounded,
+  OpenInNew,
 } from '@material-ui/icons';
 
 import copy from 'clipboard-copy';
@@ -37,7 +37,11 @@ const CopyableTextField: FunctionComponent<CopyableTextFieldProps> = ({ label, v
       input.current.select();
     }
   }, [input]);
-  const handleClick = React.useCallback(() => {
+  const handleClick = useCallback(() => {
+    const iframe = window.document.createElement('IFRAME')
+    iframe.setAttribute('src', `browse:${value}`)
+    window.document.documentElement.appendChild(iframe)
+    setTimeout(() => window.document.documentElement.removeChild(iframe), 100)
     copy(value);
     enqueueSnackbar('Successfully copied', { variant: 'success' });
   }, [value, enqueueSnackbar]);
@@ -57,7 +61,7 @@ const CopyableTextField: FunctionComponent<CopyableTextFieldProps> = ({ label, v
           <InputAdornment position="end">
             <Tooltip title="Copy" placement="right">
               <IconButton onClick={handleClick}>
-                <FileCopyRounded/>
+                <OpenInNew/>
               </IconButton>
             </Tooltip>
           </InputAdornment>
