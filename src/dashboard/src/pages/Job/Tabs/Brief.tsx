@@ -133,6 +133,19 @@ const Brief: FunctionComponent = () => {
           secondaryTypographyProps={{ component: 'div' }}
         />
       </ListItem>
+      {
+        job['jobParams']['max_retry_count'] !== undefined && (
+          <>
+            <Divider />
+            <ListItem>
+              <ListItemText
+                primary="Max Retry Count"
+                secondary={job['jobParams']['max_retry_count']}
+              />
+            </ListItem>
+          </>
+        )
+      }
     </List>
   );
 };

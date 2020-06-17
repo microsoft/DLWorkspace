@@ -325,6 +325,16 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         [{ name: "", value: "" }]));
   }, [environmentVariables]);
 
+  const [maxRetryCount, setMaxRetryCount] = React.useState(3);
+  const onMaxRetryCountChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      let value = event.target.valueAsNumber || 0;
+      if (value < 0) { value = 0; }
+      setMaxRetryCount(value);
+    },
+    [setMaxRetryCount]
+  )
+
   const [database, setDatabase] = React.useState(false);
   // const onDatabaseClick = React.useCallback(() => {
   //   setDatabase(true);
@@ -618,6 +628,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       hostNetwork : type === 'PSDistJob',
       isPrivileged : type === 'PSDistJob',
       plugins: plugins,
+      'max_retry_count': String(maxRetryCount),
     };
     let totalGpus = gpus;
     if (type === 'PSDistJob') {
@@ -1188,6 +1199,23 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   </TableRow>
                 </TableBody>
               </Table>
+            </CardContent>
+            <CardContent>
+              <Typography component="div" variant="h6">Retry Policy</Typography>
+              <Grid container wrap="wrap" spacing={1}>
+                <Grid item xs={12}>
+                  <TextField
+                    type="number"
+                    error={maxRetryCount < 0}
+                    label="Max Retry Count"
+                    fullWidth
+                    variant="filled"
+                    inputProps={{ min: 0 }}
+                    value={maxRetryCount}
+                    onChange={onMaxRetryCountChange}
+                  />
+                </Grid>
+              </Grid>
             </CardContent>
           </Collapse>
           <Collapse in={database}>
