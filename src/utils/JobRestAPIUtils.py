@@ -29,6 +29,7 @@ sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)),
                  "../ClusterManager"))
 
+from common import walk_json
 from job_params_util import make_job_params
 from JobLogUtils import GetJobLog as UtilsGetJobLog
 from resource_stat import Gpu
@@ -55,19 +56,6 @@ USER = Permission.User
 DEFAULT_EXPIRATION = 24 * 30 * 60
 vc_cache = TTLCache(maxsize=10240, ttl=DEFAULT_EXPIRATION)
 vc_cache_lock = Lock()
-
-
-def walk_json(obj, *fields, default=None):
-    """ for example a=[{"a": {"b": 2}}]
-    walk_json(a, 0, "a", "b") will get 2
-    walk_json(a, 0, "not_exist") will get None
-    """
-    try:
-        for f in fields:
-            obj = obj[f]
-        return obj
-    except:
-        return default
 
 
 def get_job_total_gpu(job_params):

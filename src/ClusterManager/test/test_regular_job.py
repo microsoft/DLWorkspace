@@ -724,8 +724,7 @@ def test_no_resource_info(args):
         for _ in range(50):
             details = utils.get_job_detail(args.rest, args.email, job.jid)
 
-            message = utils.walk_json_safe(details, "jobStatusDetail", 0,
-                                           "message")
+            message = utils.walk_json(details, "jobStatusDetail", 0, "message")
             if expected in message:
                 break
 
@@ -889,7 +888,7 @@ def test_regular_job_no_distributed_system_envs(args):
                     expected_output, output)
 
 
-@utils.case()
+#@utils.case() TODO setup vc config to test this
 def test_do_not_starve_big_job(args):
     big_job_spec = utils.gen_default_job_description("regular",
                                                      args.email,
@@ -915,13 +914,13 @@ def test_do_not_starve_big_job(args):
                 details = utils.get_job_detail(args.rest, args.email,
                                                small_job.jid)
 
-                message = utils.walk_json_safe(details, "jobStatusDetail", 0,
-                                               "message")
+                message = utils.walk_json(details, "jobStatusDetail", 0,
+                                          "message")
                 if expected in message:
                     break
 
                 time.sleep(0.5)
-            assert expected in message, "unexpected detail " + details
+            assert expected in message, "unexpected detail " + str(details)
 
 
 @utils.case()
