@@ -88,7 +88,11 @@ const Jobs: FunctionComponent = () => {
   }, [clusters, clusterId]);
 
   const onClusterChange = useCallback((cluster: any) => {
-    history.replace({ pathname: `../${cluster.id}/`, hash });
+    // Use absolute pathname to support both
+    // - Autofill at the beginning (/jobs -> /jobs/Default-Cluster/)
+    // - Select Switching (/jobs/Default-Cluster/ -> /jobs/Other-Cluster/)
+    const pathname = `/jobs/${cluster.id}/`;
+    history.replace({ pathname, hash });
   }, [history, hash]);
 
   return (
