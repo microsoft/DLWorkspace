@@ -81,12 +81,14 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data, snapsh
     title: 'Storage Used',
     render({ bytes }) { return formatBytes(bytes); }
   }]).current;
-  const options = useRef<Options>({
+  const options = useMemo<Options>(() => ({
     padding: 'dense',
     search: false,
     paging: false,
-    draggable: false
-  }).current;
+    draggable: false,
+    exportButton: true,
+    exportFileName: `Storage@${snapshot.toISOString()}`,
+  }), [snapshot]);
 
   const labelStyle = useLabelStyle();
 
