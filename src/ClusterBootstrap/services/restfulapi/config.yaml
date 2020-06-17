@@ -1,0 +1,86 @@
+datasource : {{cnf["datasource"]}}
+mysql :
+  hostname : {{cnf["mysql_node"]}}
+  port : {{cnf["mysql_port"]}}
+  username : {{cnf["mysql_username"]}}
+  password : "{{cnf["mysql_password"]}}"
+kubelet-path : /usr/local/bin/kubectl
+storage-mount-path : {{cnf["storage-mount-path"]}}
+root-path : /DLWorkspace/src/
+clusterId : {{cnf["clusterId"]}}
+domain : {{cnf["network"]["domain"]}}
+pod_ip_range: {{cnf["pod_ip_range"]}}
+mountpoints : {{cnf["mountpoints"]}} 
+defalt_virtual_cluster_name: {{cnf["defalt_virtual_cluster_name"]}}
+{% if cnf["job-manager"] %}
+job-manager:
+  {% if cnf["job-manager"]["notifier"] %}
+  notifier:
+    {% if cnf["job-manager"]["notifier"]["cluster"] %}
+    cluster: {{ cnf["job-manager"]["notifier"]["cluster"] }}
+    {% endif %}
+    {% if cnf["job-manager"]["notifier"]["alert-manager-url"] %}
+    alert-manager-url: {{ cnf["job-manager"]["notifier"]["alert-manager-url"] }}
+    {% endif %}
+  {% endif %}
+  {% if cnf["job-manager"]["launcher"] %}
+  launcher: {{ cnf["job-manager"]["launcher"] }}
+  {% else %}
+  launcher: python
+  {% endif %}
+{% endif %}
+
+# Volume mounts
+cluster_nfs: {{cnf["cluster_nfs"]}}
+system_mountpoints: {{cnf["system_mountpoints"]}}
+enable_blobfuse: {{cnf["enable_blobfuse"]}}
+local_fast_storage: {{cnf["local_fast_storage"]}}
+infiniband_mounts: {{cnf["infiniband_mounts"]}}
+vc_without_shared_storage: {{cnf["vc_without_shared_storage"]}}
+
+# Environment variables for distributed jobs
+distributed_system_envs: {{cnf["distributed_system_envs"]}}
+
+enable_custom_registry_secrets: {{cnf["enable_custom_registry_secrets"]}}
+master_token: {{cnf["master_token"]}}
+vc_node_hard_assignment: {{cnf["vc_node_hard_assignment"]}}
+
+elasticsearch:
+  {% for elasticsearch_node in cnf["elasticsearch_node"] %}
+  - 'http://{{elasticsearch_node}}:{{cnf["elasticsearch"]["port"]["http"]}}'
+  {% endfor %}
+{% if cnf["__extract_job_log_legacy"] %}
+__extract_job_log_legacy: True
+{% endif %}
+{% if cnf["__get_job_log_legacy"] %}
+__get_job_log_legacy: True
+{% endif %}
+{% if cnf["__get_job_log_fallback"] %}
+__get_job_log_fallback: True
+{% endif %}
+
+{% if cnf["job_resource_policy"] %}
+job_resource_policy: {{cnf["job_resource_policy"]}}
+{% endif %}
+{% if cnf["default_cpurequest"] %}
+default_cpurequest: {{cnf["default_cpurequest"]}}
+{% endif %}
+{% if cnf["default_cpulimit"] %}
+default_cpulimit: {{cnf["default_cpulimit"]}}
+{% endif %}
+{% if cnf["default_memoryrequest"] %}
+default_memoryrequest: {{cnf["default_memoryrequest"]}}
+{% endif %}
+{% if cnf["default_memorylimit"] %}
+default_memorylimit: {{cnf["default_memorylimit"]}}
+{% endif %}
+
+{% if cnf["azure_blob_log"]["enabled"] %}
+logging: azure_blob
+{% elif cnf["elasticsearch"]["enabled"] %}
+logging: elasticsearch
+{% endif %}
+
+azure_blob_log:
+  connection_string: {{cnf["azure_blob_log"]["connection_string"]}}
+  container_name: {{cnf["azure_blob_log"]["container_name"]}}
