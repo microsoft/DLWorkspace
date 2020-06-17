@@ -31,9 +31,9 @@ if [ ! -z "$MGS_ID" ]; then
     sudo mkdir -p $DATA_DISK_MNT_PATH
     echo "${disk_list[0]}                               $DATA_DISK_MNT_PATH               lustre  defaults,_netdev        0 0" | sudo tee -a /etc/fstab
     sudo mount $DATA_DISK_MNT_PATH
-elif [ ! -z "$OSS_ID" ] || [ ! -z "$MDT_ID" ]; then
-    if [ ! -z "$MDT_ID" ]; then
-        INIT_ID=$MDT_ID
+elif [ ! -z "$OSS_ID" ] || [ ! -z "$MDS_ID" ]; then
+    if [ ! -z "$MDS_ID" ]; then
+        INIT_ID=$MDS_ID
         LUSTRE_ROLE="mdt"
     elif [ ! -z "$OSS_ID" ]; then
         INIT_ID=$OSS_ID
@@ -55,7 +55,7 @@ elif [ ! -z "$OSS_ID" ] || [ ! -z "$MDT_ID" ]; then
     sudo systemctl enable ost_mount_scan
 fi
 
-if [ ! -z "$MGS_ID" ] || [ ! -z "$MDT_ID" ]; then
+if [ ! -z "$MGS_ID" ] || [ ! -z "$MDS_ID" ]; then
     # mount lustre FS to server itself, for ost, we do it in ost_mount_scan.sh
     sudo mkdir -p /mnt/mgs_client
     until sudo mount $MGS_NODE_PRIVATE_IP:/$LUSTRE_FS_NAME /mnt/mgs_client -t lustre 2>&1 >/dev/null; do
@@ -68,7 +68,8 @@ if [ ! -z "$MGS_ID" ] ; then
     # Lustre mount in jobs shows Permission denied even with drwxrwxrwx. E.g.
     # $ /lustre$ ls -l
     # ls: cannot open directory '.': Permission denied
-    # The solution is to remove client identity check on lustre on all MDTs
+    # The solution is to remove client identity check on lustre on all MDSs
+    # ZX: "all MDSs" seems not necessary, MGS would be enough
     for path in $(ls -d /proc/fs/lustre/mdt/*); do
         sudo lctl set_param -n mdt.$(basename $path).identity_upcall NONE 2>/dev/null;
         identity_upcall_val=$(sudo lctl get_param -n "mdt.$(basename $path).identity_upcall")
@@ -76,7 +77,7 @@ if [ ! -z "$MGS_ID" ] ; then
     done
     sudo lfs setquota -U -b ${SOFT_USR_QUOTA} -B ${HARD_USR_QUOTA} /mnt/mgs_client
     sudo lfs setquota -t -u --block-grace $USR_GRACE_PERIOD /mnt/mgs_client
-    # MDT need to make sure that every OST got mounted.
+    # MDS need to make sure that every OST got mounted.
     until sudo bash {{cnf["folder_auto_share"]}}/ost_mount_scan_on_mgs.sh 2>&1 >/dev/null ;do
         sleep 1m;
         echo "waiting, need to have all oss mounted before we set pool";
@@ -94,7 +95,7 @@ fi
 sudo rm {{cnf["folder_auto_share"]}}/lustre_setup_finished
 sudo systemctl disable lustre_server
 
-if [[ -z "$MGS_ID" && ! -z "$MDT_ID" || ! -z "$OSS_ID" ]]; then
+if [[ -z "$MGS_ID" && ! -z "$MDS_ID" || ! -z "$OSS_ID" ]]; then
     # usually all paths won't be mounted for the 1st time
     sudo systemctl start ost_mount_scan
 fi

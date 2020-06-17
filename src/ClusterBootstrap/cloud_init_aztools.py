@@ -221,11 +221,11 @@ def get_lustre_init_ID():
         return 0
     with open(STATUS_YAML) as f:
         status_cnf = yaml.safe_load(f)
-    lustre_nodes, _ = load_node_list_by_role_from_config(status_cnf, "lustre", False)
+        status_cnf["allroles"] = config["allroles"]
+    lustre_nodes, _ = load_node_list_by_role_from_config(status_cnf, ["lustre"], False)
     start_id_and_disks_num = []
     for node in lustre_nodes:
         disk_specs = status_cnf["machines"][node]["managed_disks"]
-        # init_id = status_cnf["machines"][node]["lustre_init_disk_id"]
         nums = [dsk["disk_num"] for dsk in disk_specs if "is_os" not in dsk]
         start_id_and_disks_num += nums
     return sum([0]+start_id_and_disks_num)

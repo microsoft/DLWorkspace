@@ -823,7 +823,6 @@ default_config_parameters = {
         "VC-Default": ["*"],
     },
     "ost_reboot_wait_time": "30s",
-    "storage_quota": {"user_soft": "2G", "user_hard": "3G", "user_grace_period": "1w"}, 
     "registry_credential": {},
     "priority": "regular",
     "service_2_docker_map": {

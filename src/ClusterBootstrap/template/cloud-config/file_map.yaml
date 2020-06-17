@@ -143,10 +143,10 @@ lustre_mgs:
 lustre_oss:
   - dst: /etc/systemd/system/ost_mount_scan.service
     src: ./deploy/storage/auto_share/ost_mount_scan.service
-  - dst: {{cnf["folder_auto_share"]}}/ost_mount_scan_on_oss.sh
-    src: ./deploy/storage/auto_share/ost_mount_scan_on_oss.sh
+  - dst: {{cnf["folder_auto_share"]}}/ost_mount_scan_on_mds_or_oss.sh
+    src: ./deploy/storage/auto_share/ost_mount_scan_on_mds_or_oss.sh
 lustre_mds:
   - dst: /etc/systemd/system/ost_mount_scan.service
     src: ./deploy/storage/auto_share/ost_mount_scan.service
-  - dst: {{cnf["folder_auto_share"]}}/ost_mount_scan_on_oss.sh
-    src: ./deploy/storage/auto_share/ost_mount_scan_on_oss.sh
+  - dst: {{cnf["folder_auto_share"]}}/ost_mount_scan_on_mds_or_oss.sh
+    src: ./deploy/storage/auto_share/ost_mount_scan_on_mds_or_oss.sh

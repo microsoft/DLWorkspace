@@ -426,11 +426,9 @@ def gen_mounting_yaml(config):
                 mnt_root = os.path.join(v["client_mount_root"], vc) if "vc" in v else v["client_mount_root"]
             else:
                 mnt_root = config["physical-mount-path-vc"] if "vc" in v else config["physical-mount-path"]
-            assert mnt_root not in mount_sources_set, "Duplicate mounting mount path detected:\n{}".format(mnt_root)                
+            assert mnt_root not in mount_sources_set, "Duplicate mounting mount path detected:\n{}".format(mnt_root)
             mount_sources_set.add(mnt_root)
             if "mds" in spec["role"]:
-                # assert server_path not in lustre_fs_set, "Duplicate lustre"\
-                #         " filesystem name detected:\n{}".format(server_path)
                 assert os.path.split(server_path)[0] == '/', "server_path "\
                                     "must be a unique abspath under root path"
                 lustre_fs = os.path.basename(os.path.split(server_path)[1])
@@ -640,12 +638,14 @@ def render_lustre_node_specific(config, args):
             # currently we only support 1 lustre fs per MDT, and we require 
             # server_path be a unique abspath under / for each MDT node
             server_path = spec["fileshares"][0]["server_path"]
-            quota = spec.get("storage_quota", config["storage_quota"])
-            config["user_soft_quota"] = quota["user_soft"]
-            config["user_hard_quota"] = quota["user_hard"]
-            config["user_grace_period"] = quota["user_grace_period"]
+            if "storage_quota" in spec:
+                quota = spec["storage_quota"]
+                config["user_soft_quota"] = quota["user_soft"]
+                config["user_hard_quota"] = quota["user_hard"]
+                config["user_grace_period"] = quota["user_grace_period"]
         elif "oss" in spec["role"]:
-            # affiliating MDT
+            # affiliating MDS, this is not accurate. it seems not supported to let MDS
+            # manage only specified several OSS
             aff_mds_spec = config["machines"][spec["mds_name"]]
             server_path = aff_mds_spec["fileshares"][0]["server_path"]
         lustre_fs = os.path.basename(os.path.split(server_path)[1])
@@ -661,7 +661,6 @@ def render_lustre_node_specific(config, args):
                     "user_hard_quota", "user_grace_period"]
         for ky in keys2pop:
             config.pop(ky, None)
-        print(dedicated_vc_map)
         with open("deploy/storage/auto_share/lustre_disk_vc_map", "w") as vcf:
             for vc, disk_list in dedicated_vc_map.items():
                 vcf.write("{} {}\n".format(vc, ",".join(disk_list)))
