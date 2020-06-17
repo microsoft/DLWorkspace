@@ -58,8 +58,8 @@ spec:
       {% endif %}
       volumes:
       - name: apiconfig
-        hostPath:
-          path: /etc/RestfulAPI
+        configMap:
+          name: restfulapi-config
       - name: log
         hostPath:
           path: /var/log/restfulapi

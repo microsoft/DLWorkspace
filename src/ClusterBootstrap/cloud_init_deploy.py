@@ -801,13 +801,7 @@ def render_kubelet(config, args):
 
 
 def render_restfulapi(config):
-    if not os.path.exists("./deploy/RestfulAPI"):
-        os.system("mkdir -p ./deploy/RestfulAPI")
     config = get_stat_of_sku(config)
-    utils.render_template("./template/RestfulAPI/config.yaml",
-                          "./deploy/RestfulAPI/config.yaml", config)
-    utils.render_template("./template/master/restapi-kubeconfig.yaml",
-                          "./deploy/master/restapi-kubeconfig.yaml", config)
     config["restapi"] = "http://{}:{}".format(
         config["kubernetes_master_node"][0], config["restfulapiport"])
     return config

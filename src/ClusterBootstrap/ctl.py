@@ -27,7 +27,7 @@ from cloud_init_deploy import load_node_list_by_role_from_config
 from cloud_init_deploy import update_service_path
 from cloud_init_deploy import get_kubectl_binary
 from cloud_init_deploy import load_config as load_deploy_config
-from cloud_init_deploy import render_restfulapi, render_dashboard, render_storagemanager, render_repairmanager
+from cloud_init_deploy import render_dashboard, render_storagemanager, render_repairmanager
 from cloud_init_deploy import check_buildable_images, push_docker_images
 
 
@@ -216,16 +216,14 @@ def remote_config_update(config, args, check_module=False):
     by default sudo
     '''
     if check_module:
-        assert set(args.nargs[1:]) - set(["restfulapi", "storagemanager", "repairmanager", "dashboard"]) == set(), "not supported"
+        assert set(args.nargs[1:]) - set(["storagemanager", "repairmanager", "dashboard"]) == set(), "not supported"
     # need to get node list for this subcommand of svc, so load status.yaml
     if not os.path.exists(FILE_MAP_PATH):
         utils.render_template("template/cloud-config/file_map.yaml", FILE_MAP_PATH, config)
     with open(FILE_MAP_PATH) as f:
         file_map = yaml.load(f)
     for module in args.nargs[1:]:
-        if module == "jobmanager":
-            module = "restfulapi"
-        if module in ["restfulapi", "dashboard", "repairmanager"]:
+        if module in ["dashboard", "repairmanager"]:
             render_func = eval("render_{}".format(module))
             render_func(config)
             infra_nodes, _ = load_node_list_by_role_from_config(config, ["infra"], False)
