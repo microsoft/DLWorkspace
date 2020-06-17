@@ -88,7 +88,7 @@ const Jobs: FunctionComponent = () => {
   }, [clusters, clusterId]);
 
   const onClusterChange = useCallback((cluster: any) => {
-    history.replace({ pathname: `../${cluster.id}/`, hash });
+    history.replace({ pathname: `/jobs/${cluster.id}/`, hash });
   }, [history, hash]);
 
   return (
