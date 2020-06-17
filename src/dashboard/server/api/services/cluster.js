@@ -219,6 +219,29 @@ class Cluster extends Service {
 
   /**
    * @param {string} jobId
+   * @param {number} timeout
+   * @return {Promise}
+   */
+  async setJobTimeout (jobId, timeout) {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      userName: user.email,
+      jobId
+    })
+    const body = { second: timeout }
+    const response = await this.fetch('/JobMaxTime?' + params, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    const text = await response.text()
+    this.context.log.debug({ text }, 'Set timeout %d of job "%s"', timeout, jobId)
+    this.context.assert(response.ok, 502)
+    return text
+  }
+
+  /**
+   * @param {string} jobId
    * @param {string?} cursor
    * @return {Promise<{log: string, cursor: number}>}
    */

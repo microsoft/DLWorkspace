@@ -11,7 +11,7 @@ import {
 import Helmet from 'react-helmet';
 import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
-import { reduce } from 'lodash';
+import { compact, reduce } from 'lodash';
 
 import TeamContext from '../../contexts/Team';
 import useActions from '../../hooks/useActions';
@@ -25,6 +25,7 @@ import {
   gpu,
   preemptible,
   priority,
+  timeout,
   submitted,
   finished,
 
@@ -40,15 +41,16 @@ const ActiveJobsTable: FunctionComponent<JobsTablePropsWithoutColumnsActions> = 
   const { batchPause, batchResume, batchKill } = useBatchActions(cluster.id);
 
   const nameId = useNameId();
-  const columns = useMemo(() => [
+  const columns = useMemo(() => compact([
     nameId,
     status(),
     type(),
     gpu(),
     preemptible(),
     priority(),
+    cluster.admin ? timeout() : undefined,
     submitted(),
-  ], [nameId]);
+  ]), [nameId, cluster.admin]);
   const actions = useMemo(() => [
     support, pause, resume, kill,
     batchPause, batchResume, batchKill

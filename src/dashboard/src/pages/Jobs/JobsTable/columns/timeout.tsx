@@ -10,16 +10,20 @@ import {
   useRef
 } from 'react';
 
-import { Input } from '@material-ui/core';
+import { get, isFinite } from 'lodash';
+
+import {
+  Input,
+  InputAdornment,
+  Typography,
+} from '@material-ui/core';
 import { Column } from 'material-table';
 import { useSnackbar } from 'notistack';
 
 import ClusterContext from '../../ClusterContext';
 import { Job } from '../../utils';
 
-const DEFAULT_PRIORITY = 100;
-
-interface PriorityFieldProps {
+interface TimeoutFieldProps {
   job: any;
 }
 
@@ -32,7 +36,7 @@ const EDITABLE_STATUSES = new Set([
   'pausing'
 ])
 
-const PriorityField: FunctionComponent<PriorityFieldProps> = ({ job }) => {
+const TimeoutField: FunctionComponent<TimeoutFieldProps> = ({ job }) => {
   const { enqueueSnackbar } = useSnackbar();
   const { cluster } = useContext(ClusterContext);
   const [busy, setBusy] = useState(false);
@@ -40,54 +44,53 @@ const PriorityField: FunctionComponent<PriorityFieldProps> = ({ job }) => {
   const editable = useMemo(() => {
     return EDITABLE_STATUSES.has(job['jobStatus'])
   }, [job])
-  const priority = useMemo(() => {
-    if (job['priority'] == null) {
-      return DEFAULT_PRIORITY;
-    }
-    return job['priority'];
-  }, [job])
-  const setPriority = useCallback((priority: number) => {
-    if (priority === job['priority']) return;
-    enqueueSnackbar('Priority is being set...');
+  const defaultHours = useMemo<number>(() => {
+    return get(job, ['jobParams', 'maxTimeSec'], NaN) / 60 / 60;
+  }, [job]);
+  const setHours = useCallback((hours: number) => {
+    if (isNaN(hours)) return;
+    if (hours === defaultHours) return;
+    enqueueSnackbar('Timeout is being set...');
     setBusy(true);
 
-    fetch(`/api/clusters/${cluster.id}/jobs/${job['jobId']}/priority`, {
+    fetch(`/api/clusters/${cluster.id}/jobs/${job['jobId']}/timeout`, {
       method: 'PUT',
-      body: JSON.stringify({ priority }),
+      body: JSON.stringify({ timeout: hours * 60 * 60 }),
       headers: { 'Content-Type': 'application/json' }
     }).then((response) => {
       if (response.ok) {
-        enqueueSnackbar('Priority is set successfully', { variant: 'success' });
+        enqueueSnackbar('Timeout is set successfully', { variant: 'success' });
       } else {
         throw Error();
       }
     }).catch(() => {
-      enqueueSnackbar('Failed to set priority', { variant: 'error' });
+      enqueueSnackbar('Failed to set timeout', { variant: 'error' });
     }).then(() => {
       setBusy(false);
     });
-  }, [enqueueSnackbar, job, cluster.id]);
+  }, [defaultHours, enqueueSnackbar, job, cluster.id]);
   const onBlur = useCallback((event: FocusEvent<HTMLInputElement>) => {
-    if (input.current) {
-      setPriority(input.current.valueAsNumber);
-    }
-  }, [setPriority]);
+    if (input.current === undefined) return;
+    setHours(input.current.valueAsNumber);
+  }, [setHours]);
   const onKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
     if (input.current === undefined) return;
     if (event.key === 'Enter') {
-      setPriority(input.current.valueAsNumber);
+      setHours(input.current.valueAsNumber);
     }
     if (event.key === 'Escape') {
-      input.current.value = priority;
+      input.current.valueAsNumber = defaultHours;
     }
-  }, [setPriority, priority]);
+  }, [setHours, defaultHours]);
 
   if (editable) {
     return (
       <Input
         inputRef={input}
         type="number"
-        defaultValue={priority}
+        placeholder="N/A"
+        endAdornment={<InputAdornment position="end">h</InputAdornment>}
+        defaultValue={defaultHours}
         disabled={busy}
         fullWidth
         style={{ color: 'inherit', fontSize: 'inherit' }}
@@ -103,19 +106,23 @@ const PriorityField: FunctionComponent<PriorityFieldProps> = ({ job }) => {
       />
     );
   } else {
-    return <>{priority}</>
+    if (isFinite(defaultHours)) {
+      return <>{defaultHours} h</>;
+    } else {
+      return <Typography variant="inherit" color="textSecondary">N/A</Typography>;
+    }
   }
 };
 
 const valueOf = (job: Job): number => {
-  return job['priority'] != null ? job['priority'] : DEFAULT_PRIORITY;
+  return get(job, ['jobParams', 'maxTimeSec'], NaN);
 };
 
 export default (): Column<Job> => ({
-  title: 'Priority',
+  title: 'Timeout',
   type: 'numeric',
   render(job) {
-    return <PriorityField job={job}/>;
+    return <TimeoutField job={job}/>;
   },
   customSort(job1, job2) {
     return valueOf(job1) - valueOf(job2)
