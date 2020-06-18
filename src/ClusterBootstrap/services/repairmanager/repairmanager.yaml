@@ -32,9 +32,8 @@ spec:
         image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["repairmanager"]}}:{{cnf["dockertag"]}}
         command:
           - "python3"
-          - "/repairmanager/main.py"
+          - "/repairmanager/repairmanager.py"
         args:
-          - '--service=repairmanager'
           - '--config=/etc/repairmanager'
           - '--log=/var/log/repairmanager'
           - '--interval=30'
@@ -110,9 +109,8 @@ spec:
             add: ["SYS_BOOT"]
         command:
           - "python3"
-          - "/repairmanager/main.py"
+          - "/repairmanager/agent.py"
         args:
-          - '--service=repairmanageragent'
           - '--log=/var/log/repairmanager'
           - '--agent_port={{cnf["repair-manager"]["agent-port"]}}'
         imagePullPolicy: Always

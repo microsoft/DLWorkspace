@@ -4,16 +4,15 @@ import copy
 import logging
 import os
 import random
-import requests
 import sys
 import threading
 import time
 import unittest
-import urllib
 
 sys.path.append(os.path.abspath("../src/"))
 
-from repairmanager import RepairManager, RepairManagerAgent
+from repairmanager import RepairManager
+from agent import Agent
 from rule import Rule
 from util import State, Node
 
@@ -60,7 +59,7 @@ class TestRepairManager(unittest.TestCase):
         self.k8s_util = K8sUtilForTest()
         self.repairmanager = RepairManager(
             self.rules, {}, self.agent_port, self.k8s_util, None, dry_run=True)
-        self.agent = RepairManagerAgent(self.rules, self.agent_port, dry_run=True)
+        self.agent = Agent(self.rules, self.agent_port, dry_run=True)
         self.server = threading.Thread(
             target=self.agent.serve, name="agent_server", daemon=True)
         self.node = Node(self.ip, self.ip, True, False, 4, 4, 4,
@@ -245,89 +244,6 @@ class TestRepairManager(unittest.TestCase):
         self.assertEqual(
             "RuleForTest",
             self.repairmanager.get_unhealthy_rules_value(self.node))
-
-
-class TestRepairManagerAgent(unittest.TestCase):
-    def setUp(self):
-        logging.basicConfig(
-            format="%(asctime)s - %(levelname)s - %(threadName)s - %(filename)s:%(lineno)s - %(message)s",
-            level="DEBUG")
-        self.ip = "localhost"
-        self.port = random.randrange(9000, 9200)
-        self.agent = RepairManagerAgent([RuleForTest()], self.port, dry_run=True)
-
-    def test_serve(self):
-        server = threading.Thread(
-            target=self.agent.serve, name="agent_server", daemon=True)
-        server.start()
-
-        def check_liveness():
-            url = urllib.parse.urljoin(
-                "http://%s:%s" % (self.ip, self.port), "/liveness")
-            return requests.get(url)
-
-        def wait_for_alive(timeout=10):
-            start = time.time()
-            while True:
-                if time.time() - start > timeout:
-                    return False
-                try:
-                    resp = check_liveness()
-                    if resp.status_code == 200:
-                        return resp
-                except:
-                    pass
-
-        def post_repair(rules):
-            repair_url = urllib.parse.urljoin(
-                "http://%s:%s" % (self.ip, self.port), "/repair")
-            return requests.post(repair_url, json=rules)
-
-        alive = wait_for_alive()
-        self.assertTrue(alive)
-        resp = check_liveness()
-        self.assertEqual(200, resp.status_code)
-        self.assertIsNone(self.agent.repair_rules.get())
-
-        # Wrong data format
-        resp = post_repair("NoDefRule")
-        self.assertEqual(400, resp.status_code)
-
-        # Correct data format
-        resp = post_repair(["NoDefRule"])
-        self.assertEqual(200, resp.status_code)
-        self.assertIsNotNone(self.agent.repair_rules.get())
-
-        # Post again should fail
-        resp = post_repair(["NoDefRule"])
-        self.assertEqual(503, resp.status_code)
-
-        # Clean up
-        self.agent.repair_rules.set(None)
-        self.assertIsNone(self.agent.repair_rules.get())
-
-        # Alive again
-        resp = check_liveness()
-        self.assertEqual(200, resp.status_code)
-
-    def test_handle(self):
-        # Should be able to clear all repair rules whether they are valid or not
-        handler = threading.Thread(
-            target=self.agent.handle, name="agent_handler", daemon=True)
-        handler.start()
-
-        self.assertIsNone(self.agent.repair_rules.get())
-        self.agent.repair_rules.set(["NoDefRule", "RuleForTest"])
-
-        def wait_for_rule_cleanup(timeout=10):
-            start = time.time()
-            while True:
-                if time.time() - start > timeout:
-                    return False
-                if self.agent.repair_rules.get() is None:
-                    return True
-
-        self.assertTrue(wait_for_rule_cleanup())
 
 
 if __name__ == '__main__':

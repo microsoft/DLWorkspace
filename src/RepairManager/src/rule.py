@@ -2,10 +2,14 @@
 
 import logging
 import os
+import subprocess
 
 from util import State, RestUtil, PrometheusUtil, walk_json
 
 logger = logging.getLogger(__name__)
+
+
+CHROOT_HOST_FS = ["chroot", "/host-fs"]
 
 
 def override(func):
@@ -13,7 +17,22 @@ def override(func):
     return func
 
 
-CHROOT_HOST_FS = "chroot /host-fs "
+def exec_cmd(command, timeout=60):
+    """Execute one command"""
+    command = CHROOT_HOST_FS + command
+    logger.info("executing: %s", command)
+    try:
+        output = subprocess.check_output(command, stderr=subprocess.STDOUT,
+                                         timeout=timeout).decode("utf-8")
+        logger.info("%s output: %s", command, output)
+        return True
+    except subprocess.TimeoutExpired:
+        logger.warning("%s timeout", command)
+    except subprocess.CalledProcessError as e:
+        logger.warning("%s returns %d, output %s", e.returncode, e.output)
+    except Exception:
+        logger.exception("%s failed")
+    return False
 
 
 def exec_command(commands):
@@ -71,12 +90,12 @@ class Rule(object):
         """Constructs a Rule instance.
 
         Args:
-            metrics: A string or a list of metrics.
+            metrics: A list of metrics.
             stat: avg, min, max, etc. supported by <stat>_over_time query
                 in Prometheus.
             interval: The look-back time interval for stat.
         """
-        self.metrics = metrics if isinstance(metrics, list) else [metrics]
+        self.metrics = metrics
         self.stat = stat
         self.interval = interval
         self.data = {"current": {}, stat: {}}
@@ -168,14 +187,15 @@ class Rule(object):
             None
         """
         # By default, reboot the node
-        exec_command(["sync", "reboot -f"])
+        exec_cmd(["sync"])
+        exec_cmd(["reboot", "-f"])
 
 
 @Rule.register_subclass("UnschedulableRule")
 class UnschedulableRule(Rule):
     """Rule for nodes marked as unschedulable."""
     def __init__(self):
-        super(UnschedulableRule, self).__init__("unschedulable")
+        super(UnschedulableRule, self).__init__(["unschedulable"])
 
     def update_data(self):
         # The rule does not depend on external data source.
@@ -219,14 +239,14 @@ class K8sGpuRule(Rule):
 
     def repair(self):
         # Restart kubelet service
-        exec_command(["systemctl restart kubelet"])
+        exec_cmd(["systemctl", "restart", "kubelet"])
 
 
 @Rule.register_subclass("DcgmEccDBERule")
 class DcgmEccDBERule(Rule):
     """Rule for ECC DBE on the node."""
     def __init__(self):
-        super(DcgmEccDBERule, self).__init__("dcgm_ecc_dbe_volatile_total")
+        super(DcgmEccDBERule, self).__init__(["dcgm_ecc_dbe_volatile_total"])
 
     def get_values(self, node, metric, stat):
         values = []
@@ -254,7 +274,7 @@ class DcgmEccDBERule(Rule):
 class InfinibandRule(Rule):
     """Rule for Infiniband on the node."""
     def __init__(self):
-        super(InfinibandRule, self).__init__("infiniband_up")
+        super(InfinibandRule, self).__init__(["infiniband_up"])
 
     def get_values(self, node, metric, stat):
         values = {}
@@ -292,7 +312,7 @@ class InfinibandRule(Rule):
 class IPoIBRule(Rule):
     """Rule for IPoIB interface on the node."""
     def __init__(self):
-        super(IPoIBRule, self).__init__("ipoib_up")
+        super(IPoIBRule, self).__init__(["ipoib_up"])
 
     def get_values(self, node, metric, stat):
         values = {}
@@ -332,14 +352,14 @@ class IPoIBRule(Rule):
         # fix the IPoIB on Azure VM.
         # For on-premise node, repair will always fail and the noe will get
         # stuck in repair cycle, requiring manual fix.
-        exec_command(["systemctl restart walinuxagent"])
+        exec_cmd(["systemctl", "restart", "walinuxagent"])
 
 
 @Rule.register_subclass("NvPeerMemRule")
 class NvPeerMemRule(Rule):
     """Rule for nv_peer_mem module on the node."""
     def __init__(self):
-        super(NvPeerMemRule, self).__init__("nv_peer_mem_count")
+        super(NvPeerMemRule, self).__init__(["nv_peer_mem_count"])
 
     def get_value(self, node, metric, stat):
         for item in self.data[stat].get(metric, []):
@@ -372,7 +392,7 @@ class NvPeerMemRule(Rule):
 
     def repair(self):
         # Restarting nv_peer_mem can restore the module.
-        exec_command(["systemctl restart nv_peer_mem"])
+        exec_cmd(["systemctl", "restart", "nv_peer_mem"])
 
 
 @Rule.register_subclass("NVSMRule")
@@ -410,7 +430,10 @@ class NVSMRule(Rule):
     def repair(self):
         # Get a health dump and reboot.
         os.environ["TERM"] = "xterm"
-        exec_command(["nvsm dump health", "sync", "reboot -f"])
+        # Give nvsm dump health sufficient time to dump
+        exec_cmd(["nvsm", "dump", "health"], timeout=1800)
+        exec_cmd(["sync"])
+        exec_cmd(["reboot", "-f"])
 
 
 def instantiate_rules():

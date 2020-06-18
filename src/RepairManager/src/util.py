@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
+import faulthandler
 import logging
 import json
 import os
 import requests
+import signal
+import sys
 import threading
 import urllib.parse
 
@@ -39,6 +42,30 @@ class AtomicRef(object):
                 self.data = data
                 return True
         return False
+
+
+def get_logging_level():
+    mapping = {
+        "DEBUG": logging.DEBUG,
+        "INFO": logging.INFO,
+        "WARNING": logging.WARNING
+    }
+
+    result = logging.INFO
+
+    if os.environ.get("LOGGING_LEVEL") is not None:
+        level = os.environ["LOGGING_LEVEL"]
+        result = mapping.get(level.upper())
+        if result is None:
+            sys.stderr.write("unknown logging level " + level +
+                             ", default to INFO\n")
+            result = logging.INFO
+
+    return result
+
+
+def register_stack_trace_dump():
+    faulthandler.register(signal.SIGTRAP, all_threads=True, chain=False)
 
 
 class K8sUtil(object):
