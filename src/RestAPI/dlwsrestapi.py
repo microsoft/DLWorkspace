@@ -10,6 +10,7 @@ from logging.config import dictConfig
 from flask import Flask, Response
 from flask_restful import reqparse, Api, Resource
 from flask import request, jsonify
+from flask_cors import CORS
 import prometheus_client
 
 sys.path.append(
@@ -39,6 +40,7 @@ with open(os.path.join(dir_path, "logging.yaml"), "r") as f:
 logger = logging.getLogger("restfulapi")
 
 app = Flask(__name__)
+CORS(app)
 api = Api(app)
 verbose = True
 logger.info("Restful API started with config %s", config)
@@ -95,13 +97,6 @@ def remove_creds(job):
             i_p.pop("password", None)
 
 
-def generate_response(result):
-    resp = jsonify(result)
-    resp.headers["Access-Control-Allow-Origin"] = "*"
-    resp.headers["dataType"] = "json"
-    return resp
-
-
 @api.resource("/PostJob")
 class PostJob(Resource):
     def post(self):
@@ -119,7 +114,7 @@ class PostJob(Resource):
                 ret["error"] = "Cannot create job!"
 
         logger.info("Submit job output is %s, ret is %s", output, ret)
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/ListJobs")
@@ -189,7 +184,7 @@ class ListJobs(Resource):
             "finishedJobs": len(finishedJobs),
             "visualizationJobs": len(visualizationJobs)
         }
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/ListJobsV2")
@@ -216,7 +211,7 @@ class ListJobsV2(Resource):
                 for job in job_list:
                     remove_creds(job)
 
-        return generate_response(jobs)
+        return jsonify(jobs)
 
 
 @api.resource("/KillJob")
@@ -241,7 +236,7 @@ class KillJob(Resource):
         else:
             ret["result"] = "Cannot Kill the job. Job ID:" + job_id
 
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/PauseJob")
@@ -262,11 +257,7 @@ class PauseJob(Resource):
         else:
             ret["result"] = "Cannot pause the job. Job ID:" + job_id
 
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return jsonify(ret)
 
 
 @api.resource("/ResumeJob")
@@ -287,7 +278,7 @@ class ResumeJob(Resource):
         else:
             ret["result"] = "Cannot resume the job. Job ID:" + job_id
 
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/ApproveJob")
@@ -308,7 +299,7 @@ class ApproveJob(Resource):
         else:
             ret["result"] = "Cannot approve the job. Job ID:" + job_id
 
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/ScaleJob")
@@ -329,7 +320,7 @@ class ScaleJob(Resource):
         if status_code != 200:
             return msg, status_code
 
-        return generate_response(msg)
+        return jsonify(msg)
 
 
 @api.resource("/KillJobs")
@@ -346,7 +337,7 @@ class KillJobs(Resource):
         result = JobRestAPIUtils.kill_jobs(username, job_ids)
         ret = {"result": result}
 
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/PauseJobs")
@@ -363,7 +354,7 @@ class PauseJobs(Resource):
         result = JobRestAPIUtils.pause_jobs(username, job_ids)
         ret = {"result": result}
 
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/ResumeJobs")
@@ -380,7 +371,7 @@ class ResumeJobs(Resource):
         result = JobRestAPIUtils.resume_jobs(username, job_ids)
         ret = {"result": result}
 
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/ApproveJobs")
@@ -397,31 +388,7 @@ class ApproveJobs(Resource):
         result = JobRestAPIUtils.approve_jobs(username, job_ids)
         ret = {"result": result}
 
-        return generate_response(ret)
-
-
-# FIXME JobRestAPIUtils.CloneJob is not implemented
-# @api.resource("/CloneJob")
-# class CloneJob(Resource):
-#     def get(self):
-#         parser = reqparse.RequestParser()
-#         parser.add_argument("jobId")
-#         parser.add_argument("userName")
-#         args = parser.parse_args()
-#         jobId = args["jobId"]
-#         userName = args["userName"]
-#         result = JobRestAPIUtils.CloneJob(userName, jobId)
-#         ret = {}
-#         if result:
-#             ret["result"] = "Success, the job is scheduled to be cloned."
-#         else:
-#             ret["result"] = "Cannot clone the job. Job ID:" + jobId
-#
-#         resp = jsonify(ret)
-#         resp.headers["Access-Control-Allow-Origin"] = "*"
-#         resp.headers["dataType"] = "json"
-#
-#         return resp
+        return jsonify(ret)
 
 
 @api.resource("/GetJobDetail")
@@ -454,7 +421,7 @@ class GetJobDetail(Resource):
         # Remove credentials
         remove_creds(job)
 
-        return generate_response(job)
+        return jsonify(job)
 
 
 @api.resource("/GetJobDetailV2")
@@ -470,8 +437,7 @@ class GetJobDetailV2(Resource):
         userName = args["userName"]
         job = JobRestAPIUtils.GetJobDetailV2(userName, jobId)
         remove_creds(job)
-        resp = generate_response(job)
-        return resp
+        return jsonify(job)
 
 
 @api.resource("/GetJobLog")
@@ -514,8 +480,7 @@ class GetJobStatus(Resource):
     def get(self):
         args = self.get_parser.parse_args()
         jobId = args["jobId"]
-        job = JobRestAPIUtils.GetJobStatus(jobId)
-        return generate_response(job)
+        return jsonify(JobRestAPIUtils.GetJobStatus(jobId))
 
 
 @api.resource("/GetClusterStatus")
@@ -529,7 +494,7 @@ class GetClusterStatus(Resource):
         userName = args["userName"]
         cluster_status, last_updated_time = JobRestAPIUtils.GetClusterStatus()
         cluster_status["last_updated_time"] = last_updated_time
-        return generate_response(cluster_status)
+        return jsonify(cluster_status)
 
 
 @api.resource("/AddUser")
@@ -556,7 +521,7 @@ class AddUser(Resource):
 
         ret["status"] = JobRestAPIUtils.AddUser(userName, uid, gid, groups,
                                                 public_key, private_key)
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/GetAllUsers")
@@ -567,7 +532,7 @@ class GetAllUsers(Resource):
             data_handler = DataHandler()
             ret = data_handler.GetUsers()
             ret = [(x[0], x[1]) for x in ret] # remove key info
-            return generate_response(ret)
+            return jsonify(ret)
         except Exception as e:
             return "Internal Server Error. " + str(e), 400
         finally:
@@ -596,7 +561,7 @@ class UpdateAce(Resource):
         ret["result"] = JobRestAPIUtils.UpdateAce(username, identityName,
                                                   resourceType, resourceName,
                                                   permissions)
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/DeleteAce")
@@ -617,7 +582,7 @@ class DeleteAce(Resource):
         ret = {}
         ret["result"] = JobRestAPIUtils.DeleteAce(username, identityName,
                                                   resourceType, resourceName)
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/IsClusterAdmin")
@@ -631,7 +596,7 @@ class IsClusterAdmin(Resource):
         username = args["userName"]
         ret = {}
         ret["result"] = AuthorizationManager.IsClusterAdmin(username)
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/GetACL")
@@ -645,7 +610,7 @@ class GetACL(Resource):
         username = args["userName"]
         ret = {}
         ret["result"] = AuthorizationManager.GetAcl(username)
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/GetAllACL")
@@ -653,7 +618,7 @@ class GetAllACL(Resource):
     def get(self):
         ret = {}
         ret["result"] = ACLManager.GetAllAcl()
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/ListVCs")
@@ -667,7 +632,7 @@ class ListVCs(Resource):
         userName = args["userName"]
         ret = {}
         ret["result"] = JobRestAPIUtils.ListVCs(userName)
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/GetVC")
@@ -681,8 +646,7 @@ class GetVC(Resource):
         args = self.get_parser.parse_args()
         username = args["userName"]
         vc_name = args["vcName"]
-        ret = JobRestAPIUtils.get_vc(username, vc_name)
-        return generate_response(ret)
+        return jsonify(JobRestAPIUtils.get_vc(username, vc_name))
 
 
 @api.resource("/GetVCV2")
@@ -696,8 +660,35 @@ class GetVCV2(Resource):
         args = self.get_parser.parse_args()
         username = args["userName"]
         vc_name = args["vcName"]
-        ret = JobRestAPIUtils.get_vc_v2(username, vc_name)
-        return generate_response(ret)
+        return jsonify(JobRestAPIUtils.get_vc_v2(username, vc_name))
+
+
+@api.resource("/VCMeta")
+class VCMeta(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("vcName", required=True)
+
+        self.post_parser = reqparse.RequestParser()
+        self.post_parser.add_argument("userName", required=True)
+        self.post_parser.add_argument("vcName", required=True)
+
+    def get(self):
+        args = self.get_parser.parse_args()
+        username = args["userName"]
+        vc_name = args["vcName"]
+        resp, code = JobRestAPIUtils.get_vc_meta(username, vc_name)
+        return resp, code
+
+    def post(self):
+        args = self.post_parser.parse_args()
+        username = args["userName"]
+        vc_name = args["vcName"]
+
+        vc_meta = request.get_json(silent=True)
+        resp, code = JobRestAPIUtils.patch_vc_meta(username, vc_name, vc_meta)
+        return resp, code
 
 
 @api.resource("/AddVC")
@@ -717,7 +708,7 @@ class AddVC(Resource):
         userName = args["userName"]
         ret = {}
         ret["result"] = JobRestAPIUtils.AddVC(userName, vcName, quota, metadata)
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/DeleteVC")
@@ -733,7 +724,7 @@ class DeleteVC(Resource):
         userName = args["userName"]
         ret = {}
         ret["result"] = JobRestAPIUtils.DeleteVC(userName, vcName)
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/UpdateVC")
@@ -755,7 +746,7 @@ class UpdateVC(Resource):
         ret["result"] = JobRestAPIUtils.UpdateVC(userName, vcName, quota,
                                                  metadata)
 
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/ListStorages")
@@ -771,7 +762,7 @@ class ListStorages(Resource):
         userName = args["userName"]
         ret = {}
         ret["result"] = JobRestAPIUtils.ListStorages(userName, vcName)
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/AddStorage")
@@ -797,7 +788,7 @@ class AddStorage(Resource):
         ret["result"] = JobRestAPIUtils.AddStorage(userName, vcName, url,
                                                    storageType, metadata,
                                                    defaultMountPath)
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/DeleteStorage")
@@ -815,7 +806,7 @@ class DeleteStorage(Resource):
         url = args["url"]
         ret = {}
         ret["result"] = JobRestAPIUtils.DeleteStorage(userName, vcName, url)
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/UpdateStorage")
@@ -841,7 +832,7 @@ class UpdateStorage(Resource):
         ret["result"] = JobRestAPIUtils.UpdateStorage(userName, vcName, url,
                                                       storageType, metadata,
                                                       defaultMountPath)
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/endpoints")
@@ -864,8 +855,7 @@ class Endpoint(Resource):
 
         # TODO: return 403 error code
         # Return empty list for now to keep backward compatibility with old portal.
-        resp = generate_response(ret)
-        return resp
+        return jsonify(ret)
 
     def post(self):
         """set job["endpoints"]: curl -X POST -H "Content-Type: application/json" /endpoints --data "{"jobId": ..., "endpoints": ["ssh", "ipython"] }"""
@@ -904,8 +894,7 @@ class Endpoint(Resource):
         if statusCode != 200:
             return msg, statusCode
 
-        resp = generate_response(msg)
-        return resp
+        return jsonify(msg)
 
 
 @api.resource("/templates")
@@ -939,7 +928,7 @@ class Templates(Resource):
         ret += dataHandler.GetTemplates("vc:" + vcName) or []
         ret += dataHandler.GetTemplates("user:" + userName) or []
         dataHandler.Close()
-        return generate_response(ret)
+        return jsonify(ret)
 
     def post(self):
         args = self.post_parser.parse_args()
@@ -972,7 +961,7 @@ class Templates(Resource):
         ret["result"] = dataHandler.UpdateTemplate(templateName, scope,
                                                    json.dumps(template_json))
         dataHandler.Close()
-        return generate_response(ret)
+        return jsonify(ret)
 
     def delete(self):
         args = self.delete_parser.parse_args()
@@ -1000,7 +989,7 @@ class Templates(Resource):
         ret = {}
         ret["result"] = dataHandler.DeleteTemplate(templateName, scope)
         dataHandler.Close()
-        return generate_response(ret)
+        return jsonify(ret)
 
 
 @api.resource("/jobs/priorities")
@@ -1011,7 +1000,7 @@ class JobPriority(Resource):
 
     def get(self):
         job_priorites = JobRestAPIUtils.get_job_priorities()
-        return generate_response(job_priorites)
+        return jsonify(job_priorites)
 
     def post(self):
         args = self.post_parser.parse_args()
@@ -1032,7 +1021,7 @@ class JobPriority(Resource):
             else:
                 job_priorities[job_id] = JobRestAPIUtils.DEFAULT_JOB_PRIORITY
 
-        return generate_response(job_priorities)
+        return jsonify(job_priorities)
 
 
 @api.resource("/JobMaxTime")
@@ -1071,7 +1060,7 @@ class Insight(Resource):
         resp, status_code = JobRestAPIUtils.get_job_insight(job_id, username)
         if status_code != 200:
             return resp, status_code
-        return generate_response(resp)
+        return jsonify(resp)
 
     def post(self):
         args = self.post_parser.parse_args()
@@ -1083,7 +1072,7 @@ class Insight(Resource):
             job_id, username, payload)
         if status_code != 200:
             return resp, status_code
-        return generate_response(resp)
+        return jsonify(resp)
 
 
 @app.route("/metrics")

@@ -448,6 +448,19 @@ class DataHandler(object):
             return False
 
     @record
+    def UpdateVCMeta(self, vc_name, metadata):
+        try:
+            sql = "UPDATE " + self.vctablename + " SET metadata = %s WHERE vcName = %s"
+            cursor = self.conn.cursor()
+            cursor.execute(sql, (metadata, vc_name))
+            self.conn.commit()
+            cursor.close()
+            return True
+        except Exception as e:
+            logger.exception('Exception: %s', str(e))
+            return False
+
+    @record
     def GetIdentityInfo(self, identityName):
         cursor = self.conn.cursor()
         query = """SELECT `identityName`,`uid`,`gid`,`groups`,`public_key`,`private_key`
