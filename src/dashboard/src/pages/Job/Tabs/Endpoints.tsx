@@ -112,15 +112,19 @@ const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoint
   const tensorboard = useMemo(() => {
     return endpoints.some((endpoint) => endpoint.name === 'tensorboard');
   }, [endpoints]);
-  const { post } =
-    useFetch(`/api/clusters/${clusterId}/jobs/${jobId}/endpoints`,
-    [clusterId, jobId]);
   const portInput = useRef<HTMLInputElement>();
   const onChange = useCallback((name: string) => (event: ChangeEvent<{}>, value: boolean) => {
     if (value === false) return;
     enqueueSnackbar(`Enabling ${name}...`);
-    post({
-      endpoints: [name.toLowerCase()]
+    // TODO: revert to use-http after upgrade to 1.0
+    fetch(`/api/clusters/${clusterId}/jobs/${jobId}/endpoints`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        endpoints: [name.toLowerCase()]
+      })
     }).then((response) => {
       if (response.ok) {
         enqueueSnackbar(`${name} enabled`, { variant: 'success' })
@@ -134,23 +138,37 @@ const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoint
 
       enqueueSnackbar(message, { variant: 'error' })
     });
-  }, [post, enqueueSnackbar]);
+  }, [clusterId, jobId, enqueueSnackbar]);
   const onSubmit = useCallback((event: FormEvent) => {
     event.preventDefault();
     if (portInput.current === undefined) return;
     const port = portInput.current.valueAsNumber;
     enqueueSnackbar(`Exposing port ${port}...`);
-    post({
-      endpoints: [{
-        name: `port-${port}`,
-        podPort: port
-      }]
-    }).then(() => {
-      enqueueSnackbar(`Port ${port} exposed`, { variant: 'success' });
-    }, () => {
-      enqueueSnackbar(`Failed to expose port ${port}`, { variant: 'error' });
+    fetch(`/api/clusters/${clusterId}/jobs/${jobId}/endpoints`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        endpoints: [{
+          name: `port-${port}`,
+          podPort: port
+        }]
+      })
+    }).then((response) => {
+      if (response.ok) {
+        enqueueSnackbar(`Port ${port} exposed`, { variant: 'success' });
+      } else {
+        return response.text().then((text: string) => Promise.reject(Error(text)))
+      }
+    }).catch((error) => {
+      const message = error && error.message
+        ? `Failed to expose port ${port}: ${error.message}`
+        : `Failed to expose port ${port}`
+
+      enqueueSnackbar(message, { variant: 'error' })
     });
-  }, [post, enqueueSnackbar]);
+  }, [clusterId, jobId, enqueueSnackbar]);
 
   return (
     <Box px={2}>
