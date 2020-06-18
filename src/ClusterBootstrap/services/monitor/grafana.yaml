@@ -37,7 +37,7 @@ spec:
           readOnly: true
         resources:
           limits:
-            memory: "256Mi"
+            memory: "1Gi"
         env:
         - name : GRAFANA_URL
           value: 'http://127.0.0.1:{{cnf["grafana"]["port"]}}' # for script to install dashboard only
