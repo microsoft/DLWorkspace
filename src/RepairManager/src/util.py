@@ -123,13 +123,13 @@ class RestUtil(object):
     def list_vcs(self):
         args = urllib.parse.urlencode({"userName": "Administrator"})
         url = urllib.parse.urljoin(self.rest_url, "/ListVCs") + "?" + args
-        resp = requests.get(url)
+        resp = requests.get(url, timeout=5)
         return resp.json()
 
     def get_job_status(self, job_id):
         args = urllib.parse.urlencode({"jobId": job_id})
         url = urllib.parse.urljoin(self.rest_url, "/GetJobStatus") + "?" + args
-        resp = requests.get(url)
+        resp = requests.get(url, timeout=5)
         return resp.json()
 
     def pause_jobs(self, job_ids):
@@ -138,7 +138,7 @@ class RestUtil(object):
             "jobIds": job_ids,
         })
         url = urllib.parse.urljoin(self.rest_url, "/PauseJobs") + "?" + args
-        resp = requests.get(url)
+        resp = requests.get(url, timeout=5)
         return resp.json()
 
     def resume_jobs(self, job_ids):
@@ -147,7 +147,7 @@ class RestUtil(object):
             "jobIds": job_ids,
         })
         url = urllib.parse.urljoin(self.rest_url, "/ResumeJobs") + "?" + args
-        resp = requests.get(url)
+        resp = requests.get(url, timeout=5)
         return resp.json()
 
 

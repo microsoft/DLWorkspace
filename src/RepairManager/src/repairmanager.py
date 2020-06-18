@@ -154,7 +154,7 @@ class RepairManager(object):
 
         for rule, count_by_rule in rule_node_count.items():
             for sku, count in count_by_rule.items():
-                state_gauge.add_metric([rule, sku], count)
+                rule_gauge.add_metric([rule, sku], count)
 
         self.atomic_ref.set([state_gauge, rule_gauge])
 
@@ -242,7 +242,7 @@ class RepairManager(object):
 
         repair_rules = [rule.name for rule in node.unhealthy_rules]
         try:
-            resp = requests.post(url, json=repair_rules)
+            resp = requests.post(url, json=repair_rules, timeout=3)
             code = resp.status_code
             logger.debug(
                 "sent repair request to %s: %s, %s. response: %s", node.name,
@@ -263,7 +263,7 @@ class RepairManager(object):
         url = urllib.parse.urljoin(
             "http://%s:%s" % (node.ip, self.agent_port), "/liveness")
         try:
-            resp = requests.get(url)
+            resp = requests.get(url, timeout=3)
             code = resp.status_code
             logger.debug(
                 "sent liveness request to %s: %s. response: %s", 
@@ -307,9 +307,9 @@ class RepairManager(object):
         """Move from any state into OUT_OF_POOL"""
         unschedulable = True
         labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
+        # Do not override REPAIR_UNHEALTHY_RULES
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
-            REPAIR_UNHEALTHY_RULES: None,
         }
         if self.patch(node, unschedulable=unschedulable, labels=labels,
                       annotations=annotations):
@@ -416,9 +416,14 @@ def main(params):
         config = get_config(params.config)
         k8s_util = K8sUtil()
         rest_util = RestUtil()
-        repair_manager = RepairManager(
-            rules, config, int(params.agent_port), k8s_util, rest_util,
-            interval=params.interval, dry_run=params.dry_run)
+        repair_manager = RepairManager(rules,
+                                       config,
+                                       int(params.port),
+                                       int(params.agent_port),
+                                       k8s_util,
+                                       rest_util,
+                                       interval=params.interval,
+                                       dry_run=params.dry_run)
         repair_manager.run()
     except:
         logger.exception("Exception in repairmanager run")
