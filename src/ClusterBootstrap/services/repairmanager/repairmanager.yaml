@@ -1,56 +1,57 @@
-kind: DaemonSet
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: repairmanager-configmap
+  namespace: kube-system
+data:
+  config.yaml: |-
+    rules: {{cnf["repair-manager"]}}
+---
 apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: repairmanager
-  namespace: default
+  namespace: kube-system
 spec:
+  replicas: 1
   selector:
     matchLabels:
-      repairmanager-node: pod
+      app: repairmanager
   template:
     metadata:
       name: repairmanager
       labels:
-        repairmanager-node: pod
+        task: repair
         app: repairmanager
     spec:
-      {% if cnf["dnsPolicy"] %}
-      dnsPolicy: {{cnf["dnsPolicy"]}}
-      {% endif %}
       hostNetwork: true
       nodeSelector:
         repairmanager: active
       containers:
       - name: repairmanager
         image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["repairmanager"]}}:{{cnf["dockertag"]}}
-        command: ["/run.sh"]
+        command:
+          - "python3"
+          - "/repairmanager/repairmanager.py"
+        args:
+          - '--config=/etc/repairmanager'
+          - '--log=/var/log/repairmanager'
+          - '--interval=30'
+          - '--port={{cnf["repair-manager"]["port"]}}'
+          - '--agent_port={{cnf["repair-manager"]["agent-port"]}}'
         imagePullPolicy: Always
         volumeMounts:
         - mountPath: /etc/kubernetes/ssl
           name: certs
-        - mountPath: /etc/kubernetes/restapi-kubeconfig.yaml
+        - mountPath: /root/.kube/config
           name: kubeconfig
-        - mountPath: {{cnf["storage-mount-path"]}}/work
-          name: dlwsdatawork
-        - mountPath: {{cnf["storage-mount-path"]}}/storage
-          name: dlwsdatadata
-        - mountPath: {{cnf["storage-mount-path"]}}/jobfiles
-          name: dlwsdatajobfiles
-        - mountPath: {{cnf["dltsdata-storage-mount-path"]}}
-          name: dltsdata
-        - mountPath: {{cnf["folder_auto_share"]}}
-          name: folderautoshare
-        - mountPath: /var/log/dlworkspace
+        - mountPath: /etc/repairmanager
+          name: config-volume
+        - mountPath: /var/log/repairmanager
           name: log
-        - mountPath: /etc/RepairManager
-          name: repairmanagerdata
-      - name: etcd
-        image: quay.io/coreos/etcd:v3.3.22
-        command: ["etcd", "--config-file", "/etc/RepairManager/config/etcd.conf.yaml"]
-        imagePullPolicy: Always
-        volumeMounts:
-        - mountPath: /etc/RepairManager
-          name: repairmanagerdata
+        ports:
+        - name: repairmanager
+          containerPort: {{cnf["repair-manager"]["port"]}}
       {% if cnf["private_docker_registry_username"] %}
       imagePullSecrets:
       - name: svccred
@@ -62,29 +63,82 @@ spec:
       - name: kubeconfig
         hostPath:
           path: /etc/kubernetes/restapi-kubeconfig.yaml
-      - name: dlwsdatawork
-        hostPath:
-          path: {{cnf["storage-mount-path"]}}/work
-      - name: dlwsdatadata
-        hostPath:
-          path: {{cnf["storage-mount-path"]}}/storage
-      - name: dlwsdatajobfiles
-        hostPath:
-          path: {{cnf["storage-mount-path"]}}/jobfiles
-      - name: dltsdata
-        hostPath:
-          path: {{cnf["dltsdata-storage-mount-path"]}}
-      - name: folderautoshare
-        hostPath:
-          path: {{cnf["folder_auto_share"]}}
+      - name: config-volume
+        configMap:
+          name: repairmanager-configmap
       - name: log
         hostPath:
-          path: /var/log/dlworkspace
-      - name: repairmanagerdata
-        hostPath:
-          path: /etc/RepairManager
+          path: /var/log/repairmanager
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
+      - key: node.kubernetes.io/memory-pressure
+        operator: "Exists"
+      - key: node.kubernetes.io/disk-pressure
+        operator: "Exists"
+      - key: node-role.kubernetes.io/master
+        operator: "Exists"
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: repairmanageragent
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: repairmanageragent
+  template:
+    metadata:
+      name: repairmanageragent
+      labels:
+        task: repair
+        app: repairmanageragent
+    spec:
+      nodeSelector:
+        repairmanageragent: active
+      hostNetwork: true
+      hostPID: true
+      containers:
+      - name: repairmanageragent
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["repairmanager"]}}:{{cnf["dockertag"]}}
+        securityContext:
+          capabilities:
+            add: ["SYS_BOOT"]
+        command:
+          - "python3"
+          - "/repairmanager/agent.py"
+        args:
+          - '--log=/var/log/repairmanager'
+          - '--agent_port={{cnf["repair-manager"]["agent-port"]}}'
+        imagePullPolicy: Always
+        volumeMounts:
+        - mountPath: /var/log/repairmanager
+          name: log
+        - mountPath: /host-fs
+          name: host-fs
+        ports:
+        - name: agent
+          containerPort: {{cnf["repair-manager"]["agent-port"]}}
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
+      volumes:
+      - name: log
+        hostPath:
+          path: /var/log/repairmanager
+      - name: host-fs
+        hostPath:
+          path: /
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      - key: node.kubernetes.io/memory-pressure
+        operator: "Exists"
+      - key: node.kubernetes.io/disk-pressure
+        operator: "Exists"

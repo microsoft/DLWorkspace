@@ -30,7 +30,7 @@ matrix:
     before_install:
       - cd src/RepairManager/test
     install:
-      - pip install pyyaml requests tabulate cachetools kubernetes
+      - pip install pyyaml requests tabulate cachetools kubernetes flask flask-cors prometheus_client
     script:
       - python -m unittest discover .
   - language: python

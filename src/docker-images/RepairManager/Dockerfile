@@ -1,19 +1,9 @@
-FROM ubuntu:18.04
-MAINTAINER Deborah Sandoval <Deborah.Sandoval@microsoft.com>
+FROM python:3.7
 
-RUN apt-get update && apt-get --no-install-recommends install -y \
-    python3.7 \
-    python3-pip
+RUN pip3 install requests kubernetes flask flask-cors prometheus_client
 
-RUN pip3 install wheel setuptools requests
+WORKDIR /repairmanager
 
-COPY kubectl /usr/local/bin/kubectl
-RUN chmod +x /usr/local/bin/kubectl
+ADD RepairManager/src/* /repairmanager/
 
-COPY run.sh /
-RUN chmod +x /run.sh
 
-ADD RepairManager /DLWorkspace/src/RepairManager
-
-RUN pip3 install -r /DLWorkspace/src/RepairManager/requirements.txt
-CMD ["/run.sh"]
