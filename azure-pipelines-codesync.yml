@@ -15,6 +15,15 @@ variables: { SUBSCRIPTION_NAME: "'Bing DLTS'"}
 steps:
 
 - script: |
-    echo TODO: RUN functional tests!
+    BRANCH_TO_MONITOR="${BRANCH_TO_MONITOR:-dltsdev}"
+    RSA_PRV_KEY_PATH="${RSA_PRV_KEY_PATH:-/home/core/.ssh/id_rsa}"
+    TARGET_USER="${TARGET_USER:-devops}"
+    TARGET_PATH="${TARGET_PATH:-/home/devops}"
+    rm -rf DLWorkspace
+    git clone https://github.com/microsoft/DLWorkspace.git
+    cd DLWorkspace
+    git remote add itp msdata@vs-ssh.visualstudio.com:v3/msdata/Vienna/itp-backend
+    git checkout $BRANCH_TO_MONITOR
+    git push itp $BRANCH_TO_MONITOR
   displayName: 'Functional tests'
 
