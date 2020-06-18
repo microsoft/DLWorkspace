@@ -193,13 +193,14 @@ class Job(object):
 
 
 class Node(object):
-    def __init__(self, name, ip, ready, unschedulable, gpu_expected, gpu_total,
-                 gpu_allocatable, state, infiniband=None, ipoib=None,
+    def __init__(self, name, ip, ready, unschedulable, sku, gpu_expected,
+                 gpu_total, gpu_allocatable, state, infiniband=None, ipoib=None,
                  nv_peer_mem=None, nvsm=None, unhealthy_rules=None):
         self.name = name
         self.ip = ip
         self.ready = ready
         self.unschedulable = unschedulable
+        self.sku = sku
         self.gpu_expected = gpu_expected
         self.gpu_total = gpu_total
         self.gpu_allocatable = gpu_allocatable
@@ -210,6 +211,10 @@ class Node(object):
         self.nvsm = nvsm
         self.unhealthy_rules = unhealthy_rules if unhealthy_rules else []
         self.jobs = {}
+
+    @property
+    def state_name(self):
+        return self.state.name
 
     def __repr__(self):
         return str(self.__dict__)
@@ -247,9 +252,7 @@ def get_gpu_total_and_allocatable(k8s_node):
 
 
 def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
-    rules_mapping = {
-        rule.__class__.__name__: rule for rule in rules
-    }
+    rules_mapping = {rule.name: rule for rule in rules}
     for k8s_node in k8s_nodes:
         try:
             # Parse node name and ip
@@ -311,7 +314,7 @@ def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
                             continue
                         unhealthy_rules.append(rule)
 
-            node = Node(hostname, internal_ip, ready, unschedulable,
+            node = Node(hostname, internal_ip, ready, unschedulable, sku,
                         gpu_expected, gpu_total, gpu_allocatable, state,
                         infiniband, ipoib, nv_peer_mem, nvsm, unhealthy_rules)
             nodes[internal_ip] = node

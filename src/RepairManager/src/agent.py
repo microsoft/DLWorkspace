@@ -53,9 +53,7 @@ class Agent(object):
         app.run(host="0.0.0.0", port=self.port, debug=False, use_reloader=False)
 
     def handle(self):
-        rules_mapping = {
-            rule.__class__.__name__: rule for rule in self.rules
-        }
+        rules_mapping = {rule.name: rule for rule in self.rules}
 
         while True:
             repair_rules = self.repair_rules.get()

@@ -54,16 +54,30 @@ class TestRepairManager(unittest.TestCase):
             format="%(asctime)s - %(levelname)s - %(threadName)s - %(filename)s:%(lineno)s - %(message)s",
             level="DEBUG")
         self.ip = "localhost"
+        self.port = 8999
         self.agent_port = random.randrange(9000, 9200)
         self.rules = [RuleForTest()]
         self.k8s_util = K8sUtilForTest()
-        self.repairmanager = RepairManager(
-            self.rules, {}, self.agent_port, self.k8s_util, None, dry_run=True)
+        self.repairmanager = RepairManager(self.rules,
+                                           {},
+                                           self.port,
+                                           self.agent_port,
+                                           self.k8s_util,
+                                           None,
+                                           dry_run=True)
         self.agent = Agent(self.rules, self.agent_port, dry_run=True)
         self.server = threading.Thread(
             target=self.agent.serve, name="agent_server", daemon=True)
-        self.node = Node(self.ip, self.ip, True, False, 4, 4, 4,
-                         State.IN_SERVICE, [])
+        self.node = Node(self.ip,
+                         self.ip,
+                         True,
+                         False,
+                         "Standard_ND24rs",
+                         4,
+                         4,
+                         4,
+                         State.IN_SERVICE,
+                         [])
 
     def test_validate(self):
         self.repairmanager.dry_run = False

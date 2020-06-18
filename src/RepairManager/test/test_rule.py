@@ -42,7 +42,7 @@ class TestRuleInstantiation(unittest.TestCase):
         # Sanity check on all rules
         rules = instantiate_rules()
         for rule in rules:
-            self.assertTrue(rule.__class__.__name__ in Rule.subclasses)
+            self.assertTrue(rule.name in Rule.subclasses)
 
 
 class TestRule(unittest.TestCase):
@@ -54,9 +54,19 @@ class TestRule(unittest.TestCase):
         self.rule.rest_util = MockRestUtil()
         self.rule.prometheus_util = MockPrometheusUtil()
         self.job = Job("job1", "user1", "vc1")
-        self.node = Node("node1", "192.168.0.1", True, False, 4, 4, 4,
-                         State.IN_SERVICE, infiniband=["mlx4_0:1", "mlx4_1:1"],
-                         ipoib=["ib0", "ib1"], nv_peer_mem=1, nvsm=True)
+        self.node = Node("node1",
+                         "192.168.0.1",
+                         True,
+                         False,
+                         "Standard_ND24rs",
+                         4,
+                         4,
+                         4,
+                         State.IN_SERVICE,
+                         infiniband=["mlx4_0:1", "mlx4_1:1"],
+                         ipoib=["ib0", "ib1"],
+                         nv_peer_mem=1,
+                         nvsm=True)
         self.node.jobs = {"job1": self.job}
 
     def update_data_and_validate(self, query_data):
