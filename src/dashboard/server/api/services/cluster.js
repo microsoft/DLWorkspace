@@ -367,7 +367,11 @@ class Cluster extends Service {
     })
     const text = await response.text()
     this.context.log.debug({ text }, 'Added endpoints %o to "%s"', endpoints, jobId)
-    this.context.assert(response.ok, 502)
+    if (response.status === 403) {
+      this.context.status = 403
+    } else {
+      this.context.assert(response.ok, 502)
+    }
     return text
   }
 
