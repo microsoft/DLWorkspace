@@ -265,7 +265,7 @@ def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
             ready = get_ready(k8s_node)
             unschedulable = k8s_node.spec.unschedulable is True
 
-            sku = k8s_node.metadata.labels.get("sku")
+            sku = k8s_node.metadata.labels.get("sku", "None")
             # Parse expected gpu
             gpu_expected = metadata.get(sku, {}).get("per_node", 0)
 
