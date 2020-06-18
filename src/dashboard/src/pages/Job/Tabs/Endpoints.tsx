@@ -103,6 +103,9 @@ const EndpointsList: FunctionComponent<{
 const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoints }) => {
   const { clusterId, jobId } = useRouteParams();
   const { enqueueSnackbar } = useSnackbar();
+  const [sshKey, setSshKey] = useState(0);
+  const [ipythonKey, setIpythonKey] = useState(0);
+  const [tensorboardKey, setTensorboardKey] = useState(0);
   const ssh = useMemo(() => {
     return endpoints.some((endpoint) => endpoint.name === 'ssh');
   }, [endpoints]);
@@ -137,6 +140,9 @@ const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoint
         : `Failed to enable ${name}`
 
       enqueueSnackbar(message, { variant: 'error' })
+      if (name === 'SSH') setSshKey(k => k + 1)
+      if (name === 'iPython') setIpythonKey(k => k + 1)
+      if (name === 'Tensorboard') setTensorboardKey(k => k + 1)
     });
   }, [clusterId, jobId, enqueueSnackbar]);
   const onSubmit = useCallback((event: FormEvent) => {
@@ -174,6 +180,7 @@ const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoint
     <Box px={2}>
       <FormGroup aria-label="position" row>
         <FormControlLabel
+          key={`ssh-${sshKey}`}
           checked={ssh || undefined}
           disabled={ssh}
           control={<Switch/>}
@@ -181,6 +188,7 @@ const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoint
           onChange={onChange('SSH')}
         />
         <FormControlLabel
+          key={`ipython-${ipythonKey}`}
           checked={ipython || undefined}
           disabled={ipython}
           control={<Switch/>}
@@ -188,6 +196,7 @@ const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoint
           onChange={onChange('iPython')}
         />
         <FormControlLabel
+          key={`tensorboard-${tensorboardKey}`}
           checked={tensorboard || undefined}
           disabled={tensorboard}
           control={<Switch/>}
