@@ -123,15 +123,20 @@ class RepairManager(object):
             self.nodes = []
 
     def update_metrics(self):
-        # Count nodes by repair state
+        sku_list = set([node.sku for node in self.nodes])
+
+        # Count nodes by repair state (repair state -> {sku: count})
         state_gauge = GaugeMetricFamily(
             "repair_state_node_count",
             "node count in different repair states",
             labels=["repair_state", "sku"])
 
-        # repair state -> {sku: count}
         state_node_count = collections.defaultdict(
             lambda: collections.defaultdict(lambda: 0))
+        for state in State:
+            for sku in sku_list:
+                state_node_count[state.name][sku] = 0
+
         for node in self.nodes:
             state_node_count[node.state_name][node.sku] += 1
 
@@ -139,15 +144,18 @@ class RepairManager(object):
             for sku, count in count_by_sku.items():
                 state_gauge.add_metric([state, sku], count)
 
-        # Count nodes by repair rule
+        # Count nodes by repair rule (repair rule -> {sku: count})
         rule_gauge = GaugeMetricFamily(
             "repair_rule_node_count",
             "node count in different repair rules",
             labels=["repair_rule", "sku"])
 
-        # repair rule -> {sku: count}
         rule_node_count = collections.defaultdict(
             lambda: collections.defaultdict(lambda: 0))
+        for rule in self.rules:
+            for sku in sku_list:
+                rule_node_count[rule.name][sku] = 0
+
         for node in self.nodes:
             for rule in node.unhealthy_rules:
                 rule_node_count[rule.name][node.sku] += 1
