@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import copy
+import datetime
 import logging
 import os
 import random
@@ -38,6 +39,9 @@ class RuleForTest(Rule):
     def prepare(self, node):
         return self.prepared
 
+    def repair(self):
+        return True
+
 
 class K8sUtilForTest(object):
     def __init__(self):
@@ -65,7 +69,7 @@ class TestRepairManager(unittest.TestCase):
                                            self.k8s_util,
                                            None,
                                            dry_run=True)
-        self.agent = Agent(self.rules, self.agent_port, dry_run=True)
+        self.agent = Agent(self.rules, self.agent_port)
         self.server = threading.Thread(
             target=self.agent.serve, name="agent_server", daemon=True)
         self.node = Node(self.ip,
@@ -163,7 +167,7 @@ class TestRepairManager(unittest.TestCase):
         self.assertEqual(State.IN_REPAIR, self.node.state)
         self.assertEqual(True, self.node.unschedulable)
 
-        # IN_REPAIR -> AFTER_REPAIR
+        # IN_REPAIR -> IN_REPAIR
         self.repairmanager.update(self.node)
         self.assertEqual(State.IN_REPAIR, self.node.state)
         self.assertEqual(True, self.node.unschedulable)
@@ -181,11 +185,25 @@ class TestRepairManager(unittest.TestCase):
                     return True
                 time.sleep(1)
 
+        # IN_REPAIR -> AFTER_REPAIR
         self.assertTrue(wait_for_repair())
 
-        # AFTER_REPAIR -> OUT_OF_POOL
         node = copy.deepcopy(self.node)
+
+        # AFTER_REPAIR -> AFTER_REPAIR
+        # unhealthy in grace period
+        self.repairmanager.grace_period = 60
+        node.last_update_time = str(datetime.datetime.timestamp(
+            datetime.datetime.utcnow()))
         self.rules[0].health = False
+        self.repairmanager.update(node)
+        self.assertEqual(State.AFTER_REPAIR, node.state)
+        self.assertEqual(True, node.unschedulable)
+        self.assertEqual(self.rules, node.unhealthy_rules)
+
+        # AFTER_REPAIR -> OUT_OF_POOL
+        # unhealthy after grace period
+        self.repairmanager.grace_period = -1  # Make sure it's after grace period
         self.repairmanager.update(node)
         self.assertEqual(State.OUT_OF_POOL, node.state)
         self.assertEqual(True, node.unschedulable)

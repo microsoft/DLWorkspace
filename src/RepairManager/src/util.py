@@ -13,7 +13,8 @@ import urllib.parse
 from enum import Enum
 from kubernetes import client as k8s_client, config as k8s_config
 from kubernetes.client.rest import ApiException
-from constant import REPAIR_STATE, REPAIR_UNHEALTHY_RULES
+from constant import REPAIR_STATE, REPAIR_UNHEALTHY_RULES, \
+    REPAIR_STATE_LAST_UPDATE_TIME
 
 
 logger = logging.getLogger(__name__)
@@ -195,7 +196,8 @@ class Job(object):
 class Node(object):
     def __init__(self, name, ip, ready, unschedulable, sku, gpu_expected,
                  gpu_total, gpu_allocatable, state, infiniband=None, ipoib=None,
-                 nv_peer_mem=None, nvsm=None, unhealthy_rules=None):
+                 nv_peer_mem=None, nvsm=None, unhealthy_rules=None,
+                 last_update_time=None):
         self.name = name
         self.ip = ip
         self.ready = ready
@@ -210,6 +212,7 @@ class Node(object):
         self.nv_peer_mem = nv_peer_mem
         self.nvsm = nvsm
         self.unhealthy_rules = unhealthy_rules if unhealthy_rules else []
+        self.last_update_time = last_update_time
         self.jobs = {}
 
     @property
@@ -302,7 +305,7 @@ def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
             unhealthy_rules = []
             if k8s_node.metadata.annotations is not None:
                 unhealthy_rule_names = k8s_node.metadata.annotations.get(
-                    REPAIR_UNHEALTHY_RULES, None)
+                    REPAIR_UNHEALTHY_RULES)
                 if unhealthy_rule_names is not None:
                     unhealthy_rule_names = unhealthy_rule_names.split(",")
                     for rule_name in unhealthy_rule_names:
@@ -314,9 +317,16 @@ def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
                             continue
                         unhealthy_rules.append(rule)
 
+            # Parse repair state last update time
+            last_update_time = None
+            if k8s_node.metadata.annotations is not None:
+                last_update_time = k8s_node.metadata.annotations.get(
+                    REPAIR_STATE_LAST_UPDATE_TIME)
+
             node = Node(hostname, internal_ip, ready, unschedulable, sku,
                         gpu_expected, gpu_total, gpu_allocatable, state,
-                        infiniband, ipoib, nv_peer_mem, nvsm, unhealthy_rules)
+                        infiniband, ipoib, nv_peer_mem, nvsm, unhealthy_rules,
+                        last_update_time)
             nodes[internal_ip] = node
         except:
             logger.exception("failed to parse k8s node %s", k8s_node)

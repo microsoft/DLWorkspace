@@ -60,6 +60,9 @@ class RepairManager(object):
         self.handler = threading.Thread(
             target=self.handle, name="handler", daemon=True)
 
+        # Allow 5 min for metrics/info to come up to latest
+        self.grace_period = 5 * 60
+
     def run(self):
         self.handler.start()
         self.serve()
@@ -213,12 +216,29 @@ class RepairManager(object):
                 if self.check_liveness(node):
                     self.from_in_repair_to_after_repair(node)
             elif node.state == State.AFTER_REPAIR:
-                if self.check_health(node, stat="current"):
-                    self.from_after_repair_to_in_service(node)
+                healthy = self.check_health(node, stat="current")
+                try:
+                    now = datetime.datetime.timestamp(datetime.datetime.utcnow())
+                    last_update_time = float(node.last_update_time)
+                    elapsed = now - last_update_time
+                except:
+                    elapsed = None
+
+                if elapsed is None:
+                    if healthy:
+                        self.from_after_repair_to_in_service(node)
+                    else:
+                        self.from_after_repair_to_out_of_pool(node)
                 else:
-                    self.from_after_repair_to_out_of_pool(node)
+                    if healthy:
+                        self.from_after_repair_to_in_service(node)
+                    elif not healthy and elapsed > self.grace_period:
+                        self.from_after_repair_to_out_of_pool(node)
+                    else:
+                        # Do not change state if unhealthy in the grace period
+                        pass
             else:
-                logger.error("Node % has unrecognized state", node)
+                logger.error("Node %s has unrecognized state", node)
         except:
             logger.exception("Exception in step for node %s", node)
 
@@ -317,7 +337,8 @@ class RepairManager(object):
         labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
         # Do not override REPAIR_UNHEALTHY_RULES
         annotations = {
-            REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
+            REPAIR_STATE_LAST_UPDATE_TIME:
+                str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
         }
         if self.patch(node, unschedulable=unschedulable, labels=labels,
                       annotations=annotations):
@@ -332,7 +353,8 @@ class RepairManager(object):
         unschedulable = True
         labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
         annotations = {
-            REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
+            REPAIR_STATE_LAST_UPDATE_TIME:
+                str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
             REPAIR_UNHEALTHY_RULES: self.get_unhealthy_rules_value(node),
         }
         if self.patch(node, unschedulable=unschedulable, labels=labels,
@@ -347,7 +369,8 @@ class RepairManager(object):
         """Move from OUT_OF_POOL into READY_FOR_REPAIR"""
         labels = {REPAIR_STATE: State.READY_FOR_REPAIR.name}
         annotations = {
-            REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
+            REPAIR_STATE_LAST_UPDATE_TIME:
+                str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
         }
         if self.patch(node, labels=labels, annotations=annotations):
             node.state = State.READY_FOR_REPAIR
@@ -359,7 +382,8 @@ class RepairManager(object):
         """Move from READY_FOR_REPAIR into IN_REPAIR"""
         labels = {REPAIR_STATE: State.IN_REPAIR.name}
         annotations = {
-            REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
+            REPAIR_STATE_LAST_UPDATE_TIME:
+                str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
         }
         if self.patch(node, labels=labels, annotations=annotations):
             node.state = State.IN_REPAIR
@@ -371,7 +395,8 @@ class RepairManager(object):
         """Move from IN_REPAIR into AFTER_REPAIR"""
         labels = {REPAIR_STATE: State.AFTER_REPAIR.name}
         annotations = {
-            REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
+            REPAIR_STATE_LAST_UPDATE_TIME:
+                str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
         }
         if self.patch(node, labels=labels, annotations=annotations):
             node.state = State.AFTER_REPAIR
@@ -384,7 +409,8 @@ class RepairManager(object):
         unschedulable = False
         labels = {REPAIR_STATE: State.IN_SERVICE.name}
         annotations = {
-            REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
+            REPAIR_STATE_LAST_UPDATE_TIME:
+                str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
             REPAIR_UNHEALTHY_RULES: None,
         }
         if self.patch(node, unschedulable=unschedulable, labels=labels,
@@ -399,7 +425,8 @@ class RepairManager(object):
         """Move from AFTER_REPAIR into OUT_OF_POOL"""
         labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
         annotations = {
-            REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
+            REPAIR_STATE_LAST_UPDATE_TIME:
+                str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
             REPAIR_UNHEALTHY_RULES: self.get_unhealthy_rules_value(node),
         }
         if self.patch(node, labels=labels, annotations=annotations):

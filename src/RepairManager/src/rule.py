@@ -17,8 +17,10 @@ def override(func):
     return func
 
 
-def exec_cmd(command, timeout=60):
+def exec_cmd(command, timeout=None):
     """Execute one command"""
+    if timeout is None:
+        timeout = 60  # default to 60
     command = CHROOT_HOST_FS + command
     logger.info("executing: %s", command)
     try:
@@ -33,23 +35,6 @@ def exec_cmd(command, timeout=60):
     except Exception:
         logger.exception("%s failed")
     return False
-
-
-def exec_command(commands):
-    """Execute command on host filesystem
-
-    Args:
-        commands: A single command or a list of commands to execute.
-
-    Returns:
-        None
-    """
-    if not isinstance(commands, list):
-        commands = [commands]
-    for command in commands:
-        command = CHROOT_HOST_FS + command
-        logger.info("Executing command: %s", command)
-        os.system(command)
 
 
 class Rule(object):
@@ -191,8 +176,15 @@ class Rule(object):
             None
         """
         # By default, reboot the node
-        exec_cmd(["sync"])
-        exec_cmd(["reboot", "-f"])
+        if exec_cmd(["sync"]) is False:
+            logger.error("sync failed")
+            return False
+
+        if exec_cmd(["reboot", "-f"]) is False:
+            logger.error("reboot -f failed")
+            return False
+
+        return True
 
 
 @Rule.register_subclass("UnschedulableRule")
@@ -243,7 +235,10 @@ class K8sGpuRule(Rule):
 
     def repair(self):
         # Restart kubelet service
-        exec_cmd(["systemctl", "restart", "kubelet"])
+        if exec_cmd(["systemctl", "restart", "kubelet"]) is False:
+            logger.error("systemctl restart kubelet failed")
+            return False
+        return True
 
 
 @Rule.register_subclass("DcgmEccDBERule")
@@ -356,7 +351,10 @@ class IPoIBRule(Rule):
         # fix the IPoIB on Azure VM.
         # For on-premise node, repair will always fail and the noe will get
         # stuck in repair cycle, requiring manual fix.
-        exec_cmd(["systemctl", "restart", "walinuxagent"])
+        if exec_cmd(["systemctl", "restart", "walinuxagent"]) is False:
+            logger.error("systemctl restart walinuxagent failed")
+            return False
+        return True
 
 
 @Rule.register_subclass("NvPeerMemRule")
@@ -396,7 +394,10 @@ class NvPeerMemRule(Rule):
 
     def repair(self):
         # Restarting nv_peer_mem can restore the module.
-        exec_cmd(["systemctl", "restart", "nv_peer_mem"])
+        if exec_cmd(["systemctl", "restart", "nv_peer_mem"]) is False:
+            logger.error("systemctl restart nv_peer_mem failed")
+            return False
+        return True
 
 
 @Rule.register_subclass("NVSMRule")
@@ -435,9 +436,19 @@ class NVSMRule(Rule):
         # Get a health dump and reboot.
         os.environ["TERM"] = "xterm"
         # Give nvsm dump health sufficient time to dump
-        exec_cmd(["nvsm", "dump", "health"], timeout=1800)
-        exec_cmd(["sync"])
-        exec_cmd(["reboot", "-f"])
+        if exec_cmd(["nvsm", "dump", "health"], timeout=3600) is False:
+            logger.error("nvsm dump health (with timeout 3600s) failed")
+            return False
+
+        if exec_cmd(["sync"]) is False:
+            logger.error("sync failed")
+            return False
+
+        if exec_cmd(["reboot", "-f"]) is False:
+            logger.error("reboot -f failed")
+            return False
+
+        return True
 
 
 def instantiate_rules():
