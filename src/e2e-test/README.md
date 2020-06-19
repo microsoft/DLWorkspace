@@ -20,12 +20,12 @@ yarn --production
 Configure using environment variables:
 
 - `PUPPETEER_HEADLESS` set to `false` to disable headless mode.
-- `PUPPETEER_USER_DATA_DIR` should be set to a explicit location to persist user sessions.
 - `PUPPETEER_SCREENSHOT_FILE` grab a screenshot if tail failed.
 - `DLTS_DASHBOARD_URL`
+- `DLTS_TEAM_ID`
 - `DLTS_CLUSTER_ID`
 
-dotenv is supported.
+[dotenv](https://www.npmjs.com/package/dotenv) is supported.
 
 ## Run
 

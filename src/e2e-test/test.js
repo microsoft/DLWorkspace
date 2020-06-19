@@ -4,7 +4,10 @@ const {
   PUPPETEER_HEADLESS,
   PUPPETEER_USER_DATA_DIR = '.puppeteer',
   PUPPETEER_SCREENSHOT_FILE,
+  PUPPETEER_SCREENSHOT_WIDTH = '1024',
+  PUPPETEER_SCREENSHOT_HEIGHT = '768',
   DLTS_DASHBOARD_URL,
+  DLTS_TEAM_ID,
   DLTS_CLUSTER_ID
 } = process.env
 
@@ -34,9 +37,11 @@ describe('Deep Learning Training Service', function () {
     })
 
     it('sign in', async function () {
-      this.timeout('1m')
       await page.goto(DLTS_DASHBOARD_URL)
-      await page.setViewport({ width: 1920, height: 1080 })
+      await page.setViewport({
+        width: Number(PUPPETEER_SCREENSHOT_WIDTH),
+        height: Number(PUPPETEER_SCREENSHOT_HEIGHT)
+      })
 
       await (
         await page.waitForSelector('a[href^="/api/authenticate"]')
@@ -50,6 +55,40 @@ describe('Deep Learning Training Service', function () {
         await page.waitForSelector('header h1')
       ).evaluate(node => node.textContent)
         .should.eventually.equal('DLTS')
+    })
+
+    it('switch team', async function () {
+      const $button = await page.waitForSelector('header.MuiAppBar-root .MuiGrid-item:nth-child(3) button')
+      if ((await $button.evaluate(node => node.textContent)) === DLTS_TEAM_ID) {
+        this.skip()
+      }
+
+      await $button.click()
+
+      await (async () => {
+        const $popover = await page.waitForSelector('.MuiPopover-root')
+        for (const $menuItem of await $popover.$$('.MuiMenuItem-root')) {
+          if ((await $menuItem.evaluate(node => node.textContent)) === DLTS_TEAM_ID) {
+            await $menuItem.click()
+            return true
+          }
+        }
+        return false
+      })().should.eventually.be.true()
+
+      await page.waitFor(1000)
+      await (
+        await page.waitForSelector('header.MuiAppBar-root .MuiGrid-item:nth-child(3) button')
+      ).evaluate(node => node.textContent).should.eventually.equal(DLTS_TEAM_ID)
+
+      await (async () => {
+        for (const $cardHeaderTitle of await page.$$('.MuiCard-root .MuiCardHeader-root .MuiCardHeader-title')) {
+          if ((await $cardHeaderTitle.evaluate(node => node.textContent)) === DLTS_CLUSTER_ID) {
+            return true
+          }
+        }
+        return false
+      })().should.eventually.be.true()
     })
 
     it('submit job', async function () {
@@ -87,6 +126,10 @@ describe('Deep Learning Training Service', function () {
       await (
         await page.waitForSelector('form button[type="submit"]')
       ).click()
+
+      await page.waitForFunction(
+        (pathnamePrefix) => window.location.pathname.startsWith(pathnamePrefix),
+        { polling: 'mutation' }, `/jobs/${DLTS_CLUSTER_ID}`)
     })
 
     it('retrieve job log', async function () {

@@ -2,4 +2,4 @@ require:
 - dotenv/config
 - should
 bail: true
-timeout: false
+timeout: 1m
