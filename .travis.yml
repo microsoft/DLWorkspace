@@ -75,7 +75,7 @@ matrix:
     before_install:
       - cd src/docker-images/job-insighter
     install:
-      - pip install requests markdown_strings
+      - pip install requests
     script:
       - python -m unittest discover .
   - language: python

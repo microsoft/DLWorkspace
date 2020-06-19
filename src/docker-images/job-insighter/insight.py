@@ -9,7 +9,6 @@ import requests
 import timeit
 import urllib.parse
 import time
-import markdown_strings as md
 
 from datetime import datetime, timedelta
 
@@ -244,14 +243,12 @@ class Insighter(object):
         self.max_memory_per_gpu = None
 
         # Generate insight messages
-        self.diagnostics = ""
+        self.diagnostics = []
 
     def export(self):
-        """Valid call after generate"""
         return {
             "job_id": self.job_id,
-            "since": self.since,
-            "end": self.end,
+            "timestamp": self.end,
             "diagnostics": self.diagnostics,
         }
 
@@ -276,7 +273,7 @@ class Insighter(object):
             [timespan(ts) for _, ts in self.job_util["cpu"].items()])
         timespans.extend(
             [timespan(ts) for _, ts in self.job_util["memory"].items()])
-        self.job_timespan = min(timespans)
+        self.job_timespan = int(min(timespans) / 60)  # in minutes
 
     def gen_usage_aggregates(self):
         gpu, gpu_memory, cpu, memory = self.get_avg_usage_over_time()
@@ -322,98 +319,57 @@ class Insighter(object):
         return gpu, gpu_memory, cpu, memory
 
     def gen_diagnostics(self):
-        insight_timespan_threshold = 10 * 60  # 10 min
-        if self.job_timespan < insight_timespan_threshold:
-            msg = "Insight will be available when more metric samples are " \
-                  "collected.\n"
-            self.diagnostics += msg
+        timespan_threshold = 10  # 10 min
+        if self.job_timespan < timespan_threshold:
+            logger.debug(
+                "job_timespan %s min too short for insight (threshold %s min)",
+                self.job_timespan, timespan_threshold)
             return
 
         # Check idleness
-        self.diagnostics += md.header("GPU Idleness", 2) + "\n"
         if len(self.idle_gpus) == self.num_gpus:
-            msg = md.bold("All of %s GPU(s) in the job are idle. " %
-                          len(self.idle_gpus))
-            msg += "Please consider killing the job if you no longer need it.\n"
-            self.diagnostics += msg
+            self.diagnostics.append([
+                "WARNING",
+                "All %s GPU(s) are idle over the last %s minutes. Please consider killing the job if you no longer need it" %
+                (self.num_gpus, self.job_timespan),
+                "KillJob",
+            ])
             return
         elif len(self.idle_gpus) > 0:
-            msg = md.bold("There are %s idle GPU(s) in the job.\n" %
-                          len(self.idle_gpus))
-            c1 = "If you are running a job on all GPUs, please check if the process(es) on the idle GPU(s) have died/hung"
-            c2 = "If you do not need all GPUs in the job, please consider killing the job and request a new job with fewer GPUs."
-            msg += md.unordered_list([c1, c2]) + "\n"
-            self.diagnostics += msg
-        else:
-            self.diagnostics += md.bold("All GPU(s) are active.") + "\n"
-        self.diagnostics += "\n"
+            self.diagnostics.append([
+                "WARNING",
+                "%s GPU(s) are idle over the last %s minutes. If you are running a job on all GPUs, please check if the process(es) on the idle GPU(s) have died/hung. If you do not need all GPUs in the job, please consider killing the job and request a new job with fewer GPUs." %
+                (len(self.idle_gpus), self.job_timespan),
+                "KillJob",
+            ])
 
         # Check Resource usage for active GPUs
-        self.diagnostics += md.header("Active GPU Utilization", 2) + "\n"
         good_gpu_util_threshold = 90
         good_gpu_mem_util_threshold = 50
-        if self.active_gpu_util >= good_gpu_util_threshold:
-            msg = "Average active GPU utilization over time is good at " \
-                  "%.2f%%.\n" % self.active_gpu_util
-            self.diagnostics += msg
-        else:
-            msg = "Average active GPU utilization over time is " \
-                  "%.2f%% < %s%%. You can try below suggestions to boost " \
-                  "GPU utilization:\n" % \
-                  (self.active_gpu_util, good_gpu_util_threshold)
+        if self.active_gpu_util < good_gpu_util_threshold:
+            msg = "Average active GPU utilization is %.1f%% (below %s%%) over the last %s minutes. " % \
+                (self.active_gpu_util, good_gpu_util_threshold,
+                 self.job_timespan)
 
-            suggestions = []
             if self.active_gpu_memory_util < good_gpu_mem_util_threshold:
-                suggestions.append(
-                    "Average active GPU memory utilization over time is below "
-                    "%s%%. Try increasing batch size to put more data "
-                    "onto GPU memory to boost GPU utilization. For a "
-                    "distributed job, if the model has strict "
-                    "requirement on the global effective batch size "
-                    "for convergence, you can consider using a job "
-                    "with fewer GPUs and bigger batch size per GPU."
-                    % good_gpu_mem_util_threshold)
+                msg += "Average active GPU memory utilization is %.1f%% (below %s%%). Try increasing the batch size to put more data onto GPU memory to boost GPU utilization. For a distributed job, if the model has strict requirement on the global effective batch size for convergence, you can consider using a job with fewer GPUs and bigger batch size per GPU. " % \
+                    (self.active_gpu_memory_util, good_gpu_mem_util_threshold)
 
             if self.max_cpu_per_gpu is not None and \
                     self.cpu_per_active_gpu < self.max_cpu_per_gpu:
-                suggestions.append(
-                    "The job uses %.2f CPU cores per active GPU on average"
-                    "over time. The maximum CPU cores per GPU you can "
-                    "use without interfering with other GPUs in this "
-                    "cluster is %.2f. You can use more CPU cores to "
-                    "perform data preprocessing to keep GPUs from "
-                    "starvation. Please consider using/increasing "
-                    "parallel preprocessing on your input data." %
+                msg += "The job uses %.1f CPU cores per active GPU on average. The maximum CPU cores per GPU you can use without interfering with other GPU(s) is %.1f. You can use more CPU cores to perform data preprocessing to keep GPUs from starvation. Please consider using/increasing parallel preprocessing on your input data. " % \
                     (self.cpu_per_active_gpu, self.max_cpu_per_gpu)
-                )
 
             if self.max_memory_per_gpu is not None and \
                     self.memory_per_active_gpu < self.max_memory_per_gpu:
-                suggestions.append(
-                    "The job uses %.2fG memory per active GPU on average"
-                    "over time. The maximum memory per GPU you can "
-                    "use without interfering with other GPUs in this "
-                    "cluster is %.2fG. You can preload more input "
-                    "data into memory to make sure your data pipeline "
-                    "is never waiting on data loading from "
-                    "disk/remote." % (self.memory_per_active_gpu / G,
-                                      self.max_memory_per_gpu / G)
-                )
+                msg += "The job uses %.1fG memory per active GPU on average. The maximum memory per GPU you can use without interfering with other GPU(s) is %.1fG. You can preload more input data into memory to ensure your data pipeline is never waiting on data from disk/remote. " % \
+                       (self.memory_per_active_gpu / G,
+                        self.max_memory_per_gpu / G)
 
-            suggestions.append(
-                "Please check if your program is waiting on NFS I/O. "
-                "If so, please consider using scalable storage, e.g. "
-                "Azure blob."
-            )
+            msg += "Please check if your program is waiting on NFS I/O. If so, please consider using scalable storage, e.g. Azure blob. "
+            msg += "Please also take a closer look at METRICS tab to better understand the utilization pattern of GPU, GPU memory, CPU, and memory over time for further optimization."
 
-            suggestions.append(
-                "Suggestions above are purely based on average usage over a "
-                "time window. Please take a closer look at METRICS tab to "
-                "better understand the utilization pattern of GPU, GPU "
-                "memory, CPU and memory over time for further optimization."
-            )
-            msg += md.unordered_list(suggestions) + "\n"
-            self.diagnostics += msg + "\n"
+            self.diagnostics.append(["INFO", msg, ""])
 
 
 def get_job_utils(task_gpu_percent, task_gpu_mem_percent, task_cpu_percent,
@@ -507,7 +463,7 @@ def upload_insights(insights, restful_url, dry_run):
 
 
 def run(prometheus_url, mins_ago, restful_url, dry_run):
-    now = datetime.now()
+    now = datetime.utcnow()
     since = int(datetime.timestamp(now - timedelta(minutes=mins_ago)))
     end = int(datetime.timestamp(now))
     step = "1m"
