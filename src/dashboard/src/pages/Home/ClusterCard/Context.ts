@@ -6,7 +6,7 @@ import {
   useEffect
 } from 'react';
 
-import useFetch from 'use-http-2';
+import useFetch from 'use-http-1';
 
 import { useSnackbar } from 'notistack';
 
@@ -29,7 +29,6 @@ const ClusterProvider: FunctionComponent<ClusterProviderProps> = ({ id, children
 
   const { data: status, loading, error, get } = useFetch(
     `/api/v2/clusters/${id}/teams/${currentTeamId}`,
-    undefined,
     [id, currentTeamId]);
 
   useEffect(() => {

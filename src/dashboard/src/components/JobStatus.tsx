@@ -23,7 +23,7 @@ import {
 //   ThemeProvider,
 // } from '@material-ui/styles';
 
-import useFetch from 'use-http-2';
+import useFetch from 'use-http-1';
 
 interface Props {
   cluster: string;
@@ -31,6 +31,7 @@ interface Props {
 }
 
 const JobStatus: FunctionComponent<Props> = ({ cluster, job }) => {
+  const id = useMemo<string>(() => job['jobId'], [job]);
   const status = useMemo<string>(() => job['jobStatus'], [job]);
   const icon = useMemo(() =>
     status === 'unapproved' ? <HourglassEmpty/>
@@ -63,8 +64,7 @@ const JobStatus: FunctionComponent<Props> = ({ cluster, job }) => {
   const label = useMemo(() => capitalize(status), [status]);
 
   const { data: statusData, get, abort } = useFetch(
-    `/api/clusters/${cluster}/jobs/${job['jobId']}/status`,
-    undefined);
+    `/api/clusters/${cluster}/jobs/${id}/status`);
 
   const detail = useMemo<Array<any>>(() => job['jobStatusDetail'], [job]);
   const title = useMemo(() => {
@@ -83,10 +83,10 @@ const JobStatus: FunctionComponent<Props> = ({ cluster, job }) => {
 
   useEffect(() => {
     if (status === 'failed' || status === 'killed') {
-      get()
+      get();
+      return abort;
     }
-    return abort;
-  }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, status, get, abort]);
 
   let deleteIcon: ReactElement | undefined = undefined;
   if (title) {
