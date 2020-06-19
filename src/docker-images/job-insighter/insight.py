@@ -352,7 +352,7 @@ class Insighter(object):
                  self.job_timespan)
 
             if self.active_gpu_memory_util < good_gpu_mem_util_threshold:
-                msg += "Average active GPU memory utilization is %s%% (below %s%%). Try increasing the batch size to put more data onto GPU memory to boost GPU utilization. For a distributed job, if the model has strict requirement on the global effective batch size for convergence, you can consider using a job with fewer GPUs and bigger batch size per GPU. " % \
+                msg += "Average active GPU memory utilization is %.1f%% (below %s%%). Try increasing the batch size to put more data onto GPU memory to boost GPU utilization. For a distributed job, if the model has strict requirement on the global effective batch size for convergence, you can consider using a job with fewer GPUs and bigger batch size per GPU. " % \
                     (self.active_gpu_memory_util, good_gpu_mem_util_threshold)
 
             if self.max_cpu_per_gpu is not None and \
