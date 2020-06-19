@@ -39,15 +39,9 @@ set +e
 # Execute user's command for the job
 if [ "$DLTS_ROLE_NAME" = "worker" ];
 then
-    runuser -l ${DLTS_USER_NAME} -c "sleep infinity"
+    exec /usr/local/bin/init runuser -l ${DLTS_USER_NAME} -c "sleep infinity"
 else
     printenv DLTS_LAUNCH_CMD > /dlts-runtime/status/job_command.sh
     chmod +x /dlts-runtime/status/job_command.sh
-    runuser -s /bin/bash -l ${DLTS_USER_NAME} -c /dlts-runtime/status/job_command.sh
-    # Save exit code
-    EXIT_CODE=$?
-    echo  `date` ": ${EXIT_CODE}"
+    exec /usr/local/bin/init runuser -s /bin/bash -l ${DLTS_USER_NAME} -c /dlts-runtime/status/job_command.sh
 fi
-
-# exit
-exit ${EXIT_CODE}

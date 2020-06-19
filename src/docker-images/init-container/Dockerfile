@@ -21,6 +21,10 @@ WORKDIR /gpu_topo_build
 COPY gpu_topo.cpp /gpu_topo_build
 RUN g++ -o gpu_topo gpu_topo.cpp
 
+FROM golang:1.12.6-alpine as go-builder
+COPY runtime /runtime
+RUN go build -o /runtime/init /runtime/init.go
+
 FROM python:3.8.0-alpine3.10
 
 WORKDIR /dlts-init
@@ -30,6 +34,7 @@ RUN pip3 install -r /dlts-init/requirements.txt
 
 COPY --from=builder /ssh_build/root /dlts-init/ssh_build
 COPY --from=builder /gpu_topo_build/gpu_topo /dlts-init/gpu_topo
+COPY --from=go-builder /runtime/init /dlts-init/init
 
 COPY install.sh init.sh /dlts-init/
 COPY ssh_config /dlts-init/ssh_config
