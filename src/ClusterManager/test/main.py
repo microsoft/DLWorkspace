@@ -27,6 +27,22 @@ def should_run(model_name, case_name, full_name, targets):
     return False
 
 
+def pick_unfinished_failed_case(case_names, result):
+    unfinished = []
+    failed = []
+
+    for i, case_name in enumerate(case_names):
+        if result[i] is False:
+            continue
+        elif result[i] is True:
+            failed.append(case_name)
+        elif result[i] is None:
+            unfinished.append(case_name)
+        else:
+            logger.warning("unknown return value for case %s", case_name)
+    return unfinished, failed
+
+
 def main(args):
     start = datetime.datetime.now()
 
@@ -37,8 +53,11 @@ def main(args):
     else:
         targets = args.case.split(",")
 
-    cases = []
-    case_names = []
+    normal_cases = []
+    normal_case_names = []
+
+    dangerouse_cases = []
+    dangerouse_case_names = []
 
     for name in f_names:
         model_name = name[:-3]
@@ -50,42 +69,50 @@ def main(args):
                 continue
             if not getattr(obj, "is_case"):
                 continue
-            logger.debug("found case %s.%s", model_name, obj_name)
 
             full_name = model_name + "." + obj_name
 
             if not should_run(model_name, obj_name, full_name, targets):
                 continue
 
-            cases.append(obj)
-            case_names.append(full_name)
+            if getattr(obj, "is_dangerous_case"):
+                dangerouse_cases.append(obj)
+                dangerouse_case_names.append(full_name)
+            else:
+                normal_cases.append(obj)
+                normal_case_names.append(full_name)
 
-    logger.info("will run %d cases %s %s times", len(case_names), case_names,
-                args.nums)
+    logger.info("will run %d normal cases %s %s times", len(normal_case_names),
+                normal_case_names, args.nums)
+    if not args.dangerous:
+        logger.info("skip run %d dangerous cases %s",
+                    len(dangerouse_case_names), ",".join(dangerouse_case_names))
+    else:
+        logger.info("will run %d dangerous cases %s",
+                    len(dangerouse_case_names), dangerouse_case_names)
+
     if args.nums > 1:
-        cp = copy.deepcopy(cases)
-        name_cp = copy.deepcopy(case_names)
+        cp = copy.deepcopy(normal_cases)
+        name_cp = copy.deepcopy(normal_case_names)
         for i in range(args.nums):
-            cases.extend(cp)
-            case_names.extend(name_cp)
-    num_proc = min(args.process, len(cases))
+            normal_cases.extend(cp)
+            normal_case_names.extend(name_cp)
+    num_proc = min(args.process, len(normal_cases))
 
-    result = utils.run_cases_in_parallel(cases, args, num_proc)
+    all_case_names = copy.deepcopy(normal_case_names)
 
-    failed = []
-    unfinished = []
-    for i, case_name in enumerate(case_names):
-        if result[i] is False:
-            continue
-        elif result[i] is True:
-            failed.append(case_name)
-        elif result[i] is None:
-            unfinished.append(case_name)
-        else:
-            logger.warning("unknown return value for case %s", case_name)
+    result = utils.run_cases_in_parallel(normal_cases, args, num_proc)
+
+    if args.dangerous:
+        # dangerous case usually involve change vc settings, so run them in sequential
+        all_case_names.extend(dangerouse_case_names)
+        result.extend(utils.run_cases_in_parallel(dangerouse_cases, args, 1))
+
+    unfinished, failed = pick_unfinished_failed_case(all_case_names, result)
 
     logger.info("spent %s in executing %d cases %s",
-                datetime.datetime.now() - start, len(case_names), case_names)
+                datetime.datetime.now() - start, len(all_case_names),
+                all_case_names)
 
     logger.info("%d failed %s", len(failed), ",".join(failed))
     logger.info("%d unfinished %s", len(unfinished), ",".join(unfinished))
@@ -133,6 +160,11 @@ if __name__ == '__main__':
                         type=int,
                         default=1,
                         help="number of times to test all cases")
+    parser.add_argument(
+        "--dangerous",
+        "-d",
+        action="store_true",
+        help="run dangerous cases or not, these cases will change settings")
     args = parser.parse_args()
 
     main(args)

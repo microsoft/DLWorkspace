@@ -13,6 +13,7 @@ import functools
 import inspect
 import re
 import multiprocessing
+import copy
 
 import requests
 
@@ -39,7 +40,7 @@ def walk_json(obj, *fields, default=None):
         return default
 
 
-def case(unstable=False):
+def case(unstable=False, dangerous=False):
     """ return False on success, True on failed, None on unfinished """
     def decorator(fn):
         @functools.wraps(fn)
@@ -64,6 +65,7 @@ def case(unstable=False):
             return True
 
         wrapped.is_case = True
+        wrapped.is_dangerous_case = dangerous
         return wrapped
 
     return decorator
@@ -434,6 +436,28 @@ def post_job(rest_url, job_spec):
     return jid
 
 
+def get_vc_meta(rest_url, vc_name, username):
+    args = urllib.parse.urlencode({
+        "userName": username,
+        "vcName": vc_name,
+    })
+    url = urllib.parse.urljoin(rest_url, "/VCMeta") + "?" + args
+    resp = requests.get(url)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def update_vc_meta(rest_url, vc_name, username, vc_meta):
+    args = urllib.parse.urlencode({
+        "userName": username,
+        "vcName": vc_name,
+    })
+    url = urllib.parse.urljoin(rest_url, "/VCMeta") + "?" + args
+    resp = requests.post(url, json=vc_meta)
+    resp.raise_for_status()
+    return resp.json()
+
+
 def scale_job(rest_url, email, job_id, resourcegpu):
     args = urllib.parse.urlencode({
         "userName": email,
@@ -509,6 +533,37 @@ class run_job(object):
                                         timeout=timeout)
 
 
+class vc_setting(object):
+    def __init__(self, rest_url, vc_name, username, vc_spec):
+        self.rest_url = rest_url
+        self.vc_name = vc_name
+        self.username = username
+        self.vc_spec = vc_spec
+        self.origin_vc_spec = None
+
+    def __enter__(self):
+        self.origin_vc_spec = get_vc_meta(self.rest_url, self.vc_name,
+                                          self.username)
+        spec = copy.deepcopy(self.origin_vc_spec)
+        spec.update(self.vc_spec)
+        update_vc_meta(self.rest_url, self.vc_name, self.username, spec)
+        logger.info("update vc meta from %s to %s",
+                    json.dumps(self.origin_vc_spec), json.dumps(spec))
+        return self
+
+    def __exit__(self, type, value, traceback):
+        try:
+            if self.origin_vc_spec is None:
+                return
+            update_vc_meta(self.rest_url, self.vc_name, self.username,
+                           self.origin_vc_spec)
+            logger.info("rollback vc meta to %s",
+                        json.dumps(self.origin_vc_spec))
+        except Exception:
+            logger.exception("failed to rollback vc meta %s",
+                             json.dumps(self.origin_vc_spec))
+
+
 def block_until_state(rest_url, jid, not_in, states, timeout=300):
     start = datetime.datetime.now()
 
@@ -570,6 +625,7 @@ def create_endpoint(rest_url, email, jid, point_names):
     url = urllib.parse.urljoin(rest_url, "/endpoints") + "?" + args
     payload = {"jobId": jid, "endpoints": point_names}
     resp = requests.post(url, json=payload)
+    resp.raise_for_status()
     return resp.json()
 
 

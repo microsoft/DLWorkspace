@@ -34,7 +34,7 @@ RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.15.2/b
         mv kubectl /usr/local/bin
 
 RUN pip3 install setuptools wheel
-RUN pip3 install mysql-connector-python flask flask-restful requests tzlocal DBUtils mysqlclient
+RUN pip3 install mysql-connector-python flask flask-restful flask-cors requests tzlocal DBUtils mysqlclient
 
 RUN usermod -a -G sudo www-data
 RUN echo "\nwww-data ALL=(ALL) NOPASSWD:ALL\n" > /etc/sudoers

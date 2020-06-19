@@ -888,7 +888,7 @@ def test_regular_job_no_distributed_system_envs(args):
                     expected_output, output)
 
 
-#@utils.case() TODO setup vc config to test this
+@utils.case(dangerous=True)
 def test_do_not_starve_big_job(args):
     big_job_spec = utils.gen_default_job_description("regular",
                                                      args.email,
@@ -900,27 +900,30 @@ def test_do_not_starve_big_job(args):
                                                        args.uid, args.vc)
     small_job_spec["jobName"] += ".small_job"
 
-    with utils.run_job(args.rest, big_job_spec) as big_job:
-        with utils.run_job(args.rest, small_job_spec) as small_job:
-            state = small_job.block_until_state_not_in({"unapproved"})
-            assert state == "queued"
+    with utils.vc_setting(args.rest, args.vc, args.email,
+                          {"scheduling_policy": "FIFO"}):
+        with utils.run_job(args.rest, big_job_spec) as big_job:
+            with utils.run_job(args.rest, small_job_spec) as small_job:
+                state = small_job.block_until_state_not_in({"unapproved"})
+                assert state == "queued"
 
-            state = utils.get_job_status(args.rest, big_job.jid)["jobStatus"]
-            # if vc has user_quota, it will be unapproved
-            assert state in {"queued", "unapproved"}
+                state = utils.get_job_status(args.rest,
+                                             big_job.jid)["jobStatus"]
+                # if vc has user_quota, it will be unapproved
+                assert state in {"queued", "unapproved"}
 
-            expected = "blocked by job with higher priority"
-            for _ in range(50):
-                details = utils.get_job_detail(args.rest, args.email,
-                                               small_job.jid)
+                expected = "blocked by job with higher priority"
+                for _ in range(50):
+                    details = utils.get_job_detail(args.rest, args.email,
+                                                   small_job.jid)
 
-                message = utils.walk_json(details, "jobStatusDetail", 0,
-                                          "message")
-                if expected in message:
-                    break
+                    message = utils.walk_json(details, "jobStatusDetail", 0,
+                                              "message")
+                    if expected in message:
+                        break
 
-                time.sleep(0.5)
-            assert expected in message, "unexpected detail " + str(details)
+                    time.sleep(0.5)
+                assert expected in message, "unexpected detail " + str(details)
 
 
 @utils.case()
@@ -965,6 +968,45 @@ def test_set_max_time_works(args):
 
         state = job.block_until_state_not_in({"running"}, timeout=30)
         assert state == "killed"
+        expected = "running exceed pre-defined 1s"
+
+        details = utils.get_job_detail(args.rest, args.email, job.jid)
+        message = details.get("errorMsg")
+        assert message == expected, "unexpected message " + message
+
+
+@utils.case(dangerous=True)
+def test_set_max_time_in_vc(args):
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.vc_setting(args.rest, args.vc, args.email,
+                          {"job_max_time_second": 5}):
+        with utils.run_job(args.rest, job_spec) as job:
+            state = job.block_until_state_not_in(
+                {"unapproved", "queued", "scheduling"})
+            assert state == "running"
+
+            state = job.block_until_state_not_in({"running"}, timeout=30)
+            assert state == "killed"
+            expected = "running exceed pre-defined 5s"
+
+            details = utils.get_job_detail(args.rest, args.email, job.jid)
+            message = details.get("errorMsg")
+            assert message == expected, "unexpected message " + message
+
+
+#@utils.case(dangerous=True) should have a way to create a normal user
+def test_can_not_create_endpoint_if_interactive_limit(args):
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.vc_setting(args.rest, args.vc, args.email,
+                          {"interactive_limit": 0}):
+        with utils.run_job(args.rest, job_spec) as job:
+            endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
+                                              ["ssh"])
+            assert False, "should not post endpoints successfully"
 
 
 @utils.case()

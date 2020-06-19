@@ -944,6 +944,115 @@ def get_vc(username, vc_name):
     return ret
 
 
+def get_vc_meta(username, vc_name):
+    try:
+        if has_access(username, VC, vc_name, ADMIN):
+            result = {}
+            with DataHandler() as data_handler:
+                meta = json.loads(data_handler.GetVC(vc_name)["metadata"])
+                result["scheduling_policy"] = walk_json(meta,
+                                                        "admin",
+                                                        "scheduling_policy",
+                                                        default="RF")
+                result["job_max_time_second"] = walk_json(
+                    meta, "admin", "job_max_time_second")
+                result["interactive_limit"] = walk_json(meta, "admin",
+                                                        "interactive_limit")
+                return result, 200
+        else:
+            return {
+                "error":
+                    "%s do not have permission to query meta from vc %s" %
+                    (username, vc_name)
+            }, 403
+    except Exception as e:
+        logger.exception("Exception in get_vc_meta VC %s for user %s", vc_name,
+                         username)
+
+        return {
+            "error":
+                "failed to get meta from vc %s, exception %s" %
+                (vc_name, str(e))
+        }, 500
+
+
+def patch_vc_meta(username, vc_name, vc_meta):
+    try:
+        if has_access(username, VC, vc_name, ADMIN):
+            if vc_meta is None or len(vc_meta) == 0:
+                return {"error": "empty vc_meta"}, 400
+            with DataHandler() as data_handler:
+                meta = json.loads(data_handler.GetVC(vc_name)["metadata"])
+                origin = copy.deepcopy(meta)
+                if meta.get("admin") is None:
+                    meta["admin"] = {}
+
+                if "scheduling_policy" in vc_meta:
+                    scheduling_policy = vc_meta.pop("scheduling_policy")
+                    if scheduling_policy is not None and scheduling_policy not in {
+                            "RF", "FIFO"
+                    }:
+                        return {
+                            "error":
+                                "unknown scheduling_policy %s" %
+                                (scheduling_policy)
+                        }, 400
+                    else:
+                        meta["admin"]["scheduling_policy"] = scheduling_policy
+
+                if "job_max_time_second" in vc_meta:
+                    job_max_time_second = vc_meta.pop("job_max_time_second")
+                    if job_max_time_second is not None and type(
+                            job_max_time_second) != int:
+                        return {
+                            "error":
+                                "job_max_time_second should be int, got %s with type %s"
+                                %
+                                (job_max_time_second, type(job_max_time_second))
+                        }, 400
+                    else:
+                        meta["admin"][
+                            "job_max_time_second"] = job_max_time_second
+
+                if "interactive_limit" in vc_meta:
+                    interactive_limit = vc_meta.pop("interactive_limit")
+                    if interactive_limit is not None and type(
+                            interactive_limit) != int:
+                        return {
+                            "error":
+                                "interactive_limit should be int, got %s with type %s"
+                                % (interactive_limit, type(interactive_limit))
+                        }, 400
+                    else:
+                        meta["admin"]["interactive_limit"] = interactive_limit
+
+                if len(vc_meta) > 0:
+                    return {
+                        "error": "unknown key(s) %s" % (str(vc_meta.keys()))
+                    }, 400
+                else:
+                    logger.info("%s update vc meta for %s from %s to %s",
+                                username, vc_name, json.dumps(origin),
+                                json.dumps(meta))
+                    data_handler.UpdateVCMeta(vc_name, json.dumps(meta))
+                    return {"error": None}, 200
+        else:
+            return {
+                "error":
+                    "%s do not have permission to query meta from vc %s" %
+                    (username, vc_name)
+            }, 403
+    except Exception as e:
+        logger.exception("Exception in get_vc_meta VC %s for user %s", vc_name,
+                         username)
+
+        return {
+            "error":
+                "failed to get meta from vc %s, exception %s" %
+                (vc_name, str(e))
+        }, 500
+
+
 def get_node_status_simplified(node_status):
     if node_status is None:
         return None
