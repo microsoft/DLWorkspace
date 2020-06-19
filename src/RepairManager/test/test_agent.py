@@ -28,6 +28,7 @@ class RuleForTest(Rule):
         super(RuleForTest, self).__init__("test")
         self.health = True
         self.prepared = False
+        self.is_repaired = False
 
     def update_data(self):
         pass
@@ -38,6 +39,9 @@ class RuleForTest(Rule):
     def prepare(self, node):
         return self.prepared
 
+    def repair(self):
+        return self.is_repaired
+
 
 class TestAgent(unittest.TestCase):
     def setUp(self):
@@ -46,7 +50,7 @@ class TestAgent(unittest.TestCase):
             level="DEBUG")
         self.ip = "localhost"
         self.port = random.randrange(9000, 9200)
-        self.agent = Agent([RuleForTest()], self.port, dry_run=True)
+        self.agent = Agent([RuleForTest()], self.port)
 
     def test_serve(self):
         server = threading.Thread(
@@ -103,15 +107,15 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
 
     def test_handle(self):
+        self.assertIsNone(self.agent.repair_rules.get())
+        self.agent.repair_rules.set(["NoDefRule", "RuleForTest"])
+
         # Should be able to clear all repair rules whether they are valid or not
         handler = threading.Thread(
             target=self.agent.handle, name="agent_handler", daemon=True)
         handler.start()
 
-        self.assertIsNone(self.agent.repair_rules.get())
-        self.agent.repair_rules.set(["NoDefRule", "RuleForTest"])
-
-        def wait_for_rule_cleanup(timeout=10):
+        def wait_for_rule_cleanup(timeout=6):
             start = time.time()
             while True:
                 if time.time() - start > timeout:
@@ -119,6 +123,12 @@ class TestAgent(unittest.TestCase):
                 if self.agent.repair_rules.get() is None:
                     return True
 
+        # Agent should keep repairing if failed to repair
+        self.agent.rules[0].is_repaired = False
+        self.assertFalse(wait_for_rule_cleanup())
+
+        # Agent should keep repairing if failed to repair
+        self.agent.rules[0].is_repaired = True
         self.assertTrue(wait_for_rule_cleanup())
 
 

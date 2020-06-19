@@ -61,6 +61,7 @@ class Agent(object):
             if repair_rules is not None:
                 logger.info("handle rule repair: %s", repair_rules)
                 try:
+                    is_repaired = True
                     for rule_name in repair_rules:
                         rule = rules_mapping.get(rule_name)
                         if rule is None:
@@ -69,13 +70,18 @@ class Agent(object):
                             continue
                         if not self.dry_run:
                             logger.info("rule repair: %s", rule_name)
-                            rule.repair()
+                            if rule.repair() is False:
+                                is_repaired = False
+                                break
                         else:
                             logger.info("DRY RUN rule repair: %s", rule_name)
+                            is_repaired = False
+                    # Only when the repair succeeds can the rules be cleared
+                    if is_repaired:
+                        self.repair_rules.set(None)
                 except:
                     logger.exception(
                         "failed to handle rule repair: %s", repair_rules)
-                self.repair_rules.set(None)
             time.sleep(3)
 
 
