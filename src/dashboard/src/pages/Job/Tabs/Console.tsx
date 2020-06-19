@@ -7,7 +7,7 @@ import {
 import {
   Box
 } from '@material-ui/core';
-import useFetch from 'use-http-2';
+import useFetch from 'use-http-1';
 import { useSnackbar } from 'notistack';
 import { mergeWith } from 'lodash';
 
@@ -20,7 +20,7 @@ import useRouteParams from '../useRouteParams';
 const Console: FunctionComponent = () => {
   const { clusterId, jobId } = useRouteParams();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const { data, loading, error, get } = useFetch(
+  const { data, loading, error, get, abort } = useFetch(
     `/api/clusters/${clusterId}/jobs/${jobId}/log`, useConstant({
       onNewData (currentData, newData) {
         if (currentData === undefined || currentData.cursor == null) {
@@ -88,8 +88,9 @@ ${log[podName]}
     const timeout = setTimeout(get, delay, querystring);
     return () => {
       clearTimeout(timeout);
+      abort();
     }
-  }, [data, loading, error, get]);
+  }, [data, loading, error, get, abort]);
 
   useEffect(() => {
     if (error === undefined) return;

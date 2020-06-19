@@ -12,7 +12,7 @@ import {
   Container,
 } from '@material-ui/core';
 import { useSnackbar } from 'notistack';
-import useFetch from 'use-http-2';
+import useFetch from 'use-http-1';
 
 import UserContext from '../../contexts/User';
 import ClustersContext from '../../contexts/Clusters';
@@ -31,10 +31,10 @@ const JobContent: FunctionComponent = () => {
   const { clusters } = useContext(ClustersContext);
 
   const { data: job, loading: jobLoading, error: jobError, get: getJob } =
-    useFetch(`/api/v2/clusters/${clusterId}/jobs/${jobId}`, undefined, [clusterId, jobId]);
+    useFetch(`/api/v2/clusters/${clusterId}/jobs/${jobId}`, [clusterId, jobId]);
 
   const { data: cluster, error: clusterError } =
-    useFetch(`/api/clusters/${clusterId}`, undefined, [clusterId]);
+    useFetch(`/api/clusters/${clusterId}`, [clusterId]);
 
   const teamCluster = useMemo(() => {
     if (job === undefined) return undefined;

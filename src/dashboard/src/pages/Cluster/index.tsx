@@ -20,7 +20,7 @@ import {
   Typography,
   Paper,
 } from '@material-ui/core';
-import useFetch from 'use-http-2';
+import useFetch from 'use-http-1';
 import { useSnackbar } from 'notistack';
 
 import TeamContext from '../../contexts/Team';
@@ -103,7 +103,6 @@ const ClusterContent: FunctionComponent = () => {
 
   const { data, error, loading, get } = useFetch(
     `/api/v2/teams/${currentTeamId}/clusters/${clusterId}`,
-    undefined,
     [clusterId, currentTeamId]
   );
 

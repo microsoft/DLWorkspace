@@ -6,7 +6,7 @@ import {
   useEffect,
   useState
 } from 'react';
-import useFetch from "use-http-2";
+import useFetch from "use-http-1";
 
 import { find } from "lodash";
 
