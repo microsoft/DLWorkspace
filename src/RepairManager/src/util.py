@@ -123,13 +123,13 @@ class RestUtil(object):
     def list_vcs(self):
         args = urllib.parse.urlencode({"userName": "Administrator"})
         url = urllib.parse.urljoin(self.rest_url, "/ListVCs") + "?" + args
-        resp = requests.get(url)
+        resp = requests.get(url, timeout=5)
         return resp.json()
 
     def get_job_status(self, job_id):
         args = urllib.parse.urlencode({"jobId": job_id})
         url = urllib.parse.urljoin(self.rest_url, "/GetJobStatus") + "?" + args
-        resp = requests.get(url)
+        resp = requests.get(url, timeout=5)
         return resp.json()
 
     def pause_jobs(self, job_ids):
@@ -138,7 +138,7 @@ class RestUtil(object):
             "jobIds": job_ids,
         })
         url = urllib.parse.urljoin(self.rest_url, "/PauseJobs") + "?" + args
-        resp = requests.get(url)
+        resp = requests.get(url, timeout=5)
         return resp.json()
 
     def resume_jobs(self, job_ids):
@@ -147,7 +147,7 @@ class RestUtil(object):
             "jobIds": job_ids,
         })
         url = urllib.parse.urljoin(self.rest_url, "/ResumeJobs") + "?" + args
-        resp = requests.get(url)
+        resp = requests.get(url, timeout=5)
         return resp.json()
 
 
@@ -193,13 +193,14 @@ class Job(object):
 
 
 class Node(object):
-    def __init__(self, name, ip, ready, unschedulable, gpu_expected, gpu_total,
-                 gpu_allocatable, state, infiniband=None, ipoib=None,
+    def __init__(self, name, ip, ready, unschedulable, sku, gpu_expected,
+                 gpu_total, gpu_allocatable, state, infiniband=None, ipoib=None,
                  nv_peer_mem=None, nvsm=None, unhealthy_rules=None):
         self.name = name
         self.ip = ip
         self.ready = ready
         self.unschedulable = unschedulable
+        self.sku = sku
         self.gpu_expected = gpu_expected
         self.gpu_total = gpu_total
         self.gpu_allocatable = gpu_allocatable
@@ -210,6 +211,10 @@ class Node(object):
         self.nvsm = nvsm
         self.unhealthy_rules = unhealthy_rules if unhealthy_rules else []
         self.jobs = {}
+
+    @property
+    def state_name(self):
+        return self.state.name
 
     def __repr__(self):
         return str(self.__dict__)
@@ -247,9 +252,7 @@ def get_gpu_total_and_allocatable(k8s_node):
 
 
 def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
-    rules_mapping = {
-        rule.__class__.__name__: rule for rule in rules
-    }
+    rules_mapping = {rule.name: rule for rule in rules}
     for k8s_node in k8s_nodes:
         try:
             # Parse node name and ip
@@ -262,7 +265,7 @@ def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
             ready = get_ready(k8s_node)
             unschedulable = k8s_node.spec.unschedulable is True
 
-            sku = k8s_node.metadata.labels.get("sku")
+            sku = k8s_node.metadata.labels.get("sku", "None")
             # Parse expected gpu
             gpu_expected = metadata.get(sku, {}).get("per_node", 0)
 
@@ -311,7 +314,7 @@ def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
                             continue
                         unhealthy_rules.append(rule)
 
-            node = Node(hostname, internal_ip, ready, unschedulable,
+            node = Node(hostname, internal_ip, ready, unschedulable, sku,
                         gpu_expected, gpu_total, gpu_allocatable, state,
                         infiniband, ipoib, nv_peer_mem, nvsm, unhealthy_rules)
             nodes[internal_ip] = node

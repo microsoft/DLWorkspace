@@ -102,6 +102,10 @@ class Rule(object):
         self.rest_util = RestUtil()
         self.prometheus_util = PrometheusUtil()
 
+    @property
+    def name(self):
+        return self.__class__.__name__
+
     @override
     def update_data(self):
         """Refresh data for metrics from Prometheus source.

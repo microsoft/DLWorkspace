@@ -1,33 +1,52 @@
 #!/usr/bin/env python3
 
 import argparse
+import collections
 import datetime
 import logging
 import os
+import prometheus_client
 import requests
+import threading
 import time
 import urllib.parse
 import yaml
 
+from flask import Flask, Response
+from flask_cors import CORS
 from logging import handlers
+from prometheus_client.core import REGISTRY, GaugeMetricFamily
 from requests.exceptions import ConnectionError
 from constant import REPAIR_STATE, \
     REPAIR_STATE_LAST_UPDATE_TIME, \
     REPAIR_UNHEALTHY_RULES
-from util import State, K8sUtil, RestUtil
+from util import State, AtomicRef, K8sUtil, RestUtil
 from util import register_stack_trace_dump, get_logging_level, parse_for_nodes
 from rule import instantiate_rules
 
 logger = logging.getLogger(__name__)
 
 
+class CustomCollector(object):
+    """Custom collector object for Prometheus scraping"""
+    def __init__(self, ref):
+        self.ref = ref
+
+    def collect(self):
+        metrics = self.ref.get()
+        if metrics is not None:
+            for metric in metrics:
+                yield metric
+
+
 class RepairManager(object):
     """RepairManager controls the logic of repair cycle of each worker node.
     """
-    def __init__(self, rules, config, agent_port, k8s_util, rest_util, interval=30,
-                 dry_run=False):
+    def __init__(self, rules, config, port, agent_port, k8s_util, rest_util,
+                 interval=30, dry_run=False):
         self.rules = rules
         self.config = config
+        self.port = port
         self.agent_port = agent_port
         self.dry_run = dry_run
 
@@ -36,6 +55,57 @@ class RepairManager(object):
         self.interval = interval
 
         self.nodes = []
+
+        self.atomic_ref = AtomicRef()
+        self.handler = threading.Thread(
+            target=self.handle, name="handler", daemon=True)
+
+    def run(self):
+        self.handler.start()
+        self.serve()
+
+    def serve(self):
+        REGISTRY.register(CustomCollector(self.atomic_ref))
+
+        app = Flask(self.__class__.__name__)
+        CORS(app)
+
+        @app.route("/metrics")
+        def metrics():
+            return Response(prometheus_client.generate_latest(),
+                            mimetype="text/plain; version=0.0.4; charset=utf-8")
+
+        app.run(host="0.0.0.0", port=self.port, debug=False, use_reloader=False)
+
+    def handle(self):
+        # Main loop for repair cycle of nodes.
+        while True:
+            try:
+                # Get refresh repair state
+                self.get_repair_state()
+
+                # Update repair state for nodes
+                logger.info(
+                    "Running repair update on %s nodes against rules: %s",
+                    len(self.nodes), [rule.name for rule in self.rules])
+                for node in self.nodes:
+                    if self.validate(node):
+                        state = node.state
+                        self.update(node)
+                        if node.state != state:
+                            logger.info(
+                                "node %s (%s) repair state: %s -> %s. "
+                                "unhealthy rules: %s", node.name, node.ip, 
+                                state.name, node.state_name,
+                                self.get_unhealthy_rules_value(node))
+                    else:
+                        logger.error("validation failed for node %s", node)
+
+                # Update metrics for Prometheus scraping
+                self.update_metrics()
+            except:
+                logger.exception("failed to run")
+            time.sleep(self.interval)
 
     def get_repair_state(self):
         """Refresh nodes based on new info from kubernetes and DB. Refresh
@@ -52,30 +122,49 @@ class RepairManager(object):
             logger.exception("failed to get repair state")
             self.nodes = []
 
-    def run(self):
-        # Main loop for repair cycle of nodes.
-        while True:
-            try:
-                self.get_repair_state()
-                logger.info(
-                    "Running repair update on %s nodes against rules: %s",
-                    len(self.nodes),
-                    [rule.__class__.__name__ for rule in self.rules])
-                for node in self.nodes:
-                    if self.validate(node):
-                        state = node.state
-                        self.update(node)
-                        if node.state != state:
-                            logger.info(
-                                "node %s (%s) repair state: %s -> %s. "
-                                "unhealthy rules: %s", node.name, node.ip, 
-                                state.name, node.state.name, 
-                                self.get_unhealthy_rules_value(node))
-                    else:
-                        logger.error("validation failed for node %s", node)
-            except:
-                logger.exception("failed to run")
-            time.sleep(self.interval)
+    def update_metrics(self):
+        sku_list = set([node.sku for node in self.nodes])
+
+        # Count nodes by repair state (repair state -> {sku: count})
+        state_gauge = GaugeMetricFamily(
+            "repair_state_node_count",
+            "node count in different repair states",
+            labels=["repair_state", "sku"])
+
+        state_node_count = collections.defaultdict(
+            lambda: collections.defaultdict(lambda: 0))
+        for state in State:
+            for sku in sku_list:
+                state_node_count[state.name][sku] = 0
+
+        for node in self.nodes:
+            state_node_count[node.state_name][node.sku] += 1
+
+        for state, count_by_sku in state_node_count.items():
+            for sku, count in count_by_sku.items():
+                state_gauge.add_metric([state, sku], count)
+
+        # Count nodes by repair rule (repair rule -> {sku: count})
+        rule_gauge = GaugeMetricFamily(
+            "repair_rule_node_count",
+            "node count in different repair rules",
+            labels=["repair_rule", "sku"])
+
+        rule_node_count = collections.defaultdict(
+            lambda: collections.defaultdict(lambda: 0))
+        for rule in self.rules:
+            for sku in sku_list:
+                rule_node_count[rule.name][sku] = 0
+
+        for node in self.nodes:
+            for rule in node.unhealthy_rules:
+                rule_node_count[rule.name][node.sku] += 1
+
+        for rule, count_by_rule in rule_node_count.items():
+            for sku, count in count_by_rule.items():
+                rule_gauge.add_metric([rule, sku], count)
+
+        self.atomic_ref.set([state_gauge, rule_gauge])
 
     def validate(self, node):
         """Validate (and correct if needed) the node status. Returns True if
@@ -159,10 +248,9 @@ class RepairManager(object):
             logger.debug("nothing in unhealthy_rules for %s", url)
             return True
 
-        repair_rules = [
-            rule.__class__.__name__ for rule in node.unhealthy_rules]
+        repair_rules = [rule.name for rule in node.unhealthy_rules]
         try:
-            resp = requests.post(url, json=repair_rules)
+            resp = requests.post(url, json=repair_rules, timeout=3)
             code = resp.status_code
             logger.debug(
                 "sent repair request to %s: %s, %s. response: %s", node.name,
@@ -183,7 +271,7 @@ class RepairManager(object):
         url = urllib.parse.urljoin(
             "http://%s:%s" % (node.ip, self.agent_port), "/liveness")
         try:
-            resp = requests.get(url)
+            resp = requests.get(url, timeout=3)
             code = resp.status_code
             logger.debug(
                 "sent liveness request to %s: %s. response: %s", 
@@ -204,8 +292,7 @@ class RepairManager(object):
                 len(node.unhealthy_rules) == 0:
             value = None
         else:
-            value = ",".join([rule.__class__.__name__
-                              for rule in node.unhealthy_rules])
+            value = ",".join([rule.name for rule in node.unhealthy_rules])
         return value
 
     def patch(self, node, unschedulable=None, labels=None, annotations=None):
@@ -217,7 +304,7 @@ class RepairManager(object):
                 "node %s (%s) dry run. current state: %s, current "
                 "unschedulable: %s, target unschedulable: %s, target "
                 "labels: %s, target annotations: %s", node.name, node.ip, 
-                node.state.name, node.unschedulable, unschedulable, labels, 
+                node.state_name, node.unschedulable, unschedulable, labels,
                 annotations)
             return True
 
@@ -228,9 +315,9 @@ class RepairManager(object):
         """Move from any state into OUT_OF_POOL"""
         unschedulable = True
         labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
+        # Do not override REPAIR_UNHEALTHY_RULES
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME: str(datetime.datetime.utcnow()),
-            REPAIR_UNHEALTHY_RULES: None,
         }
         if self.patch(node, unschedulable=unschedulable, labels=labels,
                       annotations=annotations):
@@ -337,9 +424,14 @@ def main(params):
         config = get_config(params.config)
         k8s_util = K8sUtil()
         rest_util = RestUtil()
-        repair_manager = RepairManager(
-            rules, config, int(params.agent_port), k8s_util, rest_util,
-            interval=params.interval, dry_run=params.dry_run)
+        repair_manager = RepairManager(rules,
+                                       config,
+                                       int(params.port),
+                                       int(params.agent_port),
+                                       k8s_util,
+                                       rest_util,
+                                       interval=params.interval,
+                                       dry_run=params.dry_run)
         repair_manager.run()
     except:
         logger.exception("Exception in repairmanager run")

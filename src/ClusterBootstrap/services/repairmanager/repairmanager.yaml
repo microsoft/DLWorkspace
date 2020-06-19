@@ -23,6 +23,10 @@ spec:
       labels:
         task: repair
         app: repairmanager
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: '{{cnf["repair-manager"]["port"]}}'
     spec:
       hostNetwork: true
       nodeSelector:
