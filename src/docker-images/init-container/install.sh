@@ -16,3 +16,5 @@ ssh-keygen -t rsa -f /usr/etc/ssh_host_rsa_key -N "" > /dev/null
 ssh-keygen -t ecdsa -f /usr/etc/ssh_host_ecdsa_key -N "" > /dev/null
 
 cp $cwd/gpu_topo /usr/bin
+mkdir -p /usr/local/bin
+cp $cwd/init /usr/local/bin
