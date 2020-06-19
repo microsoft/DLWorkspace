@@ -60,7 +60,7 @@ class RepairManager(object):
         self.handler = threading.Thread(
             target=self.handle, name="handler", daemon=True)
 
-        # Allow 5 min for Prometheus metrics to come up
+        # Allow 5 min for metrics/info to come up to latest
         self.grace_period = 5 * 60
 
     def run(self):
