@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: job-insighter
-  namespace: default
+  namespace: kube-system
 spec:
   replicas: 1
   selector:
@@ -12,6 +12,7 @@ spec:
     metadata:
       name: job-insighter
       labels:
+        task: insight
         app: job-insighter
     spec:
       hostNetwork: true
