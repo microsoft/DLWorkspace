@@ -339,7 +339,7 @@ class Insighter(object):
             self.diagnostics.append([
                 "WARNING",
                 "%s GPU(s) are idle over the last %s minutes. If you are running a job on all GPUs, please check if the process(es) on the idle GPU(s) have died/hung. If you do not need all GPUs in the job, please consider killing the job and request a new job with fewer GPUs." %
-                (self.idle_gpus, self.job_timespan),
+                (len(self.idle_gpus), self.job_timespan),
                 "KillJob",
             ])
 
