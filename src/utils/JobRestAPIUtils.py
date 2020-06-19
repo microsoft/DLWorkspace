@@ -964,7 +964,7 @@ def get_vc_meta(username, vc_name):
                 "error":
                     "%s do not have permission to query meta from vc %s" %
                     (username, vc_name)
-            }, 401
+            }, 403
     except Exception as e:
         logger.exception("Exception in get_vc_meta VC %s for user %s", vc_name,
                          username)
@@ -983,6 +983,7 @@ def patch_vc_meta(username, vc_name, vc_meta):
                 return {"error": "empty vc_meta"}, 400
             with DataHandler() as data_handler:
                 meta = json.loads(data_handler.GetVC(vc_name)["metadata"])
+                origin = copy.deepcopy(meta)
                 if meta.get("admin") is None:
                     meta["admin"] = {}
 
@@ -1005,8 +1006,9 @@ def patch_vc_meta(username, vc_name, vc_meta):
                             job_max_time_second) != int:
                         return {
                             "error":
-                                "job_max_time_second should be int, got %s" %
-                                (job_max_time_second)
+                                "job_max_time_second should be int, got %s with type %s"
+                                %
+                                (job_max_time_second, type(job_max_time_second))
                         }, 400
                     else:
                         meta["admin"][
@@ -1018,8 +1020,8 @@ def patch_vc_meta(username, vc_name, vc_meta):
                             interactive_limit) != int:
                         return {
                             "error":
-                                "interactive_limit should be int, got %s" %
-                                (interactive_limit)
+                                "interactive_limit should be int, got %s with type %s"
+                                % (interactive_limit, type(interactive_limit))
                         }, 400
                     else:
                         meta["admin"]["interactive_limit"] = interactive_limit
@@ -1029,8 +1031,9 @@ def patch_vc_meta(username, vc_name, vc_meta):
                         "error": "unknown key(s) %s" % (str(vc_meta.keys()))
                     }, 400
                 else:
-                    logger.info("%s update vc meta for %s to %s", username,
-                                vc_name, json.dumps(meta))
+                    logger.info("%s update vc meta for %s from %s to %s",
+                                username, vc_name, json.dumps(origin),
+                                json.dumps(meta))
                     data_handler.UpdateVCMeta(vc_name, json.dumps(meta))
                     return {"error": None}, 200
         else:
@@ -1038,7 +1041,7 @@ def patch_vc_meta(username, vc_name, vc_meta):
                 "error":
                     "%s do not have permission to query meta from vc %s" %
                     (username, vc_name)
-            }, 401
+            }, 403
     except Exception as e:
         logger.exception("Exception in get_vc_meta VC %s for user %s", vc_name,
                          username)
