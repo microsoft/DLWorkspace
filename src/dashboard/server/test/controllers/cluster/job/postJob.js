@@ -71,6 +71,18 @@ describe('POST /clusters/:clusterId/jobs/:jobId/endpoints', function () {
     response.data.should.have.property('message', 'endpoints adding succeeded')
   })
 
+  it('should return 403 with messages when endpoints are added failed with 403', async function () {
+    nock('http://universe')
+      .post('/endpoints?' + addEndpointsParams)
+      .reply(403, 'endpoints adding failed')
+
+    const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/endpoints',
+      testEndpoints, { params: userParams })
+
+    response.status.should.equal(403)
+    response.data.should.equal('endpoints adding failed')
+  })
+
   it('should return 502 Bad Gateway Error if endpoints adding failed', async function () {
     nock('http://universe')
       .post('/endpoints?' + addEndpointsParams)
