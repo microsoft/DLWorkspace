@@ -45,7 +45,7 @@ const useClusterStatus = (clusterId: string) => {
   useEffect(() => {
     if (loading) return;
 
-    const timeout = setTimeout(get, 10000);
+    const timeout = setTimeout(get, 3000);
     return () => {
       clearTimeout(timeout);
     }
