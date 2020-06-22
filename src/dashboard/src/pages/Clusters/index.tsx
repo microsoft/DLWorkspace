@@ -82,9 +82,10 @@ const Clusters: FunctionComponent = () => {
   const clustersStatus = clustersId.map(useClusterStatus);
   const clustersMetrics = clustersStatus.map(useClusterMetrics);
 
-  const clustersData = zipWith(
+  const clustersData = useMemo(() => zipWith(
     clustersId, clustersStatus, clustersMetrics,
-    (id, status, metrics) => ({ id, status, metrics }));
+    (id, status, metrics) => ({ id, status, metrics })),
+  [...clustersId, ...clustersStatus, ...clustersMetrics]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clusterTypesStatus = useMemo(() => {
     const clusterTypesStatus = [];
