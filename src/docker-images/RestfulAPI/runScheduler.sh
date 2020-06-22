@@ -22,5 +22,7 @@ ln -s /RestfulAPI/config.yaml /DLWorkspace/src/utils/config.yaml
 
 cd /DLWorkspace/src/ClusterManager
 
+python3 /DLWorkspace/src/ClusterManager/init_db.py
+
 python3 /DLWorkspace/src/ClusterManager/cluster_manager.py &
 wait # for SIGTERM to deliver
