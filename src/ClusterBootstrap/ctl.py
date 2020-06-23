@@ -341,23 +341,31 @@ def cordon(config, args):
     run_kubectl(config, args, [k8s_cmd])
     run_kubectl(config, args, ["cordon {}".format(node)])
 
-    if args.repair_cycle:
-        k8s_cmd = "annotate node {} --overwrite REPAIR_CYCLE=True".format(node)
-        run_kubectl(config, args, [k8s_cmd])
-
 
 def uncordon(config, args):
     node = args.nargs[0]
     query_cmd = "get nodes {} -o=jsonpath=\'{{.metadata.annotations.cordon-note}}\'".format(node)
     output = run_kubectl(config, args, [query_cmd], need_output=True)
     if output and not args.force:
-        print("node annotated, if you are sure that you want to uncordon it, " \
-              "please specify --force or use `{} kubectl cordon <node>` to " \
+        print("node annotated, if you are sure that you want to uncordon it, "
+              "please specify --force or use `{} kubectl cordon <node>` to "
               "cordon".format(__file__))
     else:
         run_kubectl(config, args, ["uncordon {}".format(node)])
         run_kubectl(config, args, ["annotate node {} cordon-note-".format(node)])
         run_kubectl(config, args, ["annotate node {} REPAIR_CYCLE-".format(node)])
+
+
+def start_repair(config, args):
+    node = args.nargs[0]
+    k8s_cmd = "annotate node {} --overwrite REPAIR_CYCLE=True".format(node)
+    run_kubectl(config, args, [k8s_cmd])
+
+
+def cancel_repair(config, args):
+    node = args.nargs[0]
+    k8s_cmd = "annotate node {} REPAIR_CYCLE-".format(node)
+    run_kubectl(config, args, [k8s_cmd])
 
 
 def run_command(args, command):
@@ -407,6 +415,10 @@ def run_command(args, command):
         cordon(config, args)
     elif command == "uncordon":
         uncordon(config, args)
+    elif command == "start-repair":
+        start_repair(config, args)
+    elif command == "cancel-repair":
+        cancel_repair(config, args)
     else:
         print("invalid command, please read the doc")
 
@@ -445,9 +457,6 @@ if __name__ == '__main__':
                         action="store_true")
     parser.add_argument("--admin",
                         help="Name of admin that execute this script")
-    parser.add_argument("-rc", "--repair_cycle",
-                        help="Whether to put a node into repair cycle with cordon command",
-                        action="store_true")
     parser.add_argument("command",
                         help="See above for the list of valid command")
     parser.add_argument('nargs', nargs=argparse.REMAINDER,
