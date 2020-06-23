@@ -692,7 +692,7 @@ class VCMeta(Resource):
 
 
 @api.resource("/PublicKey")
-class VCMeta(Resource):
+class PublicKey(Resource):
     def __init__(self):
         self.get_parser = reqparse.RequestParser()
         self.get_parser.add_argument("username", required=True)
@@ -707,12 +707,12 @@ class VCMeta(Resource):
 
     def get(self):
         args = self.get_parser.parse_args()
-        username = args["userName"]
+        username = args["username"]
         return JobRestAPIUtils.list_public_keys(username)
 
     def post(self):
         args = self.post_parser.parse_args()
-        username = args["userName"]
+        username = args["username"]
         key_title = args["key_title"]
 
         val = request.get_json()
@@ -723,7 +723,7 @@ class VCMeta(Resource):
 
     def delete(self):
         args = self.delete_parser.parse_args()
-        username = args["userName"]
+        username = args["username"]
         key_id = args["key_id"]
         return JobRestAPIUtils.delete_public_key(username, key_id)
 
