@@ -300,7 +300,8 @@ def load_config(args):
     config = gen_platform_wise_config(config)
     # risky to load allroles here, e.g., mysql_node might be misfilled
     load_node_list_by_role_from_config(config,
-        ["infra", "worker", "nfs", "etcd", "kubernetes_master", "elasticsearch", "lustre", "mdt", "oss"])
+        ["infra", "worker", "nfs", "etcd", "kubernetes_master", 
+         "elasticsearch", "lustre", "mgs","mds", "oss"])
     config = set_node_user(config)
     config = load_default_config(config)
     config = get_ssh_config(config)
@@ -408,8 +409,9 @@ def gen_mounting_yaml(config):
     mountshares = {}
     mountconfig = {}
     mount_sources_set = set()
+    lustre_fs_set = set()
     os.system("mkdir -p ./deploy/storage/auto_share")
-    for node_fqdn in config.get("nfs_node", []) + config.get("mdt_node",[]):
+    for node_fqdn in config.get("nfs_node", []) + config.get("mgs_node",[]):
         storage_node_name = node_fqdn.split(".")[0]
         spec = config["machines"][storage_node_name]
         assert "private_ip" in spec, "Need IP for NFS or MDT node {}!".format(storage_node_name)
@@ -426,6 +428,13 @@ def gen_mounting_yaml(config):
                 mnt_root = config["physical-mount-path-vc"] if "vc" in v else config["physical-mount-path"]
             assert mnt_root not in mount_sources_set, "Duplicate mounting mount path detected:\n{}".format(mnt_root)
             mount_sources_set.add(mnt_root)
+            if "mds" in spec["role"]:
+                assert os.path.split(server_path)[0] == '/', "server_path "\
+                                    "must be a unique abspath under root path"
+                lustre_fs = os.path.basename(os.path.split(server_path)[1])
+                assert 1 <= len(lustre_fs) <= 8, "server path would be used "\
+                    "for lustre fs, which should be 1-8 chars"
+                lustre_fs_set.add(server_path)
             if "client_link_root" in v:
                 lnk_root = os.path.join(v["client_link_root"], vc)
             else:
@@ -457,7 +466,7 @@ def render_mount(config, args):
     utils.render_template_directory(
         "./template/storage/auto_share", "./deploy/storage/auto_share", config)
     # refactor this to render templates properly
-    os.system("chmod +x deploy/storage/auto_share/lustre_mdt_or_oss.sh")
+    os.system("chmod +x deploy/storage/auto_share/lustre_mds_or_oss.sh")
     gen_mounting_yaml(config)
 
 
@@ -541,6 +550,8 @@ def render_worker_node_specific(config, args):
 
 
 def render_elasticsearch_node_specific(config, args):
+    if "logging" not in config["kube_services"]:
+        return
     if not "elasticsearch_node" in config or len(config["elasticsearch_node"]) == 0:
         print("Warning: no elasticsearch node specified, logging service might not work as expected.")
         return
@@ -561,7 +572,8 @@ def render_nfs_node_specific(config, args):
     default_nfs_f2cp = ["kubernetes_common", "kubelet_worker"]
     for nfs in config.get("nfs_node", []):
         nfs_machine_name = nfs.split(".")[0]
-        config["data_disk_mnt_path"] = config["machines"][nfs_machine_name]["data_disk_mnt_path"]
+        config["data_disk_mnt_path"] = config["machines"][nfs_machine_name][
+                                                        "data_disk_mnt_path"]
         config["files2share"] = []
         for itm in mounting[nfs_machine_name]["fileshares"]:
             config["files2share"].append(itm["server_path"])
@@ -573,59 +585,86 @@ def render_nfs_node_specific(config, args):
         config["file_modules_2_copy"] = default_nfs_f2cp + \
             ["{}_storage_manager".format(nfs_machine_name)]
         utils.render_template("./template/cloud-config/cloud_init_nfs.txt.template",
-                              "./deploy/cloud-config/cloud_init_{}.txt".format(nfs.split(".")[0]), config)
+                              "./deploy/cloud-config/cloud_init_{}.txt".format(
+                                nfs.split(".")[0]), config)
     config.pop("files2share", "")
-
-
-def render_mdt_node_specific(config, args):
-    """could only be invoked in render_lustre_node_specific, otherwise add file_modules"""
-    config["mdt_id"] = 0
-    if "mdt_node" not in config or len(config["mdt_node"]) == 0:
-        return config
-    mdt_node_name = config["mdt_node"][0].split(".")[0]
-    mdt_spec = config["machines"][mdt_node_name]
-    config["data_disk_mnt_path"] = mdt_spec["data_disk_mnt_path"]
-    config["kube_labels"] = get_kube_labels_of_machine_name(
-        config, mdt_node_name)
-    utils.render_template("./template/cloud-config/cloud_init_lustre.txt.template",
-        "./deploy/cloud-config/cloud_init_{}.txt".format(mdt_node_name), config)
-    config["mgs_node_private_ip"] = mdt_spec["private_ip"]
-    config.pop("mdt_id")
-    return config
-
-
-def render_oss_node_specific(config, args):
-    """could only be invoked in render_lustre_node_specific, otherwise add file_modules"""
-    lustre_disk_id = 1
-    for oss in config.get("oss_node", []):
-        oss_machine_name = oss.split(".")[0]
-        oss_spec = config["machines"][oss_machine_name]
-        config["oss_id"] = lustre_disk_id
-        if not "data_disk_mnt_path" in oss_spec:
-            oss_spec["data_disk_mnt_path"] = []
-            for disk_item in oss_spec["managed_disks"]:
-                if "is_os" in disk_item and disk_item["is_os"]:
-                    continue
-                for i in range(disk_item["disk_num"]):
-                    oss_spec["data_disk_mnt_path"].append("/lustre-oss{0:02d}".format(lustre_disk_id + i))
-                lustre_disk_id += disk_item["disk_num"]
-        if isinstance(oss_spec["data_disk_mnt_path"], list):
-            oss_spec["data_disk_mnt_path"] = ';'.join(oss_spec["data_disk_mnt_path"])
-        config["data_disk_mnt_path"] = oss_spec["data_disk_mnt_path"]
-        config["kube_labels"] = get_kube_labels_of_machine_name(
-            config, oss_machine_name)
-        utils.render_template("./template/cloud-config/cloud_init_lustre.txt.template",
-                              "./deploy/cloud-config/cloud_init_{}.txt".format(oss_machine_name), config)
-    return config
 
 
 def render_lustre_node_specific(config, args):
     assert config["priority"] in ["regular", "low"]
+    if len(config["lustre_node"]) == 0:
+        return
     config = escaped_etcd_end_point_and_k8s_api_server(config)
     config["file_modules_2_copy"] = [
         "kubernetes_common", "kubelet_worker", "lustre_server"]
-    config = render_mdt_node_specific(config, args)
-    config = render_oss_node_specific(config, args)
+    """could only be invoked in render_lustre_node_specific, otherwise add file_modules"""
+    mgs_node = config["mgs_node"][0].split(".")[0]
+    config["mgs_node_private_ip"] = config["machines"][mgs_node]["private_ip"]
+    # map vc to disk ids
+    dedicated_vc_map = {}
+    for node in config["mds_node"] + config["oss_node"]:
+        machine_name = node.split(".")[0]
+        spec = config["machines"][machine_name]
+        init_disk_id = spec["init_disk_id"]
+        # decide lustre role 
+        if "mgs" in spec["role"]:
+            lustre_role = "mgs"
+        else:
+            lustre_role = list(set(["mds", "oss"]) & set(spec["role"]))[0]
+        # correspond to lustre server disk mount and node index for mkfs.lustre
+        config["{}_id".format(lustre_role)] = init_disk_id
+        if not "data_disk_mnt_path" in spec:
+            spec["data_disk_mnt_path"] = []
+            for disk_item in spec["managed_disks"]:
+                if "is_os" in disk_item and disk_item["is_os"]:
+                    continue
+                disk_vcs = []
+                if "dedicated_vcs" in disk_item:
+                    disk_vcs = disk_item["dedicated_vcs"]
+                    for disk_vc in disk_vcs:
+                        if disk_vc not in dedicated_vc_map:
+                            dedicated_vc_map[disk_vc] = []
+                for i in range(disk_item["disk_num"]):
+                    disk_id = init_disk_id + i
+                    spec["data_disk_mnt_path"].append("/lustre-{0}{1:02d}"\
+                        .format(lustre_role, disk_id))
+                    hex_id = "{:04x}".format(disk_id)
+                    for disk_vc in disk_vcs:
+                        dedicated_vc_map[disk_vc].append(hex_id)
+                init_disk_id += disk_item["disk_num"]
+        if isinstance(spec["data_disk_mnt_path"], list):
+            spec["data_disk_mnt_path"] = ';'.join(spec["data_disk_mnt_path"])
+        if "mds" in spec["role"]:
+            # currently we only support 1 lustre fs per MGS, and we require 
+            # server_path be a unique abspath under / for each MDT node
+            server_path = spec["fileshares"][0]["server_path"]
+            if "storage_quota" in spec:
+                quota = spec["storage_quota"]
+                config["user_soft_quota"] = quota["user_soft"]
+                config["user_hard_quota"] = quota["user_hard"]
+                config["user_grace_period"] = quota["user_grace_period"]
+        elif "oss" in spec["role"]:
+            # affiliating MDS, this is not accurate. it seems not supported to let MDS
+            # manage only specified several OSS
+            aff_mds_spec = config["machines"][spec["mds_name"]]
+            server_path = aff_mds_spec["fileshares"][0]["server_path"]
+        lustre_fs = os.path.basename(os.path.split(server_path)[1])
+        config["lustre_fs"] = lustre_fs
+        config["data_disk_mnt_path"] = spec["data_disk_mnt_path"]
+        config["kube_labels"] = get_kube_labels_of_machine_name(
+            config, machine_name)
+        config["file_modules_2_copy"].append("lustre_{}".format(lustre_role))
+        utils.render_template("./template/cloud-config/cloud_init_lustre.txt.template",
+                              "./deploy/cloud-config/cloud_init_{}.txt".format(machine_name), config)
+        config["file_modules_2_copy"].remove("lustre_{}".format(lustre_role))
+        keys2pop = ["{}_id".format(lustre_role), "user_soft_quota", 
+                    "user_hard_quota", "user_grace_period"]
+        for ky in keys2pop:
+            config.pop(ky, None)
+        with open("deploy/storage/auto_share/lustre_disk_vc_map", "w") as vcf:
+            for vc, disk_list in dedicated_vc_map.items():
+                vcf.write("{} {}\n".format(vc, ",".join(disk_list)))
+    return config
 
 
 def render_ETCD(config):
@@ -680,8 +719,14 @@ def push_docker_images(args, config):
     render_docker_images(config, False)
     if "private_docker_credential" in config:
         login_private_docker(config)
-    push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"],
-                 args.nargs[1:], config, args.verbose, nocache=args.nocache)
+    tuples = [("./deploy/docker-images/", 
+              config["dockerprefix"], config["dockertag"], [docker_name], config,
+              args.verbose, args.nocache) for docker_name in args.nargs[1:]]
+    pool = utils.Pool(len(args.nargs[1:]))
+    # use starmap for pre-zipped params, details in
+    # https://docs.python.org/dev/library/itertools.html#itertools.starmap
+    results = pool.starmap(push_dockers, tuples)
+    pool.close()
 
 
 def docker_required_by_services(config):
@@ -1047,7 +1092,7 @@ def run_command(args, command, parser):
         render_mount(config, args)
     if command == "renderspecific":
         if len(args.nargs) == 0:
-            args.nargs = ["infra", "worker", "nfs", "elasticsearch"]
+            args.nargs = ["infra", "worker", "nfs", "elasticsearch", "lustre"]
         for role in args.nargs:
             func = eval("render_{}_node_specific".format(role))
             func(config, args)

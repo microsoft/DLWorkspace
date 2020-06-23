@@ -43,7 +43,7 @@ source ../boot.env
 
 # file system operations in Centos cloud init is extremely slow - a few to 
 # tens of seconds for each operation. Here only copy necessary files to enable 
-# lustre service. Defer major file system operations in lustre_mdt_or_oss.sh 
+# lustre service. Defer major file system operations in lustre_mds_or_oss.sh 
 # in lustre service.
 python ./cloud_init_mkdir_and_cp.py -p file_map.yaml -u $USER -m lustre_server
 systemctl enable lustre_server

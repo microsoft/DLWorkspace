@@ -1,0 +1,11 @@
+[Unit]
+Description=Auto mount service for lustre servers
+ConditionPathExists={{cnf["folder_auto_share"]}}/ost_mount_finished
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash {{cnf["folder_auto_share"]}}/ost_mount_scan_on_mds_or_oss.sh
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

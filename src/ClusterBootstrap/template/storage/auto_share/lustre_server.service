@@ -4,7 +4,7 @@ ConditionPathExists={{cnf["folder_auto_share"]}}/lustre_setup_finished
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash {{cnf["folder_auto_share"]}}/lustre_mdt_or_oss.sh
+ExecStart=/bin/bash {{cnf["folder_auto_share"]}}/lustre_mds_or_oss.sh
 StandardError=journal
 
 [Install]
