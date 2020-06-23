@@ -81,7 +81,8 @@ class TestRepairManager(unittest.TestCase):
                          4,
                          4,
                          State.IN_SERVICE,
-                         [])
+                         [],
+                         repair_cycle=False)
 
     def test_validate(self):
         self.repairmanager.dry_run = False
@@ -134,30 +135,35 @@ class TestRepairManager(unittest.TestCase):
         self.rules[0].health = True
         self.repairmanager.update(self.node)
         self.assertEqual(State.IN_SERVICE, self.node.state)
-        self.assertEqual(False, self.node.unschedulable)
+        self.assertFalse(self.node.unschedulable)
+        self.assertFalse(self.node.repair_cycle)
         self.assertEqual([], self.node.unhealthy_rules)
 
         self.rules[0].health = False
         self.repairmanager.update(self.node)
         self.assertEqual(State.OUT_OF_POOL, self.node.state)
-        self.assertEqual(True, self.node.unschedulable)
+        self.assertTrue(self.node.unschedulable)
+        self.assertTrue(self.node.repair_cycle)
         self.assertEqual(self.rules, self.node.unhealthy_rules)
 
         # OUT_OF_POOL -> READY_FOR_REPAIR
         self.rules[0].prepared = False
         self.repairmanager.update(self.node)
         self.assertEqual(State.OUT_OF_POOL, self.node.state)
-        self.assertEqual(True, self.node.unschedulable)
+        self.assertTrue(self.node.unschedulable)
+        self.assertTrue(self.node.repair_cycle)
 
         self.rules[0].prepared = True
         self.repairmanager.update(self.node)
         self.assertEqual(State.READY_FOR_REPAIR, self.node.state)
-        self.assertEqual(True, self.node.unschedulable)
+        self.assertTrue(self.node.unschedulable)
+        self.assertTrue(self.node.repair_cycle)
 
         # READY_FOR_REPAIR -> IN_REPAIR
         self.repairmanager.update(self.node)
         self.assertEqual(State.READY_FOR_REPAIR, self.node.state)
-        self.assertEqual(True, self.node.unschedulable)
+        self.assertTrue(self.node.unschedulable)
+        self.assertTrue(self.node.repair_cycle)
 
         # Agent becomes alive
         self.server.start()
@@ -165,12 +171,14 @@ class TestRepairManager(unittest.TestCase):
 
         self.repairmanager.update(self.node)
         self.assertEqual(State.IN_REPAIR, self.node.state)
-        self.assertEqual(True, self.node.unschedulable)
+        self.assertTrue(self.node.unschedulable)
+        self.assertTrue(self.node.repair_cycle)
 
         # IN_REPAIR -> IN_REPAIR
         self.repairmanager.update(self.node)
         self.assertEqual(State.IN_REPAIR, self.node.state)
-        self.assertEqual(True, self.node.unschedulable)
+        self.assertTrue(self.node.unschedulable)
+        self.assertTrue(self.node.repair_cycle)
 
         # Agent start to consume repair signal
         self.agent.repair_handler.start()
@@ -187,6 +195,7 @@ class TestRepairManager(unittest.TestCase):
 
         # IN_REPAIR -> AFTER_REPAIR
         self.assertTrue(wait_for_repair())
+        self.assertTrue(self.node.repair_cycle)
 
         node = copy.deepcopy(self.node)
 
@@ -198,7 +207,8 @@ class TestRepairManager(unittest.TestCase):
         self.rules[0].health = False
         self.repairmanager.update(node)
         self.assertEqual(State.AFTER_REPAIR, node.state)
-        self.assertEqual(True, node.unschedulable)
+        self.assertTrue(node.unschedulable)
+        self.assertTrue(node.repair_cycle)
         self.assertEqual(self.rules, node.unhealthy_rules)
 
         # AFTER_REPAIR -> OUT_OF_POOL
@@ -206,15 +216,55 @@ class TestRepairManager(unittest.TestCase):
         self.repairmanager.grace_period = -1  # Make sure it's after grace period
         self.repairmanager.update(node)
         self.assertEqual(State.OUT_OF_POOL, node.state)
-        self.assertEqual(True, node.unschedulable)
+        self.assertTrue(node.unschedulable)
+        self.assertTrue(node.repair_cycle)
         self.assertEqual(self.rules, node.unhealthy_rules)
 
         # AFTER_REPAIR -> IN_SERVICE
         self.rules[0].health = True
         self.repairmanager.update(self.node)
         self.assertEqual(State.IN_SERVICE, self.node.state)
-        self.assertEqual(False, self.node.unschedulable)
+        self.assertFalse(self.node.unschedulable)
+        self.assertFalse(self.node.repair_cycle)
         self.assertEqual([], self.node.unhealthy_rules)
+
+    def test_repair_cycle_update_with_out_of_pool_untracked(self):
+        # IN_SERVICE -> OUT_OF_POOL_UNTRACKED
+        # OUT_OF_POOL -> OUT_OF_POOL_UNTRACKED
+        # READY_FOR_REPAIR -> OUT_OF_POOL_UNTRACKED
+        # IN_REPAIR -> OUT_OF_POOL_UNTRACKED
+        # AFTER_REPAIR -> OUT_OF_POOL_UNTRACKED
+        states = [State.IN_SERVICE, State.OUT_OF_POOL, State.READY_FOR_REPAIR,
+                  State.IN_REPAIR, State.AFTER_REPAIR]
+        for state in states:
+            self.node.state = state
+            self.node.unschedulable = True
+            self.node.repair_cycle = False
+            self.repairmanager.update(self.node)
+            self.assertEqual(State.OUT_OF_POOL_UNTRACKED, self.node.state)
+            self.assertTrue(self.node.unschedulable)
+            self.assertFalse(self.node.repair_cycle)
+
+        # OUT_OF_POOL_UNTRACKED -> IN_SERVICE
+        self.node.state = State.OUT_OF_POOL_UNTRACKED
+        self.node.unschedulable = False
+        self.node.repair_cycle = False
+        self.repairmanager.update(self.node)
+        self.assertEqual(State.IN_SERVICE, self.node.state)
+        self.assertFalse(self.node.unschedulable)
+        self.assertFalse(self.node.repair_cycle)
+
+        # OUT_OF_POOL_UNTRACKED -> OUT_OF_POOL
+        self.node.state = State.OUT_OF_POOL_UNTRACKED
+        self.node.unschedulable = True
+        self.node.repair_cycle = True
+        self.node.unhealthy_rules = []
+        self.repairmanager.update(self.node)
+        self.assertEqual(State.OUT_OF_POOL, self.node.state)
+        self.assertTrue(self.node.unschedulable)
+        self.assertTrue(self.node.repair_cycle)
+        self.assertEqual(1, len(self.node.unhealthy_rules))
+        self.assertEqual("UnschedulableRule", self.node.unhealthy_rules[0].name)
 
     def test_check_health(self):
         # Node is healthy

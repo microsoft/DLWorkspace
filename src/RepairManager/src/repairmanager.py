@@ -19,10 +19,11 @@ from prometheus_client.core import REGISTRY, GaugeMetricFamily
 from requests.exceptions import ConnectionError
 from constant import REPAIR_STATE, \
     REPAIR_STATE_LAST_UPDATE_TIME, \
-    REPAIR_UNHEALTHY_RULES
+    REPAIR_UNHEALTHY_RULES, \
+    REPAIR_CYCLE
 from util import State, AtomicRef, K8sUtil, RestUtil
 from util import register_stack_trace_dump, get_logging_level, parse_for_nodes
-from rule import instantiate_rules
+from rule import instantiate_rules, UnschedulableRule
 
 logger = logging.getLogger(__name__)
 
@@ -183,29 +184,46 @@ class RepairManager(object):
     def update(self, node):
         """Defines the status change of node.
 
-        IN_SERVICE --check_health True--> IN_SERVICE
+        IN_SERVICE --unschedulable, not in repair cycle--> OUT_OF_POOL_UNTRACKED
+                  \--check_health True--> IN_SERVICE
                   \--check_health False--> OUT_OF_POOL
 
-        OUT_OF_POOL --prepare True--> READ_FOR_REPAIR
+        OUT_OF_POOL_UNTRACKED --unschedulable, not in repair cycle--> OUT_OF_POOL_UNTRACKED
+                             \--schedulable --> IN_SERVICE
+                             \--unschedulable, in repair cycle--> OUT_OF_POOL
+
+        OUT_OF_POOL --unschedulable, not in repair cycle--> OUT_OF_POOL_UNTRACKED
+                   \--prepare True--> READ_FOR_REPAIR
                    \--prepare False--> OUT_OF_POOL
 
-        READ_FOR_REPAIR --send_repair_request True--> IN_REPAIR
+        READ_FOR_REPAIR --unschedulable, not in repair cycle--> OUT_OF_POOL_UNTRACKED
+                       \--send_repair_request True--> IN_REPAIR
                        \--send_repair_request False--> READ_FOR_REPAIR
 
-        IN_REPAIR --check_liveness True--> AFTER_REPAIR
+        IN_REPAIR --unschedulable, not in repair cycle--> OUT_OF_POOL_UNTRACKED
+                 \--check_liveness True--> AFTER_REPAIR
                  \--check_liveness False--> IN_REPAIR
 
-        AFTER_REPAIR --check_health True--> IN_SERVICE
+        AFTER_REPAIR --unschedulable, not in repair cycle--> OUT_OF_POOL_UNTRACKED
+                    \--check_health True--> IN_SERVICE
                     \--check_health False--> OUT_OF_POOL
-
-        FIXME:
-        check_health may return False even if check_liveness returns True.
-        This can happen when metrics have not get populated into Prometheus.
         """
         try:
+            # Any repair state can be moved to OUT_OF_POOL_UNTRACKED so that
+            # admin can stop repair cycle any time to do manual repair.
+            if node.state != State.OUT_OF_POOL_UNTRACKED:
+                if node.unschedulable and (not node.repair_cycle):
+                    self.from_any_to_out_of_pool_untracked(node)
+                    return
+
             if node.state == State.IN_SERVICE:
                 if self.check_health(node) is False:
                     self.from_in_service_to_out_of_pool(node)
+            elif node.state == State.OUT_OF_POOL_UNTRACKED:
+                if not node.unschedulable:
+                    self.from_out_of_pool_untracked_to_in_service(node)
+                elif node.repair_cycle:
+                    self.from_out_of_pool_untracked_to_out_of_pool(node)
             elif node.state == State.OUT_OF_POOL:
                 if self.prepare(node):
                     self.from_out_of_pool_to_ready_for_repair(node)
@@ -333,33 +351,78 @@ class RepairManager(object):
 
     def from_any_to_out_of_pool(self, node):
         """Move from any state into OUT_OF_POOL"""
-        unschedulable = True
         labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
-        # Do not override REPAIR_UNHEALTHY_RULES
+        # Do not override REPAIR_UNHEALTHY_RULES if present
+        # Default to apply UnschedulableRule, which enforces a reboot at repair
+        if not isinstance(node.unhealthy_rules, list) or \
+                len(node.unhealthy_rules) == 0:
+            node.unhealthy_rules = [UnschedulableRule()]
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
+            REPAIR_UNHEALTHY_RULES: self.get_unhealthy_rules_value(node),
+            REPAIR_CYCLE: "True",
         }
-        if self.patch(node, unschedulable=unschedulable, labels=labels,
+        if self.patch(node, unschedulable=True, labels=labels,
                       annotations=annotations):
-            node.unschedulable = unschedulable
+            node.unschedulable = True
+            node.repair_cycle = True
             node.state = State.OUT_OF_POOL
             return True
         else:
             return False
 
+    def from_any_to_out_of_pool_untracked(self, node):
+        """Move from any state into OUT_OF_POOL_UNTRACKED"""
+        labels = {REPAIR_STATE: State.OUT_OF_POOL_UNTRACKED.name}
+        annotations = {
+            REPAIR_STATE_LAST_UPDATE_TIME:
+                str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
+            REPAIR_CYCLE: "False",
+        }
+        if self.patch(node, unschedulable=True, labels=labels,
+                      annotations=annotations):
+            node.unschedulable = True
+            node.repair_cycle = False
+            node.state = State.OUT_OF_POOL_UNTRACKED
+            return True
+        else:
+            return False
+
+    def from_out_of_pool_untracked_to_in_service(self, node):
+        """Move from OUT_OF_POOL_UNTRACKED into IN_SERVICE"""
+        labels = {REPAIR_STATE: State.IN_SERVICE.name}
+        annotations = {
+            REPAIR_STATE_LAST_UPDATE_TIME:
+                str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
+            REPAIR_CYCLE: "False",
+        }
+        if self.patch(node, unschedulable=False, labels=labels,
+                      annotations=annotations):
+            node.unschedulable = False
+            node.repair_cycle = False
+            node.state = State.IN_SERVICE
+            return True
+        else:
+            return False
+
+    def from_out_of_pool_untracked_to_out_of_pool(self, node):
+        """Move from OUT_OF_POOL_UNTRACKED into OUT_OF_POOL"""
+        return self.from_any_to_out_of_pool(node)
+
     def from_in_service_to_out_of_pool(self, node):
         """Move from IN_SERVICE into OUT_OF_POOL"""
-        unschedulable = True
         labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
             REPAIR_UNHEALTHY_RULES: self.get_unhealthy_rules_value(node),
+            REPAIR_CYCLE: "True",
         }
-        if self.patch(node, unschedulable=unschedulable, labels=labels,
+        if self.patch(node, unschedulable=True, labels=labels,
                       annotations=annotations):
-            node.unschedulable = unschedulable
+            node.unschedulable = True
+            node.repair_cycle = True
             node.state = State.OUT_OF_POOL
             return True
         else:
@@ -371,8 +434,12 @@ class RepairManager(object):
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
+            REPAIR_CYCLE: "True",
         }
-        if self.patch(node, labels=labels, annotations=annotations):
+        if self.patch(node, unschedulable=True, labels=labels,
+                      annotations=annotations):
+            node.unschedulable = True
+            node.repair_cycle = True
             node.state = State.READY_FOR_REPAIR
             return True
         else:
@@ -384,8 +451,12 @@ class RepairManager(object):
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
+            REPAIR_CYCLE: "True",
         }
-        if self.patch(node, labels=labels, annotations=annotations):
+        if self.patch(node, unschedulable=True, labels=labels,
+                      annotations=annotations):
+            node.unschedulable = True
+            node.repair_cycle = True
             node.state = State.IN_REPAIR
             return True
         else:
@@ -397,8 +468,12 @@ class RepairManager(object):
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
+            REPAIR_CYCLE: "True",
         }
-        if self.patch(node, labels=labels, annotations=annotations):
+        if self.patch(node, unschedulable=True, labels=labels,
+                      annotations=annotations):
+            node.unschedulable = True
+            node.repair_cycle = True
             node.state = State.AFTER_REPAIR
             return True
         else:
@@ -406,16 +481,17 @@ class RepairManager(object):
 
     def from_after_repair_to_in_service(self, node):
         """Move from AFTER_REPAIR into IN_SERVICE"""
-        unschedulable = False
         labels = {REPAIR_STATE: State.IN_SERVICE.name}
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
             REPAIR_UNHEALTHY_RULES: None,
+            REPAIR_CYCLE: "False",
         }
-        if self.patch(node, unschedulable=unschedulable, labels=labels,
+        if self.patch(node, unschedulable=False, labels=labels,
                       annotations=annotations):
-            node.unschedulable = unschedulable
+            node.unschedulable = False
+            node.repair_cycle = False
             node.state = State.IN_SERVICE
             return True
         else:
@@ -428,8 +504,12 @@ class RepairManager(object):
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
             REPAIR_UNHEALTHY_RULES: self.get_unhealthy_rules_value(node),
+            REPAIR_CYCLE: "True",
         }
-        if self.patch(node, labels=labels, annotations=annotations):
+        if self.patch(node, unschedulable=True, labels=labels,
+                      annotations=annotations):
+            node.unschedulable =True
+            node.repair_cycle = True
             node.state = State.OUT_OF_POOL
             return True
         else:
