@@ -62,10 +62,11 @@ class GlobalDBHandler(object):
         try:
             with db_connect_histogram.labels(GlobalDBHandler.DB_NAME).time():
                 self.conn = mysql.connector.connect(
-                    user=self.db_host,
+                    user=self.db_user,
                     password=self.db_pass,
                     host=self.db_host,
                     database=GlobalDBHandler.DB_NAME)
+            return self
         except Exception:
             logger.exception("failed to open connection to %s.%s using user %s",
                              self.db_host, GlobalDBHandler.DB_NAME,
@@ -86,7 +87,9 @@ class GlobalDBHandler(object):
         cursor = self.conn.cursor()
         cursor.execute(sql, (username, key_title, public_key))
         self.conn.commit()
+        key_id = cursor.lastrowid
         cursor.close()
+        return key_id
 
     @record
     def delete_public_key(self, key_id):
@@ -106,7 +109,7 @@ class GlobalDBHandler(object):
         cursor = self.conn.cursor()
         query = """
             SELECT `username`, `key_title`, `add_time`, `public_key`
-            FROM `public_key` where `id` = %s
+            FROM `public_keys` where `id` = %s
             """
         cursor.execute(query, (key_id,))
         columns = [column[0] for column in cursor.description]
@@ -119,7 +122,7 @@ class GlobalDBHandler(object):
         cursor = self.conn.cursor()
         query = """
             SELECT `id`, `key_title`, `add_time`, `public_key`
-            FROM `public_key` where `username` = %s
+            FROM `public_keys` where `username` = %s
             """
         cursor.execute(query, (username,))
         columns = [column[0] for column in cursor.description]

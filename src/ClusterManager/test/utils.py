@@ -458,6 +458,38 @@ def update_vc_meta(rest_url, vc_name, username, vc_meta):
     return resp.json()
 
 
+def add_public_key(rest_url, username, key_title, public_key):
+    args = urllib.parse.urlencode({
+        "username": username,
+        "key_title": key_title,
+    })
+    url = urllib.parse.urljoin(rest_url, "/PublicKey") + "?" + args
+    resp = requests.post(url, json={"public_key": public_key})
+    resp.raise_for_status()
+    return resp.json()
+
+
+def delete_public_key(rest_url, username, key_id):
+    args = urllib.parse.urlencode({
+        "username": username,
+        "key_id": key_id,
+    })
+    url = urllib.parse.urljoin(rest_url, "/PublicKey") + "?" + args
+    resp = requests.delete(url)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def get_public_key(rest_url, username):
+    args = urllib.parse.urlencode({
+        "username": username,
+    })
+    url = urllib.parse.urljoin(rest_url, "/PublicKey") + "?" + args
+    resp = requests.get(url)
+    resp.raise_for_status()
+    return resp.json()
+
+
 def scale_job(rest_url, email, job_id, resourcegpu):
     args = urllib.parse.urlencode({
         "userName": email,

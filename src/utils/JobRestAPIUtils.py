@@ -329,7 +329,9 @@ def SubmitJob(jobParamsJsonStr):
             if not dataHandler.AddJob(tensorboardParams):
                 ret["error"] = "Cannot schedule tensorboard job."
 
-    with GlobalDBHandler() as global_handler:
+    with GlobalDBHandler(config["mysql"]["hostname"],
+                         config["mysql"]["username"],
+                         config["mysql"]["password"]) as global_handler:
         public_keys = global_handler.list_public_keys(jobParams["userName"])
         if len(public_keys) > 0:
             user_submitted = jobParams.get("ssh_public_keys", [])
@@ -1205,16 +1207,27 @@ def get_vc_v2(username, vc_name):
     return vc_status
 
 
+def convert_date(obj, field):
+    if obj.get(field) is not None:
+        obj[field] = obj[field].isoformat()
+    return obj
+
+
 def list_public_keys(username):
-    with GlobalDBHandler() as handler:
-        return handler.list_public_keys(), 200
+    with GlobalDBHandler(config["mysql"]["hostname"],
+                         config["mysql"]["username"],
+                         config["mysql"]["password"]) as handler:
+        result = handler.list_public_keys(username)
+        return [convert_date(obj, "add_time") for obj in result], 200
 
 
 def add_public_key(username, key_title, public_key):
-    with GlobalDBHandler() as handler:
+    with GlobalDBHandler(config["mysql"]["hostname"],
+                         config["mysql"]["username"],
+                         config["mysql"]["password"]) as handler:
         try:
-            handler.add_public_key(username, key_title, public_key)
-            return {"error": None}, 200
+            key_id = handler.add_public_key(username, key_title, public_key)
+            return {"id": key_id}, 200
         except Exception as e:
             logger.exception("failed to add_public_key %s %s", username,
                              key_title)
@@ -1222,7 +1235,9 @@ def add_public_key(username, key_title, public_key):
 
 
 def delete_public_key(username, key_id):
-    with GlobalDBHandler() as handler:
+    with GlobalDBHandler(config["mysql"]["hostname"],
+                         config["mysql"]["username"],
+                         config["mysql"]["password"]) as handler:
         try:
             existing_key = handler.get_public_key(key_id)
             if len(existing_key) == 0:
