@@ -765,7 +765,7 @@ class LauncherStub(Launcher):
         errors = framework_errors + configmap_errors
         return errors
 
-    def kill_job(self, job_id, desired_state="killed"):
+    def kill_job(self, job_id, desired_state="killed", update_queue_time=True):
         dataHandler = DataHandler()
 
         result, detail = k8sUtils.GetJobStatus(job_id)
@@ -780,8 +780,9 @@ class LauncherStub(Launcher):
 
         dataFields = {
             "jobStatusDetail": base64encode(json.dumps(detail)),
-            "lastUpdated": datetime.datetime.now().isoformat()
         }
+        if update_queue_time:
+            dataFields["lastUpdated"] = datetime.datetime.now().isoformat()
         conditionFields = {"jobId": job_id}
         if len(errors) == 0:
             dataFields["jobStatus"] = desired_state
@@ -1109,12 +1110,16 @@ class PythonLauncher(Launcher):
         dataHandler.Close()
         return ret
 
-    def kill_job(self, job_id, desired_state="killed"):
+    def kill_job(self, job_id, desired_state="killed", update_queue_time=True):
         self.queue.put(("kill_job", (job_id,), {
-            "desired_state": desired_state
+            "desired_state": desired_state,
+            "update_queue_time": update_queue_time,
         }))
 
-    def kill_job_impl(self, job_id, desired_state="killed"):
+    def kill_job_impl(self,
+                      job_id,
+                      desired_state="killed",
+                      update_queue_time=True):
         with DataHandler() as dataHandler:
             result, detail = k8sUtils.GetJobStatus(job_id)
             detail = job_status_detail_with_finished_time(detail, desired_state)
@@ -1128,8 +1133,9 @@ class PythonLauncher(Launcher):
 
             dataFields = {
                 "jobStatusDetail": base64encode(json.dumps(detail)),
-                "lastUpdated": datetime.datetime.now().isoformat()
             }
+            if update_queue_time:
+                dataFields["lastUpdated"] = datetime.datetime.now().isoformat()
             conditionFields = {"jobId": job_id}
             if len(errors) == 0:
                 dataFields["jobStatus"] = desired_state
