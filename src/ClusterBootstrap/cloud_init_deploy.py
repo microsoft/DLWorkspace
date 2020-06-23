@@ -635,7 +635,7 @@ def render_lustre_node_specific(config, args):
         if isinstance(spec["data_disk_mnt_path"], list):
             spec["data_disk_mnt_path"] = ';'.join(spec["data_disk_mnt_path"])
         if "mds" in spec["role"]:
-            # currently we only support 1 lustre fs per MDT, and we require 
+            # currently we only support 1 lustre fs per MGS, and we require 
             # server_path be a unique abspath under / for each MDT node
             server_path = spec["fileshares"][0]["server_path"]
             if "storage_quota" in spec:

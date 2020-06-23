@@ -75,8 +75,10 @@ if [ ! -z "$MGS_ID" ] ; then
         identity_upcall_val=$(sudo lctl get_param -n "mdt.$(basename $path).identity_upcall")
         echo "mdt.$(basename $path).identity_upcall: ${identity_upcall_val}"
     done
-    sudo lfs setquota -U -b ${SOFT_USR_QUOTA} -B ${HARD_USR_QUOTA} /mnt/mgs_client
-    sudo lfs setquota -t -u --block-grace $USR_GRACE_PERIOD /mnt/mgs_client
+    if [ ! -z "$SOFT_USR_QUOTA" ] ; then
+      sudo lfs setquota -U -b ${SOFT_USR_QUOTA} -B ${HARD_USR_QUOTA} /mnt/mgs_client
+      sudo lfs setquota -t -u --block-grace $USR_GRACE_PERIOD /mnt/mgs_client
+    fi
     # MDS need to make sure that every OST got mounted.
     until sudo bash {{cnf["folder_auto_share"]}}/ost_mount_scan_on_mgs.sh 2>&1 >/dev/null ;do
         sleep 1m;
