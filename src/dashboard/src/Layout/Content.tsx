@@ -12,6 +12,7 @@ import {
 } from '@material-ui/core';
 
 import LayoutContext from './Context';
+import NotificationBox from './NotificationBox';
 
 const useStyles = makeStyles(theme => createStyles({
   root: ({ drawerOpen }: { drawerOpen: boolean }) => ({
@@ -33,6 +34,7 @@ const Content: FunctionComponent = ({ children }) => {
   return (
     <Box flex={1} py={3} className={styles.root}>
       <Toolbar disableGutters/>
+      <NotificationBox marginTop={-3}/>
       {children}
     </Box>
   );
