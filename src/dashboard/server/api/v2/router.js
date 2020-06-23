@@ -14,6 +14,13 @@ router.param('clusterId',
 router.get('/clusters/:clusterId/teams/:teamId',
   require('../middlewares/user')(),
   require('./controllers/cluster/team'))
+router.get('/clusters/:clusterId/teams/:teamId/meta',
+  require('../middlewares/user')(),
+  require('./controllers/cluster/team/meta'))
+router.patch('/clusters/:clusterId/teams/:teamId/meta',
+  require('../middlewares/user')(),
+  require('../middlewares/body')('meta'),
+  require('./controllers/cluster/team/meta.patch'))
 router.get('/clusters/:clusterId/teams/:teamId/jobs',
   require('../middlewares/user')(),
   require('./controllers/cluster/team/jobs'))
