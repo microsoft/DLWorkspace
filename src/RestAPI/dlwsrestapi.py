@@ -691,6 +691,43 @@ class VCMeta(Resource):
         return resp, code
 
 
+@api.resource("/PublicKey")
+class VCMeta(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("username", required=True)
+
+        self.post_parser = reqparse.RequestParser()
+        self.post_parser.add_argument("username", required=True)
+        self.post_parser.add_argument("key_title", required=True)
+
+        self.delete_parser = reqparse.RequestParser()
+        self.delete_parser.add_argument("username", required=True)
+        self.delete_parser.add_argument("key_id", required=True)
+
+    def get(self):
+        args = self.get_parser.parse_args()
+        username = args["userName"]
+        return JobRestAPIUtils.list_public_keys(username)
+
+    def post(self):
+        args = self.post_parser.parse_args()
+        username = args["userName"]
+        key_title = args["key_title"]
+
+        val = request.get_json()
+        public_key = val.get("public_key")
+        if public_key is None or len(public_key) == 0:
+            return {"error": "no public key provided"}, 400
+        return JobRestAPIUtils.add_public_key(username, key_title, public_key)
+
+    def delete(self):
+        args = self.delete_parser.parse_args()
+        username = args["userName"]
+        key_id = args["key_id"]
+        return JobRestAPIUtils.delete_public_key(username, key_id)
+
+
 @api.resource("/AddVC")
 class AddVC(Resource):
     def __init__(self):

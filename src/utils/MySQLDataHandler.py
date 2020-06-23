@@ -24,7 +24,8 @@ data_handler_fn_histogram = Histogram(
 db_connect_histogram = Histogram("db_connect_latency_seconds",
                                  "latency for connecting to db (seconds)",
                                  buckets=(.05, .075, .1, .25, .5, .75, 1.0, 2.5,
-                                          5.0, 7.5, float("inf")))
+                                          5.0, 7.5, float("inf")),
+                                 labelnames=("db_name",))
 
 
 def record(fn):
@@ -48,6 +49,85 @@ def base64decode(str_val):
     return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
 
+class GlobalDBHandler(object):
+    DB_NAME = "DLTS_GLOBAL"
+
+    def __init__(self, db_host, db_user, db_pass):
+        self.db_host = db_host
+        self.db_user = db_user
+        self.db_pass = db_pass
+        self.conn = None
+
+    def __enter__(self):
+        try:
+            with db_connect_histogram.labels(GlobalDBHandler.DB_NAME).time():
+                self.conn = mysql.connector.connect(
+                    user=self.db_host,
+                    password=self.db_pass,
+                    host=self.db_host,
+                    database=GlobalDBHandler.DB_NAME)
+        except Exception:
+            logger.exception("failed to open connection to %s.%s using user %s",
+                             self.db_host, GlobalDBHandler.DB_NAME,
+                             self.db_user)
+
+    def __exit__(self, type, value, traceback):
+        try:
+            if self.conn is not None:
+                self.conn.close()
+        except Exception:
+            logger.exception(
+                "failed to close db connection to %s.%s using user %s",
+                self.db_host, GlobalDBHandler.DB_NAME, self.db_user)
+
+    @record
+    def add_public_key(self, username, key_title, public_key):
+        sql = "INSERT INTO `public_keys` (username, key_title, public_key) VALUES (%s,%s,%s)"
+        cursor = self.conn.cursor()
+        cursor.execute(sql, (username, key_title, public_key))
+        self.conn.commit()
+        cursor.close()
+
+    @record
+    def delete_public_key(self, key_id):
+        try:
+            sql = "DELETE FROM `public_keys` WHERE id = %s"
+            cursor = self.conn.cursor()
+            cursor.execute(sql, (key_id,))
+            self.conn.commit()
+            cursor.close()
+            return True
+        except Exception as e:
+            logger.exception("failed to delete_public_key %s", key_id)
+            return False
+
+    @record
+    def get_public_key(self, key_id):
+        cursor = self.conn.cursor()
+        query = """
+            SELECT `username`, `key_title`, `add_time`, `public_key`
+            FROM `public_key` where `id` = %s
+            """
+        cursor.execute(query, (key_id,))
+        columns = [column[0] for column in cursor.description]
+        ret = [dict(list(zip(columns, row))) for row in cursor.fetchall()]
+        cursor.close()
+        return ret
+
+    @record
+    def list_public_keys(self, username):
+        cursor = self.conn.cursor()
+        query = """
+            SELECT `id`, `key_title`, `add_time`, `public_key`
+            FROM `public_key` where `username` = %s
+            """
+        cursor.execute(query, (username,))
+        columns = [column[0] for column in cursor.description]
+        ret = [dict(list(zip(columns, row))) for row in cursor.fetchall()]
+        cursor.close()
+        return ret
+
+
 class DataHandler(object):
     def __init__(self):
         self.database = "DLWSCluster-%s" % config["clusterId"]
@@ -62,7 +142,7 @@ class DataHandler(object):
         username = config["mysql"]["username"]
         password = config["mysql"]["password"]
 
-        with db_connect_histogram.time():
+        with db_connect_histogram.labels(self.database).time():
             self.conn = mysql.connector.connect(user=username,
                                                 password=password,
                                                 host=server,
