@@ -9,3 +9,8 @@ REPAIR_STATE_LAST_UPDATE_TIME = "REPAIR_STATE_LAST_UPDATE_TIME"
 
 # Annotation key for unhealthy rules
 REPAIR_UNHEALTHY_RULES = "REPAIR_UNHEALTHY_RULES"
+
+# Annotation key for whether the node is in repair cycle.
+# An unschedulable node that is not in repair cycle can be manually repaired
+# by administrator without repair cycle interruption.
+REPAIR_CYCLE = "REPAIR_CYCLE"

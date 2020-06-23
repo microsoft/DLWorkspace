@@ -329,8 +329,8 @@ def cordon(config, args):
             admin_name = yaml.safe_load(f)["admin_name"]
     else:
         admin_name = args.admin
-        assert admin_name is not None and admin_name, "specify admin_name by"\
-        "--admin or in ~/.dlts-admin.yaml"
+        assert admin_name is not None and admin_name, "specify admin_name by " \
+            "--admin or in ~/.dlts-admin.yaml"
     now = datetime.datetime.now(pytz.timezone("UTC"))
     timestr = now.strftime("%Y/%m/%d %H:%M:%S %Z")
     node = args.nargs[0]
@@ -347,12 +347,29 @@ def uncordon(config, args):
     query_cmd = "get nodes {} -o=jsonpath=\'{{.metadata.annotations.cordon-note}}\'".format(node)
     output = run_kubectl(config, args, [query_cmd], need_output=True)
     if output and not args.force:
-        print("node annotated, if you are sure that you want to uncordon it, "\
-            "please specify --force or use `{} kubectl cordon <node>` to"\
-            " cordon".format(__file__))
+        print("node annotated, if you are sure that you want to uncordon it, "
+              "please specify --force or use `{} kubectl cordon <node>` to "
+              "cordon".format(__file__))
     else:
         run_kubectl(config, args, ["uncordon {}".format(node)])
         run_kubectl(config, args, ["annotate node {} cordon-note-".format(node)])
+        run_kubectl(
+            config, args, ["annotate node {} REPAIR_CYCLE-".format(node)])
+        run_kubectl(
+            config, args,
+            ["label node {} --overwrite REPAIR_STATE=IN_SERVICE".format(node)])
+
+
+def start_repair(config, args):
+    node = args.nargs[0]
+    k8s_cmd = "annotate node {} --overwrite REPAIR_CYCLE=True".format(node)
+    run_kubectl(config, args, [k8s_cmd])
+
+
+def cancel_repair(config, args):
+    node = args.nargs[0]
+    k8s_cmd = "annotate node {} REPAIR_CYCLE-".format(node)
+    run_kubectl(config, args, [k8s_cmd])
 
 
 def run_command(args, command):
@@ -402,6 +419,10 @@ def run_command(args, command):
         cordon(config, args)
     elif command == "uncordon":
         uncordon(config, args)
+    elif command == "start-repair":
+        start_repair(config, args)
+    elif command == "cancel-repair":
+        cancel_repair(config, args)
     else:
         print("invalid command, please read the doc")
 

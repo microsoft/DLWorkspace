@@ -106,8 +106,15 @@ class TestUnschedulableRule(TestRule):
         self.rule = UnschedulableRule()
 
     def test_check_health(self):
-        # Node is marked as unschedulable
+        # Node is marked as unschedulable but not in repair cycle.
+        # Wait for admin to do manual repair
         self.node.unschedulable = True
+        self.node.repair_cycle = False
+        self.assertTrue(self.rule.check_health(self.node))
+        self.assertTrue(self.rule.check_health(self.node, stat="current"))
+
+        # Node is marked as unschedulable and in repair cycle.
+        self.node.repair_cycle = True
         self.assertFalse(self.rule.check_health(self.node))
         self.assertFalse(self.rule.check_health(self.node, stat="current"))
 

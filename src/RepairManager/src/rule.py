@@ -199,7 +199,8 @@ class UnschedulableRule(Rule):
 
     def check_health_impl(self, node, stat):
         # Unhealthy if node is IN_SERVICE but marked as unschedulable
-        if node.state == State.IN_SERVICE and node.unschedulable is True:
+        if node.state == State.IN_SERVICE and node.unschedulable is True and \
+                node.repair_cycle is True:
             return False
         else:
             return True
