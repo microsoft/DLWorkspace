@@ -1,10 +1,13 @@
 import * as React from 'react';
 import {
   FunctionComponent,
+  SyntheticEvent,
   useCallback,
   useContext,
   useMemo,
 } from 'react';
+
+import { get } from 'lodash';
 
 import {
   Box,
@@ -13,9 +16,12 @@ import {
   Typography,
   createStyles,
   makeStyles,
+  useTheme,
 } from '@material-ui/core'
-
-import { Info } from '@material-ui/icons';
+import {
+  Info,
+  Warning,
+} from '@material-ui/icons';
 
 import useActions from '../../hooks/useActions';
 
@@ -29,25 +35,43 @@ const usePaperStyle = makeStyles(theme => createStyles({
     marginBottom: theme.spacing(1),
     padding: theme.spacing(1),
   },
-}))
+}));
 
-interface MessageProps {
-  job: any;
+interface DiagnosticProps {
+  level: string;
+  action: string;
   children: string;
 }
 
-const Message: FunctionComponent<MessageProps> = ({ children, job }) => {
+const Diagnostic: FunctionComponent<DiagnosticProps> = ({ level, action, children }) => {
   const { clusterId } = useRouteParams();
-  const { support } = useActions(clusterId);
-  const handleSupportClick = useCallback((event: any) => {
-    support(job).onClick(event, job);
-  }, [support, job]);
+  const { job } = useContext(Context);
+  const { kill } = useActions(clusterId);
+  const { palette } = useTheme();
+
+  const handleKillClick = useCallback((event: SyntheticEvent) => {
+    kill(job).onClick(event, job);
+  }, [kill, job]);
+
+  const icon = useMemo(() => {
+    if (level === 'WARNING') {
+      return <Warning fontSize="large" htmlColor={palette.warning.main}/>;
+    } else { // 'INFO' by default
+      return <Info fontSize="large" htmlColor={palette.info.main}/>;
+    }
+  }, [level, palette]);
+  const button = useMemo(() => {
+    if (action === 'KillJob') {
+      return <Button size="large" color="secondary" onClick={handleKillClick}>Kill</Button>;
+    }
+  }, [action, handleKillClick]);
+
   const paperStyle = usePaperStyle();
   return (
     <Paper variant="outlined" classes={paperStyle}>
-      <Info fontSize="small" color="primary"/>
+      {icon}
       <Typography variant="body2" component={Box} flex={1} paddingLeft={1}>{children}</Typography>
-      <Button size="small" color="primary" onClick={handleSupportClick}>support</Button>
+      {button}
     </Paper>
   );
 }
@@ -55,18 +79,15 @@ const Message: FunctionComponent<MessageProps> = ({ children, job }) => {
 const Insight: FunctionComponent = () => {
   const { job } = useContext(Context);
 
-  const messages = useMemo(() => {
-    if (job == null) return [];
-    if (job['insight'] == null) return [];
-    if (!Array.isArray(job['insight']['messages'])) return [];
-    return job['insight']['messages'];
+  const diagnostics = useMemo<any[]>(() => {
+    return get(job, ['insight', 'diagnostics'], []);
   }, [job]);
 
   return (
     <>
       {
-        messages.map((message, index) => (
-          <Message key={index} job={job}>{message}</Message>
+        diagnostics.map(([level, text, action]: [string, string, string], index) => (
+          <Diagnostic key={index} level={level} action={action}>{text}</Diagnostic>
         ))
       }
     </>
