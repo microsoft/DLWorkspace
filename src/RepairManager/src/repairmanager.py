@@ -175,10 +175,16 @@ class RepairManager(object):
         the node is validated (corrected if necessary), False otherwise.
         """
         if node.state != State.IN_SERVICE and node.unschedulable is False:
-            if self.from_any_to_out_of_pool(node):
-                return True
+            if node.repair_cycle is True:
+                if self.from_any_to_out_of_pool(node):
+                    return True
+                else:
+                    return False
             else:
-                return False
+                if self.from_any_to_out_of_pool_untracked(node):
+                    return True
+                else:
+                    return False
         return True
 
     def update(self, node):
@@ -378,7 +384,7 @@ class RepairManager(object):
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
-            REPAIR_CYCLE: "False",
+            REPAIR_CYCLE: None,
         }
         if self.patch(node, unschedulable=True, labels=labels,
                       annotations=annotations):
@@ -395,7 +401,7 @@ class RepairManager(object):
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
-            REPAIR_CYCLE: "False",
+            REPAIR_CYCLE: None,
         }
         if self.patch(node, unschedulable=False, labels=labels,
                       annotations=annotations):
@@ -486,7 +492,7 @@ class RepairManager(object):
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
             REPAIR_UNHEALTHY_RULES: None,
-            REPAIR_CYCLE: "False",
+            REPAIR_CYCLE: None,
         }
         if self.patch(node, unschedulable=False, labels=labels,
                       annotations=annotations):

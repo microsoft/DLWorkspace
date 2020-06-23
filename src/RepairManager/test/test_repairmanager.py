@@ -90,24 +90,57 @@ class TestRepairManager(unittest.TestCase):
         # Node is in valid state
         self.assertTrue(self.repairmanager.validate(self.node))
 
+        # Repair cycle
         # Node is not in a valid state, patch is working
+        self.k8s_util.patch_result = True
         for state in [State.OUT_OF_POOL, State.READY_FOR_REPAIR,
                       State.IN_REPAIR, State.AFTER_REPAIR]:
             self.node.unschedulable = False
+            self.node.repair_cycle = True
             self.node.state = state
             self.assertTrue(self.repairmanager.validate(self.node))
             self.assertEqual(State.OUT_OF_POOL, self.node.state)
-            self.assertEqual(True, self.node.unschedulable)
+            self.assertTrue(self.node.repair_cycle)
+            self.assertTrue(self.node.unschedulable)
 
         # Node is not in a valid state, patch is not working
         self.k8s_util.patch_result = False
         for state in [State.OUT_OF_POOL, State.READY_FOR_REPAIR,
                       State.IN_REPAIR, State.AFTER_REPAIR]:
             self.node.unschedulable = False
+            self.node.repair_cycle = True
             self.node.state = state
             self.assertFalse(self.repairmanager.validate(self.node))
             self.assertEqual(state, self.node.state)
-            self.assertEqual(False, self.node.unschedulable)
+            self.assertTrue(self.node.repair_cycle)
+            self.assertFalse(self.node.unschedulable)
+
+        # Not in repair cycle
+        # Node is not in a valid state, patch is working
+        self.k8s_util.patch_result = True
+        for state in [State.OUT_OF_POOL, State.READY_FOR_REPAIR,
+                      State.IN_REPAIR, State.AFTER_REPAIR,
+                      State.OUT_OF_POOL_UNTRACKED]:
+            self.node.unschedulable = False
+            self.node.repair_cycle = False
+            self.node.state = state
+            self.assertTrue(self.repairmanager.validate(self.node))
+            self.assertEqual(State.OUT_OF_POOL_UNTRACKED, self.node.state)
+            self.assertFalse(self.node.repair_cycle)
+            self.assertTrue(self.node.unschedulable)
+
+        # Node is not in a valid state, patch is not working
+        self.k8s_util.patch_result = False
+        for state in [State.OUT_OF_POOL, State.READY_FOR_REPAIR,
+                      State.IN_REPAIR, State.AFTER_REPAIR,
+                      State.OUT_OF_POOL_UNTRACKED]:
+            self.node.unschedulable = False
+            self.node.repair_cycle = False
+            self.node.state = state
+            self.assertFalse(self.repairmanager.validate(self.node))
+            self.assertEqual(state, self.node.state)
+            self.assertFalse(self.node.repair_cycle)
+            self.assertFalse(self.node.unschedulable)
 
     def wait_for_alive(self, timeout=10):
         start = time.time()
