@@ -354,6 +354,7 @@ def uncordon(config, args):
         run_kubectl(config, args, ["uncordon {}".format(node)])
         run_kubectl(config, args, ["annotate node {} cordon-note-".format(node)])
         run_kubectl(config, args, ["annotate node {} REPAIR_CYCLE-".format(node)])
+        run_kubectl(config, args, ["label node {} REPAIR_STATE-".format(node)])
 
 
 def start_repair(config, args):
