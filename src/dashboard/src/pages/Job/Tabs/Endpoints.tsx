@@ -1,7 +1,6 @@
 import * as React from 'react';
 import {
   FunctionComponent,
-  ChangeEvent,
   FormEvent,
   useCallback,
   useContext,
@@ -26,7 +25,7 @@ import {
 import {
   Send
 } from '@material-ui/icons';
-import useFetch from 'use-http-2';
+import useFetch from 'use-http-1';
 import { useSnackbar } from 'notistack';
 
 import Loading from '../../../components/Loading';
@@ -99,6 +98,56 @@ const EndpointsList: FunctionComponent<{
   )
 };
 
+interface EndpointSwitchProps {
+  label: string;
+  endpoint: string;
+  enabled: boolean;
+}
+
+const EndpointSwitch: FunctionComponent<EndpointSwitchProps> = ({ label, endpoint, enabled }) => {
+  const { clusterId, jobId } = useRouteParams();
+  const { enqueueSnackbar } = useSnackbar();
+
+  const [checked, setChecked] = useState(enabled);
+
+  const { response, post } = useFetch(
+    `/api/clusters/${clusterId}/jobs/${jobId}/endpoints`,
+    [clusterId, jobId]);
+
+  const handleChange = useCallback(() => {
+    setChecked(true);
+    post({ endpoints: [endpoint] })
+      .then(() => {
+        if (response.ok) {
+          enqueueSnackbar(`${label} enabled`, { variant: 'success' })
+        } else {
+          return response.text().then(text => Promise.reject(Error(text)))
+        }
+      }).catch(error => {
+        const message = error && error.message
+          ? `Failed to enable ${label}: ${error.message}`
+          : `Failed to enable ${label}`;
+        enqueueSnackbar(message, { variant: 'error' })
+        setChecked(false);
+      })
+  }, [post, endpoint, response, enqueueSnackbar, label]);
+
+  useEffect(() => {
+    // Only sync `checked` state when `enabled` prop changes
+    setChecked(enabled);
+  }, [enabled]);
+
+  return (
+    <FormControlLabel
+      checked={checked}
+      disabled={checked}
+      control={<Switch/>}
+      label={label}
+      onChange={handleChange}
+    />
+  );
+};
+
 
 const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoints }) => {
   const { clusterId, jobId } = useRouteParams();
@@ -116,25 +165,6 @@ const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoint
     useFetch(`/api/clusters/${clusterId}/jobs/${jobId}/endpoints`,
     [clusterId, jobId]);
   const portInput = useRef<HTMLInputElement>();
-  const onChange = useCallback((name: string) => (event: ChangeEvent<{}>, value: boolean) => {
-    if (value === false) return;
-    enqueueSnackbar(`Enabling ${name}...`);
-    post({
-      endpoints: [name.toLowerCase()]
-    }).then((response) => {
-      if (response.ok) {
-        enqueueSnackbar(`${name} enabled`, { variant: 'success' })
-      } else {
-        return response.text().then((text: string) => Promise.reject(Error(text)))
-      }
-    }).catch((error) => {
-      const message = error && error.message
-        ? `Failed to enable ${name}: ${error.message}`
-        : `Failed to enable ${name}`
-
-      enqueueSnackbar(message, { variant: 'error' })
-    });
-  }, [post, enqueueSnackbar]);
   const onSubmit = useCallback((event: FormEvent) => {
     event.preventDefault();
     if (portInput.current === undefined) return;
@@ -155,27 +185,9 @@ const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoint
   return (
     <Box px={2}>
       <FormGroup aria-label="position" row>
-        <FormControlLabel
-          checked={ssh || undefined}
-          disabled={ssh}
-          control={<Switch/>}
-          label="SSH"
-          onChange={onChange('SSH')}
-        />
-        <FormControlLabel
-          checked={ipython || undefined}
-          disabled={ipython}
-          control={<Switch/>}
-          label="iPython"
-          onChange={onChange('iPython')}
-        />
-        <FormControlLabel
-          checked={tensorboard || undefined}
-          disabled={tensorboard}
-          control={<Switch/>}
-          label="Tensorboard *"
-          onChange={onChange('Tensorboard')}
-        />
+        <EndpointSwitch label="SSH" endpoint="ssh" enabled={ssh}/>
+        <EndpointSwitch label="iPython" endpoint="ipython" enabled={ipython}/>
+        <EndpointSwitch label="Tensorboard" endpoint="tensorboard" enabled={tensorboard}/>
       </FormGroup>
       <Typography>
         *: Tensorboard will listen on directory

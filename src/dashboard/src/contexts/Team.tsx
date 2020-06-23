@@ -6,7 +6,7 @@ import {
   useEffect,
   useState
 } from 'react';
-import useFetch from "use-http-2";
+import useFetch from "use-http-1";
 
 import { find } from "lodash";
 
@@ -37,7 +37,7 @@ const Provider: FunctionComponent = ({ children }) => {
   const [currentTeamId, setCurrentTeamId] = useState<string>(
     () => (window.localStorage.getItem('currentTeamId') || ''));
 
-  const { get } = useFetch<any[]>('/api/teams');
+  const { get, abort } = useFetch<any[]>('/api/teams');
 
   useEffect(() => {
     if (email === undefined) { // Not signed in
@@ -60,8 +60,9 @@ const Provider: FunctionComponent = ({ children }) => {
       }, () => {
         setTeams([])
       })
+      return abort;
     }
-  }, [teams, email, get]);
+  }, [teams, email, get, abort]);
 
   useEffect(() => {
     // Validate currentTeamId

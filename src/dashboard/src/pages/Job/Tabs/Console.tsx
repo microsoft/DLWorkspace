@@ -26,7 +26,7 @@ import {
 } from '@material-ui/core';
 import { ThemeProvider } from "@material-ui/styles";
 import { useWindowSize } from 'react-use';
-import useFetch from 'use-http-2';
+import useFetch from 'use-http-1';
 import { useSnackbar } from 'notistack';
 import { map, mergeWith } from 'lodash';
 
@@ -50,7 +50,7 @@ const useLogText = () => {
   const { clusterId, jobId } = useRouteParams();
   const { job } = useContext(Context);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const { data, loading, error, get } = useFetch(
+  const { data, loading, error, get, abort } = useFetch(
     `/api/clusters/${clusterId}/jobs/${jobId}/log`, useConstant({
       onNewData (currentData, newData) {
         if (currentData === undefined || currentData.cursor == null) {
@@ -103,8 +103,9 @@ const useLogText = () => {
     const timeout = setTimeout(get, delay, querystring);
     return () => {
       clearTimeout(timeout);
+      abort();
     }
-  }, [job, data, loading, error, get]);
+  }, [job, data, loading, error, get, abort]);
 
   useEffect(() => {
     if (error === undefined) return;

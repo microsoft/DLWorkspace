@@ -24,7 +24,7 @@ import {
 } from 'material-table';
 
 import { useSnackbar } from 'notistack';
-import useFetch from 'use-http-2';
+import useFetch from 'use-http-1';
 
 import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
 import TeamContext from '../../contexts/Team';
@@ -40,7 +40,6 @@ const useClusterStatus = (clusterId: string) => {
 
   const { data, loading, error, get } = useFetch(
     `/api/v2/clusters/${clusterId}/teams/${currentTeamId}`,
-    undefined,
     [clusterId, currentTeamId]);
 
   useEffect(() => {
@@ -69,7 +68,7 @@ const useClusterStatus = (clusterId: string) => {
 const useClusterMetrics = (status: any) => { // Actually Cluster-Team Metrics
   const { currentTeamId } = useContext(TeamContext);
 
-  const metrics = usePrometheus(status ? status.config['grafana'] : undefined,
+  const metrics = usePrometheus(status && status.config ? status.config['grafana'] : undefined,
     `avg(task_gpu_percent {vc_name="${currentTeamId}"})`);
 
   return get(metrics, 'result[0].value[1]');
@@ -82,9 +81,10 @@ const Clusters: FunctionComponent = () => {
   const clustersStatus = clustersId.map(useClusterStatus);
   const clustersMetrics = clustersStatus.map(useClusterMetrics);
 
-  const clustersData = zipWith(
+  const clustersData = useMemo(() => zipWith(
     clustersId, clustersStatus, clustersMetrics,
-    (id, status, metrics) => ({ id, status, metrics }));
+    (id, status, metrics) => ({ id, status, metrics })),
+  [...clustersId, ...clustersStatus, ...clustersMetrics]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clusterTypesStatus = useMemo(() => {
     const clusterTypesStatus = [];

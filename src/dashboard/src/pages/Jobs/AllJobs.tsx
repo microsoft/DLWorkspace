@@ -10,7 +10,7 @@ import {
 } from 'react';
 import Helmet from 'react-helmet';
 import { useSnackbar } from 'notistack';
-import useFetch from 'use-http-2';
+import useFetch from 'use-http-1';
 import { compact, reduce } from 'lodash';
 
 import TeamContext from '../../contexts/Team';
@@ -109,7 +109,6 @@ const AllJobs: FunctionComponent = () => {
 
   const { data, loading, error, get, abort } = useFetch(
     `/api/v2/clusters/${cluster.id}/teams/${currentTeamId}/jobs?user=all&limit=${limit}`,
-    undefined,
     [cluster.id, currentTeamId, limit]
   );
 

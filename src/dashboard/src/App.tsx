@@ -10,10 +10,10 @@ import { CssBaseline, createMuiTheme } from '@material-ui/core';
 import { ThemeProvider } from "@material-ui/styles";
 import { SnackbarProvider } from "notistack";
 import {
-  Provider as UseHttpProvider,
-  Options as UseHttpOptions,
+  Provider as FetchProvider,
+  IncomingOptions,
   CachePolicies,
-} from "use-http-2";
+} from "use-http-1";
 
 import ConfigContext, { Provider as ConfigProvider } from "./contexts/Config";
 import UserContext, { Provider as UserProvider } from "./contexts/User";
@@ -26,7 +26,7 @@ import Layout from "./Layout";
 import Routes from "./Routes";
 
 const theme = createMuiTheme();
-const useHttpOptions: UseHttpOptions = {
+const useHttpOptions: IncomingOptions = {
   cachePolicy: CachePolicies.NO_CACHE
 };
 
@@ -37,7 +37,7 @@ interface BootstrapProps {
 
 const Contexts: FunctionComponent<BootstrapProps> = ({ config, user, children }) => {
   return (
-    <UseHttpProvider options={useHttpOptions}>
+    <FetchProvider options={useHttpOptions}>
       <BrowserRouter>
 
         <ConfigProvider {...config}>
@@ -59,7 +59,7 @@ const Contexts: FunctionComponent<BootstrapProps> = ({ config, user, children })
         </ConfigProvider>
 
       </BrowserRouter>
-    </UseHttpProvider>
+    </FetchProvider>
   );
 }
 
