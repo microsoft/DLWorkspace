@@ -359,6 +359,16 @@ def get_job_detail(rest_url, email, job_id):
     return resp.json()
 
 
+def get_job_detail_v2(rest_url, email, job_id):
+    args = urllib.parse.urlencode({
+        "userName": email,
+        "jobId": job_id,
+    })
+    url = urllib.parse.urljoin(rest_url, "/GetJobDetailV2") + "?" + args
+    resp = requests.get(url)
+    return resp.json()
+
+
 def _op_job(rest_url, email, job_id, op, **kwargs):
     args = {
         "userName": email,
@@ -485,7 +495,17 @@ def set_job_insight(rest_url, email, job_id, insight):
         "userName": email,
     })
     url = urllib.parse.urljoin(rest_url, "/Insight") + "?" + args
-    resp = requests.post(url, data=json.dumps(insight))
+    resp = requests.post(url, json=insight)
+    return resp
+
+
+def set_repair_message(rest_url, email, job_id, repair_message):
+    args = urllib.parse.urlencode({
+        "jobId": job_id,
+        "userName": email,
+    })
+    url = urllib.parse.urljoin(rest_url, "/RepairMessage") + "?" + args
+    resp = requests.post(url, json=repair_message)
     return resp
 
 

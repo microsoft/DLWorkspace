@@ -356,6 +356,8 @@ def uncordon(config, args):
         run_kubectl(
             config, args, ["annotate node {} REPAIR_CYCLE-".format(node)])
         run_kubectl(
+            config, args, ["annotate node {} REPAIR_MESSAGE-".format(node)])
+        run_kubectl(
             config, args,
             ["label node {} --overwrite REPAIR_STATE=IN_SERVICE".format(node)])
 

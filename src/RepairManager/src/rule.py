@@ -84,7 +84,6 @@ class Rule(object):
         self.stat = stat
         self.interval = interval
         self.data = {"current": {}, stat: {}}
-        self.rest_util = RestUtil()
         self.prometheus_util = PrometheusUtil()
 
     @property
@@ -156,12 +155,10 @@ class Rule(object):
         """
         # By default, wait for all active jobs to finish on the node.
         for job_id, job in node.jobs.items():
-            try:
-                status = self.rest_util.get_job_status(job_id)["jobStatus"]
-                if status in ("running", "scheduling"):
-                    return False
-            except:
-                logger.exception("failed to check job status: %s", job_id)
+            if job.status in ("running", "scheduling"):
+                node.evict_jobs = True
+                node.repair_message = \
+                    "Waiting for running job(s) to finish before repair"
                 return False
         return True
 

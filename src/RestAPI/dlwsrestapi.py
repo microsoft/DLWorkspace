@@ -214,6 +214,15 @@ class ListJobsV2(Resource):
         return jsonify(jobs)
 
 
+@api.resource("/ListActiveJobs")
+class ListActiveJobs(Resource):
+    def get(self):
+        jobs, status_code = JobRestAPIUtils.get_active_job_list()
+        if status_code != 200:
+            return jobs, status_code
+        return jsonify(jobs)
+
+
 @api.resource("/KillJob")
 class KillJob(Resource):
     def __init__(self):
@@ -1044,13 +1053,13 @@ class JobMaxTime(Resource):
 @api.resource("/Insight")
 class Insight(Resource):
     def __init__(self):
-        self.post_parser = reqparse.RequestParser()
-        self.post_parser.add_argument("jobId", required=True)
-        self.post_parser.add_argument("userName", required=True)
-
         self.get_parser = reqparse.RequestParser()
         self.get_parser.add_argument("jobId", required=True)
         self.get_parser.add_argument("userName", required=True)
+
+        self.post_parser = reqparse.RequestParser()
+        self.post_parser.add_argument("jobId", required=True)
+        self.post_parser.add_argument("userName", required=True)
 
     def get(self):
         args = self.get_parser.parse_args()
@@ -1073,6 +1082,21 @@ class Insight(Resource):
         if status_code != 200:
             return resp, status_code
         return jsonify(resp)
+
+
+@api.resource("/RepairMessage")
+class RepairMessage(Resource):
+    def __init__(self):
+        self.post_parser = reqparse.RequestParser()
+        self.post_parser.add_argument("jobId", required=True)
+        self.post_parser.add_argument("userName", required=True)
+
+    def post(self):
+        args = self.post_parser.parse_args()
+        job_id = args.get("jobId")
+        username = args.get("userName")
+        payload = request.get_json(force=True, silent=True)
+        return JobRestAPIUtils.set_repair_message(username, job_id, payload)
 
 
 @app.route("/metrics")

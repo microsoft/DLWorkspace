@@ -394,6 +394,16 @@ def get_job_list_v2(username, vc_name, job_owner, num=None):
     return jobs
 
 
+def get_active_job_list():
+    try:
+        with DataHandler() as data_handler:
+            jobs = data_handler.GetActiveJobList()
+            return jobs, 200
+    except:
+        logger.exception("Failed to get active job list")
+        return "Internal error", 500
+
+
 def GetUserPendingJobs(userName, vcName):
     jobs = []
     allJobs = DataManager.GetAllPendingJobs(vcName)
@@ -1622,9 +1632,9 @@ def get_job_insight(job_id, username):
             logger.info("Insight for job %s is successfully get by user %s",
                         job_id, username)
             return insight, 200
-    except Exception as e:
-        msg = "Exception when getting insight for job %s by user %s. %s" % \
-              (job_id, username, e)
+    except Exception:
+        msg = "Exception when getting insight for job %s by user %s" % \
+              (job_id, username)
         logger.exception(msg)
         return msg, 500
 
@@ -1677,9 +1687,9 @@ def set_job_insight(job_id, username, insight):
                 msg = "Internal error on setting insight for job %s by user %s" % \
                       (job_id, username)
                 return msg, 500
-    except Exception as e:
-        msg = "Exception when setting insight for job %s by user %s. %s" % \
-              (job_id, username, e)
+    except Exception:
+        msg = "Exception when setting insight for job %s by user %s" % \
+              (job_id, username)
         logger.exception(msg)
         return msg, 500
 
@@ -1715,6 +1725,63 @@ def set_job_max_time(username, job_id, second):
     finally:
         dataHandler.Close()
     return "Server error", 500
+
+
+def set_repair_message(username, job_id, repair_message):
+    """Set repair message for the specified job.
+
+        Args:
+            job_id: Job id for which to set repair message.
+            username: Requester username.
+            repair_message: Repair message content for the job.
+
+        Returns:
+            (response message, status code)
+        """
+    try:
+        with DataHandler() as data_handler:
+            fields = ["userName", "vcName"]
+            job = data_handler.GetJobTextFields(job_id, fields)
+
+            # Job not found
+            if job is None:
+                msg = "Job %s requested by user %s cannot be found" % \
+                      (job_id, username)
+                logger.error(msg)
+                return msg, 404
+
+            # Only admins can set job repair message
+            if not has_access(username, VC, job["vcName"], ADMIN):
+                msg = "Unauthorized to set repair message for job %s by user " \
+                      "%s" % (job_id, username)
+                logger.error(msg)
+                return msg, 403
+
+            if repair_message is None:
+                msg = "Bad repair message cannot be set for job %s by user " \
+                      "%s" % (job_id, username)
+                logger.error(msg)
+                return msg, 400
+
+            cond_fields = {"jobId": job_id}
+            data_fields = {
+                "repair_message": base64encode(json.dumps(repair_message))
+            }
+            ret = data_handler.UpdateJobTextFields(cond_fields, data_fields)
+            if ret is True:
+                msg = "Repair message for job %s is successfully set by " \
+                      "user %s" % (job_id, username)
+                logger.info(msg)
+                return msg, 200
+            else:
+                msg = "Internal error on setting repair message for job %s " \
+                      "by user %s" % (job_id, username)
+                return msg, 500
+    except Exception:
+        msg = "Exception when setting repair message for job %s by user %s" % \
+              (job_id, username)
+        logger.exception(msg)
+        return msg, 500
 
 
 def getAlias(username):

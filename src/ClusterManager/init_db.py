@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS `jobs`
     `lastupdated`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `priority`           INT           NOT NULL DEFAULT 100,
     `insight`            LONGTEXT      NULL,
+    `repairMessage`      LONGTEXT      NULL,
     PRIMARY KEY (`id`),
     UNIQUE (`jobid`),
     INDEX  (`username`),

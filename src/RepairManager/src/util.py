@@ -151,6 +151,12 @@ class RestUtil(object):
         resp = requests.get(url, timeout=5)
         return resp.json()
 
+    def get_active_jobs(self):
+        return None
+
+    def update_repair_message(self, job_id):
+        pass
+
 
 class PrometheusUtil(object):
     def __init__(self):
@@ -188,6 +194,7 @@ class Job(object):
         self.job_id = job_id
         self.username = username
         self.vc_name = vc_name
+        self.status = None  # to be populated if the host node is OUT_OF_POOL
         self.pods = []
 
     def __repr__(self):
@@ -215,7 +222,9 @@ class Node(object):
         self.unhealthy_rules = unhealthy_rules if unhealthy_rules else []
         self.last_update_time = last_update_time
         self.repair_cycle = repair_cycle
+        self.repair_message = None  # to be filled in in repair cycle
         self.jobs = {}
+        self.evict_jobs = False  # whether to evict jobs preparing for repair
 
     @property
     def state_name(self):
@@ -333,8 +342,11 @@ def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
 
             node = Node(hostname, internal_ip, ready, unschedulable, sku,
                         gpu_expected, gpu_total, gpu_allocatable, state,
-                        infiniband, ipoib, nv_peer_mem, nvsm, unhealthy_rules,
-                        last_update_time, repair_cycle)
+                        infiniband=infiniband, ipoib=ipoib,
+                        nv_peer_mem=nv_peer_mem, nvsm=nvsm,
+                        unhealthy_rules=unhealthy_rules,
+                        last_update_time=last_update_time,
+                        repair_cycle=repair_cycle)
             nodes[internal_ip] = node
         except:
             logger.exception("failed to parse k8s node %s", k8s_node)
@@ -375,7 +387,7 @@ def parse_for_nodes(k8s_nodes, k8s_pods, vc_list, rules, config):
 
     nodes = {}
     parse_nodes(k8s_nodes, metadata, rules, config, nodes)
-    parse_pods(k8s_pods, nodes)
+    parse_pods(k8s_pods, nodes, rest_util)
     return list(nodes.values())
 
 

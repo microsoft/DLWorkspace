@@ -892,7 +892,7 @@ class DataHandler(object):
         cursor = None
         try:
             cursor = self.conn.cursor()
-            query = "SELECT `jobId`, `jobName`, `userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobTime`, `jobParams`, `insight` FROM `%s` where `jobId` = '%s' " % (
+            query = "SELECT `jobId`, `jobName`, `userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobTime`, `jobParams`, `insight`, `repairMessage` FROM `%s` where `jobId` = '%s' " % (
                 self.jobtablename, jobId)
             cursor.execute(query)
 
@@ -909,6 +909,9 @@ class DataHandler(object):
                 if record["insight"] is not None:
                     record["insight"] = self.load_json(
                         base64decode(record["insight"]))
+                if record["repairMessage"] is not None:
+                    record["repairMessage"] = self.load_json(
+                        base64decode(record["repairMessage"]))
                 ret.append(record)
             self.conn.commit()
         except Exception as e:

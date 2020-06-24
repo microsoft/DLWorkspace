@@ -777,6 +777,25 @@ def test_job_insight(args):
 
 
 @utils.case()
+def test_job_repair_message(args):
+    """Similar test to test_job_insight. Simply test if rest call works"""
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        payload = {"messages": ["dummy"]}
+        resp = utils.set_repair_message(args.rest, args.email, job.jid, payload)
+        assert resp.status_code == 200
+
+        job_detail = utils.get_job_detail_v2(args.rest, args.email, job.jid)
+        assert payload == job_detail.get("repairMessage")
+
+
+@utils.case()
 def test_gpu_type_override(args):
     job_spec = utils.gen_default_job_description("regular", args.email,
                                                  args.uid, args.vc)

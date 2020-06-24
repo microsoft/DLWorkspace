@@ -20,7 +20,8 @@ from requests.exceptions import ConnectionError
 from constant import REPAIR_STATE, \
     REPAIR_STATE_LAST_UPDATE_TIME, \
     REPAIR_UNHEALTHY_RULES, \
-    REPAIR_CYCLE
+    REPAIR_CYCLE, \
+    REPAIR_MESSAGE
 from util import State, AtomicRef, K8sUtil, RestUtil
 from util import register_stack_trace_dump, get_logging_level, parse_for_nodes
 from rule import instantiate_rules, UnschedulableRule
@@ -105,8 +106,14 @@ class RepairManager(object):
                     else:
                         logger.error("validation failed for node %s", node)
 
+                # Populate repair message for jobs
+                self.update_repair_message_for_jobs()
+
                 # Update metrics for Prometheus scraping
                 self.update_metrics()
+
+                # Send emails to users whose jobs are affected
+                self.send_emails()
             except:
                 logger.exception("failed to run")
             time.sleep(self.interval)
@@ -125,6 +132,14 @@ class RepairManager(object):
         except:
             logger.exception("failed to get repair state")
             self.nodes = []
+
+    def update_repair_message_for_jobs(self):
+        try:
+            for node in self.nodes:
+                if node.state != State.OUT_OF_POOL or node.evict_jobs is False:
+                    continue
+        except:
+            logger.exception("failed to update repair message for jobs")
 
     def update_metrics(self):
         sku_list = set([node.sku for node in self.nodes])
@@ -168,7 +183,28 @@ class RepairManager(object):
             for sku, count in count_by_rule.items():
                 rule_gauge.add_metric([rule, sku], count)
 
-        self.atomic_ref.set([state_gauge, rule_gauge])
+        # Count jobs impacted by repair (sku -> count)
+        jobs_gauge = GaugeMetricFamily(
+            "repair_impacted_job_count",
+            "Number of jobs impacted by repair",
+            labels=["sku"])
+
+        impacted_job_count = collections.defaultdict(lambda: 0)
+        for sku in sku_list:
+            impacted_job_count[sku] = 0
+
+        for node in self.nodes:
+            if node.state != State.OUT_OF_POOL:
+                continue
+            impacted_job_count[node.sku] += len(node.jobs)
+
+        for sku, count in impacted_job_count.items():
+            jobs_gauge.add_metric([sku], count)
+
+        self.atomic_ref.set([state_gauge, rule_gauge, jobs_gauge])
+
+    def send_emails(self):
+        pass
 
     def validate(self, node):
         """Validate (and correct if needed) the node status. Returns True if
@@ -231,8 +267,14 @@ class RepairManager(object):
                 elif node.repair_cycle:
                     self.from_out_of_pool_untracked_to_out_of_pool(node)
             elif node.state == State.OUT_OF_POOL:
+                # DB call for job status for OUT_OF_POOL nodes once
+                # instead of calling it in every needed rule.
+                self.fetch_job_status(node)
                 if self.prepare(node):
                     self.from_out_of_pool_to_ready_for_repair(node)
+                else:
+                    # Fill in repair message from prepare
+                    self.update_repair_message(node)
             elif node.state == State.READY_FOR_REPAIR:
                 if self.send_repair_request(node):
                     self.from_ready_for_repair_to_in_repair(node)
@@ -281,6 +323,18 @@ class RepairManager(object):
             if not rule.prepare(node):
                 return False
         return True
+
+    def fetch_job_status(self, node):
+        """Fetch job status for all jobs in a node. Must be called before
+        prepare for OUT_OF_POOL nodes.
+        """
+        for job_id, job in node.jobs.items():
+            try:
+                status = self.rest_util.get_job_status(job_id)["jobStatus"]
+            except:
+                logger.exception("failed to check job status: %s", job_id)
+                status = None
+            job.status = status
 
     def send_repair_request(self, node):
         """Send the list of unhealthy rules to Agent"""
@@ -363,16 +417,19 @@ class RepairManager(object):
         if not isinstance(node.unhealthy_rules, list) or \
                 len(node.unhealthy_rules) == 0:
             node.unhealthy_rules = [UnschedulableRule()]
+        repair_message = "Health event detected: %s. Out of scheduling pool"
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
             REPAIR_UNHEALTHY_RULES: self.get_unhealthy_rules_value(node),
             REPAIR_CYCLE: "True",
+            REPAIR_MESSAGE: repair_message,
         }
         if self.patch(node, unschedulable=True, labels=labels,
                       annotations=annotations):
             node.unschedulable = True
             node.repair_cycle = True
+            node.repair_message = repair_message
             node.state = State.OUT_OF_POOL
             return True
         else:
@@ -381,15 +438,18 @@ class RepairManager(object):
     def from_any_to_out_of_pool_untracked(self, node):
         """Move from any state into OUT_OF_POOL_UNTRACKED"""
         labels = {REPAIR_STATE: State.OUT_OF_POOL_UNTRACKED.name}
+        repair_message = "Pending repair by Administrator"
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
             REPAIR_CYCLE: None,
+            REPAIR_MESSAGE: repair_message,
         }
         if self.patch(node, unschedulable=True, labels=labels,
                       annotations=annotations):
             node.unschedulable = True
             node.repair_cycle = False
+            node.repair_message = repair_message
             node.state = State.OUT_OF_POOL_UNTRACKED
             return True
         else:
@@ -402,11 +462,13 @@ class RepairManager(object):
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
             REPAIR_CYCLE: None,
+            REPAIR_MESSAGE: None,
         }
         if self.patch(node, unschedulable=False, labels=labels,
                       annotations=annotations):
             node.unschedulable = False
             node.repair_cycle = False
+            node.repair_message = None
             node.state = State.IN_SERVICE
             return True
         else:
@@ -418,35 +480,32 @@ class RepairManager(object):
 
     def from_in_service_to_out_of_pool(self, node):
         """Move from IN_SERVICE into OUT_OF_POOL"""
-        labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
-        annotations = {
-            REPAIR_STATE_LAST_UPDATE_TIME:
-                str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
-            REPAIR_UNHEALTHY_RULES: self.get_unhealthy_rules_value(node),
-            REPAIR_CYCLE: "True",
-        }
-        if self.patch(node, unschedulable=True, labels=labels,
-                      annotations=annotations):
-            node.unschedulable = True
-            node.repair_cycle = True
-            node.state = State.OUT_OF_POOL
-            return True
-        else:
-            return False
+        return self.from_any_to_out_of_pool(node)
 
     def from_out_of_pool_to_ready_for_repair(self, node):
         """Move from OUT_OF_POOL into READY_FOR_REPAIR"""
         labels = {REPAIR_STATE: State.READY_FOR_REPAIR.name}
+        repair_message = "Repair action will start soon"
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
             REPAIR_CYCLE: "True",
+            REPAIR_MESSAGE: repair_message,
         }
         if self.patch(node, unschedulable=True, labels=labels,
                       annotations=annotations):
             node.unschedulable = True
             node.repair_cycle = True
+            node.repair_message = repair_message
             node.state = State.READY_FOR_REPAIR
+            return True
+        else:
+            return False
+
+    def update_repair_message(self, node):
+        """simply update repair message"""
+        annotations = {REPAIR_MESSAGE: node.repair_message}
+        if self.patch(node, annotations=annotations):
             return True
         else:
             return False
@@ -454,15 +513,18 @@ class RepairManager(object):
     def from_ready_for_repair_to_in_repair(self, node):
         """Move from READY_FOR_REPAIR into IN_REPAIR"""
         labels = {REPAIR_STATE: State.IN_REPAIR.name}
+        repair_message = "Currently under repair"
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
             REPAIR_CYCLE: "True",
+            REPAIR_MESSAGE: repair_message,
         }
         if self.patch(node, unschedulable=True, labels=labels,
                       annotations=annotations):
             node.unschedulable = True
             node.repair_cycle = True
+            node.repair_message = repair_message
             node.state = State.IN_REPAIR
             return True
         else:
@@ -471,15 +533,18 @@ class RepairManager(object):
     def from_in_repair_to_after_repair(self, node):
         """Move from IN_REPAIR into AFTER_REPAIR"""
         labels = {REPAIR_STATE: State.AFTER_REPAIR.name}
+        repair_message = "Repair completed, pending health check"
         annotations = {
             REPAIR_STATE_LAST_UPDATE_TIME:
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
             REPAIR_CYCLE: "True",
+            REPAIR_MESSAGE: repair_message
         }
         if self.patch(node, unschedulable=True, labels=labels,
                       annotations=annotations):
             node.unschedulable = True
             node.repair_cycle = True
+            node.repair_message = repair_message
             node.state = State.AFTER_REPAIR
             return True
         else:
@@ -493,11 +558,13 @@ class RepairManager(object):
                 str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
             REPAIR_UNHEALTHY_RULES: None,
             REPAIR_CYCLE: None,
+            REPAIR_MESSAGE: None,
         }
         if self.patch(node, unschedulable=False, labels=labels,
                       annotations=annotations):
             node.unschedulable = False
             node.repair_cycle = False
+            node.repair_message = None
             node.state = State.IN_SERVICE
             return True
         else:
@@ -505,21 +572,7 @@ class RepairManager(object):
 
     def from_after_repair_to_out_of_pool(self, node):
         """Move from AFTER_REPAIR into OUT_OF_POOL"""
-        labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
-        annotations = {
-            REPAIR_STATE_LAST_UPDATE_TIME:
-                str(datetime.datetime.timestamp(datetime.datetime.utcnow())),
-            REPAIR_UNHEALTHY_RULES: self.get_unhealthy_rules_value(node),
-            REPAIR_CYCLE: "True",
-        }
-        if self.patch(node, unschedulable=True, labels=labels,
-                      annotations=annotations):
-            node.unschedulable =True
-            node.repair_cycle = True
-            node.state = State.OUT_OF_POOL
-            return True
-        else:
-            return False
+        return self.from_any_to_out_of_pool(node)
 
 
 def get_config(config_path):

@@ -14,3 +14,6 @@ REPAIR_UNHEALTHY_RULES = "REPAIR_UNHEALTHY_RULES"
 # An unschedulable node that is not in repair cycle can be manually repaired
 # by administrator without repair cycle interruption.
 REPAIR_CYCLE = "REPAIR_CYCLE"
+
+# Annotation key for repair message - what phase the node is undergoing
+REPAIR_MESSAGE = "REPAIR_MESSAGE"
