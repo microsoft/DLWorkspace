@@ -155,10 +155,10 @@ class Rule(object):
         """
         # By default, wait for all active jobs to finish on the node.
         for job_id, job in node.jobs.items():
-            if job.status in ("running", "scheduling"):
+            if job.active:
                 node.evict_jobs = True
                 node.repair_message = \
-                    "Waiting for running job(s) to finish before repair"
+                    "Waiting for running job(s) to finish before repair (%s)"
                 return False
         return True
 

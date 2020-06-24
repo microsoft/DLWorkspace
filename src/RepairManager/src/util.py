@@ -152,15 +152,17 @@ class RestUtil(object):
         return resp.json()
 
     def get_active_jobs(self):
-        pass
+        url = urllib.parse.urljoin(self.rest_url, "/ListActiveJobs")
+        resp = requests.get(url)
+        return resp.json()
 
-    def update_repair_message(self, job_id, message):
+    def update_repair_message(self, job_id, repair_message):
         args = urllib.parse.urlencode({
             "userName": "Administrator",
             "jobId": job_id,
         })
         url = urllib.parse.urljoin(self.rest_url, "/RepairMessage") + "?" + args
-        resp = requests.post(url, json=message, timeout=5)
+        resp = requests.post(url, json=repair_message, timeout=5)
         return resp
 
 
@@ -196,11 +198,11 @@ class State(Enum):
 
 
 class Job(object):
-    def __init__(self, job_id, username, vc_name):
+    def __init__(self, job_id, username, vc_name, active):
         self.job_id = job_id
         self.username = username
         self.vc_name = vc_name
-        self.status = None  # to be populated if the host node is OUT_OF_POOL
+        self.active = active  # A job is active if scheduling or running
         self.pods = []
 
     def __repr__(self):
@@ -358,7 +360,8 @@ def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
             logger.exception("failed to parse k8s node %s", k8s_node)
 
 
-def parse_pods(k8s_pods, nodes):
+def parse_pods(k8s_pods, nodes, active_jobs):
+    active_job_ids = [job.get("jobId") for job in active_jobs]
     for k8s_pod in k8s_pods:
         try:
             if k8s_pod.metadata is None or k8s_pod.metadata.labels is None or \
@@ -376,14 +379,15 @@ def parse_pods(k8s_pods, nodes):
                 job_id = labels["jobId"]
                 username = labels["userName"]
                 vc_name = labels["vcName"]
+                active = job_id in active_job_ids
                 if job_id not in node.jobs:
-                    node.jobs[job_id] = Job(job_id, username, vc_name)
+                    node.jobs[job_id] = Job(job_id, username, vc_name, active)
                 node.jobs[job_id].pods.append(pod_name)
         except:
             logger.exception("failed to parse k8s pod %s", k8s_pod)
 
 
-def parse_for_nodes(k8s_nodes, k8s_pods, vc_list, rules, config):
+def parse_for_nodes(k8s_nodes, k8s_pods, vc_list, rules, config, active_jobs):
     metadata = {}
     # Merge metadata from all VCs together
     for vc in vc_list:
@@ -393,7 +397,7 @@ def parse_for_nodes(k8s_nodes, k8s_pods, vc_list, rules, config):
 
     nodes = {}
     parse_nodes(k8s_nodes, metadata, rules, config, nodes)
-    parse_pods(k8s_pods, nodes, rest_util)
+    parse_pods(k8s_pods, nodes, active_jobs)
     return list(nodes.values())
 
 
