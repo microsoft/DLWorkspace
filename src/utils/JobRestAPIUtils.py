@@ -1765,7 +1765,7 @@ def set_repair_message(username, job_id, repair_message):
 
             cond_fields = {"jobId": job_id}
             data_fields = {
-                "repair_message": base64encode(json.dumps(repair_message))
+                "repairMessage": base64encode(json.dumps(repair_message))
             }
             ret = data_handler.UpdateJobTextFields(cond_fields, data_fields)
             if ret is True:
