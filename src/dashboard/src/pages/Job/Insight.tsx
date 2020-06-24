@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useState,
 } from 'react';
 
 import { get } from 'lodash';
@@ -29,12 +30,26 @@ import useRouteParams from './useRouteParams';
 import Context from './Context';
 
 const usePaperStyle = makeStyles(theme => createStyles({
-  root: {
+  root: (collapse: boolean) => collapse ? {
     display: 'flex',
     alignItems: 'center',
     marginBottom: theme.spacing(1),
     padding: theme.spacing(1),
+  } : {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    marginBottom: theme.spacing(1),
+    padding: theme.spacing(1),
   },
+}));
+
+const useTypographyStyle = makeStyles(theme => createStyles({
+  root: (collapsed) => collapsed ? {
+    overflowX: 'hidden',
+    whiteSpace: 'nowrap',
+    textOverflow: 'ellipsis'
+  } : {},
 }));
 
 interface DiagnosticProps {
@@ -49,31 +64,68 @@ const Diagnostic: FunctionComponent<DiagnosticProps> = ({ level, action, childre
   const { kill } = useActions(clusterId);
   const { palette } = useTheme();
 
+  const [collapsed, setCollapsed] = useState(true);
+
+  const handleDetailsButtonClick = useCallback(() => {
+    setCollapsed(false);
+  }, [setCollapsed]);
   const handleKillClick = useCallback((event: SyntheticEvent) => {
     kill(job).onClick(event, job);
   }, [kill, job]);
 
   const icon = useMemo(() => {
     if (level === 'WARNING') {
-      return <Warning fontSize="large" htmlColor={palette.warning.main}/>;
+      return <Warning fontSize="small" htmlColor={palette.warning.main}/>;
     } else { // 'INFO' by default
-      return <Info fontSize="large" htmlColor={palette.info.main}/>;
+      return <Info fontSize="small" htmlColor={palette.info.main}/>;
     }
   }, [level, palette]);
-  const button = useMemo(() => {
+  const actionButton = useMemo(() => {
     if (action === 'KillJob') {
-      return <Button size="large" color="secondary" onClick={handleKillClick}>Kill</Button>;
+      return <Button size="small" color="secondary" onClick={handleKillClick}>Kill</Button>;
     }
   }, [action, handleKillClick]);
 
-  const paperStyle = usePaperStyle();
-  return (
-    <Paper variant="outlined" classes={paperStyle}>
-      {icon}
-      <Typography variant="body2" component={Box} flex={1} paddingLeft={1}>{children}</Typography>
-      {button}
-    </Paper>
-  );
+  const paperStyle = usePaperStyle(collapsed);
+  const typographyStyle = useTypographyStyle(collapsed);
+
+  if (collapsed) {
+    return (
+      <Paper variant="outlined" classes={paperStyle}>
+        {icon}
+        <Typography
+          variant="body2"
+          component={Box}
+          width="0px"
+          flex={1}
+          paddingLeft={1}
+          classes={typographyStyle}
+        >
+          {children}
+        </Typography>
+        <Button size="small" onClick={handleDetailsButtonClick}>Details</Button>
+      </Paper>
+    );
+  } else {
+    return (
+      <Paper variant="outlined" classes={paperStyle}>
+        <Box alignSelf="stretch" display="flex" alignItems="flex-start">
+          {icon}
+          <Typography
+            variant="body2"
+            component={Box}
+            width="0px"
+            flex={1}
+            paddingLeft={1}
+            classes={typographyStyle}
+          >
+            {children}
+          </Typography>
+        </Box>
+        {actionButton}
+      </Paper>
+    );
+  }
 }
 
 const Insight: FunctionComponent = () => {
