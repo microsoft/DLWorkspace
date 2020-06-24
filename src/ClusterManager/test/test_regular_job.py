@@ -1085,7 +1085,9 @@ def test_get_active_jobs(args):
             state2 = job2.block_until_state_not_in({"unapproved", "queued"})
             assert state2 in ["scheduling", "running"]
 
-            job_ids = [job.get("jobId") for job in utils.get_active_jobs()]
+            job_ids = [
+                job.get("jobId") for job in utils.get_active_jobs(args.rest)
+            ]
             assert job1.jid in job_ids
             assert job2.jid in job_ids
 
@@ -1094,6 +1096,8 @@ def test_get_active_jobs(args):
                                                    timeout=30)
             assert state2 == "killed"
 
-            job_ids = [job.get("jobId") for job in utils.get_active_jobs()]
+            job_ids = [
+                job.get("jobId") for job in utils.get_active_jobs(args.rest)
+            ]
             assert job1.jid in job_ids
             assert job2.jid not in job_ids
