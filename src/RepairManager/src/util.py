@@ -152,10 +152,16 @@ class RestUtil(object):
         return resp.json()
 
     def get_active_jobs(self):
-        return None
-
-    def update_repair_message(self, job_id):
         pass
+
+    def update_repair_message(self, job_id, message):
+        args = urllib.parse.urlencode({
+            "userName": "Administrator",
+            "jobId": job_id,
+        })
+        url = urllib.parse.urljoin(self.rest_url, "/RepairMessage") + "?" + args
+        resp = requests.post(url, json=message, timeout=5)
+        return resp
 
 
 class PrometheusUtil(object):

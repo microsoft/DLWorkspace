@@ -1412,6 +1412,47 @@ class DataHandler(object):
         return ret
 
     @record
+    def get_fields_for_jobs_in_status(self, status, fields):
+        cursor = None
+        ret = []
+
+        if status is None or not isinstance(status, list):
+            logger.error("status has to be a list. status: %s", status)
+            return ret
+        if len(status) == 0:
+            logger.error("status is an empty list")
+            return ret
+
+        if fields is None or not isinstance(fields, list):
+            logger.error("fields has to be a list. fields: %s", fields)
+            return ret
+        if len(fields) == 0:
+            logger.error("fields is an empty list")
+            return ret
+
+        try:
+            sql_cols = ",".join(["`%s`" % field for field in fields])
+            sql_job_status = ",".join(["'%s'" % s for s in status])
+            sql = "SELECT %s FROM %s WHERE `jobStatus` IN (%s)" % (
+                sql_cols, self.jobtablename, sql_job_status)
+
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+
+            cols = [col[0] for col in cursor.description]
+            for item in cursor.fetchall():
+                ret.append(dict(zip(cols, item)))
+            self.conn.commit()
+        except Exception:
+            logger.exception(
+                "Exception in getting fields %s for jobs in status %s",
+                fields, status)
+        finally:
+            if cursor is not None:
+                cursor.close()
+        return ret
+
+    @record
     def count_rows(self, table):
         cursor = None
         ret = None

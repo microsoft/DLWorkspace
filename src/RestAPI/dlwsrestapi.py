@@ -217,10 +217,7 @@ class ListJobsV2(Resource):
 @api.resource("/ListActiveJobs")
 class ListActiveJobs(Resource):
     def get(self):
-        jobs, status_code = JobRestAPIUtils.get_active_job_list()
-        if status_code != 200:
-            return jobs, status_code
-        return jsonify(jobs)
+        return JobRestAPIUtils.get_active_job_list()
 
 
 @api.resource("/KillJob")

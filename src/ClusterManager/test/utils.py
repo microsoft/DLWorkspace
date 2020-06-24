@@ -525,6 +525,13 @@ def set_job_priorities(rest_url, email, priorities):
     return resp
 
 
+def get_active_jobs(rest_url):
+    """This retrieves all active jobs"""
+    url = urllib.parse.urljoin(rest_url, "/ListActiveJobs")
+    resp = requests.get(url)
+    return resp.json()
+
+
 class run_job(object):
     def __init__(self, rest_url, job_spec):
         self.rest_url = rest_url
