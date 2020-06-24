@@ -7,6 +7,7 @@ logger = logging.getLogger(__file__)
 
 if "datasource" in config and config["datasource"] == "MySQL":
     from MySQLDataHandler import DataHandler
+    from MySQLDataHandler import GlobalDBHandler
 else:
     logger.error("configured database not supported")
 
