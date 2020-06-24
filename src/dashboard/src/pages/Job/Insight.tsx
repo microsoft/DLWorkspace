@@ -25,6 +25,7 @@ import {
 } from '@material-ui/icons';
 
 import useActions from '../../hooks/useActions';
+import { formatDateDistance } from '../../utils/formats';
 
 import useRouteParams from './useRouteParams';
 import Context from './Context';
@@ -38,7 +39,7 @@ const usePaperStyle = makeStyles(theme => createStyles({
   } : {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'flex-end',
+    alignItems: 'stretch',
     marginBottom: theme.spacing(1),
     padding: theme.spacing(1),
   },
@@ -53,12 +54,13 @@ const useTypographyStyle = makeStyles(theme => createStyles({
 }));
 
 interface DiagnosticProps {
+  date: Date;
   level: string;
   action: string;
   children: string;
 }
 
-const Diagnostic: FunctionComponent<DiagnosticProps> = ({ level, action, children }) => {
+const Diagnostic: FunctionComponent<DiagnosticProps> = ({ date, level, action, children }) => {
   const { clusterId } = useRouteParams();
   const { job } = useContext(Context);
   const { kill } = useActions(clusterId);
@@ -109,7 +111,7 @@ const Diagnostic: FunctionComponent<DiagnosticProps> = ({ level, action, childre
   } else {
     return (
       <Paper variant="outlined" classes={paperStyle}>
-        <Box alignSelf="stretch" display="flex" alignItems="flex-start">
+        <Box display="flex" alignItems="flex-start">
           {icon}
           <Typography
             variant="body2"
@@ -122,7 +124,14 @@ const Diagnostic: FunctionComponent<DiagnosticProps> = ({ level, action, childre
             {children}
           </Typography>
         </Box>
-        {actionButton}
+        <Box display="flex" alignItems="center" justifyContent="space-between" paddingTop={1}>
+          <Typography
+            variant="caption"
+          >
+            {formatDateDistance(date)}
+          </Typography>
+          {actionButton}
+        </Box>
       </Paper>
     );
   }
@@ -131,6 +140,10 @@ const Diagnostic: FunctionComponent<DiagnosticProps> = ({ level, action, childre
 const Insight: FunctionComponent = () => {
   const { job } = useContext(Context);
 
+  const date = useMemo<Date>(() => {
+    const timestamp = get(job, ['insight', 'timestamp'], NaN);
+    return new Date(timestamp * 1000);
+  }, [job]);
   const diagnostics = useMemo<any[]>(() => {
     return get(job, ['insight', 'diagnostics'], []);
   }, [job]);
@@ -139,7 +152,7 @@ const Insight: FunctionComponent = () => {
     <>
       {
         diagnostics.map(([level, text, action]: [string, string, string], index) => (
-          <Diagnostic key={index} level={level} action={action}>{text}</Diagnostic>
+          <Diagnostic key={index} date={date} level={level} action={action}>{text}</Diagnostic>
         ))
       }
     </>
