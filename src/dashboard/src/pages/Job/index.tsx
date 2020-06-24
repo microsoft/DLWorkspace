@@ -109,7 +109,7 @@ const JobContent: FunctionComponent = () => {
       <Helmet title={`(${capitalize(job['jobStatus'])}) ${job['jobName']}`}/>
       <Container fixed maxWidth="lg">
         <Header manageable={manageable}/>
-        <Insight/>
+        {status === 'running' && <Insight/>}
         <Tabs manageable={manageable}/>
       </Container>
     </Context.Provider>
