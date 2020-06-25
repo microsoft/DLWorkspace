@@ -45,35 +45,35 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS `jobs`
 (
     `id`                 INT           NOT NULL AUTO_INCREMENT,
-    `jobid`              VARCHAR(50)   NOT NULL,
-    `familytoken`        VARCHAR(50)   NOT NULL,
-    `isparent`           INT           NOT NULL,
-    `jobname`            VARCHAR(1024) NOT NULL,
-    `username`           VARCHAR(255)  NOT NULL,
-    `vcname`             VARCHAR(255)  NOT NULL,
-    `jobstatus`          VARCHAR(255)  NOT NULL DEFAULT 'unapproved',
-    `jobstatusdetail`    LONGTEXT      NULL,
-    `jobtype`            VARCHAR(255)  NOT NULL,
-    `jobdescriptionpath` TEXT          NULL,
-    `jobdescription`     LONGTEXT      NULL,
-    `jobtime`            DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `jobId`              VARCHAR(50)   NOT NULL,
+    `familyToken`        VARCHAR(50)   NOT NULL,
+    `isParent`           INT           NOT NULL,
+    `jobName`            VARCHAR(1024) NOT NULL,
+    `userName`           VARCHAR(255)  NOT NULL,
+    `vcName`             VARCHAR(255)  NOT NULL,
+    `jobStatus`          VARCHAR(255)  NOT NULL DEFAULT 'unapproved',
+    `jobStatusDetail`    LONGTEXT      NULL,
+    `jobType`            VARCHAR(255)  NOT NULL,
+    `jobDescriptionPath` TEXT          NULL,
+    `jobDescription`     LONGTEXT      NULL,
+    `jobTime`            DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `endpoints`          LONGTEXT      NULL,
-    `errormsg`           LONGTEXT      NULL,
-    `jobparams`          LONGTEXT      NOT NULL,
-    `jobmeta`            LONGTEXT      NULL,
-    `joblog`             LONGTEXT      NULL,
-    `joblogcursor`       LONGTEXT      NULL,
+    `errorMsg`           LONGTEXT      NULL,
+    `jobParams`          LONGTEXT      NOT NULL,
+    `jobMeta`            LONGTEXT      NULL,
+    `jobLog`             LONGTEXT      NULL,
+    `jobLogCursor`       LONGTEXT      NULL,
     `retries`            INT           NULL     DEFAULT 0,
-    `lastupdated`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `lastUpdated`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `priority`           INT           NOT NULL DEFAULT 100,
     `insight`            LONGTEXT      NULL,
     PRIMARY KEY (`id`),
-    UNIQUE (`jobid`),
-    INDEX  (`username`),
-    INDEX  (`vcname`),
-    INDEX  (`jobtime`),
-    INDEX  (`jobid`),
-    INDEX  (`jobstatus`)
+    UNIQUE (`jobId`),
+    INDEX  (`userName`),
+    INDEX  (`vcName`),
+    INDEX  (`jobTime`),
+    INDEX  (`jobId`),
+    INDEX  (`jobStatus`)
 );
 """)
 
@@ -92,15 +92,15 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS  `storage`
 (
     `id`               INT          NOT NULL AUTO_INCREMENT,
-    `storagetype`      VARCHAR(255) NOT NULL,
+    `storageType`      VARCHAR(255) NOT NULL,
     `url`              VARCHAR(255) NOT NULL,
     `metadata`         TEXT         NOT NULL,
-    `vcname`           VARCHAR(255) NOT NULL,
-    `defaultmountpath` VARCHAR(255) NOT NULL,
+    `vcName`           VARCHAR(255) NOT NULL,
+    `defaultMountPath` VARCHAR(255) NOT NULL,
     `time`             DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    CONSTRAINT vc_url       UNIQUE(`vcname`, `url`),
-    CONSTRAINT vc_mountpath UNIQUE(`vcname`, `defaultmountpath`)
+    CONSTRAINT vc_url       UNIQUE(`vcName`, `url`),
+    CONSTRAINT vc_mountPath UNIQUE(`vcName`, `defaultMountPath`)
 );
 """)
 
@@ -108,15 +108,15 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS  `vc`
 (
     `id`               INT          NOT     NULL              AUTO_INCREMENT,
-    `vcname`           VARCHAR(255) NOT     NULL              UNIQUE,
+    `vcName`           VARCHAR(255) NOT     NULL              UNIQUE,
     `parent`           VARCHAR(255) DEFAULT NULL,
     `quota`            VARCHAR(255) NOT     NULL,
     `metadata`         TEXT         NOT     NULL,
-    `resourcequota`    TEXT         NOT     NULL,
-    `resourcemetadata` TEXT         NOT     NULL,
+    `resourceQuota`    TEXT         NOT     NULL,
+    `resourceMetadata` TEXT         NOT     NULL,
     `time`             DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    CONSTRAINT `hierarchy` FOREIGN KEY (`parent`) REFERENCES `vc` (`vcname`)
+    CONSTRAINT `hierarchy` FOREIGN KEY (`parent`) REFERENCES `vc` (`vcName`)
 );
 """)
 
@@ -124,7 +124,7 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS  `identity`
 (
     `id`           INT          NOT NULL AUTO_INCREMENT,
-    `identityname` VARCHAR(255) NOT NULL UNIQUE,
+    `identityName` VARCHAR(255) NOT NULL UNIQUE,
     `uid`          INT          NOT NULL,
     `gid`          INT          NOT NULL,
     `groups`       mediumtext   NOT NULL,
@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS  `identity`
     `private_key`  TEXT         NOT NULL,
     `time`         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE(`identityname`)
+    UNIQUE(`identityName`)
 );
 """)
 
@@ -140,14 +140,14 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS  `acl`
 (
     `id`           INT          NOT NULL AUTO_INCREMENT,
-    `identityname` VARCHAR(255) NOT NULL,
-    `identityid`   INT          NOT NULL,
+    `identityName` VARCHAR(255) NOT NULL,
+    `identityId`   INT          NOT NULL,
     `resource`     VARCHAR(255) NOT NULL,
     `permissions`  INT          NOT NULL,
-    `isdeny`       INT          NOT NULL,
+    `isDeny`       INT          NOT NULL,
     `time`         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    CONSTRAINT identityname_resource UNIQUE(`identityname`,`resource`)
+    CONSTRAINT identityname_resource UNIQUE(`identityName`, `resource`)
 );
 """)
 
