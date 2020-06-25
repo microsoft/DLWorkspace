@@ -305,13 +305,19 @@ class RepairManager(object):
         """Validate (and correct if needed) the node status. Returns True if
         the node is validated (corrected if necessary), False otherwise.
         """
+        # Repair cycle states: OUT_OF_POOL, READY_FOR_REPAIR, IN_REPAIR,
+        # AFTER_REPAIR.
+        # Non repair cycle states: OUT_OF_POOL_UNTRACKED (excluding IN_SERVICE)
         if node.state != State.IN_SERVICE and node.unschedulable is False:
+            # If a schedulable node is in repair cycle, reset it to OUT_OF_POOL
             if node.repair_cycle is True:
                 if self.from_any_to_out_of_pool(node):
                     return True
                 else:
                     return False
-            else:
+            # If a schedulable node is not in repair cycle but in repair cycle
+            # states, reset it to OUT_OF_POOL_UNTRACKED
+            elif node.state != State.OUT_OF_POOL_UNTRACKED:
                 if self.from_any_to_out_of_pool_untracked(node):
                     return True
                 else:
