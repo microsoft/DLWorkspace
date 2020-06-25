@@ -359,7 +359,7 @@ def uncordon(config, args):
             config, args, ["annotate node {} REPAIR_MESSAGE-".format(node)])
         run_kubectl(
             config, args,
-            ["label node {} --overwrite REPAIR_STATE=IN_SERVICE".format(node)])
+            ["annotate node {} REPAIR_STATE_LAST_EMAIL_TIME-".format(node)])
 
 
 def start_repair(config, args):

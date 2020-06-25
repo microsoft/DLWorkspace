@@ -122,6 +122,9 @@ class RepairManager(object):
                 # Update metrics for Prometheus scraping
                 self.update_metrics()
 
+                # Update unhealthy nodes for jobs
+                self.update_unhealthy_nodes_for_jobs()
+
                 # Update repair message for jobs in DB
                 self.update_repair_message_for_jobs()
 
@@ -211,6 +214,15 @@ class RepairManager(object):
 
         self.atomic_ref.set([state_gauge, rule_gauge, jobs_gauge])
 
+    def update_unhealthy_nodes_for_jobs(self):
+        """Update unhealthy nodes for jobs after a step in repair manager"""
+        for node in self.nodes:
+            if node.state == State.IN_SERVICE:
+                continue
+            for job_id, job in node.jobs.items():
+                if node.name not in job.unhealthy_nodes:
+                    job.unhealthy_nodes[node.name] = node
+
     def update_repair_message_for_job(self, job_id, repair_message):
         try:
             resp = self.rest_util.update_repair_message(job_id, repair_message)
@@ -230,7 +242,7 @@ class RepairManager(object):
         timestamp = utcnow()
         for job in self.jobs:
             if len(job.unhealthy_nodes) > 0:
-                msg = "Your job is running on unhealthy node(s): "
+                msg = "The job is running on unhealthy node(s): "
                 node_msgs = []
                 for name, node in job.unhealthy_nodes.items():
                     desc = self.get_unhealthy_rules_desc(node)
@@ -239,7 +251,9 @@ class RepairManager(object):
 
                 msg += "Please check if it is still running as expected. "
                 if job.wait_for_jobs:
-                    msg += "Kill/finish it as soon as possible to expedite node(s) repair."
+                    msg += "Node repair is waiting for the job to finish. Please kill/finish the job as soon as possible to expedite node(s) repair."
+                else:
+                    msg += "Restart/resubmit your job if necessary."
                 message = {
                     "timestamp": timestamp,
                     "message": ["FATAL", msg, ""]
@@ -273,12 +287,14 @@ class RepairManager(object):
                     (job.vc_name, self.cluster_name, job_id)
                 job_link = "https://%s/jobs/%s/%s" % \
                     (self.dashboard_url, self.cluster_name, job_id)
-                msg = "Your job <a href=%s>%s</a> is running on an unhealthy node %s (%s). " % \
+                msg = "The job <a href=%s>%s</a> is running on an unhealthy node %s (%s). " % \
                     (job_link, job_id, node.name,
                      self.get_unhealthy_rules_desc(node))
                 msg += "Please check if it is still running as expected. "
                 if job.wait_for_jobs:
-                    msg += "Kill/finish it as soon as possible to expedite node(s) repair."
+                    msg += "Node repair is waiting for the job to finish. Please kill/finish the job as soon as possible to expedite node(s) repair."
+                else:
+                    msg += "Restart/resubmit your job if necessary."
                 body = "<p>%s</p>" % msg
                 self.email_handler.send(subject, job.username, body)
 
@@ -391,14 +407,8 @@ class RepairManager(object):
                 unhealthy_rules.append(rule)
 
         # Adjust unhealthy rules for nodes
-        # Also adjust unhealthy nodes for jobs
         node.unhealthy_rules = unhealthy_rules
-        if len(node.unhealthy_rules) > 0:
-            for _, job in node.jobs.items():
-                job.unhealthy_nodes[node.name] = node
-            return False
-        else:
-            return True
+        return len(node.unhealthy_rules) == 0
 
     def prepare(self, node):
         """Prepare for each rule"""

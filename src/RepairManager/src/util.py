@@ -207,7 +207,7 @@ class Job(object):
     @property
     def wait_for_jobs(self):
         """Wait if any unhealthy rule from any unhealthy node needs to wait"""
-        for _, node in self.unhealthy_nodes:
+        for _, node in self.unhealthy_nodes.items():
             # Assume waiting for jobs if there is no unhealthy rules
             if len(node.unhealthy_rules) == 0:
                 return True
