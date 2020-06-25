@@ -19,7 +19,7 @@ class Resource(object):
 
 class Role(object):
     def __init__(self, name, task_count, image, envs, resource,
-                 min_failed_task_count, succeeded_task_count):
+                 min_failed_task_count, succeeded_task_count, max_retry_count):
         self.name = name
         self.task_count = task_count
         self.image = image
@@ -27,6 +27,7 @@ class Role(object):
         self.resource = resource
         self.min_failed_task_count = min_failed_task_count
         self.succeeded_task_count = succeeded_task_count
+        self.max_retry_count = max_retry_count
 
 
 # FIXME with pod_name, we may can not use blobfuse
@@ -593,7 +594,7 @@ def gen_task_role(job, role):
         "task": {
             "retryPolicy": {
                 "fancyRetryPolicy": False,
-                "maxRetryCount": 0,
+                "maxRetryCount": role.max_retry_count,
             },
             "pod": {
                 "metadata": {
@@ -676,7 +677,7 @@ def transform_regular_job(params, cluster_config):
     envs = params.get("envs", [])
 
     roles = {
-        "master": Role("master", 1, image, envs, resource, 1, 1),
+        "master": Role("master", 1, image, envs, resource, 1, 1, 0),
     }
 
     labels = params.get("label", {})
@@ -742,10 +743,10 @@ def transform_distributed_job(params, cluster_config):
 
     roles = {
         "ps":
-            Role("ps", int(params["numps"]), image, envs, ps_resource, 1, 1),
+            Role("ps", int(params["numps"]), image, envs, ps_resource, 1, 1, 0),
         "worker":
             Role("worker", int(params["numpsworker"]), image, envs,
-                 worker_resource, 1, 1),
+                 worker_resource, 1, 1, 0),
     }
 
     labels = params.get("label", {})
@@ -807,10 +808,10 @@ def transform_inference_job(params, cluster_config):
 
     roles = {
         "master":
-            Role("master", 1, image, envs, master_resource, 1, 1),
+            Role("master", 1, image, envs, master_resource, -1, -1, -1),
         "worker":
             Role("worker", int(params["resourcegpu"]), image, envs,
-                 worker_resource, 1, 1),
+                 worker_resource, -1, -1, -1),
     }
 
     labels = params.get("label", {})
