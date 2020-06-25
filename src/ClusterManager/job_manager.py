@@ -443,7 +443,7 @@ def UpdateJobStatus(redis_conn,
             logger.warning(
                 "Job {} fails in Kubernetes as {}, delete and re-submit.".
                 format(job["jobId"], result))
-            launcher.kill_job(job["jobId"], "queued")
+            launcher.kill_job(job["jobId"], "queued", update_queue_time=False)
             if notifier is not None:
                 notifier.notify(
                     notify.new_job_state_change_message(job["userName"],
@@ -740,7 +740,7 @@ def schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
                 logger.info("Submitting job %s : %s", job_id, sort_key)
             elif preemption_allowed and \
                     (job_status in ["scheduling", "running"]) and (not allowed):
-                launcher.kill_job(job_id, "queued")
+                launcher.kill_job(job_id, "queued", update_queue_time=False)
                 logger.info("Preempting job %s : %s", job_id, sort_key)
             elif job_status == "queued" and (not allowed):
                 vc_schedulable = vc_schedulables[vc_name]
