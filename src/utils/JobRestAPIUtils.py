@@ -20,7 +20,7 @@ from threading import Lock
 import requests
 
 from config import config
-from DataHandler import DataHandler, DataManager
+from DataHandler import DataHandler, DataManager, GlobalDBHandler
 from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager, ACLManager
 import authorization
 from job_op import KillOp, PauseOp, ResumeOp, ApproveOp
@@ -328,6 +328,15 @@ def SubmitJob(jobParamsJsonStr):
         if "error" not in ret:
             if not dataHandler.AddJob(tensorboardParams):
                 ret["error"] = "Cannot schedule tensorboard job."
+
+    with GlobalDBHandler(config["mysql"]["hostname"],
+                         config["mysql"]["username"],
+                         config["mysql"]["password"]) as global_handler:
+        public_keys = global_handler.list_public_keys(jobParams["userName"])
+        if len(public_keys) > 0:
+            user_submitted = jobParams.get("ssh_public_keys", [])
+            user_submitted.extend([obj["public_key"] for obj in public_keys])
+            jobParams["ssh_public_keys"] = user_submitted
 
     if "error" not in ret:
         if dataHandler.AddJob(jobParams):
@@ -1208,6 +1217,56 @@ def get_vc_v2(username, vc_name):
                          username)
 
     return vc_status
+
+
+def convert_date(obj, field):
+    if obj.get(field) is not None:
+        obj[field] = obj[field].isoformat()
+    return obj
+
+
+def list_public_keys(username):
+    with GlobalDBHandler(config["mysql"]["hostname"],
+                         config["mysql"]["username"],
+                         config["mysql"]["password"]) as handler:
+        result = handler.list_public_keys(username)
+        return [convert_date(obj, "add_time") for obj in result], 200
+
+
+def add_public_key(username, key_title, public_key):
+    with GlobalDBHandler(config["mysql"]["hostname"],
+                         config["mysql"]["username"],
+                         config["mysql"]["password"]) as handler:
+        try:
+            key_id = handler.add_public_key(username, key_title, public_key)
+            return {"id": key_id}, 200
+        except Exception as e:
+            logger.exception("failed to add_public_key %s %s", username,
+                             key_title)
+            return {"error": "failed to add public key %s" % (str(e))}, 500
+
+
+def delete_public_key(username, key_id):
+    with GlobalDBHandler(config["mysql"]["hostname"],
+                         config["mysql"]["username"],
+                         config["mysql"]["password"]) as handler:
+        try:
+            existing_key = handler.get_public_key(key_id)
+            if len(existing_key) == 0:
+                return {"error": "key not exist"}, 404
+            elif len(existing_key) > 1:
+                return {"error": "impossible, multiple keys with same id"}, 500
+
+            if existing_key[0]["username"] != username:
+                return {"error": "you are not the owner of this key"}, 403
+
+            handler.delete_public_key(key_id)
+
+            return {"error": None}, 200
+        except Exception as e:
+            logger.exception("failed to delete_public_key %s %s", username,
+                             key_id)
+            return {"error": "failed to delete public key %s" % (str(e))}, 500
 
 
 def DeleteVC(userName, vcName):
