@@ -530,7 +530,6 @@ if __name__ == "__main__":
     k8s_pods = k8s_util.list_pods()
     assert k8s_pods is not None
 
-    job_list = []
     for pod in k8s_pods:
         name = pod.metadata.name
         job_id = pod.metadata.labels.get("jobId")
@@ -539,11 +538,6 @@ if __name__ == "__main__":
         vc_name = pod.metadata.labels.get("vcName")
         logger.info("name: %s, job_id: %s, node_name: %s, username: %s, "
                     "vc_name: %s", name, job_id, node_name, username, vc_name)
-        job_list.append({
-            "jobId": job_id,
-            "userName": username,
-            "vcName": vc_name,
-        })
 
     # RestUtil test
     rest_util = RestUtil()
@@ -557,6 +551,9 @@ if __name__ == "__main__":
     for vc in vc_list:
         logger.info("vcName: %s, resourceMetadata: %s", vc.get("vcName"),
                     vc.get("resourceMetadata"))
+
+    # Get all active jobs
+    job_list = rest_util.get_active_jobs()
 
     # parse_for_jobs_and_nodes
     from rule import K8sGpuRule, DcgmEccDBERule

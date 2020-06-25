@@ -466,7 +466,7 @@ class ClusterStatusFactory(object):
                         repair_state = status
 
             repair_message = None
-            if annotations is not None:
+            if isinstance(annotations, dict):
                 repair_message = annotations.get("REPAIR_MESSAGE")
 
             allocatable = node.status.allocatable

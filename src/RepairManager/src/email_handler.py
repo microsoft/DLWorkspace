@@ -13,16 +13,19 @@ logger = logging.getLogger(__name__)
 
 class EmailHandler(object):
     def __init__(self, smtp):
-        self.smtp_url = smtp.get("smtp_url", "localhost:9095")
+        self.smtp_url = smtp.get("smtp_url", "192.168.255.1:9095")
         self.smtp_from = smtp.get("smtp_from")
         self.username = smtp.get("username")
         self.password = smtp.get("password")
+        self.cc = smtp.get("cc")
 
     def send(self, subject, to, body):
         message = MIMEMultipart()
         message["Subject"] = subject
         message["From"] = self.smtp_from
         message["to"] = to
+        if self.cc is not None:
+            message["CC"] = self.cc
         message.attach(MIMEText(body, 'html'))
 
         try:
@@ -31,7 +34,8 @@ class EmailHandler(object):
                     server.starttls()
                     server.login(self.username, self.password)
                 server.send_message(message)
-                logger.info("successfully sent email %s to %s", subject, to)
+                logger.info("successfully sent email '%s' to: %s and cc: %s",
+                            subject, to, self.cc)
         except smtplib.SMTPAuthenticationError:
             logger.error(
                 "The server didn\'t accept the user/password combination.")
@@ -42,15 +46,22 @@ class EmailHandler(object):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(threadName)s - %(filename)s:%(lineno)s - %(message)s",
+        level="INFO")
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--smtp_url",
                         "-u",
                         help="Url to SMTP server",
-                        default="localhost:9095")
+                        default="192.168.255.1:9095")
     parser.add_argument("--smtp_from",
                         "-s",
                         help="Email sender",
                         required=True)
+    parser.add_argument("--cc_receiver",
+                        "-cc",
+                        help="CC receiver")
     parser.add_argument("--dashboard",
                         "-d",
                         help="Dashboard url",
@@ -76,6 +87,7 @@ if __name__ == "__main__":
     smtp = {
         "smtp_url": args.smtp_url,
         "smtp_from": args.smtp_from,
+        "cc": args.cc_receiver,
     }
 
     handler = EmailHandler(smtp)

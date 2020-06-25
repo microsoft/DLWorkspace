@@ -291,7 +291,7 @@ class RepairManager(object):
 
             # Send email for each job on the node
             for job_id, job in node.jobs.items():
-                subject = "[DLTS Job Alert][%s/%s] %s is running on an unhealthy node(s)" % \
+                subject = "[DLTS Job Alert][%s/%s] %s is running on an unhealthy node" % \
                     (job.vc_name, self.cluster, job_id)
                 job_link = "https://%s/jobs/%s/%s" % \
                     (self.dashboard, self.cluster, job_id)
@@ -533,11 +533,6 @@ class RepairManager(object):
 
     def from_any_to_out_of_pool(self, node):
         """Move from any state into OUT_OF_POOL"""
-        if node.state == State.OUT_OF_POOL:
-            logger.warning("node %s (%s) is already in %s", node.name, node.ip,
-                           node.state_name)
-            return True
-
         labels = {REPAIR_STATE: State.OUT_OF_POOL.name}
         update_time = str(utcnow())
         # Do not override REPAIR_UNHEALTHY_RULES if present
@@ -566,11 +561,6 @@ class RepairManager(object):
 
     def from_any_to_out_of_pool_untracked(self, node):
         """Move from any state into OUT_OF_POOL_UNTRACKED"""
-        if node.state == State.OUT_OF_POOL_UNTRACKED:
-            logger.warning("node %s (%s) is already in %s", node.name, node.ip,
-                           node.state_name)
-            return True
-
         labels = {REPAIR_STATE: State.OUT_OF_POOL_UNTRACKED.name}
         update_time = str(utcnow())
         repair_message = self.get_repair_message(
