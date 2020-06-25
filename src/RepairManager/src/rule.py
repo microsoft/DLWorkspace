@@ -71,7 +71,8 @@ class Rule(object):
             return subclass
         return decorator
 
-    def __init__(self, metrics, stat="avg", interval="5m"):
+    def __init__(self, metrics, stat="avg", interval="5m", wait_for_jobs=True,
+                 desc=""):
         """Constructs a Rule instance.
 
         Args:
@@ -79,10 +80,14 @@ class Rule(object):
             stat: avg, min, max, etc. supported by <stat>_over_time query
                 in Prometheus.
             interval: The look-back time interval for stat.
+            wait_for_jobs: Whether repair needs to wait for jobs to finish.
+            desc: Short description on what the rule detects
         """
         self.metrics = metrics
         self.stat = stat
         self.interval = interval
+        self.wait_for_jobs = wait_for_jobs
+        self.desc = desc
         self.data = {"current": {}, stat: {}}
         self.prometheus_util = PrometheusUtil()
 
@@ -139,26 +144,17 @@ class Rule(object):
         # By default, always return True.
         return True
 
-    @override
     def prepare(self, node):
-        """Prepare the node before sending repair signal for repair.
+        """Wait for all jobs to finish if necessary.
 
-        Preparation process depends on the repair action of the rule. For
-        example, all jobs need to be evacuated before reboot, but this is
-        not necessary if the repair action is simply restarting a service on
-        the node.
         Args:
             node: Node object containing info on node.
 
         Returns:
             True if prepare is successful, False otherwise.
         """
-        # By default, wait for all active jobs to finish on the node.
-        for job_id, job in node.jobs.items():
-            if job.active:
-                node.evict_jobs = True
-                node.repair_message = \
-                    "Waiting for running job(s) to finish before repair (%s)"
+        if self.wait_for_jobs:
+            if len(node.jobs) > 0:
                 return False
         return True
 
@@ -188,7 +184,8 @@ class Rule(object):
 class UnschedulableRule(Rule):
     """Rule for nodes marked as unschedulable."""
     def __init__(self):
-        super(UnschedulableRule, self).__init__(["unschedulable"])
+        super(UnschedulableRule, self).__init__(["unschedulable"],
+                                                desc="unschedulable")
 
     def update_data(self):
         # The rule does not depend on external data source.
@@ -208,7 +205,8 @@ class K8sGpuRule(Rule):
     """Rule for GPU numbers on the node"""
     def __init__(self):
         super(K8sGpuRule, self).__init__(
-            ["k8s_node_gpu_total", "k8s_node_gpu_allocatable"])
+            ["k8s_node_gpu_total", "k8s_node_gpu_allocatable"],
+            wait_for_jobs=False, desc="GPU misreport")
 
     def check_health_impl(self, node, stat):
         # k8s_node_gpu_allocatable shows 0 for any unschedulable node.
@@ -227,10 +225,6 @@ class K8sGpuRule(Rule):
             logger.exception("check health failed")
         return False
 
-    def prepare(self, node):
-        # No need to wait for all jobs to finish
-        return True
-
     def repair(self):
         # Restart kubelet service
         if exec_cmd(["systemctl", "restart", "kubelet"]) is False:
@@ -243,7 +237,8 @@ class K8sGpuRule(Rule):
 class DcgmEccDBERule(Rule):
     """Rule for ECC DBE on the node."""
     def __init__(self):
-        super(DcgmEccDBERule, self).__init__(["dcgm_ecc_dbe_volatile_total"])
+        super(DcgmEccDBERule, self).__init__(["dcgm_ecc_dbe_volatile_total"],
+                                             desc="uncorrectable ECC error")
 
     def get_values(self, node, metric, stat):
         values = []
@@ -271,7 +266,8 @@ class DcgmEccDBERule(Rule):
 class InfinibandRule(Rule):
     """Rule for Infiniband on the node."""
     def __init__(self):
-        super(InfinibandRule, self).__init__(["infiniband_up"])
+        super(InfinibandRule, self).__init__(["infiniband_up"],
+                                             desc="bad IB device")
 
     def get_values(self, node, metric, stat):
         values = {}
@@ -309,7 +305,8 @@ class InfinibandRule(Rule):
 class IPoIBRule(Rule):
     """Rule for IPoIB interface on the node."""
     def __init__(self):
-        super(IPoIBRule, self).__init__(["ipoib_up"])
+        super(IPoIBRule, self).__init__(["ipoib_up"], wait_for_jobs=False,
+                                        desc="bad IPoIB")
 
     def get_values(self, node, metric, stat):
         values = {}
@@ -340,10 +337,6 @@ class IPoIBRule(Rule):
             logger.exception("check health failed")
         return False
 
-    def prepare(self, node):
-        # No need to wait for all jobs to finish
-        return True
-
     def repair(self):
         # walinuxagent manages the IPoIB on Azure VM. Restarting it usually
         # fix the IPoIB on Azure VM.
@@ -359,7 +352,9 @@ class IPoIBRule(Rule):
 class NvPeerMemRule(Rule):
     """Rule for nv_peer_mem module on the node."""
     def __init__(self):
-        super(NvPeerMemRule, self).__init__(["nv_peer_mem_count"])
+        super(NvPeerMemRule, self).__init__(["nv_peer_mem_count"],
+                                            wait_for_jobs=False,
+                                            desc="bad GPUDirect")
 
     def get_value(self, node, metric, stat):
         for item in self.data[stat].get(metric, []):
@@ -386,10 +381,6 @@ class NvPeerMemRule(Rule):
             logger.exception("check health failed")
         return False
 
-    def prepare(self, node):
-        # No need to wait for all jobs to finish
-        return True
-
     def repair(self):
         # Restarting nv_peer_mem can restore the module.
         if exec_cmd(["systemctl", "restart", "nv_peer_mem"]) is False:
@@ -403,7 +394,8 @@ class NVSMRule(Rule):
     """Rule for NVSM health check on the node."""
     def __init__(self):
         super(NVSMRule, self).__init__(
-            ["nvsm_health_total_count", "nvsm_health_good_count"], "max", "10m")
+            ["nvsm_health_total_count", "nvsm_health_good_count"],
+            stat="max", interval="10m", desc="unhealthy by NVSM")
 
     def get_value(self, node, metric, stat):
         for item in self.data[stat].get(metric, []):

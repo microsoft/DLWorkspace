@@ -1412,22 +1412,22 @@ class DataHandler(object):
         return ret
 
     @record
-    def get_fields_for_jobs_in_status(self, status, fields):
+    def get_fields_for_jobs_in_status(self, fields, status):
         cursor = None
         ret = []
-
-        if status is None or not isinstance(status, list):
-            logger.error("status has to be a list. status: %s", status)
-            return ret
-        if len(status) == 0:
-            logger.error("status is an empty list")
-            return ret
 
         if fields is None or not isinstance(fields, list):
             logger.error("fields has to be a list. fields: %s", fields)
             return ret
         if len(fields) == 0:
             logger.error("fields is an empty list")
+            return ret
+
+        if status is None or not isinstance(status, list):
+            logger.error("status has to be a list. status: %s", status)
+            return ret
+        if len(status) == 0:
+            logger.error("status is an empty list")
             return ret
 
         try:

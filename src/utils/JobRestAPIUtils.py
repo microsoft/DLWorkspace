@@ -397,11 +397,9 @@ def get_job_list_v2(username, vc_name, job_owner, num=None):
 def get_active_job_list():
     try:
         with DataHandler() as data_handler:
+            fields = ["jobId", "jobStatus", "userName", "vcName"]
             status = ["scheduling", "running"]
-            fields = [
-                "jobId", "jobStatus", "userName", "vcName", "repairMessage"
-            ]
-            jobs = data_handler.get_fields_for_jobs_in_status(status, fields)
+            jobs = data_handler.get_fields_for_jobs_in_status(fields, status)
             return jobs, 200
     except:
         logger.exception("Failed to get active job list")
