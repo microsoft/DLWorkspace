@@ -17,8 +17,6 @@ from flask_cors import CORS
 from logging import handlers
 from prometheus_client.core import REGISTRY, GaugeMetricFamily
 from requests.exceptions import ConnectionError
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from constant import REPAIR_STATE, REPAIR_CYCLE, REPAIR_MESSAGE, \
     REPAIR_STATE_LAST_UPDATE_TIME, REPAIR_STATE_LAST_EMAIL_TIME, \
     REPAIR_UNHEALTHY_RULES
@@ -28,28 +26,6 @@ from rule import instantiate_rules, UnschedulableRule
 from email_handler import EmailHandler
 
 logger = logging.getLogger(__name__)
-
-
-def create_email(job_id, job_owner_email, node_names, job_link,
-                 cluster_name, reboot_enabled, days_until_reboot):
-    message = MIMEMultipart()
-    message['Subject'] = f'Repair Manager Alert [ECC ERROR] [{job_id}]'
-    message['To'] = job_owner_email
-    body = f'''<p>Uncorrectable ECC Error found in {cluster_name} cluster on following node(s):</p>
-    <table border="1">'''
-    for node in node_names:
-        body += f'''<tr><td>{node}</td></tr>'''
-    body += f'''</table><p>The node(s) will require reboot in order to repair.
-    The following job is impacted:</p> <a href="{job_link}">{job_id}</a>
-    <p>Please save and end your job ASAP. '''
-
-    if reboot_enabled:
-        body += f'''Node(s) will be rebooted in {days_until_reboot} days and all progress will be lost.</p>'''
-    else:
-        body += f'''Node(s) will be rebooted soon for repair and all progress will be lost</p>'''
-
-    message.attach(MIMEText(body, 'html'))
-    return message
 
 
 def utcnow():
@@ -92,13 +68,15 @@ class RepairManager(object):
             target=self.handle, name="handler", daemon=True)
 
         # Allow some time for metrics/info to come up to latest
-        self.grace_period = int(config.get("grace_period", 5 * 60))
+        self.grace_period = int(
+            config.get("repair-manager", {}).get("grace_period", 5 * 60))
 
         # Send email every few hours
-        self.email_interval = int(config.get("email_interval", 4 * 60 * 60))
+        self.email_interval = int(
+            config.get("repair-manager", {}).get("email_interval", 4 * 60 * 60))
 
-        self.cluster = config.get("cluster")
-        self.dashboard = config.get("dashboard")
+        self.cluster_name = config.get("cluster_name")
+        self.dashboard_url = config.get("dashboard_url")
 
     def run(self):
         self.handler.start()
@@ -292,9 +270,9 @@ class RepairManager(object):
             # Send email for each job on the node
             for job_id, job in node.jobs.items():
                 subject = "[DLTS Job Alert][%s/%s] %s is running on an unhealthy node" % \
-                    (job.vc_name, self.cluster, job_id)
+                    (job.vc_name, self.cluster_name, job_id)
                 job_link = "https://%s/jobs/%s/%s" % \
-                    (self.dashboard, self.cluster, job_id)
+                    (self.dashboard_url, self.cluster_name, job_id)
                 msg = "Your job <a href=%s>%s</a> is running on an unhealthy node %s (%s). " % \
                     (job_link, job_id, node.name,
                      self.get_unhealthy_rules_desc(node))
@@ -721,18 +699,15 @@ def main(params):
     try:
         rules = instantiate_rules()
         config = get_config(params.config)
-        smtp_config = config.get("smtp")
-        repairmanager_config = config.get("repair-manager", {})
         k8s_util = K8sUtil()
         rest_util = RestUtil()
-
         try:
-            email_handler = EmailHandler(smtp_config)
+            email_handler = EmailHandler(config.get("smtp"))
         except:
             email_handler = None
 
         repair_manager = RepairManager(rules,
-                                       repairmanager_config,
+                                       config,
                                        int(params.port),
                                        int(params.agent_port),
                                        k8s_util,
