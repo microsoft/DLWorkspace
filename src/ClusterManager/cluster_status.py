@@ -446,10 +446,12 @@ class ClusterStatusFactory(object):
 
             name = node.metadata.name
             labels = node.metadata.labels
+            annotations = node.metadata.annotations
 
             gpu_type = ""
             sku = ""
             scheduled_service = []
+            repair_state = "IN_SERVICE"  # Non workers are always IN_SERVICE
             if labels is not None:
                 for label, status in labels.items():
                     if status == "active" and label not in ["all", "default"]:
@@ -460,9 +462,12 @@ class ClusterStatusFactory(object):
                     if label == "sku":
                         scheduled_service.append(status)
                         sku = status
+                    if label == "REPAIR_STATE":
+                        repair_state = status
 
-            if node.status is None:
-                continue
+            repair_message = None
+            if annotations is not None:
+                repair_message = annotations.get("REPAIR_MESSAGE")
 
             allocatable = node.status.allocatable
             gpu_allocatable = Gpu()
@@ -538,7 +543,9 @@ class ClusterStatusFactory(object):
                 "memory_preemptable_used": Memory(),
                 "InternalIP": internal_ip,
                 "pods": [],
-                "unschedulable": unschedulable
+                "unschedulable": unschedulable,
+                "REPAIR_STATE": repair_state,
+                "REPAIR_MESSAGE": repair_message,
             }
 
             self.node_statuses[name] = node_status
