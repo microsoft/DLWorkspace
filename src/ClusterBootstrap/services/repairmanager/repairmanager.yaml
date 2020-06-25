@@ -5,7 +5,8 @@ metadata:
   namespace: kube-system
 data:
   config.yaml: |-
-    rules: {{cnf["repair-manager"]}}
+    repair-manager: {{cnf["repair-manager"]}}
+    smtp: {{cnf["smtp"]}}
 ---
 apiVersion: apps/v1
 kind: Deployment

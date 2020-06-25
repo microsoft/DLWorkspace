@@ -6,7 +6,6 @@ import json
 import os
 import requests
 import signal
-import smtplib
 import sys
 import threading
 import urllib.parse
@@ -15,7 +14,7 @@ from enum import Enum
 from kubernetes import client as k8s_client, config as k8s_config
 from kubernetes.client.rest import ApiException
 from constant import REPAIR_STATE, REPAIR_UNHEALTHY_RULES, \
-    REPAIR_STATE_LAST_UPDATE_TIME, REPAIR_CYCLE
+    REPAIR_STATE_LAST_UPDATE_TIME, REPAIR_STATE_LAST_EMAIL_TIME, REPAIR_CYCLE
 
 
 logger = logging.getLogger(__name__)
@@ -209,6 +208,10 @@ class Job(object):
     def wait_for_jobs(self):
         """Wait if any unhealthy rule from any unhealthy node needs to wait"""
         for _, node in self.unhealthy_nodes:
+            # Assume waiting for jobs if there is no unhealthy rules
+            if len(node.unhealthy_rules) == 0:
+                return True
+
             for rule in node.unhealthy_rules:
                 if rule.wait_for_job:
                     return True
@@ -222,7 +225,8 @@ class Node(object):
     def __init__(self, name, ip, ready, unschedulable, sku, gpu_expected,
                  gpu_total, gpu_allocatable, state, infiniband=None, ipoib=None,
                  nv_peer_mem=None, nvsm=None, unhealthy_rules=None,
-                 last_update_time=None, repair_cycle=False):
+                 last_update_time=None, last_email_time=None,
+                 repair_cycle=False):
         self.name = name
         self.ip = ip
         self.ready = ready
@@ -238,6 +242,7 @@ class Node(object):
         self.nvsm = nvsm
         self.unhealthy_rules = unhealthy_rules if unhealthy_rules else []
         self.last_update_time = last_update_time
+        self.last_email_time = last_email_time
         self.repair_cycle = repair_cycle
         self.repair_message = None  # to be filled in in repair cycle
         self.jobs = {}  # job id -> Job
@@ -370,6 +375,12 @@ def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
                 last_update_time = k8s_node.metadata.annotations.get(
                     REPAIR_STATE_LAST_UPDATE_TIME)
 
+            # Parse last email time for jobs on the node
+            last_email_time = None
+            if k8s_node.metadata.annotations is not None:
+                last_email_time = k8s_node.metadata.annotations.get(
+                    REPAIR_STATE_LAST_EMAIL_TIME)
+
             # Parse repair cycle boolean
             repair_cycle = False
             if k8s_node.metadata.annotations is not None:
@@ -382,6 +393,7 @@ def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
                         nv_peer_mem=nv_peer_mem, nvsm=nvsm,
                         unhealthy_rules=unhealthy_rules,
                         last_update_time=last_update_time,
+                        last_email_time=last_email_time,
                         repair_cycle=repair_cycle)
             nodes[internal_ip] = node
         except:
@@ -406,7 +418,7 @@ def parse_pods(k8s_pods, nodes, jobs):
                 if job_id in jobs and job_id not in node.jobs:
                     node.jobs[job_id] = jobs[job_id]
                 # Add unhealthy nodes for the job
-                if len(node.unhealthy_rules) > 0 and \
+                if node.state != State.IN_SERVICE and \
                         node.name not in jobs[job_id].unhealthy_nodes:
                     jobs[job_id].unhealthy_nodes[node.name] = node
         except:
@@ -431,31 +443,6 @@ def parse_for_jobs_and_nodes(job_list, vc_list, k8s_nodes, k8s_pods, rules,
     parse_pods(k8s_pods, nodes, jobs)
 
     return list(jobs.values()), list(nodes.values())
-
-
-class EmailHandler(object):
-    def __init__(self, smtp_url, sender, username=None, password=None):
-        self.smtp_url = smtp_url
-        self.sender = sender
-        self.username = username
-        self.password = password
-
-    def send(self, message):
-        message["From"] = self.sender
-
-        try:
-            with smtplib.SMTP(self.smtp_url) as server:
-                if self.username and self.password:
-                    server.starttls()
-                    server.login(self.username, self.password)
-                server.send_message(message)
-        except smtplib.SMTPAuthenticationError:
-            logger.error(
-                "The server didn\'t accept the user/password combination.")
-        except smtplib.SMTPServerDisconnected:
-            logger.error("Server unexpectedly disconnected")
-        except smtplib.SMTPException:
-            logger.exception("STMP exception")
 
 
 if __name__ == "__main__":
@@ -543,6 +530,7 @@ if __name__ == "__main__":
     k8s_pods = k8s_util.list_pods()
     assert k8s_pods is not None
 
+    job_list = []
     for pod in k8s_pods:
         name = pod.metadata.name
         job_id = pod.metadata.labels.get("jobId")
@@ -551,6 +539,11 @@ if __name__ == "__main__":
         vc_name = pod.metadata.labels.get("vcName")
         logger.info("name: %s, job_id: %s, node_name: %s, username: %s, "
                     "vc_name: %s", name, job_id, node_name, username, vc_name)
+        job_list.append({
+            "jobId": job_id,
+            "userName": username,
+            "vcName": vc_name,
+        })
 
     # RestUtil test
     rest_util = RestUtil()
@@ -575,8 +568,13 @@ if __name__ == "__main__":
         "nvsm": {"Standard_ND24rs": True},
         "nvsm_exception": [hostname],
     }
-    nodes = parse_for_jobs_and_nodes(
-        k8s_nodes, k8s_pods, vc_list, [K8sGpuRule(), DcgmEccDBERule()], config)
+    jobs, nodes = parse_for_jobs_and_nodes(
+        job_list, vc_list, k8s_nodes, k8s_pods, [K8sGpuRule(), DcgmEccDBERule()],
+        config)
+    logger.info("Parsed jobs:")
+    for job in jobs:
+        logger.info("%s", job)
+    logger.info("Parsed nodes:")
     for node in nodes:
         logger.info("%s", node)
 
