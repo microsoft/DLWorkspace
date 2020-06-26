@@ -251,7 +251,7 @@ class RepairManager(object):
 
                 msg += "Please check if it is still running as expected. "
                 if job.wait_for_jobs:
-                    msg += "Node repair is waiting for the job to finish. Please kill/finish the job as soon as possible to expedite node(s) repair."
+                    msg += "Node(s) repair is waiting for the job to finish. Please kill/finish the job as soon as possible to expedite node(s) repair."
                 else:
                     msg += "Restart/resubmit your job if necessary."
                 message = {
@@ -292,7 +292,7 @@ class RepairManager(object):
                      self.get_unhealthy_rules_desc(node))
                 msg += "Please check if it is still running as expected. "
                 if job.wait_for_jobs:
-                    msg += "Node repair is waiting for the job to finish. Please kill/finish the job as soon as possible to expedite node(s) repair."
+                    msg += "Node repair is waiting for the job to finish. Please kill/finish the job as soon as possible to expedite node repair."
                 else:
                     msg += "Restart/resubmit your job if necessary."
                 body = "<p>%s</p>" % msg

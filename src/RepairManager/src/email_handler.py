@@ -33,9 +33,9 @@ class EmailHandler(object):
                 if self.username and self.password:
                     server.starttls()
                     server.login(self.username, self.password)
-                #server.send_message(message)
-                logger.info("successfully sent email '%s' to: %s and cc: %s body: %s",
-                            subject, to, self.cc, body)
+                server.send_message(message)
+                logger.info("successfully sent email '%s' to: %s and cc: %s",
+                            subject, to, self.cc)
         except smtplib.SMTPAuthenticationError:
             logger.error(
                 "The server didn\'t accept the user/password combination.")
