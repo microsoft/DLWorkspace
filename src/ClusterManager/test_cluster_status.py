@@ -24,6 +24,11 @@ class TestUtils(unittest.TestCase):
 
 
 class TestClusterStatus(unittest.TestCase):
+    def setUp(self):
+        logging.basicConfig(
+            format="%(asctime)s - %(levelname)s - %(threadName)s - %(filename)s:%(lineno)s - %(message)s",
+            level="DEBUG")
+
     def test_to_dict(self):
         inclusion = [
             "gpu_capacity",

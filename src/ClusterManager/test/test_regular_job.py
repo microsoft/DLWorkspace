@@ -777,6 +777,25 @@ def test_job_insight(args):
 
 
 @utils.case()
+def test_job_repair_message(args):
+    """Similar test to test_job_insight. Simply test if rest call works"""
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        payload = {"messages": ["dummy"]}
+        resp = utils.set_repair_message(args.rest, args.email, job.jid, payload)
+        assert resp.status_code == 200
+
+        job_detail = utils.get_job_detail_v2(args.rest, args.email, job.jid)
+        assert payload == job_detail.get("repairMessage")
+
+
+@utils.case()
 def test_gpu_type_override(args):
     job_spec = utils.gen_default_job_description("regular", args.email,
                                                  args.uid, args.vc)
@@ -1053,6 +1072,34 @@ def test_kill_job_with_message(args):
         message = details.get("errorMsg")
         assert message == expected, "unexpected message " + message
 
+@utils.case()
+def test_get_active_jobs(args):
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job1:
+        with utils.run_job(args.rest, job_spec) as job2:
+            state1 = job1.block_until_state_not_in({"unapproved", "queued"})
+            assert state1 in ["scheduling", "running"]
+            state2 = job2.block_until_state_not_in({"unapproved", "queued"})
+            assert state2 in ["scheduling", "running"]
+
+            job_ids = [
+                job.get("jobId") for job in utils.get_active_jobs(args.rest)
+            ]
+            assert job1.jid in job_ids
+            assert job2.jid in job_ids
+
+            utils.kill_job(args.rest, args.email, job2.jid, "test")
+            state2 = job2.block_until_state_not_in({"running", "killing"},
+                                                   timeout=30)
+            assert state2 == "killed"
+
+            job_ids = [
+                job.get("jobId") for job in utils.get_active_jobs(args.rest)
+            ]
+            assert job1.jid in job_ids
+            assert job2.jid not in job_ids
 
 @utils.case(dangerous=True)
 def test_submit_job_with_gloabl_public_key(args):

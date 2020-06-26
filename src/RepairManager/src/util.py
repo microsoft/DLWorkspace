@@ -14,7 +14,7 @@ from enum import Enum
 from kubernetes import client as k8s_client, config as k8s_config
 from kubernetes.client.rest import ApiException
 from constant import REPAIR_STATE, REPAIR_UNHEALTHY_RULES, \
-    REPAIR_STATE_LAST_UPDATE_TIME, REPAIR_CYCLE
+    REPAIR_STATE_LAST_UPDATE_TIME, REPAIR_STATE_LAST_EMAIL_TIME, REPAIR_CYCLE
 
 
 logger = logging.getLogger(__name__)
@@ -151,6 +151,20 @@ class RestUtil(object):
         resp = requests.get(url, timeout=5)
         return resp.json()
 
+    def get_active_jobs(self):
+        url = urllib.parse.urljoin(self.rest_url, "/ListActiveJobs")
+        resp = requests.get(url)
+        return resp.json()
+
+    def update_repair_message(self, job_id, repair_message):
+        args = urllib.parse.urlencode({
+            "userName": "Administrator",
+            "jobId": job_id,
+        })
+        url = urllib.parse.urljoin(self.rest_url, "/RepairMessage") + "?" + args
+        resp = requests.post(url, json=repair_message, timeout=5)
+        return resp
+
 
 class PrometheusUtil(object):
     def __init__(self):
@@ -188,7 +202,20 @@ class Job(object):
         self.job_id = job_id
         self.username = username
         self.vc_name = vc_name
-        self.pods = []
+        self.unhealthy_nodes = {}  # node name -> Node
+
+    @property
+    def wait_for_jobs(self):
+        """Wait if any unhealthy rule from any unhealthy node needs to wait"""
+        for _, node in self.unhealthy_nodes.items():
+            # Assume waiting for jobs if there is no unhealthy rules
+            if len(node.unhealthy_rules) == 0:
+                return True
+
+            for rule in node.unhealthy_rules:
+                if rule.wait_for_jobs:
+                    return True
+        return False
 
     def __repr__(self):
         return str(self.__dict__)
@@ -198,7 +225,8 @@ class Node(object):
     def __init__(self, name, ip, ready, unschedulable, sku, gpu_expected,
                  gpu_total, gpu_allocatable, state, infiniband=None, ipoib=None,
                  nv_peer_mem=None, nvsm=None, unhealthy_rules=None,
-                 last_update_time=None, repair_cycle=False):
+                 last_update_time=None, last_email_time=None,
+                 repair_cycle=False):
         self.name = name
         self.ip = ip
         self.ready = ready
@@ -214,8 +242,11 @@ class Node(object):
         self.nvsm = nvsm
         self.unhealthy_rules = unhealthy_rules if unhealthy_rules else []
         self.last_update_time = last_update_time
+        self.last_email_time = last_email_time
         self.repair_cycle = repair_cycle
-        self.jobs = {}
+        self.repair_message = None  # to be filled in in repair cycle
+        self.jobs = {}  # job id -> Job
+        self.evict_jobs = False  # whether to evict jobs preparing for repair
 
     @property
     def state_name(self):
@@ -223,6 +254,25 @@ class Node(object):
 
     def __repr__(self):
         return str(self.__dict__)
+
+
+def parse_jobs(job_list, jobs):
+    for job in job_list:
+        job_id = job.get("jobId")
+        username = job.get("userName")
+        vc_name = job.get("vcName")
+        if job_id is None or username is None or vc_name is None:
+            logger.warning("ignore parsing job %s", job)
+            continue
+        jobs[job_id] = Job(job_id, username, vc_name)
+
+
+def parse_metadata(vc_list, metadata):
+    # Merge metadata from all VCs together
+    for vc in vc_list:
+        resource_metadata = json.loads(vc.get("resourceMetadata", {}))
+        gpu_metadata = resource_metadata.get("gpu", {})
+        metadata.update(gpu_metadata)
 
 
 def get_hostname_and_internal_ip(k8s_node):
@@ -325,6 +375,12 @@ def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
                 last_update_time = k8s_node.metadata.annotations.get(
                     REPAIR_STATE_LAST_UPDATE_TIME)
 
+            # Parse last email time for jobs on the node
+            last_email_time = None
+            if k8s_node.metadata.annotations is not None:
+                last_email_time = k8s_node.metadata.annotations.get(
+                    REPAIR_STATE_LAST_EMAIL_TIME)
+
             # Parse repair cycle boolean
             repair_cycle = False
             if k8s_node.metadata.annotations is not None:
@@ -333,14 +389,18 @@ def parse_nodes(k8s_nodes, metadata, rules, config, nodes):
 
             node = Node(hostname, internal_ip, ready, unschedulable, sku,
                         gpu_expected, gpu_total, gpu_allocatable, state,
-                        infiniband, ipoib, nv_peer_mem, nvsm, unhealthy_rules,
-                        last_update_time, repair_cycle)
+                        infiniband=infiniband, ipoib=ipoib,
+                        nv_peer_mem=nv_peer_mem, nvsm=nvsm,
+                        unhealthy_rules=unhealthy_rules,
+                        last_update_time=last_update_time,
+                        last_email_time=last_email_time,
+                        repair_cycle=repair_cycle)
             nodes[internal_ip] = node
         except:
             logger.exception("failed to parse k8s node %s", k8s_node)
 
 
-def parse_pods(k8s_pods, nodes):
+def parse_pods(k8s_pods, nodes, jobs):
     for k8s_pod in k8s_pods:
         try:
             if k8s_pod.metadata is None or k8s_pod.metadata.labels is None or \
@@ -349,34 +409,40 @@ def parse_pods(k8s_pods, nodes):
             if k8s_pod.status is None or k8s_pod.status.host_ip is None:
                 continue
 
-            pod_name = k8s_pod.metadata.name
             labels = k8s_pod.metadata.labels
             host_ip = k8s_pod.status.host_ip
             node = nodes.get(host_ip)
-            if "jobId" in labels and "userName" in labels and \
-                    "vcName" in labels and node is not None:
+            if labels and "jobId" in labels and node is not None:
                 job_id = labels["jobId"]
-                username = labels["userName"]
-                vc_name = labels["vcName"]
-                if job_id not in node.jobs:
-                    node.jobs[job_id] = Job(job_id, username, vc_name)
-                node.jobs[job_id].pods.append(pod_name)
+                # Add active job for the node
+                if job_id in jobs and job_id not in node.jobs:
+                    node.jobs[job_id] = jobs[job_id]
+                # Add unhealthy nodes for the job
+                if job_id in jobs and node.state != State.IN_SERVICE and \
+                        node.name not in jobs[job_id].unhealthy_nodes:
+                    jobs[job_id].unhealthy_nodes[node.name] = node
         except:
             logger.exception("failed to parse k8s pod %s", k8s_pod)
 
 
-def parse_for_nodes(k8s_nodes, k8s_pods, vc_list, rules, config):
-    metadata = {}
-    # Merge metadata from all VCs together
-    for vc in vc_list:
-        resource_metadata = json.loads(vc.get("resourceMetadata", {}))
-        gpu_metadata = resource_metadata.get("gpu", {})
-        metadata.update(gpu_metadata)
+def parse_for_jobs_and_nodes(job_list, vc_list, k8s_nodes, k8s_pods, rules,
+                             config):
+    # Parse jobs
+    jobs = {}
+    parse_jobs(job_list, jobs)
 
+    # Parse gpu metadata
+    metadata = {}
+    parse_metadata(vc_list, metadata)
+
+    # Parse nodes
     nodes = {}
     parse_nodes(k8s_nodes, metadata, rules, config, nodes)
-    parse_pods(k8s_pods, nodes)
-    return list(nodes.values())
+
+    # Parse pods to populate jobs on node, and unhealthy nodes for jobs
+    parse_pods(k8s_pods, nodes, jobs)
+
+    return list(jobs.values()), list(nodes.values())
 
 
 if __name__ == "__main__":
@@ -486,7 +552,10 @@ if __name__ == "__main__":
         logger.info("vcName: %s, resourceMetadata: %s", vc.get("vcName"),
                     vc.get("resourceMetadata"))
 
-    # parse_for_nodes
+    # Get all active jobs
+    job_list = rest_util.get_active_jobs()
+
+    # parse_for_jobs_and_nodes
     from rule import K8sGpuRule, DcgmEccDBERule
     hostname, _ = get_hostname_and_internal_ip(k8s_nodes[1])
     config = {
@@ -496,8 +565,13 @@ if __name__ == "__main__":
         "nvsm": {"Standard_ND24rs": True},
         "nvsm_exception": [hostname],
     }
-    nodes = parse_for_nodes(
-        k8s_nodes, k8s_pods, vc_list, [K8sGpuRule(), DcgmEccDBERule()], config)
+    jobs, nodes = parse_for_jobs_and_nodes(
+        job_list, vc_list, k8s_nodes, k8s_pods, [K8sGpuRule(), DcgmEccDBERule()],
+        config)
+    logger.info("Parsed jobs:")
+    for job in jobs:
+        logger.info("%s", job)
+    logger.info("Parsed nodes:")
     for node in nodes:
         logger.info("%s", node)
 

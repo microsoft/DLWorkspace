@@ -90,11 +90,11 @@ class TestRepairManager(unittest.TestCase):
         # Node is in valid state
         self.assertTrue(self.repairmanager.validate(self.node))
 
-        # Repair cycle
-        # Node is not in a valid state, patch is working
+        # Schedulable node in repair cycle, patch working
         self.k8s_util.patch_result = True
         for state in [State.OUT_OF_POOL, State.READY_FOR_REPAIR,
-                      State.IN_REPAIR, State.AFTER_REPAIR]:
+                      State.IN_REPAIR, State.AFTER_REPAIR,
+                      State.OUT_OF_POOL_UNTRACKED]:
             self.node.unschedulable = False
             self.node.repair_cycle = True
             self.node.state = state
@@ -103,10 +103,11 @@ class TestRepairManager(unittest.TestCase):
             self.assertTrue(self.node.repair_cycle)
             self.assertTrue(self.node.unschedulable)
 
-        # Node is not in a valid state, patch is not working
+        # Schedulable node in repair cycle, patch not working
         self.k8s_util.patch_result = False
         for state in [State.OUT_OF_POOL, State.READY_FOR_REPAIR,
-                      State.IN_REPAIR, State.AFTER_REPAIR]:
+                      State.IN_REPAIR, State.AFTER_REPAIR,
+                      State.OUT_OF_POOL_UNTRACKED]:
             self.node.unschedulable = False
             self.node.repair_cycle = True
             self.node.state = state
@@ -115,12 +116,10 @@ class TestRepairManager(unittest.TestCase):
             self.assertTrue(self.node.repair_cycle)
             self.assertFalse(self.node.unschedulable)
 
-        # Not in repair cycle
-        # Node is not in a valid state, patch is working
+        # Schedulable node not in repair cycle, patch working
         self.k8s_util.patch_result = True
         for state in [State.OUT_OF_POOL, State.READY_FOR_REPAIR,
-                      State.IN_REPAIR, State.AFTER_REPAIR,
-                      State.OUT_OF_POOL_UNTRACKED]:
+                      State.IN_REPAIR, State.AFTER_REPAIR]:
             self.node.unschedulable = False
             self.node.repair_cycle = False
             self.node.state = state
@@ -129,15 +128,24 @@ class TestRepairManager(unittest.TestCase):
             self.assertFalse(self.node.repair_cycle)
             self.assertTrue(self.node.unschedulable)
 
-        # Node is not in a valid state, patch is not working
+        # Schedulable node not in repair cycle, patch not working
         self.k8s_util.patch_result = False
         for state in [State.OUT_OF_POOL, State.READY_FOR_REPAIR,
-                      State.IN_REPAIR, State.AFTER_REPAIR,
-                      State.OUT_OF_POOL_UNTRACKED]:
+                      State.IN_REPAIR, State.AFTER_REPAIR]:
             self.node.unschedulable = False
             self.node.repair_cycle = False
             self.node.state = state
             self.assertFalse(self.repairmanager.validate(self.node))
+            self.assertEqual(state, self.node.state)
+            self.assertFalse(self.node.repair_cycle)
+            self.assertFalse(self.node.unschedulable)
+
+        # Schedudling node not in repair cycle, in correct state
+        for state in [State.IN_SERVICE, State.OUT_OF_POOL_UNTRACKED]:
+            self.node.unschedulable = False
+            self.node.repair_cycle = False
+            self.node.state = state
+            self.assertTrue(self.repairmanager.validate(self.node))
             self.assertEqual(state, self.node.state)
             self.assertFalse(self.node.repair_cycle)
             self.assertFalse(self.node.unschedulable)
@@ -164,39 +172,46 @@ class TestRepairManager(unittest.TestCase):
             time.sleep(1)
 
     def test_repair_cycle_update(self):
-        # IN_SERVICE -> OUT_OF_POOL
+        # IN_SERVICE
         self.rules[0].health = True
         self.repairmanager.update(self.node)
         self.assertEqual(State.IN_SERVICE, self.node.state)
         self.assertFalse(self.node.unschedulable)
         self.assertFalse(self.node.repair_cycle)
+        self.assertIsNone(self.node.repair_message)
         self.assertEqual([], self.node.unhealthy_rules)
 
+        # IN_SERVICE -> OUT_OF_POOL
         self.rules[0].health = False
         self.repairmanager.update(self.node)
         self.assertEqual(State.OUT_OF_POOL, self.node.state)
         self.assertTrue(self.node.unschedulable)
         self.assertTrue(self.node.repair_cycle)
+        self.assertIsNotNone(self.node.repair_message)
         self.assertEqual(self.rules, self.node.unhealthy_rules)
 
-        # OUT_OF_POOL -> READY_FOR_REPAIR
+        # OUT_OF_POOL -> OUT_OF_POOL
         self.rules[0].prepared = False
         self.repairmanager.update(self.node)
         self.assertEqual(State.OUT_OF_POOL, self.node.state)
         self.assertTrue(self.node.unschedulable)
         self.assertTrue(self.node.repair_cycle)
+        self.assertIsNotNone(self.node.repair_message)
 
+        # OUT_OF_POOL -> READY_FOR_REPAIR
         self.rules[0].prepared = True
         self.repairmanager.update(self.node)
         self.assertEqual(State.READY_FOR_REPAIR, self.node.state)
         self.assertTrue(self.node.unschedulable)
         self.assertTrue(self.node.repair_cycle)
+        self.assertIsNotNone(self.node.repair_message)
 
         # READY_FOR_REPAIR -> IN_REPAIR
         self.repairmanager.update(self.node)
         self.assertEqual(State.READY_FOR_REPAIR, self.node.state)
         self.assertTrue(self.node.unschedulable)
         self.assertTrue(self.node.repair_cycle)
+        self.assertIsNotNone(self.node.repair_message)
 
         # Agent becomes alive
         self.server.start()
@@ -212,6 +227,7 @@ class TestRepairManager(unittest.TestCase):
         self.assertEqual(State.IN_REPAIR, self.node.state)
         self.assertTrue(self.node.unschedulable)
         self.assertTrue(self.node.repair_cycle)
+        self.assertIsNotNone(self.node.repair_message)
 
         # Agent start to consume repair signal
         self.agent.repair_handler.start()
@@ -229,6 +245,7 @@ class TestRepairManager(unittest.TestCase):
         # IN_REPAIR -> AFTER_REPAIR
         self.assertTrue(wait_for_repair())
         self.assertTrue(self.node.repair_cycle)
+        self.assertIsNotNone(self.node.repair_message)
 
         node = copy.deepcopy(self.node)
 
@@ -242,6 +259,7 @@ class TestRepairManager(unittest.TestCase):
         self.assertEqual(State.AFTER_REPAIR, node.state)
         self.assertTrue(node.unschedulable)
         self.assertTrue(node.repair_cycle)
+        self.assertIsNotNone(self.node.repair_message)
         self.assertEqual(self.rules, node.unhealthy_rules)
 
         # AFTER_REPAIR -> OUT_OF_POOL
@@ -251,6 +269,7 @@ class TestRepairManager(unittest.TestCase):
         self.assertEqual(State.OUT_OF_POOL, node.state)
         self.assertTrue(node.unschedulable)
         self.assertTrue(node.repair_cycle)
+        self.assertIsNotNone(self.node.repair_message)
         self.assertEqual(self.rules, node.unhealthy_rules)
 
         # AFTER_REPAIR -> IN_SERVICE
@@ -259,6 +278,7 @@ class TestRepairManager(unittest.TestCase):
         self.assertEqual(State.IN_SERVICE, self.node.state)
         self.assertFalse(self.node.unschedulable)
         self.assertFalse(self.node.repair_cycle)
+        self.assertIsNone(self.node.repair_message)
         self.assertEqual([], self.node.unhealthy_rules)
 
     def test_repair_cycle_update_with_out_of_pool_untracked(self):
@@ -277,6 +297,7 @@ class TestRepairManager(unittest.TestCase):
             self.assertEqual(State.OUT_OF_POOL_UNTRACKED, self.node.state)
             self.assertTrue(self.node.unschedulable)
             self.assertFalse(self.node.repair_cycle)
+            self.assertIsNotNone(self.node.repair_message)
 
         # OUT_OF_POOL_UNTRACKED -> IN_SERVICE
         self.node.state = State.OUT_OF_POOL_UNTRACKED
@@ -286,6 +307,7 @@ class TestRepairManager(unittest.TestCase):
         self.assertEqual(State.IN_SERVICE, self.node.state)
         self.assertFalse(self.node.unschedulable)
         self.assertFalse(self.node.repair_cycle)
+        self.assertIsNone(self.node.repair_message)
 
         # OUT_OF_POOL_UNTRACKED -> OUT_OF_POOL
         self.node.state = State.OUT_OF_POOL_UNTRACKED
@@ -296,8 +318,35 @@ class TestRepairManager(unittest.TestCase):
         self.assertEqual(State.OUT_OF_POOL, self.node.state)
         self.assertTrue(self.node.unschedulable)
         self.assertTrue(self.node.repair_cycle)
+        self.assertIsNotNone(self.node.repair_message)
         self.assertEqual(1, len(self.node.unhealthy_rules))
         self.assertEqual("UnschedulableRule", self.node.unhealthy_rules[0].name)
+
+    def test_update_last_email_time(self):
+        self.k8s_util.patch_result = True
+
+        # No last email time at the beginning
+        self.assertIsNone(self.node.last_email_time)
+
+        # Send email
+        self.repairmanager.update_last_email_time(self.node)
+        self.assertIsNotNone(self.node.last_email_time)
+
+        # Last email time will be cleared: OUT_OF_POOL_UNTRACKED into IN_SERVICE
+        self.node.state = State.OUT_OF_POOL_UNTRACKED
+        self.node.unschedulable = False
+        self.node.last_email_time = \
+            str(datetime.datetime.timestamp(datetime.datetime.utcnow()))
+        self.repairmanager.update(self.node)
+        self.assertIsNone(self.node.last_email_time)
+
+        # Last email time will be cleared: AFTER_REPAIR into IN_SERVICE
+        self.rules[0].health = True
+        self.node.state = State.AFTER_REPAIR
+        self.node.last_email_time = \
+            str(datetime.datetime.timestamp(datetime.datetime.utcnow()))
+        self.repairmanager.update(self.node)
+        self.assertIsNone(self.node.last_email_time)
 
     def test_check_health(self):
         # Node is healthy

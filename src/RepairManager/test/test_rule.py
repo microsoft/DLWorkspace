@@ -15,17 +15,6 @@ from rule import Rule, UnschedulableRule, K8sGpuRule, \
 logger = logging.getLogger(__name__)
 
 
-class MockRestUtil(object):
-    def __init__(self):
-        self.data = []
-
-    def get_job_status(self, job_id):
-        try:
-            return self.data.pop(0)
-        except IndexError:
-            return None
-
-
 class MockPrometheusUtil(object):
     def __init__(self):
         self.data = []
@@ -51,7 +40,6 @@ class TestRule(unittest.TestCase):
 
     def setUp(self):
         self.create_rule()
-        self.rule.rest_util = MockRestUtil()
         self.rule.prometheus_util = MockPrometheusUtil()
         self.job = Job("job1", "user1", "vc1")
         self.node = Node("node1",
@@ -88,16 +76,13 @@ class TestRule(unittest.TestCase):
         pass
 
     def test_prepare(self):
-        # Job is in scheduling state
-        self.rule.rest_util.data.append({"jobStatus": "scheduling"})
-        self.assertFalse(self.rule.prepare(self.node))
+        # When there is a job on the node
+        self.node.jobs = [self.job]
+        if self.rule.wait_for_jobs:
+            self.assertFalse(self.rule.prepare(self.node))
 
-        # Job is in running state
-        self.rule.rest_util.data.append({"jobStatus": "running"})
-        self.assertFalse(self.rule.prepare(self.node))
-
-        # Job is in finished
-        self.rule.rest_util.data.append({"jobStatus": "finished"})
+        # When there is no job on the node
+        self.node.jobs = []
         self.assertTrue(self.rule.prepare(self.node))
 
 
@@ -156,10 +141,6 @@ class TestK8sGpuRule(TestRule):
 
         self.assertTrue(self.rule.check_health(self.node))
         self.assertTrue(self.rule.check_health(self.node, stat="current"))
-
-    def test_prepare(self):
-        # No need to prepare anything
-        pass
 
 
 class TestDcgmEccDBERule(TestRule):
@@ -223,15 +204,6 @@ class TestIPoIBRule(TestRule):
         self.assertTrue(self.rule.check_health(self.node))
         self.assertTrue(self.rule.check_health(self.node, stat="current"))
 
-    def test_prepare(self):
-        # Job is in scheduling state
-        self.rule.rest_util.data.append({"jobStatus": "scheduling"})
-        self.assertTrue(self.rule.prepare(self.node))
-
-        # Job is in running state
-        self.rule.rest_util.data.append({"jobStatus": "running"})
-        self.assertTrue(self.rule.prepare(self.node))
-
 
 class TestNvPeerMemRule(TestRule):
     def create_rule(self):
@@ -251,15 +223,6 @@ class TestNvPeerMemRule(TestRule):
 
         self.assertTrue(self.rule.check_health(self.node))
         self.assertTrue(self.rule.check_health(self.node, stat="current"))
-
-    def test_prepare(self):
-        # Job is in scheduling state
-        self.rule.rest_util.data.append({"jobStatus": "scheduling"})
-        self.assertTrue(self.rule.prepare(self.node))
-
-        # Job is in running state
-        self.rule.rest_util.data.append({"jobStatus": "running"})
-        self.assertTrue(self.rule.prepare(self.node))
 
 
 class TestNVSMRule(TestRule):

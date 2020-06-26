@@ -135,7 +135,8 @@ class BaseTestClusterSetup(object):
         n1_config.labels = {
             "gpuType": "P40",
             "sku": "m_type1",
-            "worker": "active"
+            "worker": "active",
+            "REPAIR_STATE": "IN_SERVICE",
         }
         n1_config.capacity = {
             "nvidia.com/gpu": "4",
@@ -155,7 +156,11 @@ class BaseTestClusterSetup(object):
         # Create node2
         n2_config = MockK8sNodeConfig()
         n2_config.name = "node2"
-        n2_config.labels = {"sku": "m_type2", "worker": "active"}
+        n2_config.labels = {
+            "sku": "m_type2",
+            "worker": "active",
+            "REPAIR_STATE": "IN_SERVICE",
+        }
         n2_config.capacity = {"cpu": "20", "memory": "409600Mi"}
         n2_config.allocatable = {"cpu": "20", "memory": "409600Mi"}
         n2_config.internal_ip = "10.0.0.2"
@@ -169,7 +174,8 @@ class BaseTestClusterSetup(object):
         n3_config.labels = {
             "gpuType": "P40",
             "sku": "m_type3",
-            "worker": "active"
+            "worker": "active",
+            "REPAIR_STATE": "IN_SERVICE",
         }
         n3_config.capacity = {
             "nvidia.com/gpu": "4",
@@ -438,7 +444,8 @@ class BaseTestClusterSetup(object):
             "labels": {
                 "gpuType": "P40",
                 "sku": "m_type1",
-                "worker": "active"
+                "worker": "active",
+                "REPAIR_STATE": "IN_SERVICE",
             },
             "gpuType": "P40",
             "scheduled_service": ["P40", "m_type1", "worker"],
@@ -456,14 +463,17 @@ class BaseTestClusterSetup(object):
             "memory_preemptable_used": Memory({}),
             "InternalIP": "10.0.0.1",
             "pods": ["pod1 : user1 (gpu #:1)"],
-            "unschedulable": False
+            "unschedulable": False,
+            "REPAIR_STATE": "IN_SERVICE",
+            "REPAIR_MESSAGE": None,
         }
 
         node2_status = {
             "name": "node2",
             "labels": {
                 "sku": "m_type2",
-                "worker": "active"
+                "worker": "active",
+                "REPAIR_STATE": "IN_SERVICE",
             },
             "gpuType": "",
             "scheduled_service": ["m_type2", "worker"],
@@ -481,7 +491,9 @@ class BaseTestClusterSetup(object):
             "memory_preemptable_used": Memory({}),
             "InternalIP": "10.0.0.2",
             "pods": ["pod2 : user2 (gpu #:0)"],
-            "unschedulable": False
+            "unschedulable": False,
+            "REPAIR_STATE": "IN_SERVICE",
+            "REPAIR_MESSAGE": None,
         }
 
         node3_status = {
@@ -489,7 +501,8 @@ class BaseTestClusterSetup(object):
             "labels": {
                 "gpuType": "P40",
                 "sku": "m_type3",
-                "worker": "active"
+                "worker": "active",
+                "REPAIR_STATE": "IN_SERVICE",
             },
             "gpuType": "P40",
             "scheduled_service": ["P40", "m_type3", "worker"],
@@ -507,7 +520,9 @@ class BaseTestClusterSetup(object):
             "memory_preemptable_used": Memory({}),
             "InternalIP": "10.0.0.3",
             "pods": ["pod4 : user1 (gpu #:2)"],
-            "unschedulable": True
+            "unschedulable": True,
+            "REPAIR_STATE": "IN_SERVICE",
+            "REPAIR_MESSAGE": None,
         }
 
         return [node1_status, node2_status, node3_status]
