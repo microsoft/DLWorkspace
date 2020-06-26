@@ -251,7 +251,7 @@ class RepairManager(object):
 
                 msg += "Please check if it is still running as expected. "
                 if job.wait_for_jobs:
-                    msg += "Node(s) repair is waiting for the job to finish. Please kill/finish the job as soon as possible to expedite node(s) repair."
+                    msg += "Node(s) repair is waiting for the job to finish. Please kill/finish the job to expedite node(s) repair."
                 else:
                     msg += "Restart/resubmit your job if necessary."
                 message = {
@@ -287,12 +287,12 @@ class RepairManager(object):
                     (job.vc_name, self.cluster_name, job_id)
                 job_link = "https://%s/jobs/%s/%s" % \
                     (self.dashboard_url, self.cluster_name, job_id)
-                msg = "The job <a href=%s>%s</a> is running on an unhealthy node %s (%s). " % \
+                msg = "The job <a href=%s>%s</a> is running on an unhealthy node <b>%s</b> (%s). " % \
                     (job_link, job_id, node.name,
                      self.get_unhealthy_rules_desc(node))
                 msg += "Please check if it is still running as expected. "
                 if job.wait_for_jobs:
-                    msg += "Node repair is waiting for the job to finish. Please kill/finish the job as soon as possible to expedite node repair."
+                    msg += "Node repair is waiting for the job to finish. Please kill/finish the job to expedite node repair."
                 else:
                     msg += "Restart/resubmit your job if necessary."
                 body = "<p>%s</p>" % msg

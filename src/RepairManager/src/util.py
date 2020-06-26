@@ -213,7 +213,7 @@ class Job(object):
                 return True
 
             for rule in node.unhealthy_rules:
-                if rule.wait_for_job:
+                if rule.wait_for_jobs:
                     return True
         return False
 
