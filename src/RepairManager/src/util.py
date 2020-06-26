@@ -412,13 +412,13 @@ def parse_pods(k8s_pods, nodes, jobs):
             labels = k8s_pod.metadata.labels
             host_ip = k8s_pod.status.host_ip
             node = nodes.get(host_ip)
-            if "jobId" in labels and node is not None:
+            if labels and "jobId" in labels and node is not None:
                 job_id = labels["jobId"]
                 # Add active job for the node
                 if job_id in jobs and job_id not in node.jobs:
                     node.jobs[job_id] = jobs[job_id]
                 # Add unhealthy nodes for the job
-                if node.state != State.IN_SERVICE and \
+                if job_id in jobs and node.state != State.IN_SERVICE and \
                         node.name not in jobs[job_id].unhealthy_nodes:
                     jobs[job_id].unhealthy_nodes[node.name] = node
         except:
