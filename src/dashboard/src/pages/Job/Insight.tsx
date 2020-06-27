@@ -14,6 +14,7 @@ import {
   Box,
   Button,
   Paper,
+  Tooltip,
   Typography,
   createStyles,
   makeStyles,
@@ -132,7 +133,9 @@ const Message: FunctionComponent<MessageProps> = ({ date, level, action, childre
         </Typography>
       </Box>
       <Box display="flex" alignItems="flex-end" justifyContent="space-between" paddingTop={1}>
-        <Typography variant="caption">{formatDateDistance(date)}</Typography>
+        <Tooltip title={date.toLocaleString()} placement="right">
+          <Typography variant="caption">{formatDateDistance(date)}</Typography>
+        </Tooltip>
         <ActionButton>{action}</ActionButton>
       </Box>
     </Paper>
