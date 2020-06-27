@@ -36,7 +36,10 @@ const NotificationBox: FunctionComponent<BoxProps> = (props) => {
   const { currentTeamId } = useContext(TeamContext);
 
   const notification = useMemo(() => {
-    return get(notifications, [currentTeamId]);
+    const notification = get(notifications, [currentTeamId]);
+    if (notification === undefined) {
+      return get(notifications, ['.default']);
+    }
   }, [notifications, currentTeamId]);
 
   const paperStyle = usePaperStyle();
