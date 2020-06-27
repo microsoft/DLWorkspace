@@ -104,7 +104,7 @@ const CollapsedMessage: FunctionComponent<CollapsedMessageProps> = ({ level, cou
           {`and ${count - 1} more`}
         </Typography>
       ) }
-      <Button size="small" color="primary" onClick={onExpand}>Expand</Button>
+      <Button size="small" color="primary" onClick={onExpand}>Show All</Button>
     </Paper>
   );
 };
