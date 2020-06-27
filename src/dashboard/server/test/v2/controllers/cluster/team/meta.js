@@ -53,7 +53,7 @@ describe('GET /clusters/:clusterId/teams/:teamId/meta', function () {
     response.status.should.equal(204)
   })
 
-  it('should be able to update partial team meta', async function () {
+  it('should be able to update partial team meta (timeout)', async function () {
     nock('http://Universe')
       .post('/VCMeta?' + new URLSearchParams({ userName: EMAIL, vcName: TEAM_ID }), {
         'job_max_time_second': 100
@@ -62,6 +62,44 @@ describe('GET /clusters/:clusterId/teams/:teamId/meta', function () {
 
     const response = await axiosist(api).patch(`/v2/clusters/Universe/teams/${TEAM_ID}/meta`, {
       timeout: 100
+    }, {
+      params: {
+        email: EMAIL,
+        password: PASSWORD
+      }
+    })
+
+    response.status.should.equal(204)
+  })
+
+  it('should be able to update partial team meta (interactiveGpu)', async function () {
+    nock('http://Universe')
+      .post('/VCMeta?' + new URLSearchParams({ userName: EMAIL, vcName: TEAM_ID }), {
+        'interactive_limit': 20
+      })
+      .reply(204)
+
+    const response = await axiosist(api).patch(`/v2/clusters/Universe/teams/${TEAM_ID}/meta`, {
+      interactiveGpu: 20
+    }, {
+      params: {
+        email: EMAIL,
+        password: PASSWORD
+      }
+    })
+
+    response.status.should.equal(204)
+  })
+
+  it('should be able to update partial team meta (schedulingPolicy)', async function () {
+    nock('http://Universe')
+      .post('/VCMeta?' + new URLSearchParams({ userName: EMAIL, vcName: TEAM_ID }), {
+        'scheduling_policy': 'RF'
+      })
+      .reply(204)
+
+    const response = await axiosist(api).patch(`/v2/clusters/Universe/teams/${TEAM_ID}/meta`, {
+      schedulingPolicy: 'RF'
     }, {
       params: {
         email: EMAIL,
