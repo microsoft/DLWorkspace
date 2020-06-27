@@ -221,7 +221,7 @@ def remote_config_update(config, args, check_module=False):
     if not os.path.exists(FILE_MAP_PATH):
         utils.render_template("template/cloud-config/file_map.yaml", FILE_MAP_PATH, config)
     with open(FILE_MAP_PATH) as f:
-        file_map = yaml.load(f)
+        file_map = yaml.safe_load(f)
     for module in args.nargs[1:]:
         if module in ["dashboard"]:
             render_func = eval("render_{}".format(module))
