@@ -2,10 +2,11 @@ FROM golang:1.13-alpine as builder
 
 WORKDIR /scheduler-src
 
-COPY src /scheduler-src
+COPY src/go.mod src/go.sum /scheduler-src/
 RUN go mod download
 
-RUN go build -o dlts-scheduler /scheduler-src/main.go
+COPY src/*.go /scheduler-src/
+RUN go build -o dlts-scheduler /scheduler-src/
 
 FROM alpine:3.10.1
 
