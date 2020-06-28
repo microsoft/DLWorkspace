@@ -9,6 +9,7 @@ const PASSWORD = User.generateToken(EMAIL).toString('hex')
 const TEAM_ID = 'theTeam'
 const TYPE_NAME = 'standard'
 const WORKER_NAME = 'worker'
+const WORKER_1_NAME = 'worker-1'
 const POD_NAME = 'pod'
 const JOB_ID = 'job'
 
@@ -66,6 +67,24 @@ describe('GET /clusters/:clusterId/teams/:teamId', function () {
           memory_used: { [TYPE_NAME]: 33 },
           memory_preemptable_used: { [TYPE_NAME]: 34 },
           memory_allocatable: { [TYPE_NAME]: 35 }
+        }, {
+          name: WORKER_1_NAME,
+          labels: { worker: 'active' },
+          unschedulable: true,
+          InternalIP: '0.0.0.0',
+
+          cpu_capacity: { [TYPE_NAME]: 0 },
+          cpu_used: { [TYPE_NAME]: 0 },
+          cpu_preemptable_used: { [TYPE_NAME]: 0 },
+          cpu_allocatable: { [TYPE_NAME]: 0 },
+          gpu_capacity: { [TYPE_NAME]: 0 },
+          gpu_used: { [TYPE_NAME]: 0 },
+          gpu_preemptable_used: { [TYPE_NAME]: 0 },
+          gpu_allocatable: { [TYPE_NAME]: 0 },
+          memory_capacity: { [TYPE_NAME]: 0 },
+          memory_used: { [TYPE_NAME]: 0 },
+          memory_preemptable_used: { [TYPE_NAME]: 0 },
+          memory_allocatable: { [TYPE_NAME]: 0 }
         }],
 
         pod_status: [{
@@ -138,5 +157,10 @@ describe('GET /clusters/:clusterId/teams/:teamId', function () {
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'pods', POD_NAME, 'cpu').equal(36)
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'pods', POD_NAME, 'gpu').equal(37)
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'pods', POD_NAME, 'memory').equal(38)
+
+    response.data.should.have.propertyByPath('types', TYPE_NAME, 'node', 'total').equal(2)
+    response.data.should.have.propertyByPath('types', TYPE_NAME, 'node', 'unschedulable').equal(1)
+    response.data.should.have.propertyByPath('types', TYPE_NAME, 'node', 'used').equal(1)
+    response.data.should.have.propertyByPath('types', TYPE_NAME, 'node', 'available').equal(1)
   })
 })
