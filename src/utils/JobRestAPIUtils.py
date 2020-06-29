@@ -1218,9 +1218,9 @@ def patch_resource_quota(username, payload):
                         count = int(count)
                         nodes = count / gpu_per_node
                         r_quota["gpu"][sku] = int(nodes * gpu_per_node)
-                        r_quota["gpu_memory"][sku] = nodes * gpu_memory_per_node
-                        r_quota["cpu"][sku] = nodes * cpu_per_node
-                        r_quota["memory"][sku] = nodes * memory_per_node
+                        r_quota["gpu_memory"][sku] = int(nodes * gpu_memory_per_node)
+                        r_quota["cpu"][sku] = int(nodes * cpu_per_node)
+                        r_quota["memory"][sku] = int(nodes * memory_per_node)
 
                         # Keep consistent for legacy quota
                         quota[gpu_type] = count

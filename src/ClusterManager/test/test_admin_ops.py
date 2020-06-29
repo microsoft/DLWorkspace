@@ -10,20 +10,36 @@ logger = logging.getLogger(__file__)
 
 @utils.case(dangerous=True)
 def test_vc_quota_change(args):
-    job_spec = utils.gen_default_job_description("regular", args.email,
-                                                 args.uid, args.vc)
+    sku = "Standard_ND24rs"
+    origin_spec = utils.get_resource_quota(args.rest, args.username)
+    gpu_count = int(utils.walk_json(origin_spec, args.vc, "resourceQuota",
+                                    "gpu", sku))
+    assert gpu_count is not None
 
-    with utils.vc_setting(args.rest, args.vc, args.email,
-                          {"job_max_time_second": 5}):
-        with utils.run_job(args.rest, job_spec) as job:
-            state = job.block_until_state_not_in(
-                {"unapproved", "queued", "scheduling"})
-            assert state == "running"
+    target_gpu_count = gpu_count + 1
+    quota_spec = {args.vc: {"resourceQuota": {"gpu": {sku: target_gpu_count}}}}
+    with utils.ResourceQuota(args.rest, args.email, quota_spec):
+        spec = utils.get_resource_quota(args.rest, args.username)
+        r_quota = utils.walk_json(spec, args.vc, "resourceQuota")
+        assert r_quota is not None
 
-            state = job.block_until_state_not_in({"running"}, timeout=30)
-            assert state == "killed"
-            expected = "running exceed pre-defined 5s"
+        gpu = utils.walk_json(r_quota, "gpu", sku)
+        gpu_memory = utils.walk_json(r_quota, "gpu_memory", sku)
+        cpu = utils.walk_json(r_quota, "cpu", sku)
+        memory = utils.walk_json(r_quota, "memory", sku)
 
-            details = utils.get_job_detail(args.rest, args.email, job.jid)
-            message = details.get("errorMsg")
-            assert message == expected, "unexpected message " + message
+        r_metadata = utils.walk_json(spec, args.vc, "resourceMetadata")
+        assert r_metadata is not None
+
+        gpu_per_node = int(utils.walk_json(r_metadata, "gpu", sku))
+        gpu_memory_per_node = \
+            utils.to_byte(utils.walk_json(r_metadata, "gpu_memory", sku))
+        cpu_per_node = int(utils.walk_json(r_metadata, "cpu", sku))
+        memory_per_node = \
+            utils.to_byte(utils.walk_json(r_metadata, "memory", sku))
+
+        nodes = target_gpu_count / gpu_per_node
+        assert gpu == target_gpu_count
+        assert gpu_memory == int(nodes * gpu_memory_per_node)
+        assert cpu == int(nodes * cpu_per_node)
+        assert memory == int(nodes * memory_per_node)

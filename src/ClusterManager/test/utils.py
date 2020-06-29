@@ -119,6 +119,37 @@ def snake_case(s):
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
 
+def to_byte(data):
+    data = str(data).lower()
+    number = float(re.findall(r"[-+]?[0-9]*[.]?[0-9]+", data)[0])
+    if "ki" in data:
+        return number * 2**10
+    elif "mi" in data:
+        return number * 2**20
+    elif "gi" in data:
+        return number * 2**30
+    elif "ti" in data:
+        return number * 2**40
+    elif "pi" in data:
+        return number * 2**50
+    elif "ei" in data:
+        return number * 2**60
+    elif "k" in data:
+        return number * 10**3
+    elif "m" in data:
+        return number * 10**6
+    elif "g" in data:
+        return number * 10**9
+    elif "t" in data:
+        return number * 10**12
+    elif "p" in data:
+        return number * 10**15
+    elif "e" in data:
+        return number * 10**18
+    else:
+        return number
+
+
 def get_alias(email):
     if not isinstance(email, str):
         return None
@@ -647,26 +678,26 @@ class ResourceQuota(object):
         self.origin_quota_spec = None
 
     def __enter__(self):
-        self.origin_vc_spec = get_vc_meta(self.rest_url, self.vc_name,
-                                          self.username)
-        spec = copy.deepcopy(self.origin_vc_spec)
-        spec.update(self.vc_spec)
-        update_vc_meta(self.rest_url, self.vc_name, self.username, spec)
-        logger.info("update vc meta from %s to %s",
-                    json.dumps(self.origin_vc_spec), json.dumps(spec))
+        self.origin_quota_spec = get_resource_quota(self.rest_url,
+                                                    self.username)
+        spec = copy.deepcopy(self.origin_quota_spec)
+        spec.update(self.quota_spec)
+        update_resource_quota(self.rest_url, self.username, spec)
+        logger.info("update resource quota from %s to %s",
+                    json.dumps(self.origin_quota_spec), json.dumps(spec))
         return self
 
     def __exit__(self, type, value, traceback):
         try:
-            if self.origin_vc_spec is None:
+            if self.origin_quota_spec is None:
                 return
-            update_vc_meta(self.rest_url, self.vc_name, self.username,
-                           self.origin_vc_spec)
-            logger.info("rollback vc meta to %s",
-                        json.dumps(self.origin_vc_spec))
+            update_resource_quota(self.rest_url, self.username,
+                                  self.origin_quota_spec)
+            logger.info("rollback resource quota to %s",
+                        json.dumps(self.origin_quota_spec))
         except Exception:
-            logger.exception("failed to rollback vc meta %s",
-                             json.dumps(self.origin_vc_spec))
+            logger.exception("failed to rollback resource quota %s",
+                             json.dumps(self.origin_quota_spec))
 
 
 def block_until_state(rest_url, jid, not_in, states, timeout=300):
