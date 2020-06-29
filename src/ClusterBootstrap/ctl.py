@@ -416,19 +416,19 @@ def show_resource_quota(config, args):
         content = {"vc": vc_list}
 
         # GPU first
-        all_sku = set()
+        all_sku = {}  # sku -> gpu_type
         for vc_name, vc in spec.items():
-            all_sku = all_sku.union(set(walk_json(
-                vc, "resourceMetadata", "gpu", default={}).keys()))
+            gpu_meta = walk_json(vc, "resourceMetadata", "gpu", default={})
+            for sku, sku_info in gpu_meta.items():
+                all_sku[sku] = sku_info.get("gpu_type")
 
-        all_sku = sorted(list(all_sku))
-        for sku in all_sku:
+        for sku, gpu_type in all_sku.items():
             value = []
             for vc_name in vc_list:
                 val = walk_json(
                     spec, vc_name, "resourceQuota", "gpu", sku) or 0
                 value.append(val)
-            content.update({sku: value})
+            content.update({"%s (%s)" % (sku, gpu_type): value})
 
         # Add delimiter for GPU and CPU sku
         content.update({"|": ["|" for _ in vc_list]})
