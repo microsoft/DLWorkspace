@@ -151,7 +151,7 @@ def get_vc_user_quota(config_dir):
 
         conn.commit()
     except Exception:
-        logger.exception("Failed to get user quota for VC %s", vc)
+        logger.exception("Failed to get VC user quota")
     finally:
         if cursor is not None:
             cursor.close()

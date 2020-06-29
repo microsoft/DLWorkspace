@@ -12,6 +12,9 @@ import datetime
 import argparse
 import textwrap
 import random
+import requests
+import urllib.parse
+
 from mysql import connector
 cwd = os.path.dirname(__file__)
 os.chdir(cwd)
@@ -19,6 +22,7 @@ os.chdir(cwd)
 sys.path.append("../utils")
 
 from pathlib import Path
+from tabulate import tabulate
 from ConfigUtils import *
 from constants import FILE_MAP_PATH, ENV_CNF_YAML, STATUS_YAML
 
@@ -29,11 +33,12 @@ from cloud_init_deploy import get_kubectl_binary
 from cloud_init_deploy import load_config as load_deploy_config
 from cloud_init_deploy import render_dashboard, render_storagemanager, render_repairmanager
 from cloud_init_deploy import check_buildable_images, push_docker_images
+from utils import walk_json, RestUtil
 
 
 def load_config_4_ctl(args, command):
     # if we need to load all config
-    if command in ["svc", "render_template", "download", "docker", "db"]:
+    if command in ["svc", "render_template", "download", "docker", "db", "quota"]:
         args.config = [ENV_CNF_YAML, STATUS_YAML] if not args.config else args.config
         config = load_deploy_config(args)
     else:
@@ -43,6 +48,29 @@ def load_config_4_ctl(args, command):
         config = add_configs_in_order(args.config, config)
         config["ssh_cert"] = config.get("ssh_cert", "./deploy/sshkey/id_rsa")
     return config
+
+
+def get_admin_name(config, args):
+    home_dir = str(Path.home())
+    dlts_admin_config_path = os.path.join(home_dir, ".dlts-admin.yaml")
+    dlts_admin_config_path = config.get(
+        "dlts_admin_config_path", dlts_admin_config_path)
+    if os.path.exists(dlts_admin_config_path):
+        with open(dlts_admin_config_path) as f:
+            admin_name = yaml.safe_load(f)["admin_name"]
+    else:
+        admin_name = args.admin
+        assert admin_name is not None and admin_name, \
+            "specify admin_name by --admin or in ~/.dlts-admin.yaml"
+    return admin_name
+
+
+def get_email(username, config):
+    if "@" in username:
+        return username
+    else:
+        return username + "@" + config.get("dlts_admin_email_domain",
+                                           "microsoft.com")
 
 
 def connect_to_machine(config, args):
@@ -374,6 +402,36 @@ def cancel_repair(config, args):
     run_kubectl(config, args, [k8s_cmd])
 
 
+def show_resource_quota(config, args):
+    admin = get_email(get_admin_name(config, args), config)
+
+    rest_url = config.get("dashboard_rest_url")
+    assert rest_url is not None
+
+    rest_util = RestUtil(rest_url)
+    spec = rest_util.get_resource_quota(admin)
+
+    for r_type in ["gpu", "gpu_memory", "cpu", "memory"]:
+        vc_list = list(spec.keys())
+        content = {"vc": vc_list}
+
+        all_sku = set()
+        for vc_name, vc in spec.items():
+            all_sku = all_sku.union(set(walk_json(
+                vc, "resourceMetadata", r_type, default={}).keys()))
+
+        all_sku = sorted(list(all_sku))
+        for sku in all_sku:
+            value = []
+            for vc_name in vc_list:
+                value.append(walk_json(
+                    spec, vc_name, "resourceQuota", r_type, sku) or 0)
+            content.update({sku: value})
+
+        print(tabulate(content, headers="keys"))
+
+
+
 def run_command(args, command):
     config = load_config_4_ctl(args, command)
     if command == "restorefromdir":
@@ -425,6 +483,10 @@ def run_command(args, command):
         start_repair(config, args)
     elif command == "cancel-repair":
         cancel_repair(config, args)
+    elif command == "quota":
+        nargs = args.nargs
+        if nargs[0] == "show":
+            show_resource_quota(config, args)
     else:
         print("invalid command, please read the doc")
 
@@ -463,6 +525,8 @@ if __name__ == '__main__':
                         action="store_true")
     parser.add_argument("--admin",
                         help="Name of admin that execute this script")
+    parser.add_argument("-x", "--detail", action="store_true",
+                        help="Present more details in quota")
     parser.add_argument("command",
                         help="See above for the list of valid command")
     parser.add_argument('nargs', nargs=argparse.REMAINDER,
