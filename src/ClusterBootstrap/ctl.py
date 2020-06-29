@@ -428,7 +428,7 @@ def show_resource_quota(config, args):
                 val = walk_json(
                     spec, vc_name, "resourceQuota", "gpu", sku) or 0
                 value.append(val)
-            content.update({"%s (%s)" % (sku, gpu_type): value})
+            content.update({"%s(%s)" % (sku, gpu_type): value})
 
         # Add delimiter for GPU and CPU sku
         content.update({"|": ["|" for _ in vc_list]})
@@ -438,9 +438,16 @@ def show_resource_quota(config, args):
         for vc_name, vc in spec.items():
             all_sku = all_sku.union(set(walk_json(
                 vc, "resourceMetadata", "cpu", default={}).keys()))
+
+        def sku_exists(sku):
+            for k, v in content.items():
+                if k.startswith(sku):
+                    return True
+            return False
+
         all_sku = sorted(list(all_sku))
         for sku in all_sku:
-            if sku in content:
+            if sku_exists(sku):
                 continue
 
             value = []
