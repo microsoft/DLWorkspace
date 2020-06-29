@@ -468,6 +468,22 @@ def update_vc_meta(rest_url, vc_name, username, vc_meta):
     return resp.json()
 
 
+def get_resource_quota(rest_url, username):
+    args = urllib.parse.urlencode({"userName": username})
+    url = urllib.parse.urljoin(rest_url, "/ResourceQuota") + "?" + args
+    resp = requests.get(url)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def update_resource_quota(rest_url, username, payload):
+    args = urllib.parse.urlencode({"userName": username})
+    url = urllib.parse.urljoin(rest_url, "/ResourceQuota") + "?" + args
+    resp = requests.post(url, json=payload)
+    resp.raise_for_status()
+    return resp.json()
+
+
 def add_public_key(rest_url, username, key_title, public_key):
     args = urllib.parse.urlencode({
         "username": username,
@@ -599,6 +615,36 @@ class vc_setting(object):
         self.username = username
         self.vc_spec = vc_spec
         self.origin_vc_spec = None
+
+    def __enter__(self):
+        self.origin_vc_spec = get_vc_meta(self.rest_url, self.vc_name,
+                                          self.username)
+        spec = copy.deepcopy(self.origin_vc_spec)
+        spec.update(self.vc_spec)
+        update_vc_meta(self.rest_url, self.vc_name, self.username, spec)
+        logger.info("update vc meta from %s to %s",
+                    json.dumps(self.origin_vc_spec), json.dumps(spec))
+        return self
+
+    def __exit__(self, type, value, traceback):
+        try:
+            if self.origin_vc_spec is None:
+                return
+            update_vc_meta(self.rest_url, self.vc_name, self.username,
+                           self.origin_vc_spec)
+            logger.info("rollback vc meta to %s",
+                        json.dumps(self.origin_vc_spec))
+        except Exception:
+            logger.exception("failed to rollback vc meta %s",
+                             json.dumps(self.origin_vc_spec))
+
+
+class ResourceQuota(object):
+    def __init__(self, rest_url, username, quota_spec):
+        self.rest_url = rest_url
+        self.username = username
+        self.quota_spec = quota_spec
+        self.origin_quota_spec = None
 
     def __enter__(self):
         self.origin_vc_spec = get_vc_meta(self.rest_url, self.vc_name,

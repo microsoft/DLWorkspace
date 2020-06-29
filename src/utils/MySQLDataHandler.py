@@ -337,6 +337,23 @@ class DataHandler(object):
             return False
 
     @record
+    def update_vc_resource_quota(self, vc_name, resource_quota, quota=None):
+        # TODO: remove dependency on quota field
+        try:
+            sql = "UPDATE " + self.vctablename + " SET resource_quota = %s"
+            if quota is not None:
+                sql += ", quota = %s"
+            sql += " WHERE vcName = %s"
+            cursor = self.conn.cursor()
+            cursor.execute(sql, (quota, resource_quota, vc_name))
+            self.conn.commit()
+            return True
+        except Exception:
+            logger.exception("failed to update vc %s resource quota with %s, %s",
+                             vc_name, quota, resource_quota)
+            return False
+
+    @record
     def GetIdentityInfo(self, identityName):
         cursor = self.conn.cursor()
         query = """SELECT `identityName`,`uid`,`gid`,`groups`,`public_key`,`private_key`
