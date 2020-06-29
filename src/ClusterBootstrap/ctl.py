@@ -487,14 +487,6 @@ def show_resource_quota(config, args):
 
 
 def update_resource_quota(config, args):
-    admin = get_email(get_admin_name(config, args), config)
-
-    rest_url = config.get("dashboard_rest_url")
-    assert rest_url is not None
-
-    rest_util = RestUtil(rest_url)
-    # remote_spec = rest_util.get_resource_quota(admin)
-
     local_parser = argparse.ArgumentParser()
     local_parser.add_argument("--vc_name", required=True)
     local_parser.add_argument("--sku", required=True)
@@ -504,14 +496,37 @@ def update_resource_quota(config, args):
     vc_name = local_args.vc_name
     sku = local_args.sku
     quota = local_args.quota
-    print(vc_name, sku, quota)
 
+    admin = get_email(get_admin_name(config, args), config)
 
+    rest_url = config.get("dashboard_rest_url")
+    assert rest_url is not None
 
-    # payload = {}
-    # resp = rest_util.update_resource_quota(admin)
-    # if resp.get("error") is not None:
-    #     print("!!!Failed to update resource quota with %s!!!" % payload)
+    rest_util = RestUtil(rest_url)
+    spec = rest_util.get_resource_quota(admin)
+    if vc_name not in spec:
+        print("vc %s does not exist")
+        exit(-1)
+
+    gpu_meta = walk_json(spec, vc_name, "resourceMetadata", "gpu", default={})
+    cpu_meta = walk_json(spec, vc_name, "resourceMetadata", "cpu", default={})
+
+    if sku in gpu_meta:
+        r_type = "gpu"
+    elif sku in cpu_meta:
+        r_type = "cpu"
+    else:
+        print("sku %s does not exist for vc %s" % (sku, vc_name))
+        exit(-1)
+
+    r_quota = walk_json(spec, vc_name, "resourceQuota", r_type, default={})
+    r_quota[sku] = int(quota)
+
+    payload = {vc_name: {"resourceQuota": {r_type: r_quota}}}
+
+    resp = rest_util.update_resource_quota(admin, payload)
+    if resp.get("error") is not None:
+        print("!!!Failed to update resource quota with %s!!!" % payload)
 
 
 def run_command(args, command):
