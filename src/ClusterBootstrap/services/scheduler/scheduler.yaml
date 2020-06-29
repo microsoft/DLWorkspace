@@ -21,6 +21,7 @@ spec:
         image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/scheduler:{{cnf["dockertag"]}}
         resources:
           limits:
+            cpu: 5
             memory: "1Gi"
       tolerations:
       - key: node.kubernetes.io/memory-pressure

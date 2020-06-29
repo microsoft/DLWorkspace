@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"k8s.io/api/core/v1"
+	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -11,25 +12,30 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
+	"strings"
 	"time"
 )
 
 // Syncer is mostly boilerplate code of k8s controller. It watches and list pods
-// and nodes from api server. It doesn't contain any code related to scheduler
-// except some data structure shared with Scheduler.
+// and nodes from api server.
 // To understand these boilerplate code, please refer
 // https://engineering.bitnami.com/articles/a-deep-dive-into-kubernetes-controllers.html
 type Syncer struct {
 	podWorkerNum  int32
 	nodeWorkerNum int32
-	podInformer   cache.SharedIndexInformer
-	podLister     listerV1.PodLister
+
+	clientset *kubernetes.Clientset
+
+	podInformer cache.SharedIndexInformer
+	podLister   listerV1.PodLister
 	// use queue here to unblock informer
 	podQueue workqueue.RateLimitingInterface
 
 	nodeInformer cache.SharedIndexInformer
 	nodeLister   listerV1.NodeLister
 	nodeQueue    workqueue.RateLimitingInterface
+
+	scheduler *Scheduler
 }
 
 func NewSyncer(podWorkerNum, nodeWorkerNum int32) *Syncer {
@@ -38,10 +44,7 @@ func NewSyncer(podWorkerNum, nodeWorkerNum int32) *Syncer {
 		panic(err.Error())
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
-	}
+	clientset := kubernetes.NewForConfigOrDie(config)
 
 	podListerInformer := informers.NewSharedInformerFactory(clientset, 0).Core().V1().Pods()
 	podInformer := podListerInformer.Informer()
@@ -56,13 +59,18 @@ func NewSyncer(podWorkerNum, nodeWorkerNum int32) *Syncer {
 	s := &Syncer{
 		podWorkerNum:  podWorkerNum,
 		nodeWorkerNum: nodeWorkerNum,
-		podInformer:   podInformer,
-		podLister:     podLister,
-		podQueue:      podQueue,
+
+		clientset: clientset,
+
+		podInformer: podInformer,
+		podLister:   podLister,
+		podQueue:    podQueue,
 
 		nodeInformer: nodeInformer,
 		nodeLister:   nodeLister,
 		nodeQueue:    nodeQueue,
+
+		scheduler: NewScheduler(clientset, podLister, nodeLister),
 	}
 
 	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -80,20 +88,16 @@ func NewSyncer(podWorkerNum, nodeWorkerNum int32) *Syncer {
 	return s
 }
 
+// should not return until the cache is fully synced
 func (s *Syncer) Run(stopCh <-chan struct{}) {
-	go s.podInformer.Run(stopCh)
 	go s.nodeInformer.Run(stopCh)
+	go s.podInformer.Run(stopCh)
 
 	if !cache.WaitForCacheSync(
 		stopCh,
-		s.podInformer.HasSynced,
-		s.nodeInformer.HasSynced) {
-		panic(fmt.Errorf("Failed to WaitForCacheSync"))
-	}
-
-	for i := int32(0); i < s.podWorkerNum; i++ {
-		id := i
-		go wait.Until(func() { s.podWorker(id) }, time.Second, stopCh)
+		s.nodeInformer.HasSynced,
+		s.podInformer.HasSynced) {
+		panic(fmt.Errorf("failed to WaitForCacheSync"))
 	}
 
 	for i := int32(0); i < s.nodeWorkerNum; i++ {
@@ -101,15 +105,26 @@ func (s *Syncer) Run(stopCh <-chan struct{}) {
 		go wait.Until(func() { s.nodeWorker(id) }, time.Second, stopCh)
 	}
 
+	for i := int32(0); i < s.podWorkerNum; i++ {
+		id := i
+		go wait.Until(func() { s.podWorker(id) }, time.Second, stopCh)
+	}
+
+	go s.scheduler.Run(stopCh)
+
 	<-stopCh
 }
 
-func (s *Syncer) enqueuePod(obj interface{}, event string) {
+func (s *Syncer) castToPod(obj interface{}) *v1.Pod {
 	pod, ok := obj.(*v1.Pod)
 	if !ok {
-		klog.Warningf("failed to cast obj to pod %v", obj)
-		return
+		panic(fmt.Errorf("failed to cast obj to pod %v", obj))
 	}
+	return pod
+}
+
+func (s *Syncer) enqueuePod(obj interface{}, event string) {
+	pod := s.castToPod(obj)
 
 	key := fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
 	klog.Infof("pod %s: %s", event, key)
@@ -161,19 +176,41 @@ func (s *Syncer) processPod(id int32) bool {
 }
 
 func (s *Syncer) syncPod(key string) (returnedErr error) {
-	// TODO
+	parts := strings.Split(key, "/")
+	if len(parts) != 2 {
+		panic(fmt.Errorf("unknown pod key %s", key))
+	}
+	namespace := parts[0]
+	podName := parts[1]
+
+	localPod, err := s.podLister.Pods(namespace).Get(podName)
+	if err != nil {
+		if apiErrors.IsNotFound(err) {
+			returnedErr = s.scheduler.DeletePod(key, namespace, podName)
+			return
+		} else {
+			return fmt.Errorf("failed to get pod %s from local cache: %v", key, err)
+		}
+	} else {
+		returnedErr = s.scheduler.UpdatePod(key, localPod)
+	}
 	return
 }
 
-func (s *Syncer) enqueueNode(obj interface{}, event string) {
+func (s *Syncer) castToNode(obj interface{}) *v1.Node {
 	node, ok := obj.(*v1.Node)
 	if !ok {
-		klog.Warningf("failed to cast obj to node %v", obj)
-		return
+		panic(fmt.Errorf("failed to cast obj to node %v", obj))
 	}
+	return node
+}
+
+func (s *Syncer) enqueueNode(obj interface{}, event string) {
+	node := s.castToNode(obj)
 
 	key := node.Name
 	klog.Infof("node %s: %s", event, key)
+	s.nodeQueue.Add(key)
 }
 
 func (s *Syncer) nodeAdded(obj interface{}) {
@@ -220,6 +257,16 @@ func (s *Syncer) processNode(id int32) bool {
 }
 
 func (s *Syncer) syncNode(key string) (returnedErr error) {
-	// TODO
+	localNode, err := s.nodeLister.Get(key)
+	if err != nil {
+		if apiErrors.IsNotFound(err) {
+			returnedErr = s.scheduler.DeleteNode(key)
+			return
+		} else {
+			return fmt.Errorf("failed to get node %s from local cache: %v", key, err)
+		}
+	} else {
+		returnedErr = s.scheduler.UpdateNode(key, localNode)
+	}
 	return
 }

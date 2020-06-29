@@ -7,8 +7,6 @@ import (
 	"syscall"
 )
 
-const SCHEDULER_NAME = "DLTS"
-
 func stopOnSignal() <-chan struct{} {
 	stopCh := make(chan struct{})
 
@@ -24,7 +22,11 @@ func stopOnSignal() <-chan struct{} {
 }
 
 func main() {
-	syncer := NewSyncer(int32(3), int32(3))
+	syncer := NewSyncer(10, 3)
 
-	syncer.Run(stopOnSignal())
+	stopCh := stopOnSignal()
+
+	syncer.Run(stopCh)
+
+	<-stopCh
 }
