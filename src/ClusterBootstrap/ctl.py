@@ -411,25 +411,74 @@ def show_resource_quota(config, args):
     rest_util = RestUtil(rest_url)
     spec = rest_util.get_resource_quota(admin)
 
-    for r_type in ["gpu", "gpu_memory", "cpu", "memory"]:
+    if not args.detail:
         vc_list = list(spec.keys())
         content = {"vc": vc_list}
 
+        # GPU first
         all_sku = set()
         for vc_name, vc in spec.items():
             all_sku = all_sku.union(set(walk_json(
-                vc, "resourceMetadata", r_type, default={}).keys()))
+                vc, "resourceMetadata", "gpu", default={}).keys()))
 
         all_sku = sorted(list(all_sku))
         for sku in all_sku:
             value = []
             for vc_name in vc_list:
-                value.append(walk_json(
-                    spec, vc_name, "resourceQuota", r_type, sku) or 0)
+                val = walk_json(
+                    spec, vc_name, "resourceQuota", "gpu", sku) or 0
+                value.append(val)
+            content.update({sku: value})
+
+        # Add delimiter for GPU and CPU sku
+        content.update({"|": ["|" for _ in vc_list]})
+
+        # CPU if there is any
+        all_sku = set()
+        for vc_name, vc in spec.items():
+            all_sku = all_sku.union(set(walk_json(
+                vc, "resourceMetadata", "cpu", default={}).keys()))
+        all_sku = sorted(list(all_sku))
+        for sku in all_sku:
+            if sku in content:
+                continue
+
+            value = []
+            for vc_name in vc_list:
+                val = walk_json(
+                    spec, vc_name, "resourceQuota", "cpu", sku) or 0
+                value.append(val)
             content.update({sku: value})
 
         print(tabulate(content, headers="keys"))
 
+    else:
+        for r_type in ["gpu", "gpu_memory", "cpu", "memory"]:
+            vc_list = list(spec.keys())
+            content = {"vc": vc_list}
+
+            all_sku = set()
+            for vc_name, vc in spec.items():
+                all_sku = all_sku.union(set(walk_json(
+                    vc, "resourceMetadata", r_type, default={}).keys()))
+
+            all_sku = sorted(list(all_sku))
+            for sku in all_sku:
+                value = []
+                for vc_name in vc_list:
+                    val = walk_json(
+                        spec, vc_name, "resourceQuota", r_type, sku) or 0
+                    if "memory" in r_type:
+                        val /= 2**30
+                    value.append(val)
+                content.update({sku: value})
+
+            title = "%s" % r_type
+            if "memory" in r_type:
+                title = "%s (Gi)" % title
+            print("%s:\n" % title)
+            print(tabulate(content, headers="keys"))
+            print("\n")
 
 
 def run_command(args, command):
