@@ -1109,11 +1109,35 @@ def get_resource_quota(username):
             vc_list = get_vc_list()
             result = {}
             for vc in vc_list:
-                vc_name = vc["vcName"]
-                result[vc_name] = {}
-                result[vc_name] = {
-                    "resourceQuota": vc["resourceQuota"],
-                    "resourceMetadata": vc["resourceMetadata"],
+                r_quota = {
+                    "gpu": {},
+                    "gpu_memory": {},
+                    "cpu": {},
+                    "memory": {},
+                }
+
+                vc_r_quota = json.loads(vc["resourceQuota"])
+
+                gpu_quota = walk_json(vc_r_quota, "gpu", default={})
+                for sku, count in gpu_quota.items():
+                    r_quota["gpu"][sku] = int(count)
+
+                gpu_memory_quota = \
+                    walk_json(vc_r_quota, "gpu_memory", default={})
+                for sku, count in gpu_memory_quota.items():
+                    r_quota["gpu_memory"][sku] = to_byte(count)
+
+                cpu_quota = walk_json(vc_r_quota, "cpu", default={})
+                for sku, count in cpu_quota.items():
+                    r_quota["cpu"][sku] = int(count)
+
+                memory_quota = walk_json(vc_r_quota, "memory", default={})
+                for sku, count in memory_quota.items():
+                    r_quota["memory"][sku] = to_byte(count)
+
+                result[vc["vcName"]] = {
+                    "resourceQuota": r_quota,
+                    "resourceMetadata": json.loads(vc["resourceMetadata"]),
                 }
             return result, 200
         else:
@@ -1255,11 +1279,11 @@ def patch_resource_quota(username, payload):
                     (username, json.dumps(payload))
             }, 403
     except Exception as e:
-        logger.exception("Exception in patch_vc_resource_quota %s for user %s",
+        logger.exception("Exception in patch_resource_quota %s for user %s",
                          json.dumps(payload), username)
         return {
             "error":
-                "failed to patch vc resource quota (may succeeded partially), "
+                "failed to patch resource quota (may succeeded partially), "
                 "exception %s" % str(e)
         }, 500
 
