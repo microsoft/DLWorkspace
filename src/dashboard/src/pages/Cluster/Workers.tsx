@@ -9,14 +9,17 @@ import {
   useState
 } from 'react';
 import {
+  kebabCase,
   each,
   filter,
   map,
-  mapValues
+  mapValues,
+  noop,
 } from 'lodash';
 import {
   Card,
   CardMedia,
+  Chip,
   Link,
   MenuItem,
   Select,
@@ -24,6 +27,13 @@ import {
   Typography,
   makeStyles
 } from '@material-ui/core';
+import {
+  Build,
+  DoneOutline,
+  ErrorOutline,
+  Help,
+  More,
+} from '@material-ui/icons';
 import {
   Column,
   Options,
@@ -37,6 +47,39 @@ import usePrometheus from '../../hooks/usePrometheus';
 
 import useResourceColumns, { ResourceKind } from '../Clusters/useResourceColumns';
 import QueryContext from './QueryContext';
+
+interface WorkerStateProps {
+  state: string | undefined;
+  message: string | null | undefined;
+}
+
+const WorkerState: FunctionComponent<WorkerStateProps> = ({ state, message }) => {
+  const icon = useMemo(() =>
+    state === 'IN_SERVICE' ? <DoneOutline/>
+    : state === 'OUT_OF_POOL' ? <ErrorOutline/>
+    : state === 'READY_FOR_REPAIR' ? <Build/>
+    : state === 'IN_REPAIR' ? <Build/>
+    : state === 'AFTER_REPAIR' ? <Build/>
+    : <Help/>
+  , [state]);
+  const label = useMemo(() => kebabCase(state), [state]);
+  const deleteIcon = message ? (
+    <Tooltip title={message} placement="right" interactive>
+      <More/>
+    </Tooltip>
+  ) : undefined;
+
+  return (
+    <Chip
+      icon={icon}
+      label={label}
+      deleteIcon={deleteIcon}
+      onDelete={deleteIcon && noop}
+      size="small"
+      color={state === 'IN_SERVICE' ? 'default' : 'secondary'}
+    />
+  );
+};
 
 interface Props {
   data: any;
@@ -98,7 +141,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } })
   const columns = useMemo(() => {
     const columns: Column<any>[] = [{
       field: 'id',
-      render: ({ id, ip, healthy }) => {
+      render: ({ id, ip, healthy, state, message }) => {
         if (typeof healthy === 'boolean') {
           return (
             <>
@@ -113,9 +156,15 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } })
                   {id}
                 </Link>
               </Tooltip>
+              <br/>
               <Typography variant="caption">
                 {ip}
               </Typography>
+              <br/>
+              <WorkerState
+                state={state}
+                message={message}
+              />
             </>
           );
         } else {
