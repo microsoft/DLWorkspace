@@ -142,7 +142,7 @@ const Message: FunctionComponent<MessageProps> = ({ date, level, action, childre
   );
 };
 
-const Insight: FunctionComponent = () => {
+const Messages: FunctionComponent = () => {
   const { job } = useContext(Context);
 
   const [collapsed, setCollapsed] = useState(true);
@@ -185,4 +185,4 @@ const Insight: FunctionComponent = () => {
   );
 }
 
-export default Insight;
+export default Messages;
