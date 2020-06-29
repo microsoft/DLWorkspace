@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import copy
 import os
 import re
 import sys
@@ -12,8 +13,6 @@ import datetime
 import argparse
 import textwrap
 import random
-import requests
-import urllib.parse
 
 from mysql import connector
 cwd = os.path.dirname(__file__)
@@ -458,7 +457,6 @@ def show_resource_quota(config, args):
             content.update({sku: value})
 
         print(tabulate(content, headers="keys"))
-
     else:
         for r_type in ["gpu", "gpu_memory", "cpu", "memory"]:
             vc_list = list(spec.keys())
@@ -486,6 +484,34 @@ def show_resource_quota(config, args):
             print("%s:\n" % title)
             print(tabulate(content, headers="keys"))
             print("\n")
+
+
+def update_resource_quota(config, args):
+    admin = get_email(get_admin_name(config, args), config)
+
+    rest_url = config.get("dashboard_rest_url")
+    assert rest_url is not None
+
+    rest_util = RestUtil(rest_url)
+    # remote_spec = rest_util.get_resource_quota(admin)
+
+    local_parser = argparse.ArgumentParser()
+    local_parser.add_argument("--vc_name", required=True)
+    local_parser.add_argument("--sku", required=True)
+    local_parser.add_argument("--quota", required=True)
+
+    local_args, _ = local_parser.parse_known_args(args.nargs[1:])
+    vc_name = local_args.vc_name
+    sku = local_args.sku
+    quota = local_args.quota
+    print(vc_name, sku, quota)
+
+
+
+    # payload = {}
+    # resp = rest_util.update_resource_quota(admin)
+    # if resp.get("error") is not None:
+    #     print("!!!Failed to update resource quota with %s!!!" % payload)
 
 
 def run_command(args, command):
@@ -543,6 +569,10 @@ def run_command(args, command):
         nargs = args.nargs
         if nargs[0] == "show":
             show_resource_quota(config, args)
+        elif nargs[0] == "update":
+            update_resource_quota(config, args)
+        else:
+            print("Unrecognized command. Support option(s): show, update")
     else:
         print("invalid command, please read the doc")
 
