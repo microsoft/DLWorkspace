@@ -11,7 +11,7 @@ logger = logging.getLogger(__file__)
 @utils.case(dangerous=True)
 def test_vc_quota_change(args):
     sku = "Standard_ND24rs"
-    origin_spec = utils.get_resource_quota(args.rest, args.username)
+    origin_spec = utils.get_resource_quota(args.rest, args.email)
     gpu_count = int(utils.walk_json(origin_spec, args.vc, "resourceQuota",
                                     "gpu", sku))
     assert gpu_count is not None
@@ -19,7 +19,7 @@ def test_vc_quota_change(args):
     target_gpu_count = gpu_count + 1
     quota_spec = {args.vc: {"resourceQuota": {"gpu": {sku: target_gpu_count}}}}
     with utils.ResourceQuota(args.rest, args.email, quota_spec):
-        spec = utils.get_resource_quota(args.rest, args.username)
+        spec = utils.get_resource_quota(args.rest, args.email)
         r_quota = utils.walk_json(spec, args.vc, "resourceQuota")
         assert r_quota is not None
 
@@ -31,12 +31,16 @@ def test_vc_quota_change(args):
         r_metadata = utils.walk_json(spec, args.vc, "resourceMetadata")
         assert r_metadata is not None
 
-        gpu_per_node = int(utils.walk_json(r_metadata, "gpu", sku))
+        gpu_per_node = \
+            int(utils.walk_json(r_metadata, "gpu", sku, "per_node") or 0)
         gpu_memory_per_node = \
-            utils.to_byte(utils.walk_json(r_metadata, "gpu_memory", sku))
-        cpu_per_node = int(utils.walk_json(r_metadata, "cpu", sku))
+            utils.to_byte(
+                utils.walk_json(r_metadata, "gpu_memory", sku, "per_node") or 0)
+        cpu_per_node = \
+            int(utils.walk_json(r_metadata, "cpu", sku, "per_node") or 0)
         memory_per_node = \
-            utils.to_byte(utils.walk_json(r_metadata, "memory", sku))
+            utils.to_byte(
+                utils.walk_json(r_metadata, "memory", sku, "per_node") or 0)
 
         nodes = target_gpu_count / gpu_per_node
         assert gpu == target_gpu_count

@@ -1178,9 +1178,11 @@ def patch_resource_quota(username, payload):
                         continue
 
                     vc_payload = payload[vc_name]
-                    r_meta = vc["resourceMetadata"]
+                    r_meta = json.loads(vc["resourceMetadata"])
                     req_quota = walk_json(vc_payload, "resourceQuota")
                     if req_quota is None or len(req_quota) == 0:
+                        logger.error("empty resourceQuota for vc %s by user %s",
+                                     vc_name, username)
                         return {
                             "error": "empty resourceQuota for vc %s" % vc_name
                         }, 400
@@ -1196,7 +1198,11 @@ def patch_resource_quota(username, payload):
                     req_gpu_quota = walk_json(req_quota, "gpu", default={})
                     for sku, count in req_gpu_quota.items():
                         gpu_meta = walk_json(r_meta, "gpu", default={})
+                        logger.info("gpu_meta: %s", gpu_meta)
                         if sku not in gpu_meta:
+                            logger.error(
+                                "unrecognized sku %s for vc %s by user %s",
+                                sku, vc_name, username)
                             return {
                                 "error":
                                     "unrecognized sku %s for vc %s" %
@@ -1233,6 +1239,9 @@ def patch_resource_quota(username, payload):
 
                         cpu_meta = walk_json(r_meta, "cpu", default={})
                         if sku not in cpu_meta:
+                            logger.error(
+                                "unrecognized sku %s for vc %s by user %s",
+                                sku, vc_name, username)
                             return {
                                 "error":
                                     "unrecognized sku %s for vc %s" %
@@ -1247,8 +1256,8 @@ def patch_resource_quota(username, payload):
 
                         # Resource quota proportional to CPU
                         nodes = count / cpu_per_node
-                        r_quota["cpu"][sku] = nodes * cpu_per_node
-                        r_quota["memory"][sku] = nodes * memory_per_node
+                        r_quota["cpu"][sku] = int(nodes * cpu_per_node)
+                        r_quota["memory"][sku] = int(nodes * memory_per_node)
 
                         # Keep consistent for legacy quota
                         quota["None"] = count

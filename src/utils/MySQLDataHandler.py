@@ -340,12 +340,12 @@ class DataHandler(object):
     def update_vc_resource_quota(self, vc_name, resource_quota, quota=None):
         # TODO: remove dependency on quota field
         try:
-            sql = "UPDATE " + self.vctablename + " SET resource_quota = %s"
+            sql = "UPDATE " + self.vctablename + " SET resourceQuota = %s"
             if quota is not None:
                 sql += ", quota = %s"
             sql += " WHERE vcName = %s"
             cursor = self.conn.cursor()
-            cursor.execute(sql, (quota, resource_quota, vc_name))
+            cursor.execute(sql, (resource_quota, quota, vc_name))
             self.conn.commit()
             return True
         except Exception:
