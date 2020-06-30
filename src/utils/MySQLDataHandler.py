@@ -141,6 +141,7 @@ class DataHandler(object):
         self.storagetablename = "storage"
         self.clusterstatustablename = "clusterstatus"
         self.templatetablename = "templates"
+        self.allowlisttablename = "allowlist"
         server = config["mysql"]["hostname"]
         username = config["mysql"]["username"]
         password = config["mysql"]["password"]
@@ -1604,6 +1605,71 @@ class DataHandler(object):
             cursor.execute(sql, (jid,))
         self.conn.commit()
         cursor.close()
+
+    @record
+    def get_allowlist(self):
+        ret = []
+        try:
+            sql = "SELECT `username`, `ip`, `time` FROM %s" % (
+                self.allowlisttablename)
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+
+            cols = [col[0] for col in cursor.description]
+            for item in cursor.fetchall():
+                ret.append(dict(zip(cols, item)))
+
+            self.conn.commit()
+            cursor.close()
+        except Exception:
+            logger.exception("failed to get allowlist")
+        return ret
+
+    @record
+    def add_allowed_record(self, username, ip):
+        try:
+            sql = """
+                INSERT INTO `%s` (`username`, `ip`) 
+                VALUES ('%s', '%s') 
+                ON DUPLICATE KEY UPDATE `ip` = %s""" % (
+                self.allowlisttablename, username, ip, ip)
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+            return True
+        except Exception:
+            logger.exception("failed to add allowed record: ip %s for user %s",
+                             ip, username)
+            return False
+
+    @record
+    def delete_allowed_record(self, username):
+        try:
+            sql = "DELETE FROM %s WHERE `username` = %s" % (
+                self.allowlisttablename, username)
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+            return True
+        except Exception:
+            logger.exception("failed to delete allowed record for user %s",
+                             username)
+            return False
+
+    @record
+    def delete_all_allowed_records(self):
+        try:
+            sql = "DELETE FROM %s" % self.allowlisttablename
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+            return True
+        except Exception:
+            logger.exception("failed to delete all allowed records")
+            return False
 
     def __del__(self):
         logger.debug(

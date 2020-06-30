@@ -111,6 +111,8 @@ default_config_parameters = {
     "storagemanager": "storagemanager",
     "repairmanager": "repairmanager",
     "repairmanageragent": "repairmanageragent",
+    # AllowList Manager mapping
+    "allowlistmanager": "allowlistmanager",
     "ssh_cert": "./deploy/sshkey/id_rsa",
     "admin_username": "core",
     # the path of where dfs/nfs is source linked and consumed on each node,
@@ -305,6 +307,7 @@ default_config_parameters = {
         "user-synchronizer": "etcd_node_1",
         "job-insighter": "etcd_node_1",
         "dashboard": "etcd_node_1",
+        "allowlist-manager": "etcd_node_1",
     },
     "default_kube_labels_by_node_role": {
         'infra': {
