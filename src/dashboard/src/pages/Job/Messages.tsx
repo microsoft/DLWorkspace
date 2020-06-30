@@ -8,7 +8,7 @@ import {
   useState,
 } from 'react';
 
-import { get } from 'lodash';
+import { get, map } from 'lodash';
 
 import {
   Box,
@@ -21,6 +21,8 @@ import {
   useTheme,
 } from '@material-ui/core'
 import {
+  Cancel,
+  Error,
   Info,
   Warning,
 } from '@material-ui/icons';
@@ -30,6 +32,14 @@ import { formatDateDistance } from '../../utils/formats';
 
 import useRouteParams from './useRouteParams';
 import Context from './Context';
+
+const LEVELS_VALUE: { [level: string]: number } = {
+  CRITICAL: 50,
+  ERROR: 40,
+  WARNING: 30,
+  INFO: 20,
+  DEBUG: 10
+};
 
 const useMessagePaperStyle = makeStyles(theme => createStyles({
   root: {
@@ -44,7 +54,11 @@ const useMessagePaperStyle = makeStyles(theme => createStyles({
 const LevelIcon: FunctionComponent<{ children: string }> = memo(({ children }) => {
   const { palette } = useTheme();
 
-  if (children === 'WARNING') {
+  if (children === 'CRITICAL') {
+    return <Cancel fontSize="small" htmlColor={palette.error.main}/>;
+  } else if (children === 'ERROR') {
+    return <Error fontSize="small" htmlColor={palette.error.main}/>;
+  } else if (children === 'WARNING') {
     return <Warning fontSize="small" htmlColor={palette.warning.main}/>;
   } else { // 'INFO' by default
     return <Info fontSize="small" htmlColor={palette.info.main}/>;
@@ -100,7 +114,7 @@ const CollapsedMessage: FunctionComponent<CollapsedMessageProps> = ({ level, cou
         {children}
       </Typography>
       { count > 1 && (
-        <Typography variant="body2" component={Box} paddingRight={1}>
+        <Typography variant="body2" component={Box} paddingX={1}>
           {`and ${count - 1} more`}
         </Typography>
       ) }
@@ -147,41 +161,54 @@ const Messages: FunctionComponent = () => {
 
   const [collapsed, setCollapsed] = useState(true);
 
-  const date = useMemo<Date>(() => {
+  const diagnosticMessageProps = useMemo<MessageProps[]>(() => {
     const timestamp = get(job, ['insight', 'timestamp'], NaN);
-    return new Date(timestamp * 1000);
+    const date = new Date(timestamp * 1000);
+    const diagnostics = get(job, ['insight', 'diagnostics'], []);
+
+    return map(diagnostics,
+      ([level, children, action]: [string, string, string]) => ({ date, level, action, children }));
   }, [job]);
-  const diagnostics = useMemo<any[]>(() => {
-    return get(job, ['insight', 'diagnostics'], []);
+
+  const repairMessageProps = useMemo<MessageProps[]>(() => {
+    const repairMessage = get(job, 'repairMessage');
+    if (repairMessage == null) return [];
+    const date = new Date(repairMessage.timestamp * 1000);
+    const [level, children, action] = repairMessage.message;
+    return [{ date, level, action, children }];
   }, [job]);
+
+  const messageProps = useMemo(() =>
+    diagnosticMessageProps.concat(repairMessageProps)
+      .sort(({level: levelA}, {level: levelB}) => {
+        const valueA = LEVELS_VALUE[levelA] || 0;
+        const valueB = LEVELS_VALUE[levelB] || 0;
+        return valueA - valueB;
+      })
+      .reverse(),
+  [diagnosticMessageProps, repairMessageProps]);
 
   const handleExpand = useCallback(() => {
     setCollapsed(false);
   }, [setCollapsed]);
 
-  if (diagnostics.length === 0) {
+  if (messageProps.length === 0) {
     return null;
   }
   if (collapsed) {
-    const [level, text] = diagnostics[0];
+    const { level, children } = messageProps[0];
     return (
       <CollapsedMessage
         level={level}
-        count={diagnostics.length}
+        count={messageProps.length}
         onExpand={handleExpand}
       >
-        {text}
+        {children}
       </CollapsedMessage>
     );
   }
   return (
-    <>
-      {
-        diagnostics.map(([level, text, action]: [string, string, string], index) => (
-          <Message key={index} date={date} level={level} action={action}>{text}</Message>
-        ))
-      }
-    </>
+    <>{ messageProps.map((props, index) => <Message key={index} {...props}/>) }</>
   );
 }
 
