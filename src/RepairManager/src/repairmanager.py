@@ -256,7 +256,7 @@ class RepairManager(object):
                     msg += "Restart/resubmit your job if necessary."
                 message = {
                     "timestamp": timestamp,
-                    "message": ["FATAL", msg, ""]
+                    "message": ["CRITICAL", msg, ""]
                 }
             else:
                 # Clear repair message if node becomes healthy or job gets
