@@ -2,7 +2,7 @@
 
 from unittest import TestCase
 from utils_for_test import get_test_quota, get_test_metadata
-from job_params_util import make_job_params
+from job_params_util import make_job_params, get_resource_params_from_job_params
 
 
 class TestRegularJobParams(TestCase):
@@ -250,6 +250,27 @@ class TestRegularJobParams(TestCase):
         self.assertEqual("4608Mi", job_params.memory_limit)
 
 
+    def test_get_resource_params(self):
+        self.params["gpu_limit"] = 3
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                    self.config)
+        self.assertIsNotNone(job_params)
+        params = {
+            "sku": job_params.sku,
+            "gpuType": job_params.gpu_type,
+            "jobtrainingtype": "RegularJob",
+            "resourcegpu": job_params.gpu_limit,
+            "cpurequest": job_params.cpu_request,
+            "cpulimit": job_params.cpu_limit,
+            "memoryrequest": job_params.memory_request,
+            "memorylimit": job_params.memory_limit
+        }
+        resource = get_resource_params_from_job_params(params)
+        self.assertTrue({'Standard_ND24rs': 1.0} == resource["cpu"])
+        self.assertTrue({'Standard_ND24rs': 0} == resource["memory"])
+        self.assertTrue({'Standard_ND24rs': 3.0} == resource["gpu"])
+        self.assertTrue({} == resource["gpu_memory"])
+
 class TestPSDistJobParams(TestRegularJobParams):
     def setUp(self):
         super(TestPSDistJobParams, self).setUp()
@@ -381,6 +402,28 @@ class TestPSDistJobParams(TestRegularJobParams):
         self.assertEqual("412876Mi", job_params.memory_request)
         self.assertEqual("458752Mi", job_params.memory_limit)
 
+    def test_get_resource_params(self):
+        self.params["gpu_limit"] = 3
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                    self.config)
+        self.assertIsNotNone(job_params)
+        params = {
+            "sku": job_params.sku,
+            "gpuType": job_params.gpu_type,
+            "jobtrainingtype": "PSDistJob",
+            "numpsworker": 2,
+            "numps": 1,
+            "resourcegpu": job_params.gpu_limit,
+            "cpurequest": job_params.cpu_request,
+            "cpulimit": job_params.cpu_limit,
+            "memoryrequest": job_params.memory_request,
+            "memorylimit": job_params.memory_limit
+        }
+        resource = get_resource_params_from_job_params(params)
+        self.assertTrue({'Standard_ND24rs': 3.0} == resource["cpu"])
+        self.assertTrue({'Standard_ND24rs': 0} == resource["memory"])
+        self.assertTrue({'Standard_ND24rs': 8.0} == resource["gpu"])
+        self.assertTrue({} == resource["gpu_memory"])
 
 class TestInferenceJobParams(TestRegularJobParams):
     def setUp(self):
@@ -477,3 +520,67 @@ class TestInferenceJobParams(TestRegularJobParams):
         self.assertEqual("1500m", job_params.cpu_limit)
         self.assertEqual("4096Mi", job_params.memory_request)
         self.assertEqual("4608Mi", job_params.memory_limit)
+
+    def test_preempt_gpu_job(self):
+        self.params["mingpu"] = 2
+        self.params["maxgpu"] = 4
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
+        self.assertIsNotNone(job_params)
+        self.assertTrue(job_params.is_valid())
+        self.assertEqual("Standard_ND24rs", job_params.sku)
+        self.assertEqual("P40", job_params.gpu_type)
+        self.assertEqual(2, job_params.gpu_limit)
+        self.assertEqual(2, job_params.min_gpu)
+        self.assertEqual(4, job_params.max_gpu)
+        self.assertEqual("1000m", job_params.cpu_request)
+        self.assertEqual("24000m", job_params.cpu_limit)
+        self.assertEqual("0Mi", job_params.memory_request)
+        self.assertEqual("458752Mi", job_params.memory_limit)
+
+    def test_get_resource_params(self):
+        self.params["mingpu"] = 1
+        self.params["maxgpu"] = 4
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                    self.config)
+        self.assertIsNotNone(job_params)
+        params = {
+            "sku": job_params.sku,
+            "gpuType": job_params.gpu_type,
+            "jobtrainingtype": "InferenceJob",
+            "resourcegpu": job_params.gpu_limit,
+            "cpurequest": job_params.cpu_request,
+            "cpulimit": job_params.cpu_limit,
+            "memoryrequest": job_params.memory_request,
+            "memorylimit": job_params.memory_limit,
+            "mingpu": job_params.min_gpu,
+            "maxgpu": job_params.max_gpu
+        }
+        resource = get_resource_params_from_job_params(params)
+        self.assertTrue({'Standard_ND24rs': 2.0} == resource["cpu"])
+        self.assertTrue({'Standard_ND24rs': 0} == resource["memory"])
+        self.assertTrue({'Standard_ND24rs': 1.0} == resource["gpu"])
+        self.assertTrue({} == resource["gpu_memory"])
+        self.assertIsNotNone(resource["preemptable_resource"])
+        self.assertTrue({'Standard_ND24rs': 3.0} == resource["preemptable_resource"]["cpu"])
+        self.assertTrue({'Standard_ND24rs': 0} == resource["preemptable_resource"]["memory"])
+        self.assertTrue({'Standard_ND24rs': 3.0} == resource["preemptable_resource"]["gpu"])
+        self.assertTrue({} == resource["preemptable_resource"]["gpu_memory"])
+
+        self.params["maxgpu"] = 1
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                    self.config)
+        params = {
+            "sku": job_params.sku,
+            "gpuType": job_params.gpu_type,
+            "jobtrainingtype": "InferenceJob",
+            "resourcegpu": job_params.gpu_limit,
+            "cpurequest": job_params.cpu_request,
+            "cpulimit": job_params.cpu_limit,
+            "memoryrequest": job_params.memory_request,
+            "memorylimit": job_params.memory_limit,
+            "mingpu": job_params.min_gpu,
+            "maxgpu": job_params.max_gpu
+        }
+        resource = get_resource_params_from_job_params(params)
+        self.assertTrue("preemptable_resource" not in resource)
