@@ -121,15 +121,6 @@ nfs_client:
     src: ./deploy/storage/auto_share/auto_share_nfs_v2.py
   - dst: {{cnf["folder_auto_share"]}}/mounting.yaml
     src: ./deploy/storage/auto_share/mounting.yaml
-repairmanager:
-  - dst: /etc/RepairManager/config/email-config.yaml
-    src: ./deploy/RepairManager/email-config.yaml
-  - dst: /etc/RepairManager/config/rule-config.yaml
-    src: ./deploy/RepairManager/rule-config.yaml
-  - dst: /etc/RepairManager/config/ecc-config.yaml
-    src: ./deploy/RepairManager/ecc-config.yaml
-  - dst: /etc/RepairManager/config/etcd.conf.yaml
-    src: ./deploy/RepairManager/etcd.conf.yaml
 lustre_server:
   - dst: /etc/systemd/system/lustre_server.service
     src: ./deploy/storage/auto_share/lustre_server.service

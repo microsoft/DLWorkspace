@@ -918,11 +918,6 @@ def gen_pass_secret_script(config):
         "./template/secret/pass_secret.sh.template", "deploy/scripts/pass_secret.sh", config)
 
 
-def render_repairmanager(config):
-    utils.render_template_directory(
-        "./template/RepairManager", "./deploy/RepairManager/", config)
-
-
 def render_storagemanager(config, nodename):
     deploy_path = "./deploy/StorageManager/{}_storage_manager.yaml".format(
         nodename)
@@ -974,7 +969,6 @@ def render_for_infra_generic(config, args):
     render_kubelet(config, args)
     render_dashboard(config)
     render_mount(config, args)
-    render_repairmanager(config)
     gen_pass_secret_script(config)
 
 

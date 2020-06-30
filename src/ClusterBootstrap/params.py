@@ -87,13 +87,6 @@ default_config_parameters = {
     "repair-manager": {
         "port": 9080,
         "agent-port": 9081,
-        "prometheus-ip": "localhost",
-        "prometheus-port": 9091,
-        "etcd": {
-            "data-dir": "/etc/RepairManager/etcd",
-            "peer-port": 2381,
-            "client-port": 2382
-        }
     },
     "mysql_port": "3306",
     "mysql_username": "root",

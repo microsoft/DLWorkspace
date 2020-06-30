@@ -2214,21 +2214,6 @@ def deploy_nfs_config():
         del config["cur_nfs_node"]
 
 
-def deploy_repairmanager_config():
-    infra_node = get_nodes_by_roles(["infra"])
-    utils.clean_rendered_target_directory()
-    utils.render_template_directory(
-        "./template/RepairManager", "./deploy/RepairManager/", config)
-    utils.sudo_scp(config["ssh_cert"], "./deploy/RepairManager/email-config.yaml",
-        "/etc/RepairManager/config/email-config.yaml", config["admin_username"], infra_node[0])
-    utils.sudo_scp(config["ssh_cert"], "./deploy/RepairManager/rule-config.yaml",
-        "/etc/RepairManager/config/rule-config.yaml", config["admin_username"], infra_node[0])
-    utils.sudo_scp(config["ssh_cert"], "./deploy/RepairManager/ecc-config.yaml",
-        "/etc/RepairManager/config/ecc-config.yaml", config["admin_username"], infra_node[0])
-    utils.sudo_scp(config["ssh_cert"], "./deploy/RepairManager/etcd.conf.yaml",
-        "/etc/RepairManager/config/etcd.conf.yaml", config["admin_username"], infra_node[0])
-
-
 def label_webUI(nodename):
     kubernetes_label_node("--overwrite", nodename, "webportal=active")
     kubernetes_label_node("--overwrite", nodename, "restfulapi=active")
@@ -3334,9 +3319,6 @@ def run_command(args, command, nargs, parser):
 
     elif command == "deploynfsconfig":
         deploy_nfs_config()
-
-    elif command == "deployrepairmanagerconfig":
-        deploy_repairmanager_config()
 
     elif command == "listmac":
         nodes = get_nodes(config["clusterId"])
