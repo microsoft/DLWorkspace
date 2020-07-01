@@ -136,11 +136,7 @@ const ClusterContent: FunctionComponent = () => {
       <Helmet title={clusterId}/>
       <Container maxWidth="lg">
         <Header/>
-        {
-          typeof data === 'object'
-            ? <TabView data={data}/>
-            : <Loading>Fetching Cluster Status</Loading>
-        }
+        {typeof data === 'object' ? <TabView data={data}/> : <Loading>Fetching Cluster Status</Loading>}
       </Container>
     </>
   );
