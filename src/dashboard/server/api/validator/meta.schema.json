@@ -1,0 +1,24 @@
+{
+  "type": "object",
+  "properties": {
+    "timeout": {
+      "oneOf": [{
+        "type": "integer",
+        "minimum": 0
+      }, {
+        "type": "null"
+      }]
+    },
+    "interactiveGpu": {
+      "oneOf": [{
+        "type": "integer",
+        "minimum": 0
+      }, {
+        "type": "null"
+      }]
+    },
+    "schedulingPolicy": {
+      "enum": ["RF", "FIFO"]
+    }
+  }
+}
