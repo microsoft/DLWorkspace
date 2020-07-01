@@ -1607,10 +1607,10 @@ class DataHandler(object):
         cursor.close()
 
     @record
-    def get_allowlist(self):
+    def get_all_allow_records(self):
         ret = []
         try:
-            sql = "SELECT `username`, `ip`, `time` FROM %s" % (
+            sql = "SELECT `user`, `ip`, `time` FROM %s" % (
                 self.allowlisttablename)
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -1622,53 +1622,59 @@ class DataHandler(object):
             self.conn.commit()
             cursor.close()
         except Exception:
-            logger.exception("failed to get allowlist")
+            logger.exception("failed to get all allow records")
         return ret
 
     @record
-    def add_allowed_record(self, username, ip):
+    def get_allow_record(self, user):
+        ret = []
+        try:
+            sql = "SELECT `user`, `ip`, `time` FROM %s" % (
+                self.allowlisttablename)
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+
+            cols = [col[0] for col in cursor.description]
+            for item in cursor.fetchall():
+                ret.append(dict(zip(cols, item)))
+
+            self.conn.commit()
+            cursor.close()
+        except Exception:
+            logger.exception("failed to get allow record for user %s", user)
+        return ret
+
+    @record
+    def add_allow_record(self, user, ip):
         try:
             sql = """
-                INSERT INTO `%s` (`username`, `ip`) 
+                INSERT INTO `%s` (`user`, `ip`) 
                 VALUES ('%s', '%s') 
                 ON DUPLICATE KEY UPDATE `ip` = %s""" % (
-                self.allowlisttablename, username, ip, ip)
+                self.allowlisttablename, user, ip, ip)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
             cursor.close()
             return True
         except Exception:
-            logger.exception("failed to add allowed record: ip %s for user %s",
-                             ip, username)
+            logger.exception("failed to add allow record: ip %s for user %s",
+                             ip, user)
             return False
 
     @record
-    def delete_allowed_record(self, username):
+    def delete_allow_record(self, user):
         try:
-            sql = "DELETE FROM %s WHERE `username` = %s" % (
-                self.allowlisttablename, username)
+            sql = "DELETE FROM %s WHERE `user` = %s" % (
+                self.allowlisttablename, user)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
             cursor.close()
             return True
         except Exception:
-            logger.exception("failed to delete allowed record for user %s",
-                             username)
-            return False
-
-    @record
-    def delete_all_allowed_records(self):
-        try:
-            sql = "DELETE FROM %s" % self.allowlisttablename
-            cursor = self.conn.cursor()
-            cursor.execute(sql)
-            self.conn.commit()
-            cursor.close()
-            return True
-        except Exception:
-            logger.exception("failed to delete all allowed records")
+            logger.exception("failed to delete allow record for user %s",
+                             user)
             return False
 
     def __del__(self):

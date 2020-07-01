@@ -1845,6 +1845,62 @@ def set_repair_message(username, job_id, repair_message):
         return msg, 500
 
 
+def get_allow_record(username, user):
+    pass
+
+
+def add_allow_record(username, user, ip):
+    pass
+
+
+def delete_allow_record(username, user):
+    pass
+
+
+def get_all_allowed_records(username):
+    """Get all records in table allowlist
+
+    Args:
+        username: Requester username.
+
+    Returns:
+        (response message, status code)
+    """
+    try:
+        with DataHandler() as data_handler:
+
+
+            job = data_handler.get_all_allowed_records(username)
+
+            # Job not found
+            if job is None:
+                msg = "Job %s requested by user %s cannot be found" % \
+                      (job_id, username)
+                logger.error(msg)
+                return msg, 404
+
+            # Only job owner and VC users/admins can see job insight
+            if job["userName"] != username and \
+                    not has_access(username, VC, job["vcName"], COLLABORATOR):
+                msg = "Unauthorized access to insight for job %s by user %s" % \
+                      (job_id, username)
+                logger.error(msg)
+                return msg, 403
+
+            if job["insight"] is not None:
+                insight = json.loads(base64decode(job["insight"]))
+            else:
+                insight = {}
+            logger.info("Insight for job %s is successfully get by user %s",
+                        job_id, username)
+            return insight, 200
+    except Exception:
+        msg = "Exception when getting insight for job %s by user %s" % \
+              (job_id, username)
+        logger.exception(msg)
+        return msg, 500
+
+
 def getAlias(username):
     if "@" in username:
         username = username.split("@")[0].strip()

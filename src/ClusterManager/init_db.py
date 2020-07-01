@@ -169,12 +169,12 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS `allowlist`
 (
     `id`           INT          NOT NULL AUTO_INCREMENT,
-    `username`     VARCHAR(255) NOT NULL UNIQUE,
+    `user`         VARCHAR(255) NOT NULL UNIQUE,
     `ip`           VARCHAR(255) NOT NULL,
     `time`         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE(`username`),
-    INDEX(`username`),
+    UNIQUE(`user`),
+    INDEX(`user`),
     INDEX(`time`)
 );
 """)

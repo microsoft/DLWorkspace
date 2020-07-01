@@ -1118,19 +1118,43 @@ class Insight(Resource):
         return jsonify(resp)
 
 
-@api.resource("/RepairMessage")
-class RepairMessage(Resource):
+@api.resource("/AllowList")
+class AllowRecord(Resource):
     def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("user", required=True)
+
         self.post_parser = reqparse.RequestParser()
-        self.post_parser.add_argument("jobId", required=True)
         self.post_parser.add_argument("userName", required=True)
+        self.post_parser.add_argument("user", required=True)
+        self.post_parser.add_argument("ip", required=True)
+
+        self.delete_parser = reqparse.RequestParser()
+        self.delete_parser.add_argument("userName", required=True)
+        self.delete_parser.add_argument("user", required=True)
+
+    def get(self):
+        args = self.get_parser.parse_args()
+        username = args.get("userName")
+        user = args.get("user")
+        resp, code = JobRestAPIUtils.get_allow_record(username, user)
+        return resp, code
 
     def post(self):
         args = self.post_parser.parse_args()
-        job_id = args.get("jobId")
         username = args.get("userName")
-        payload = request.get_json(force=True, silent=True)
-        return JobRestAPIUtils.set_repair_message(username, job_id, payload)
+        user = args.get("user")
+        ip = args.get("ip")
+        resp, code = JobRestAPIUtils.add_allow_record(username, user, ip)
+        return resp, code
+
+    def delete(self):
+        args = self.delete_parser.parse_args()
+        username = args.get("userName")
+        user = args.get("user")
+        resp, code = JobRestAPIUtils.delete_allow_record(username, user)
+        return resp, code
 
 
 @app.route("/metrics")

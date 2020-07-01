@@ -5,7 +5,6 @@ import logging
 import os
 import requests
 import subprocess
-import sys
 import time
 import urllib.parse
 import yaml
@@ -13,26 +12,6 @@ import yaml
 from logging import handlers
 
 logger = logging.getLogger(__name__)
-
-
-def get_logging_level():
-    mapping = {
-        "DEBUG": logging.DEBUG,
-        "INFO": logging.INFO,
-        "WARNING": logging.WARNING
-    }
-
-    result = logging.INFO
-
-    if os.environ.get("LOGGING_LEVEL") is not None:
-        level = os.environ["LOGGING_LEVEL"]
-        result = mapping.get(level.upper())
-        if result is None:
-            sys.stderr.write("unknown logging level " + level +
-                             ", default to INFO\n")
-            result = logging.INFO
-
-    return result
 
 
 def get_config(config_path):
@@ -56,7 +35,7 @@ def exec_cmd(command):
     return None
 
 
-class AzureUtil(object):
+class AzUtil(object):
     def __init__(self, config):
         self.subscription = config.get("subscription")
         self.resource_group = config.get("resource_group")
@@ -119,12 +98,15 @@ class RestUtil(object):
         self.rest_url = config.get("rest_url", "http://localhost:5000")
 
     def get_allowlist(self):
-        pass
+        args = urllib.parse.urlencode({"userName": "Administrator"})
+        url = urllib.parse.urljoin(self.rest_url, "/AllowList") + "?" + args
+        resp = requests.get(url, timeout=5)
+        return resp.json()
 
 
 def main(params):
     config = get_config(params.config)
-    util = AzureUtil(config)
+    util = AzUtil(config)
 
     util.login()
 
@@ -148,7 +130,10 @@ if __name__ == "__main__":
                         "-l",
                         help="log dir to store log",
                         default="/var/log/allowlist-manager")
-
+    parser.add_argument("--interval",
+                        "-i",
+                        help="interval in seconds between each run",
+                        default=60)
     args = parser.parse_args()
 
     console_handler = logging.StreamHandler()
@@ -157,7 +142,7 @@ if __name__ == "__main__":
         maxBytes=10240000, backupCount=10)
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(threadName)s - %(filename)s:%(lineno)s - %(message)s",
-        level=get_logging_level(),
+        level=logging.INFO,
         handlers=[console_handler, file_handler])
 
     main(args)
