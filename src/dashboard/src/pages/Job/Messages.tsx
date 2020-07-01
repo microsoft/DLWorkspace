@@ -172,7 +172,7 @@ const Messages: FunctionComponent = () => {
 
   const repairMessageProps = useMemo<MessageProps[]>(() => {
     const repairMessage = get(job, 'repairMessage');
-    if (repairMessage == null) return [];
+    if (repairMessage == null || repairMessage.timestamp == null) return [];
     const date = new Date(repairMessage.timestamp * 1000);
     const [level, children, action] = repairMessage.message;
     return [{ date, level, action, children }];
