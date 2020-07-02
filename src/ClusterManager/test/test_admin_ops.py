@@ -47,3 +47,47 @@ def test_vc_quota_change(args):
         assert gpu_memory == int(nodes * gpu_memory_per_node)
         assert cpu == int(nodes * cpu_per_node)
         assert memory == int(nodes * memory_per_node)
+
+
+@utils.case()
+def test_allow_records(args):
+    # test_user1 and test_user2 do not exist
+    resp = utils.get_allow_record(args.rest, "all")
+    assert resp.status_code == 200
+    allow_records = resp.json()
+    assert "test_user1" not in [record["user"] for record in allow_records]
+    assert "test_user2" not in [record["user"] for record in allow_records]
+
+    # Add test_user1 and test_user2
+    resp = utils.add_allow_record(args.rest, "test_user1", "10.0.0.1")
+    assert resp.status_code == 200
+    resp = utils.add_allow_record(args.rest, "test_user2", "10.0.0.2")
+    assert resp.status_code == 200
+    # Update test_user1 record
+    resp = utils.add_allow_record(args.rest, "test_user1", "10.0.0.3")
+    assert resp.status_code == 200
+
+    resp = utils.get_allow_record(args.rest, "all")
+    assert resp.status_code == 200
+    allow_records = resp.json()
+    assert "test_user1" not in [record["user"] for record in allow_records]
+    assert "test_user2" not in [record["user"] for record in allow_records]
+
+    for record in allow_records:
+        if record["user"] == "test_user1":
+            assert record["ip"] == "10.0.0.3"
+        elif record["user"] == "test_user2":
+            assert record["ip"] == "10.0.0.2"
+
+    # Delete test_user1 and test_user2
+    resp = utils.delete_allow_record(args.rest, "test_user1")
+    assert resp.status_code == 200
+    resp = utils.delete_allow_record(args.rest, "test_user2")
+    assert resp.status_code == 200
+
+    resp = utils.get_allow_record(args.rest, "all")
+    assert resp.status_code == 200
+    allow_records = resp.json()
+    assert "test_user1" not in [record["user"] for record in allow_records]
+    assert "test_user2" not in [record["user"] for record in allow_records]
+

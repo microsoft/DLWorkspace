@@ -51,7 +51,6 @@ ACTIVE_STATUS = {
 }
 has_access = AuthorizationManager.HasAccess
 VC = ResourceType.VC
-CLUSTER = ResourceType.Cluster
 ADMIN = Permission.Admin
 COLLABORATOR = Permission.Collaborator
 USER = Permission.User
@@ -2068,8 +2067,7 @@ def set_repair_message(username, job_id, repair_message):
 
 def get_allow_record(username, user):
     try:
-        is_cluster_admin = has_access(username, CLUSTER, "", ADMIN)
-        if not is_cluster_admin and username != user:
+        if not is_cluster_admin(username) and username != user:
             msg = "%s is unauthorized to get allow record for %s" % (
                 username, user)
             logger.error(msg)
@@ -2092,8 +2090,7 @@ def get_allow_record(username, user):
 
 def add_allow_record(username, user, ip):
     try:
-        is_cluster_admin = has_access(username, CLUSTER, "", ADMIN)
-        if not is_cluster_admin and username != user:
+        if not is_cluster_admin(username) and username != user:
             msg = "%s is unauthorized to add allow record ip %s for %s" % (
                 username, ip, user)
             logger.error(msg)
@@ -2118,8 +2115,7 @@ def add_allow_record(username, user, ip):
 
 def delete_allow_record(username, user):
     try:
-        is_cluster_admin = has_access(username, CLUSTER, "", ADMIN)
-        if not is_cluster_admin and username != user:
+        if not is_cluster_admin(username) and username != user:
             msg = "%s is unauthorized to delete allow record for %s" % (
                 username, user)
             logger.error(msg)
