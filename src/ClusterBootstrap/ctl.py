@@ -35,11 +35,18 @@ from cloud_init_deploy import check_buildable_images, push_docker_images
 from utils import walk_json, RestUtil
 
 
+def add_nsg_name(config):
+    if "azure_cluster" in config and "nsg_name" not in config["azure_cluster"]:
+        config["azure_cluster"]["nsg_name"] = config.get(
+            "nsg_name", config["cluster_name"] + "-nsg")
+
+
 def load_config_4_ctl(args, command):
     # if we need to load all config
     if command in ["svc", "render_template", "download", "docker", "db", "quota"]:
         args.config = [ENV_CNF_YAML, STATUS_YAML] if not args.config else args.config
         config = load_deploy_config(args)
+        add_nsg_name(config)
     else:
         if not args.config and command != "restorefromdir":
             args.config = [STATUS_YAML]

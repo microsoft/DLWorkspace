@@ -31,10 +31,11 @@ def exec_cmd(command):
     except subprocess.TimeoutExpired:
         logger.warning("%s timeout", command)
     except subprocess.CalledProcessError as e:
-        logger.warning("%s returns %d, output %s", e.returncode, e.output)
+        logger.warning("%s returns %s, output %s", command, e.returncode,
+                       e.output)
         return e.output, e.returncode
     except Exception:
-        logger.exception("%s failed")
+        logger.exception("%s failed", command)
     return None, 1
 
 

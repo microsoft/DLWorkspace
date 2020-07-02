@@ -112,7 +112,7 @@ default_config_parameters = {
     "repairmanager": "repairmanager",
     "repairmanageragent": "repairmanageragent",
     # AllowList Manager mapping
-    "allowlistmanager": "allowlistmanager",
+    "allowlistmanager": "allowlist-manager",
     "ssh_cert": "./deploy/sshkey/id_rsa",
     "admin_username": "core",
     # the path of where dfs/nfs is source linked and consumed on each node,
