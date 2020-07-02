@@ -481,7 +481,7 @@ func (s *Scheduler) schedule() {
 	// scheduling
 
 	for _, pod := range s.pods {
-		if pod.NodeName != "" {
+		if pod.NodeName != "" || pod.SchedulerName != SCHEDULER_NAME {
 			continue
 		}
 		scheduled := false
