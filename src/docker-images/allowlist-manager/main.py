@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
+import datetime
+import dateutil.parser
 import logging
 import os
 import requests
@@ -127,20 +129,63 @@ class RestUtil(object):
         return resp
 
 
+def remove_expired_records(rest_util):
+    resp = rest_util.get_allow_records()
+    resp.raise_for_status()
+    records = resp.json()
+
+    now = datetime.datetime.utcnow()
+    for record in records:
+        valid_util = dateutil.parser.parse(record["valid_util"])
+        if valid_util < now:
+            resp = rest_util.delete_allow_record(record["user"])
+            if resp.status_code != 200:
+                logger.error("failed to delete expired allow record %s",
+                             record)
+            else:
+                logger.info("deleted expired allow record %s", record)
+
+
+def get_desired_allow_ips(rest_util):
+    resp = rest_util.get_allow_records()
+    resp.raise_for_status()
+    records = resp.json()
+    return [record["ip"] for record in records]
+
+
+def get_current_allow_ips(az_util):
+    return []
+
+
+def update_allow_ips(desired_ips, current_ips, az_util):
+    if set(desired_ips) != set(current_ips):
+        logger.info("updating from current ips %s to desired ips %s")
+    else:
+        logger.info("current ips matches desired ips: %s", desired_ips)
+
+
 def main(params):
     config = get_config(params.config)
-    util = AzUtil(config)
-
-    util.login()
+    az_util = AzUtil(config)
+    rest_util = RestUtil(config)
 
     while True:
-        if not util.is_logged_in:
-            logger.error(" %s", config)
-            time.sleep(86400)  # Sleep for 1 day
         try:
-            config = get_config(params.config)
-        except Exception:
-            logger.exception("failed to run")
+            # Remove expired records
+            remove_expired_records(rest_util)
+
+            # Get desired allow ips
+            desired_ips = get_desired_allow_ips(rest_util)
+
+            # Get current allow records
+            current_ips = get_current_allow_ips(az_util)
+
+            # Make changes if necessary
+            update_allow_ips(desired_ips, current_ips, az_util)
+        except:
+            logger.exception("failed to process one run")
+
+        time.sleep(60)
 
 
 if __name__ == "__main__":

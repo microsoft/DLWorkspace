@@ -5,7 +5,12 @@ metadata:
   namespace: kube-system
 data:
   config.yaml: |-
-    allowlist-manager: {{cnf["allowlist-manager"]}}
+    subscription: {{cnf["azure_cluster"]["subscription"]}}
+    resource_group: {{cnf["azure_cluster"]["resource_group"]}}
+    nsg_name: {{cnf["azure_cluster"]["nsg_name"]}}
+    tenant_id: {{cnf["admin-service-principal"]["tenant_id"]}}
+    client_id: {{cnf["admin-service-principal"]["client_id"]}}
+    password: {{cnf["admin-service-principal"]["password"]}}
 ---
 apiVersion: apps/v1
 kind: Deployment
