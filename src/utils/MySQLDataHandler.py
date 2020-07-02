@@ -1610,7 +1610,7 @@ class DataHandler(object):
     def get_all_allow_records(self):
         ret = []
         try:
-            sql = "SELECT `user`, `ip`, `time` FROM %s" % (
+            sql = "SELECT `user`, `ip`, `valid_util`, `time` FROM %s" % (
                 self.allowlisttablename)
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -1629,8 +1629,10 @@ class DataHandler(object):
     def get_allow_record(self, user):
         ret = []
         try:
-            sql = "SELECT `user`, `ip`, `time` FROM %s" % (
-                self.allowlisttablename)
+            sql = """
+                SELECT `user`, `ip`, `valid_util`, `time`
+                FROM %s WHERE `user` = %s""" % (
+                self.allowlisttablename, user)
             cursor = self.conn.cursor()
             cursor.execute(sql)
 

@@ -171,6 +171,7 @@ CREATE TABLE IF NOT EXISTS `allowlist`
     `id`           INT          NOT NULL AUTO_INCREMENT,
     `user`         VARCHAR(255) NOT NULL UNIQUE,
     `ip`           VARCHAR(255) NOT NULL,
+    `valid_util`   DATETIME     NOT NULL,
     `time`         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE(`user`),

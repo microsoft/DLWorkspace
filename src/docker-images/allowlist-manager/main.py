@@ -25,14 +25,15 @@ def exec_cmd(command):
         output = subprocess.check_output(command, stderr=subprocess.STDOUT,
                                          timeout=10).decode("utf-8")
         logger.debug("%s output: %s", command, output)
-        return output
+        return output, 0
     except subprocess.TimeoutExpired:
         logger.warning("%s timeout", command)
     except subprocess.CalledProcessError as e:
         logger.warning("%s returns %d, output %s", e.returncode, e.output)
+        return e.output, e.returncode
     except Exception:
         logger.exception("%s failed")
-    return None
+    return None, 1
 
 
 class AzUtil(object):
@@ -97,11 +98,23 @@ class RestUtil(object):
     def __init__(self, config):
         self.rest_url = config.get("rest_url", "http://localhost:5000")
 
-    def get_allowlist(self):
-        args = urllib.parse.urlencode({"userName": "Administrator"})
-        url = urllib.parse.urljoin(self.rest_url, "/AllowList") + "?" + args
-        resp = requests.get(url, timeout=5)
-        return resp.json()
+    def get_allow_records(self):
+        args = urllib.parse.urlencode({
+            "userName": "Administrator",
+            "user": "all",
+        })
+        url = urllib.parse.urljoin(self.rest_url, "/AllowRecord") + "?" + args
+        resp = requests.get(url, timeout=10)
+        return resp
+
+    def delete_allow_record(self, user):
+        args = urllib.parse.urlencode({
+            "userName": "Administrator",
+            "user": user,
+        })
+        url = urllib.parse.urljoin(self.rest_url, "/AllowRecord") + "?" + args
+        resp = requests.delete(url, timeout=10)
+        return resp
 
 
 def main(params):

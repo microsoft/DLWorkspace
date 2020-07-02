@@ -50,6 +50,7 @@ ACTIVE_STATUS = {
 }
 has_access = AuthorizationManager.HasAccess
 VC = ResourceType.VC
+CLUSTER = Permission.Cluster
 ADMIN = Permission.Admin
 COLLABORATOR = Permission.Collaborator
 USER = Permission.User
@@ -1846,59 +1847,68 @@ def set_repair_message(username, job_id, repair_message):
 
 
 def get_allow_record(username, user):
-    pass
+    try:
+        is_cluster_admin = has_access(username, CLUSTER, "", ADMIN)
+        if not is_cluster_admin and username != user:
+            msg = "%s is unauthorized to get allow record for %s" % (
+                username, user)
+            logger.error(msg)
+            return msg, 503
+
+        with DataHandler() as data_handler:
+            if user == "all":
+                ret = data_handler.get_all_allow_records()
+            else:
+                ret = data_handler.get_allow_record(user)
+        return ret, 200
+    except:
+        logger.exception("failed to get allow record for %s by %s",
+                         user, username)
+    return "Server error", 500
 
 
 def add_allow_record(username, user, ip):
-    pass
+    try:
+        is_cluster_admin = has_access(username, CLUSTER, "", ADMIN)
+        if not is_cluster_admin and username != user:
+            msg = "%s is unauthorized to add allow record ip %s for %s" % (
+                username, ip, user)
+            logger.error(msg)
+            return msg, 503
+
+        with DataHandler() as data_handler:
+            success = data_handler.add_allow_record(user, ip)
+
+        if not success:
+            return "Internal DB error", 500
+        else:
+            return "Success", 200
+    except:
+        logger.exception("failed to add allow record ip %s for %s by %s",
+                         ip, user, username)
+    return "Server error", 500
 
 
 def delete_allow_record(username, user):
-    pass
-
-
-def get_all_allowed_records(username):
-    """Get all records in table allowlist
-
-    Args:
-        username: Requester username.
-
-    Returns:
-        (response message, status code)
-    """
     try:
+        is_cluster_admin = has_access(username, CLUSTER, "", ADMIN)
+        if not is_cluster_admin and username != user:
+            msg = "%s is unauthorized to delete allow record for %s" % (
+                username, user)
+            logger.error(msg)
+            return msg, 503
+
         with DataHandler() as data_handler:
+            success = data_handler.delete_allow_record(user)
 
-
-            job = data_handler.get_all_allowed_records(username)
-
-            # Job not found
-            if job is None:
-                msg = "Job %s requested by user %s cannot be found" % \
-                      (job_id, username)
-                logger.error(msg)
-                return msg, 404
-
-            # Only job owner and VC users/admins can see job insight
-            if job["userName"] != username and \
-                    not has_access(username, VC, job["vcName"], COLLABORATOR):
-                msg = "Unauthorized access to insight for job %s by user %s" % \
-                      (job_id, username)
-                logger.error(msg)
-                return msg, 403
-
-            if job["insight"] is not None:
-                insight = json.loads(base64decode(job["insight"]))
-            else:
-                insight = {}
-            logger.info("Insight for job %s is successfully get by user %s",
-                        job_id, username)
-            return insight, 200
-    except Exception:
-        msg = "Exception when getting insight for job %s by user %s" % \
-              (job_id, username)
-        logger.exception(msg)
-        return msg, 500
+        if not success:
+            return "Internal DB error", 500
+        else:
+            return "Success", 200
+    except:
+        logger.exception("failed to delete allow record for %s by %s",
+                         user, username)
+    return "Server error", 500
 
 
 def getAlias(username):

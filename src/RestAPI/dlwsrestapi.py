@@ -1118,7 +1118,7 @@ class Insight(Resource):
         return jsonify(resp)
 
 
-@api.resource("/AllowList")
+@api.resource("/AllowRecord")
 class AllowRecord(Resource):
     def __init__(self):
         self.get_parser = reqparse.RequestParser()
