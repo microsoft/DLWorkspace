@@ -70,4 +70,19 @@ describe('DELETE /key/:keyId', function () {
 
     response.status.should.equal(200)
   })
+
+  it('should return 404 if key not exists', async function () {
+    nock('http://ether')
+      .delete('/PublicKey?' + new URLSearchParams({
+        username: 'dlts@example.com',
+        key_id: 1
+      }))
+      .reply(404)
+
+    const response = await axiosist(api).delete('/keys/1', {
+      params: userParams
+    })
+
+    response.status.should.equal(404)
+  })
 })
