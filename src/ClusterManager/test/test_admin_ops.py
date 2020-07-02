@@ -51,46 +51,31 @@ def test_vc_quota_change(args):
 
 @utils.case()
 def test_allow_records(args):
-    # test_user1 and test_user2 do not exist
-    resp = utils.get_allow_record(args.rest, args.email, "all")
-    assert resp.status_code == 200
-    allow_records = resp.json()
-    assert "test_user1" not in [record["user"] for record in allow_records]
-    assert "test_user2" not in [record["user"] for record in allow_records]
+    with utils.AllowRecord(args.rest, args.email, "test_user1", "10.0.0.1"):
+        with utils.AllowRecord(
+                args.rest, args.email, "test_user2", "10.0.0.2"):
 
-    # Add test_user1 and test_user2
-    resp = utils.add_allow_record(
-        args.rest, args.email, "test_user1", "10.0.0.1")
-    assert resp.status_code == 200
-    resp = utils.add_allow_record(
-        args.rest, args.email, "test_user2", "10.0.0.2")
-    assert resp.status_code == 200
-    # Update test_user1 record
-    resp = utils.add_allow_record(
-        args.rest, args.email, "test_user1", "10.0.0.3")
-    assert resp.status_code == 200
+            # Update test_user1 record
+            resp = utils.add_allow_record(
+                args.rest, args.email, "test_user1", "10.0.0.3")
+            assert resp.status_code == 200
 
-    resp = utils.get_allow_record(args.rest, args.email, "all")
-    assert resp.status_code == 200
-    allow_records = resp.json()
-    assert "test_user1" not in [record["user"] for record in allow_records]
-    assert "test_user2" not in [record["user"] for record in allow_records]
+            resp = utils.get_allow_record(args.rest, args.email, "all")
+            assert resp.status_code == 200
+            allow_records = resp.json()
+            assert "test_user1" in [record["user"] for record in allow_records]
+            assert "test_user2" in [record["user"] for record in allow_records]
 
-    for record in allow_records:
-        if record["user"] == "test_user1":
-            assert record["ip"] == "10.0.0.3"
-        elif record["user"] == "test_user2":
-            assert record["ip"] == "10.0.0.2"
-
-    # Delete test_user1 and test_user2
-    resp = utils.delete_allow_record(args.rest, args.email, "test_user1")
-    assert resp.status_code == 200
-    resp = utils.delete_allow_record(args.rest, args.email, "test_user2")
-    assert resp.status_code == 200
+            for record in allow_records:
+                if record["user"] == "test_user1":
+                    assert record["ip"] == "10.0.0.3"
+                elif record["user"] == "test_user2":
+                    assert record["ip"] == "10.0.0.2"
 
     resp = utils.get_allow_record(args.rest, args.email, "all")
     assert resp.status_code == 200
     allow_records = resp.json()
     assert "test_user1" not in [record["user"] for record in allow_records]
     assert "test_user2" not in [record["user"] for record in allow_records]
+
 

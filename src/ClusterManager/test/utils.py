@@ -731,6 +731,27 @@ class ResourceQuota(object):
                              json.dumps(self.origin_quota_spec))
 
 
+class AllowRecord(object):
+    def __init__(self, rest_url, username, user, ip):
+        self.rest_url = rest_url
+        self.username = username
+        self.user = user
+        self.ip = ip
+
+    def __enter__(self):
+        add_allow_record(self.rest_url, self.username, self.user, self.ip)
+        logger.info("add allow record user %s, ip %s", self.user, self.ip)
+        return self
+
+    def __exit__(self, type, value, traceback):
+        try:
+            delete_allow_record(self.rest_url, self.username, self.user)
+            logger.info("rollback allow record for user %s", self.user)
+        except Exception:
+            logger.exception("failed to rollback allow record for user %s",
+                             self.user)
+
+
 def block_until_state(rest_url, jid, not_in, states, timeout=300):
     start = datetime.datetime.now()
 
