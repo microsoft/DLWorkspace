@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import copy
 import os
 import re
 import sys
@@ -12,6 +13,7 @@ import datetime
 import argparse
 import textwrap
 import random
+
 from mysql import connector
 cwd = os.path.dirname(__file__)
 os.chdir(cwd)
@@ -19,6 +21,7 @@ os.chdir(cwd)
 sys.path.append("../utils")
 
 from pathlib import Path
+from tabulate import tabulate
 from ConfigUtils import *
 from constants import FILE_MAP_PATH, ENV_CNF_YAML, STATUS_YAML
 
@@ -29,11 +32,12 @@ from cloud_init_deploy import get_kubectl_binary
 from cloud_init_deploy import load_config as load_deploy_config
 from cloud_init_deploy import render_dashboard, render_storagemanager
 from cloud_init_deploy import check_buildable_images, push_docker_images
+from utils import walk_json, RestUtil
 
 
 def load_config_4_ctl(args, command):
     # if we need to load all config
-    if command in ["svc", "render_template", "download", "docker", "db"]:
+    if command in ["svc", "render_template", "download", "docker", "db", "quota"]:
         args.config = [ENV_CNF_YAML, STATUS_YAML] if not args.config else args.config
         config = load_deploy_config(args)
     else:
@@ -43,6 +47,29 @@ def load_config_4_ctl(args, command):
         config = add_configs_in_order(args.config, config)
         config["ssh_cert"] = config.get("ssh_cert", "./deploy/sshkey/id_rsa")
     return config
+
+
+def get_admin_name(config, args):
+    home_dir = str(Path.home())
+    dlts_admin_config_path = os.path.join(home_dir, ".dlts-admin.yaml")
+    dlts_admin_config_path = config.get(
+        "dlts_admin_config_path", dlts_admin_config_path)
+    if os.path.exists(dlts_admin_config_path):
+        with open(dlts_admin_config_path) as f:
+            admin_name = yaml.safe_load(f)["admin_name"]
+    else:
+        admin_name = args.admin
+        assert admin_name is not None and admin_name, \
+            "specify admin_name by --admin or in ~/.dlts-admin.yaml"
+    return admin_name
+
+
+def get_email(username, config):
+    if "@" in username:
+        return username
+    else:
+        return username + "@" + config.get("dlts_admin_email_domain",
+                                           "microsoft.com")
 
 
 def connect_to_machine(config, args):
@@ -374,6 +401,134 @@ def cancel_repair(config, args):
     run_kubectl(config, args, [k8s_cmd])
 
 
+def show_resource_quota(config, args):
+    admin = get_email(get_admin_name(config, args), config)
+
+    rest_url = config.get("dashboard_rest_url")
+    assert rest_url is not None
+
+    rest_util = RestUtil(rest_url)
+    spec = rest_util.get_resource_quota(admin)
+
+    if not args.detail:
+        vc_list = list(spec.keys())
+        content = {"vc": vc_list}
+
+        # GPU first
+        all_sku = {}  # sku -> gpu_type
+        for vc_name, vc in spec.items():
+            gpu_meta = walk_json(vc, "resourceMetadata", "gpu", default={})
+            for sku, sku_info in gpu_meta.items():
+                all_sku[sku] = sku_info.get("gpu_type")
+
+        for sku, gpu_type in all_sku.items():
+            value = []
+            for vc_name in vc_list:
+                val = walk_json(
+                    spec, vc_name, "resourceQuota", "gpu", sku) or 0
+                value.append(val)
+            content.update({"%s(%s)" % (sku, gpu_type): value})
+
+        # Add delimiter for GPU and CPU sku
+        content.update({"|": ["|" for _ in vc_list]})
+
+        # CPU if there is any
+        all_sku = set()
+        for vc_name, vc in spec.items():
+            all_sku = all_sku.union(set(walk_json(
+                vc, "resourceMetadata", "cpu", default={}).keys()))
+
+        def sku_exists(sku):
+            for k, v in content.items():
+                if k.startswith(sku):
+                    return True
+            return False
+
+        all_sku = sorted(list(all_sku))
+        for sku in all_sku:
+            if sku_exists(sku):
+                continue
+
+            value = []
+            for vc_name in vc_list:
+                val = walk_json(
+                    spec, vc_name, "resourceQuota", "cpu", sku) or 0
+                value.append(val)
+            content.update({sku: value})
+
+        print(tabulate(content, headers="keys"))
+    else:
+        for r_type in ["gpu", "gpu_memory", "cpu", "memory"]:
+            vc_list = list(spec.keys())
+            content = {"vc": vc_list}
+
+            all_sku = set()
+            for vc_name, vc in spec.items():
+                all_sku = all_sku.union(set(walk_json(
+                    vc, "resourceMetadata", r_type, default={}).keys()))
+
+            all_sku = sorted(list(all_sku))
+            for sku in all_sku:
+                value = []
+                for vc_name in vc_list:
+                    val = walk_json(
+                        spec, vc_name, "resourceQuota", r_type, sku) or 0
+                    if "memory" in r_type:
+                        val /= 2**30
+                    value.append(val)
+                content.update({sku: value})
+
+            title = "%s" % r_type
+            if "memory" in r_type:
+                title = "%s (Gi)" % title
+            print("%s:\n" % title)
+            print(tabulate(content, headers="keys"))
+            print("\n")
+
+
+def update_resource_quota(config, args):
+    local_parser = argparse.ArgumentParser()
+    local_parser.add_argument("--vc_name", required=True)
+    local_parser.add_argument("--sku", required=True)
+    local_parser.add_argument("--quota", required=True)
+
+    local_args, _ = local_parser.parse_known_args(args.nargs[1:])
+    vc_name = local_args.vc_name
+    sku = local_args.sku
+    quota = local_args.quota
+
+    admin = get_email(get_admin_name(config, args), config)
+
+    rest_url = config.get("dashboard_rest_url")
+    assert rest_url is not None
+
+    rest_util = RestUtil(rest_url)
+    spec = rest_util.get_resource_quota(admin)
+    if vc_name not in spec:
+        print("vc %s does not exist")
+        exit(-1)
+
+    gpu_meta = walk_json(spec, vc_name, "resourceMetadata", "gpu", default={})
+    cpu_meta = walk_json(spec, vc_name, "resourceMetadata", "cpu", default={})
+
+    if sku in gpu_meta:
+        r_type = "gpu"
+    elif sku in cpu_meta:
+        r_type = "cpu"
+    else:
+        print("sku %s does not exist for vc %s" % (sku, vc_name))
+        exit(-1)
+
+    r_quota = walk_json(spec, vc_name, "resourceQuota", r_type, default={})
+    r_quota[sku] = int(quota)
+
+    payload = {vc_name: {"resourceQuota": {r_type: r_quota}}}
+
+    resp = rest_util.update_resource_quota(admin, payload)
+    if resp.get("error") is not None:
+        print("!!!Failed to update resource quota with %s!!!" % payload)
+
+
 def run_command(args, command):
     config = load_config_4_ctl(args, command)
     if command == "restorefromdir":
@@ -425,6 +580,14 @@ def run_command(args, command):
         start_repair(config, args)
     elif command == "cancel-repair":
         cancel_repair(config, args)
+    elif command == "quota":
+        nargs = args.nargs
+        if nargs[0] == "show":
+            show_resource_quota(config, args)
+        elif nargs[0] == "update":
+            update_resource_quota(config, args)
+        else:
+            print("Unrecognized command. Support option(s): show, update")
     else:
         print("invalid command, please read the doc")
 
@@ -463,6 +626,8 @@ if __name__ == '__main__':
                         action="store_true")
     parser.add_argument("--admin",
                         help="Name of admin that execute this script")
+    parser.add_argument("-x", "--detail", action="store_true",
+                        help="Present more details in quota")
     parser.add_argument("command",
                         help="See above for the list of valid command")
     parser.add_argument('nargs', nargs=argparse.REMAINDER,

@@ -697,6 +697,30 @@ class VCMeta(Resource):
         return resp, code
 
 
+@api.resource("/ResourceQuota")
+class ResourceQuota(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+
+        self.post_parser = reqparse.RequestParser()
+        self.post_parser.add_argument("userName", required=True)
+
+    def get(self):
+        args = self.get_parser.parse_args()
+        username = args["userName"]
+        resp, code = JobRestAPIUtils.get_resource_quota(username)
+        return resp, code
+
+    def post(self):
+        args = self.post_parser.parse_args()
+        username = args["userName"]
+        resource_quota = request.get_json(silent=True)
+        resp, code = JobRestAPIUtils.patch_resource_quota(username,
+                                                             resource_quota)
+        return resp, code
+
+
 @api.resource("/PublicKey")
 class PublicKey(Resource):
     def __init__(self):

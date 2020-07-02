@@ -21,7 +21,7 @@ import Loading from '../../components/Loading';
 import useRouteParams from './useRouteParams';
 import Context from './Context';
 import Header from './Header';
-import Insight from './Insight';
+import Messages from './Messages';
 import Tabs from './Tabs';
 
 const JobContent: FunctionComponent = () => {
@@ -109,7 +109,7 @@ const JobContent: FunctionComponent = () => {
       <Helmet title={`(${capitalize(job['jobStatus'])}) ${job['jobName']}`}/>
       <Container fixed maxWidth="lg">
         <Header manageable={manageable}/>
-        {status === 'running' && <Insight/>}
+        {status === 'running' && <Messages/>}
         <Tabs manageable={manageable}/>
       </Container>
     </Context.Provider>

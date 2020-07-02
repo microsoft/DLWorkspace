@@ -103,6 +103,8 @@ module.exports = async context => {
     const _node = _.chain(node)
     _setBody(['workers', node.name, 'healthy'], !node['unschedulable'])
     _setBody(['workers', node.name, 'ip'], node['InternalIP'])
+    _setBody(['workers', node.name, 'state'], node['REPAIR_STATE'])
+    _setBody(['workers', node.name, 'message'], node['REPAIR_MESSAGE'])
     for (const [type, number] of _node.get('cpu_capacity').entries()) {
       _setBody(['workers', node.name, 'type'], type)
       _setBody(['workers', node.name, 'status', 'cpu', 'total'], number)

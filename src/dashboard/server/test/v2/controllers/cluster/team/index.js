@@ -55,6 +55,9 @@ describe('GET /clusters/:clusterId/teams/:teamId', function () {
           unschedulable: false,
           InternalIP: '0.0.0.0',
 
+          REPAIR_STATE: 'IN_SERVICE',
+          REPAIR_MESSAGE: null,
+
           cpu_capacity: { [TYPE_NAME]: 24 },
           cpu_used: { [TYPE_NAME]: 25 },
           cpu_preemptable_used: { [TYPE_NAME]: 26 },
@@ -72,6 +75,9 @@ describe('GET /clusters/:clusterId/teams/:teamId', function () {
           labels: { worker: 'active' },
           unschedulable: true,
           InternalIP: '0.0.0.0',
+
+          REPAIR_STATE: 'OUT_OF_POOL',
+          REPAIR_MESSAGE: 'out of pool!',
 
           cpu_capacity: { [TYPE_NAME]: 0 },
           cpu_used: { [TYPE_NAME]: 0 },
@@ -138,6 +144,8 @@ describe('GET /clusters/:clusterId/teams/:teamId', function () {
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'healthy').equal(true)
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'ip').equal('0.0.0.0')
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'type').equal(TYPE_NAME)
+    response.data.should.have.propertyByPath('workers', WORKER_NAME, 'state').equal('IN_SERVICE')
+    response.data.should.have.propertyByPath('workers', WORKER_NAME, 'message').be.null()
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'status', 'cpu', 'total').equal(24)
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'status', 'cpu', 'used').equal(25)
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'status', 'cpu', 'preemptable').equal(26)
@@ -150,6 +158,9 @@ describe('GET /clusters/:clusterId/teams/:teamId', function () {
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'status', 'memory', 'used').equal(33)
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'status', 'memory', 'preemptable').equal(34)
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'status', 'memory', 'allocatable').equal(35)
+
+    response.data.should.have.propertyByPath('workers', WORKER_1_NAME, 'state').equal('OUT_OF_POOL')
+    response.data.should.have.propertyByPath('workers', WORKER_1_NAME, 'message').equal('out of pool!')
 
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'pods', POD_NAME, 'jobId').equal(JOB_ID)
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'pods', POD_NAME, 'team').equal(TEAM_ID)

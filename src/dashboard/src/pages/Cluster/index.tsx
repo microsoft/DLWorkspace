@@ -32,6 +32,7 @@ import Workers from './Workers';
 import Storages from './Storages';
 import Pods from './Pods';
 import Metrics from './Metrics';
+import Settings from './Settings';
 
 const Header: FunctionComponent = () => {
   const { clusterId } = useParams();
@@ -52,7 +53,7 @@ interface TabViewProps {
 }
 
 const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
-  const [index, setIndex] = useHashTab('users', 'workers', 'storages', 'pods', 'metrics');
+  const [index, setIndex] = useHashTab('users', 'workers', 'storages', 'pods', 'metrics', 'settings');
 
   const handleChange = useCallback((event: ChangeEvent<{}>, value: number) => {
     setIndex(value);
@@ -80,6 +81,7 @@ const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
           <Tab label="Storages"/>
           <Tab label="Pods"/>
           <Tab label="Metrics"/>
+          <Tab label="Settings"/>
         </Tabs>
         <SwipeableViews
           index={index}
@@ -90,6 +92,7 @@ const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
           {index === 2 ? <Storages data={data}/> : <div/>}
           {index === 3 ? <Pods data={data}/> : <div/>}
           {index === 4 ? <Metrics data={data}/> : <div/>}
+          {index === 5 ? <Settings data={data}/> : <div/>}
         </SwipeableViews>
       </Paper>
     </QueryProvider>

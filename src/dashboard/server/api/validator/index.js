@@ -9,5 +9,6 @@ validator.addSchema(require('./template.schema'), 'template')
 validator.addSchema(require('./priority.schema'), 'priority')
 validator.addSchema(require('./timeout.schema'), 'timeout')
 validator.addSchema(require('./batch-status.schema'), 'batch-status')
+validator.addSchema(require('./meta.schema'), 'meta')
 
 module.exports = validator

@@ -33,7 +33,7 @@ sys.path.append(
 from common import walk_json
 from job_params_util import make_job_params
 import JobLogUtils
-from resource_stat import Gpu
+from resource_stat import Gpu, to_byte
 
 DEFAULT_JOB_PRIORITY = 100
 USER_JOB_PRIORITY_RANGE = (100, 200)
@@ -58,6 +58,26 @@ USER = Permission.User
 DEFAULT_EXPIRATION = 24 * 30 * 60
 vc_cache = TTLCache(maxsize=10240, ttl=DEFAULT_EXPIRATION)
 vc_cache_lock = Lock()
+
+
+def is_cluster_admin(username):
+    return AuthorizationManager.HasAccess(
+        username, ResourceType.Cluster, "", Permission.Admin)
+
+
+def is_vc_admin(username, vc_name):
+    return AuthorizationManager.HasAccess(
+        username, ResourceType.VC, vc_name, Permission.Admin)
+
+
+def is_vc_collaborator(username, vc_name):
+    return AuthorizationManager.HasAccess(
+        username, ResourceType.VC, vc_name, Permission.Collaborator)
+
+
+def is_vc_user(username, vc_name):
+    return AuthorizationManager.HasAccess(
+        username, ResourceType.VC, vc_name, Permission.User)
 
 
 def get_job_total_gpu(job_params):
@@ -123,9 +143,9 @@ def populate_job_resource(params):
     try:
         # Populate sku with one from vc info in DB
         vc_name = params["vcName"]
-        vc_lists = getClusterVCs()
+        vc_list = get_vc_list()
         vc_info = None
-        for vc in vc_lists:
+        for vc in vc_list:
             if vc["vcName"] == vc_name:
                 vc_info = vc
                 break
@@ -906,28 +926,28 @@ def AddVC(userName, vcName, quota, metadata):
     return ret
 
 
-def getClusterVCs():
-    vcList = None
+def get_vc_list():
+    vc_list = None
     try:
         with vc_cache_lock:
-            vcList = copy.deepcopy(list(vc_cache.values()))
+            vc_list = copy.deepcopy(list(vc_cache.values()))
     except Exception:
         pass
 
-    if not vcList:
-        vcList = DataManager.ListVCs()
+    if not vc_list:
+        vc_list = DataManager.ListVCs()
         with vc_cache_lock:
-            for vc in vcList:
+            for vc in vc_list:
                 vc_cache[vc["vcName"]] = vc
 
-    return vcList
+    return vc_list
 
 
 def ListVCs(userName):
     ret = []
-    vcList = getClusterVCs()
+    vc_list = get_vc_list()
 
-    for vc in vcList:
+    for vc in vc_list:
         if AuthorizationManager.HasAccess(userName, ResourceType.VC,
                                           vc["vcName"], Permission.User):
             vc['admin'] = AuthorizationManager.HasAccess(
@@ -944,7 +964,7 @@ def get_vc(username, vc_name):
             cluster_status, _ = data_handler.GetClusterStatus()
 
         vc_statuses = cluster_status.get("vc_statuses", {})
-        vc_list = getClusterVCs()
+        vc_list = get_vc_list()
 
         for vc in vc_list:
             if vc["vcName"] == vc_name and \
@@ -1062,17 +1082,220 @@ def patch_vc_meta(username, vc_name, vc_meta):
         else:
             return {
                 "error":
-                    "%s do not have permission to query meta from vc %s" %
+                    "%s do not have permission to update meta for vc %s" %
                     (username, vc_name)
             }, 403
     except Exception as e:
-        logger.exception("Exception in get_vc_meta VC %s for user %s", vc_name,
-                         username)
+        logger.exception("Exception in patch_vc_meta VC %s for user %s",
+                         vc_name, username)
 
         return {
             "error":
-                "failed to get meta from vc %s, exception %s" %
+                "failed to update meta from vc %s, exception %s" %
                 (vc_name, str(e))
+        }, 500
+
+
+def get_resource_quota(username):
+    """Get resource quota for all VCs.
+
+    Args:
+        username: Name of the user querying VC resource quota.
+
+    Returns:
+        Resource quota and metadata for all VCs if user is cluster admin,
+        error otherwise.
+    """
+    try:
+        if is_cluster_admin(username):
+            vc_list = get_vc_list()
+            result = {}
+            for vc in vc_list:
+                r_quota = {
+                    "gpu": {},
+                    "gpu_memory": {},
+                    "cpu": {},
+                    "memory": {},
+                }
+
+                vc_r_quota = json.loads(vc["resourceQuota"])
+
+                gpu_quota = walk_json(vc_r_quota, "gpu", default={})
+                for sku, count in gpu_quota.items():
+                    r_quota["gpu"][sku] = int(count)
+
+                gpu_memory_quota = \
+                    walk_json(vc_r_quota, "gpu_memory", default={})
+                for sku, count in gpu_memory_quota.items():
+                    r_quota["gpu_memory"][sku] = to_byte(count)
+
+                cpu_quota = walk_json(vc_r_quota, "cpu", default={})
+                for sku, count in cpu_quota.items():
+                    r_quota["cpu"][sku] = int(count)
+
+                memory_quota = walk_json(vc_r_quota, "memory", default={})
+                for sku, count in memory_quota.items():
+                    r_quota["memory"][sku] = to_byte(count)
+
+                result[vc["vcName"]] = {
+                    "resourceQuota": r_quota,
+                    "resourceMetadata": json.loads(vc["resourceMetadata"]),
+                }
+            return result, 200
+        else:
+            return {
+                "error":
+                    "%s does not have permission to query resource quota for VCs" %
+                    username
+            }, 403
+    except Exception as e:
+        logger.exception("Exception in get_vc_resource_quota for user %s",
+                         username)
+        return {
+            "error":
+                "failed to get vc resource quota, exception %s" % str(e)
+        }, 500
+
+
+def patch_resource_quota(username, payload):
+    """Update VC resource quota with payload.
+
+    Args:
+        username: Name of the user updating VC resource quota.
+        payload: Resource quota payload to update.
+
+    Returns:
+        200 if successful, error otherwise.
+    """
+    try:
+        if is_cluster_admin(username):
+            if payload is None or len(payload) == 0:
+                return {"error": "empty payload"}, 400
+
+            vc_list = get_vc_list()
+            with DataHandler() as data_handler:
+                for vc in vc_list:
+                    vc_name = vc["vcName"]
+                    if vc_name not in payload:
+                        continue
+
+                    vc_payload = payload[vc_name]
+                    r_meta = json.loads(vc["resourceMetadata"])
+                    req_quota = walk_json(vc_payload, "resourceQuota")
+                    if req_quota is None or len(req_quota) == 0:
+                        logger.error("empty resourceQuota for vc %s by user %s",
+                                     vc_name, username)
+                        return {
+                            "error": "empty resourceQuota for vc %s" % vc_name
+                        }, 400
+
+                    r_quota = {
+                        "gpu": {},
+                        "gpu_memory": {},
+                        "cpu": {},
+                        "memory": {},
+                    }
+                    quota = {}
+
+                    req_gpu_quota = walk_json(req_quota, "gpu", default={})
+                    for sku, count in req_gpu_quota.items():
+                        gpu_meta = walk_json(r_meta, "gpu", default={})
+                        logger.info("gpu_meta: %s", gpu_meta)
+                        if sku not in gpu_meta:
+                            logger.error(
+                                "unrecognized sku %s for vc %s by user %s",
+                                sku, vc_name, username)
+                            return {
+                                "error":
+                                    "unrecognized sku %s for vc %s" %
+                                    (sku, vc_name)
+                            }, 400
+
+                        gpu_type = walk_json(
+                            r_meta, "gpu", sku, "gpu_type")
+                        gpu_per_node = int(walk_json(
+                            r_meta, "gpu", sku, "per_node") or 0)
+                        gpu_memory_per_node = to_byte(walk_json(
+                            r_meta, "gpu_memory", sku, "per_node") or 0)
+                        cpu_per_node = int(walk_json(
+                            r_meta, "cpu", sku, "per_node") or 0)
+                        memory_per_node = to_byte(walk_json(
+                            r_meta, "memory", sku, "per_node") or 0)
+
+                        # Resource quota proportional to GPU
+                        count = int(count)
+                        nodes = count / gpu_per_node
+                        r_quota["gpu"][sku] = int(nodes * gpu_per_node)
+                        r_quota["gpu_memory"][sku] = int(nodes * gpu_memory_per_node)
+                        r_quota["cpu"][sku] = int(nodes * cpu_per_node)
+                        r_quota["memory"][sku] = int(nodes * memory_per_node)
+
+                        # Keep consistent for legacy quota
+                        quota[gpu_type] = count
+
+                    req_cpu_quota = walk_json(req_quota, "cpu", default={})
+                    for sku, count in req_cpu_quota.items():
+                        # Already populated GPU sku
+                        if sku in r_quota["cpu"]:
+                            continue
+
+                        cpu_meta = walk_json(r_meta, "cpu", default={})
+                        if sku not in cpu_meta:
+                            logger.error(
+                                "unrecognized sku %s for vc %s by user %s",
+                                sku, vc_name, username)
+                            return {
+                                "error":
+                                    "unrecognized sku %s for vc %s" %
+                                    (sku, vc_name)
+                            }, 400
+
+                        count = int(count)
+                        cpu_per_node = int(walk_json(
+                            r_meta, "cpu", sku, "per_node") or 0)
+                        memory_per_node = to_byte(walk_json(
+                            r_meta, "memory", sku, "per_node") or 0)
+
+                        # Resource quota proportional to CPU
+                        nodes = count / cpu_per_node
+                        r_quota["cpu"][sku] = int(nodes * cpu_per_node)
+                        r_quota["memory"][sku] = int(nodes * memory_per_node)
+
+                        # Keep consistent for legacy quota
+                        quota["None"] = count
+
+                    success = data_handler.update_vc_resource_quota(
+                        vc_name, json.dumps(r_quota), json.dumps(quota))
+                    if success:
+                        logger.info("updated payload %s for vc %s",
+                                    json.dumps(vc_payload), vc_name)
+                    else:
+                        logger.error("DB error processing payload %s for vc %s",
+                                     json.dumps(vc_payload), vc_name)
+                        return {
+                            "error":
+                                "DB error processing payload %s for vc %s" %
+                                (json.dumps(vc_payload), vc_name)
+                        }, 500
+
+            # Invalidate local vc_cache
+            with vc_cache_lock:
+                [vc_cache.pop(vc["vcName"], None) for vc in vc_list]
+
+            return {"error": None}, 200
+        else:
+            return {
+                "error":
+                    "%s does not have permission to update vc with payload %s" %
+                    (username, json.dumps(payload))
+            }, 403
+    except Exception as e:
+        logger.exception("Exception in patch_resource_quota %s for user %s",
+                         json.dumps(payload), username)
+        return {
+            "error":
+                "failed to patch resource quota (may succeeded partially), "
+                "exception %s" % str(e)
         }, 500
 
 
@@ -1198,7 +1421,7 @@ def get_vc_v2(username, vc_name):
             cluster_status, _ = data_handler.GetClusterStatus()
 
         vc_statuses = cluster_status.get("vc_statuses", {})
-        vc_list = getClusterVCs()
+        vc_list = get_vc_list()
 
         for vc in vc_list:
             if vc["vcName"] == vc_name and \
@@ -1206,10 +1429,6 @@ def get_vc_v2(username, vc_name):
                 vc_status = vc_statuses.get(vc_name, {})
                 vc_status["vc_name"] = vc_name
                 vc_status["node_status"] = cluster_status.get("node_status")
-
-                gpu_idle = get_gpu_idle(vc_name)
-                if gpu_idle is not None:
-                    vc_status["gpu_idle"] = gpu_idle
                 break
 
         vc_status = get_vc_simplified(vc_status)
