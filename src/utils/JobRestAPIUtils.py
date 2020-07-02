@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import datetime
 import json
 import os
 import time
@@ -50,7 +51,7 @@ ACTIVE_STATUS = {
 }
 has_access = AuthorizationManager.HasAccess
 VC = ResourceType.VC
-CLUSTER = Permission.Cluster
+CLUSTER = ResourceType.Cluster
 ADMIN = Permission.Admin
 COLLABORATOR = Permission.Collaborator
 USER = Permission.User
@@ -1876,8 +1877,12 @@ def add_allow_record(username, user, ip):
             logger.error(msg)
             return msg, 503
 
+        allow_days = config.get("allow_record_days", 30)
+        now = datetime.datetime.utcnow()
+        valid_util = (now + datetime.timedelta(days=allow_days)).isoformat()
+
         with DataHandler() as data_handler:
-            success = data_handler.add_allow_record(user, ip)
+            success = data_handler.add_allow_record(user, ip, valid_util)
 
         if not success:
             return "Internal DB error", 500

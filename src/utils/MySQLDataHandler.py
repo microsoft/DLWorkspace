@@ -1647,13 +1647,13 @@ class DataHandler(object):
         return ret
 
     @record
-    def add_allow_record(self, user, ip):
+    def add_allow_record(self, user, ip, valid_util):
         try:
             sql = """
-                INSERT INTO `%s` (`user`, `ip`) 
-                VALUES ('%s', '%s') 
+                INSERT INTO `%s` (`user`, `ip`, `valid_util`) 
+                VALUES ('%s', '%s', '%s') 
                 ON DUPLICATE KEY UPDATE `ip` = %s""" % (
-                self.allowlisttablename, user, ip, ip)
+                self.allowlisttablename, user, ip, valid_util, ip)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()

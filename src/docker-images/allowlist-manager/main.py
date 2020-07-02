@@ -107,6 +107,16 @@ class RestUtil(object):
         resp = requests.get(url, timeout=10)
         return resp
 
+    def add_allow_record(self, user, ip):
+        args = urllib.parse.urlencode({
+            "userName": "Administrator",
+            "user": user,
+            "ip": ip,
+        })
+        url = urllib.parse.urljoin(self.rest_url, "/AllowRecord") + "?" + args
+        resp = requests.post(url, timeout=10)
+        return resp
+
     def delete_allow_record(self, user):
         args = urllib.parse.urlencode({
             "userName": "Administrator",
