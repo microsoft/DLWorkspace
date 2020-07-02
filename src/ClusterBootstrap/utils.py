@@ -19,6 +19,8 @@ import shutil
 import glob
 import random
 import string
+import requests
+import urllib.parse
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
@@ -848,3 +850,33 @@ def multiprocess_exec(func, args_list, process_num):
     pool = Pool(process_num)
     pool.map(func, args_list)
     pool.close()
+
+
+def walk_json(obj, *fields, default=None):
+    """ for example a=[{"a": {"b": 2}}]
+    walk_json(a, 0, "a", "b") will get 2
+    walk_json(a, 0, "not_exist") will get None
+    """
+    try:
+        for f in fields:
+            obj = obj[f]
+        return obj
+    except:
+        return default
+
+
+class RestUtil(object):
+    def __init__(self, rest_url):
+        self.rest_url = rest_url
+
+    def get_resource_quota(self, username):
+        args = urllib.parse.urlencode({"userName": username})
+        url = urllib.parse.urljoin(self.rest_url, "/ResourceQuota") + "?" + args
+        resp = requests.get(url)
+        return resp.json()
+
+    def update_resource_quota(self, username, payload):
+        args = urllib.parse.urlencode({"userName": username})
+        url = urllib.parse.urljoin(self.rest_url, "/ResourceQuota") + "?" + args
+        resp = requests.post(url, json=payload)
+        return resp.json()

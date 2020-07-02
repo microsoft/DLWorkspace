@@ -42,7 +42,7 @@ sudo pip install setuptools pyyaml jinja2 requests tzlocal pycurl
 
 sudo apt-get --no-install-recommends install -y python3-pip
 sudo pip3 install --upgrade pip
-sudo pip3 install setuptools pyyaml jinja2 requests tzlocal pycurl
+sudo pip3 install setuptools pyyaml jinja2 requests tzlocal pycurl, tabulate
 
 sudo echo "dockerd > /dev/null 2>&1 &" | cat >> /etc/bash.bashrc
 sudo usermod -aG docker $USER
