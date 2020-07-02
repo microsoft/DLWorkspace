@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import dateutil.parser
+import json
 import logging
 import os
 import requests
@@ -25,7 +26,7 @@ def get_config(config_path):
 def exec_cmd(command):
     try:
         output = subprocess.check_output(command, stderr=subprocess.STDOUT,
-                                         timeout=10).decode("utf-8")
+                                         timeout=600).decode("utf-8")
         logger.debug("%s output: %s", command, output)
         return output, 0
     except subprocess.TimeoutExpired:
@@ -44,57 +45,74 @@ class AzUtil(object):
         self.subscription = config.get("subscription")
         self.resource_group = config.get("resource_group")
         self.nsg_name = config.get("nsg_name")
-
         self.tenant_id = config.get("tenant_id")
         self.client_id = config.get("client_id")
         self.password = config.get("password")
 
-        self.is_logged_in = False
+    def __repr__(self):
+        return str(self.__dict__)
+
+    def is_valid(self):
+        for _, v in self.__dict__.items():
+            if v is None:
+                return False
+        return True
 
     def login(self):
-        cmd = "az login --service-principal -u %s -p %s --tenant %s" % (
-            self.client_id, self.password, self.tenant_id)
+        cmd = [
+            "az", "login", "--service-principal",
+            "-u", "%s" % self.client_id,
+            "-p", "%s" % self.password,
+            "--tenant", "%s" % self.tenant_id,
+        ]
+        return exec_cmd(cmd)
 
-    def create_allowlist(self, ips):
-        cmd = """
-            az network nsg rule create \
-                --subscription %s \
-                --resource-group %s \
-                --nsg-name %s \
-                --name allowlist \
-                --protocol Tcp \
-                --priority 30000 \
-                --destination-port-ranges 30000-49999 \
-                --source-address-prefixes %s \
-                --access Allow
-        """ % (self.subscription,
-               self.resource_group,
-               self.nsg_name,
-               ips)
+    def create_allow_list(self, ips):
+        # TODO: Decouple port 30000-49999 and priority from code
+        cmd = [
+            "az", "network", "nsg", "rule", "create",
+            "--subscription", "%s" % self.subscription,
+            "--resource-group", "%s" % self.resource_group,
+            "--nsg-name", "%s" % self.nsg_name,
+            "--name", "allowlist",
+            "--protocol", "Tcp",
+            "--access", "Allow",
+            "--priority", "4000",
+            "--destination-port-ranges", "30000-49999",
+            "--source-address-prefixes",
+        ] + ips
+        return exec_cmd(cmd)
 
-    def get_allowlist(self):
-        cmd = """
-            az network nsg rule show \
-                --subscription %s \
-                --resource-group %s \
-                --nsg-name %s \
-                --name allowlist
-        """ % (self.subscription,
-               self.resource_group,
-               self.nsg_name)
+    def get_allow_list(self):
+        cmd = [
+            "az", "network", "nsg", "rule", "show",
+            "--subscription", "%s" % self.subscription,
+            "--resource-group", "%s" % self.resource_group,
+            "--nsg-name", "%s" % self.nsg_name,
+            "--name", "allowlist",
+        ]
+        return exec_cmd(cmd)
 
-    def update_allowlist(self, ips):
-        cmd = """
-            az network nsg rule show \
-                --subscription %s \
-                --resource-group %s \
-                --nsg-name %s \
-                --name allowlist \
-                --source-address-prefixes %s
-        """ % (self.subscription,
-               self.resource_group,
-               self.nsg_name,
-               ips)
+    def update_allow_list(self, ips):
+        cmd = [
+            "az", "network", "nsg", "rule", "update",
+            "--subscription", "%s" % self.subscription,
+            "--resource-group", "%s" % self.resource_group,
+            "--nsg-name", "%s" % self.nsg_name,
+            "--name", "allowlist",
+            "--source-address-prefixes",
+        ] + ips
+        return exec_cmd(cmd)
+
+    def delete_allow_list(self):
+        cmd = [
+            "az", "network", "nsg", "rule", "delete",
+            "--subscription", "%s" % self.subscription,
+            "--resource-group", "%s" % self.resource_group,
+            "--nsg-name", "%s" % self.nsg_name,
+            "--name", "allowlist",
+        ]
+        return exec_cmd(cmd)
 
 
 class RestUtil(object):
@@ -155,21 +173,73 @@ def get_desired_allow_ips(rest_util):
 
 
 def get_current_allow_ips(az_util):
-    return []
+    resp, code = az_util.get_allow_list()
+    if code == 0:
+        data = json.loads(resp)
+        ips = []
+
+        source = data.get("sourceAddressPrefix")
+        if source is not None and source != "":
+            ips.append(source)
+
+        sources = data.get("sourceAddressPrefixes")
+        if sources is not None:
+            ips += sources
+
+        return [ip.split("/")[0] for ip in ips]
+    else:
+        return []
 
 
 def update_allow_ips(desired_ips, current_ips, az_util):
-    if set(desired_ips) != set(current_ips):
-        logger.info("updating from current ips %s to desired ips %s")
+    desired_ips = set(desired_ips)
+    current_ips = set(current_ips)
+    if desired_ips != current_ips:
+        if len(desired_ips) == 0:
+            resp, code = az_util.delete_allow_list()
+        else:
+            ips = ["%s/32" % ip for ip in list(desired_ips)]
+            resp, code = az_util.update_allow_list(ips)
+
+        if code == 0:
+            logger.info("updated from current ips %s to desired ips %s",
+                        list(current_ips), list(desired_ips))
+        else:
+            logger.error("failed to update from current ips %s to desired ips "
+                         "%s. resp: %s",
+                         list(current_ips), list(desired_ips), resp)
     else:
-        logger.info("current ips matches desired ips: %s", desired_ips)
+        logger.info("current ips matches desired ips: %s", list(desired_ips))
 
 
 def main(params):
-    config = get_config(params.config)
-    az_util = AzUtil(config)
-    rest_util = RestUtil(config)
+    # Check permission
+    while True:
+        try:
+            config = get_config(params.config)
+            az_util = AzUtil(config)
 
+            if not az_util.is_valid():
+                raise ValueError("invalid az util %s" % az_util)
+
+            resp, code = az_util.login()
+            try:
+                subscriptions = [obj["name"] for obj in json.loads(resp)]
+            except:
+                subscriptions = []
+            if code != 0:
+                raise RuntimeError("failed to login. %s" % az_util)
+            elif az_util.subscription not in subscriptions:
+                raise RuntimeError("no permission to subscription %s" % az_util)
+            else:
+                logger.info("%s has permission to subscription %s",
+                            az_util.client_id, az_util.subscription)
+                break
+        except Exception as e:
+            logger.error("incorrect AZ setup. sleep for 1 day. %s", str(e))
+            time.sleep(86400)
+
+    rest_util = RestUtil(config)
     while True:
         try:
             # Remove expired records
