@@ -1440,7 +1440,7 @@ def get_vc_v2(username, vc_name):
 
 def convert_date(obj, field):
     if obj.get(field) is not None:
-        obj[field] = obj[field].isoformat()
+        obj[field] = obj[field].replace(tzinfo=pytz.UTC).isoformat()
     return obj
 
 
