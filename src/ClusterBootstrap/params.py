@@ -319,7 +319,8 @@ default_config_parameters = {
             "restfulapi": "active",
             "user-synchronizer": "active",
             "alert-manager": "active",
-            "beta.kubernetes.io/os": "linux"
+            "beta.kubernetes.io/os": "linux",
+            "dlts-scheduler": "active",
         },
         'worker': {
             "worker": "active",
@@ -340,7 +341,7 @@ default_config_parameters = {
         },
         "oss": {
             "oss": "active"
-        }, 
+        },
         "mgs": {
             "mgs": "active"
         }
