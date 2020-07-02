@@ -1631,7 +1631,7 @@ class DataHandler(object):
         try:
             sql = """
                 SELECT `user`, `ip`, `valid_util`, `time`
-                FROM %s WHERE `user` = %s""" % (
+                FROM `%s` WHERE `user` = '%s'""" % (
                 self.allowlisttablename, user)
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -1652,8 +1652,8 @@ class DataHandler(object):
             sql = """
                 INSERT INTO `%s` (`user`, `ip`, `valid_util`) 
                 VALUES ('%s', '%s', '%s') 
-                ON DUPLICATE KEY UPDATE `ip` = %s""" % (
-                self.allowlisttablename, user, ip, valid_util, ip)
+                ON DUPLICATE KEY UPDATE `ip` = '%s', `valid_util` = '%s'""" % (
+                self.allowlisttablename, user, ip, valid_util, ip, valid_util)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
@@ -1667,7 +1667,7 @@ class DataHandler(object):
     @record
     def delete_allow_record(self, user):
         try:
-            sql = "DELETE FROM %s WHERE `user` = %s" % (
+            sql = "DELETE FROM `%s` WHERE `user` = '%s'" % (
                 self.allowlisttablename, user)
             cursor = self.conn.cursor()
             cursor.execute(sql)

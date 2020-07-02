@@ -1861,6 +1861,9 @@ def get_allow_record(username, user):
                 ret = data_handler.get_all_allow_records()
             else:
                 ret = data_handler.get_allow_record(user)
+        for obj in ret:
+            convert_date(obj, "valid_util")
+            convert_date(obj, "time")
         return ret, 200
     except:
         logger.exception("failed to get allow record for %s by %s",
