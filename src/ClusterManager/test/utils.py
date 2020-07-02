@@ -611,9 +611,9 @@ def get_active_jobs(rest_url):
     return resp.json()
 
 
-def get_allow_record(rest_url, user):
+def get_allow_record(rest_url, email, user):
     args = urllib.parse.urlencode({
-        "userName": "Administrator",
+        "userName": email,
         "user": user,
     })
     url = urllib.parse.urljoin(rest_url, "/AllowRecord") + "?" + args
@@ -621,9 +621,9 @@ def get_allow_record(rest_url, user):
     return resp
 
 
-def add_allow_record(rest_url, user, ip):
+def add_allow_record(rest_url, email, user, ip):
     args = urllib.parse.urlencode({
-        "userName": "Administrator",
+        "userName": email,
         "user": user,
         "ip": ip,
     })
@@ -632,9 +632,9 @@ def add_allow_record(rest_url, user, ip):
     return resp
 
 
-def delete_allow_record(rest_url, user):
+def delete_allow_record(rest_url, email, user):
     args = urllib.parse.urlencode({
-        "userName": "Administrator",
+        "userName": email,
         "user": user,
     })
     url = urllib.parse.urljoin(rest_url, "/AllowRecord") + "?" + args
