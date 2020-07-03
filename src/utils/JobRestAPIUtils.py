@@ -2080,7 +2080,7 @@ def get_allow_record(username, user):
             else:
                 ret = data_handler.get_allow_record(user)
         for obj in ret:
-            convert_date(obj, "valid_util")
+            convert_date(obj, "valid_until")
             convert_date(obj, "time")
         return ret, 200
     except:
@@ -2099,10 +2099,10 @@ def add_allow_record(username, user, ip):
 
         allow_days = config.get("allow_record_days", 30)
         now = datetime.datetime.utcnow()
-        valid_util = (now + datetime.timedelta(days=allow_days)).isoformat()
+        valid_until = (now + datetime.timedelta(days=allow_days)).isoformat()
 
         with DataHandler() as data_handler:
-            success = data_handler.add_allow_record(user, ip, valid_util)
+            success = data_handler.add_allow_record(user, ip, valid_until)
 
         if not success:
             return "Internal DB error", 500

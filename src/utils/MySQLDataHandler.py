@@ -1627,7 +1627,7 @@ class DataHandler(object):
     def get_all_allow_records(self):
         ret = []
         try:
-            sql = "SELECT `user`, `ip`, `valid_util`, `time` FROM %s" % (
+            sql = "SELECT `user`, `ip`, `valid_until`, `time` FROM %s" % (
                 self.allowlisttablename)
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -1647,7 +1647,7 @@ class DataHandler(object):
         ret = []
         try:
             sql = """
-                SELECT `user`, `ip`, `valid_util`, `time`
+                SELECT `user`, `ip`, `valid_until`, `time`
                 FROM `%s` WHERE `user` = '%s'""" % (
                 self.allowlisttablename, user)
             cursor = self.conn.cursor()
@@ -1664,13 +1664,13 @@ class DataHandler(object):
         return ret
 
     @record
-    def add_allow_record(self, user, ip, valid_util):
+    def add_allow_record(self, user, ip, valid_until):
         try:
             sql = """
-                INSERT INTO `%s` (`user`, `ip`, `valid_util`) 
+                INSERT INTO `%s` (`user`, `ip`, `valid_until`) 
                 VALUES ('%s', '%s', '%s') 
-                ON DUPLICATE KEY UPDATE `ip` = '%s', `valid_util` = '%s'""" % (
-                self.allowlisttablename, user, ip, valid_util, ip, valid_util)
+                ON DUPLICATE KEY UPDATE `ip` = '%s', `valid_until` = '%s'""" % (
+                self.allowlisttablename, user, ip, valid_until, ip, valid_until)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()

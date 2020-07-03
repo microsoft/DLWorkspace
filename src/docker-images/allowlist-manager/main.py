@@ -156,8 +156,8 @@ def remove_expired_records(rest_util):
 
     now = datetime.datetime.utcnow().replace(tzinfo=pytz.UTC)
     for record in records:
-        valid_util = dateutil.parser.parse(record["valid_util"])
-        if valid_util < now:
+        valid_until = dateutil.parser.parse(record["valid_until"])
+        if valid_until < now:
             resp = rest_util.delete_allow_record(record["user"])
             if resp.status_code != 200:
                 logger.error("failed to delete expired allow record %s",
