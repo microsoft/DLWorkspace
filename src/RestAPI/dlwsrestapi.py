@@ -1142,6 +1142,21 @@ class Insight(Resource):
         return jsonify(resp)
 
 
+@api.resource("/RepairMessage")
+class RepairMessage(Resource):
+    def __init__(self):
+        self.post_parser = reqparse.RequestParser()
+        self.post_parser.add_argument("jobId", required=True)
+        self.post_parser.add_argument("userName", required=True)
+
+    def post(self):
+        args = self.post_parser.parse_args()
+        job_id = args.get("jobId")
+        username = args.get("userName")
+        payload = request.get_json(force=True, silent=True)
+        return JobRestAPIUtils.set_repair_message(username, job_id, payload)
+
+
 @api.resource("/AllowRecord")
 class AllowRecord(Resource):
     def __init__(self):
