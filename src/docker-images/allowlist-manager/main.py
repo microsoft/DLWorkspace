@@ -199,7 +199,10 @@ def update_allow_ips(desired_ips, current_ips, az_util):
             resp, code = az_util.delete_allow_list()
         else:
             ips = ["%s/32" % ip for ip in list(desired_ips)]
-            resp, code = az_util.update_allow_list(ips)
+            if len(current_ips) == 0:
+                resp, code = az_util.create_allow_list(ips)
+            else:
+                resp, code = az_util.update_allow_list(ips)
 
         if code == 0:
             logger.info("updated from current ips %s to desired ips %s",
