@@ -1,7 +1,7 @@
 {
   "title": "Config",
   "type": "object",
-  "required": ["clusters"],
+  "required": ["restfulapi", "clusters"],
   "properties": {
     "sign": {
       "description": "Sign key for JWT",
@@ -9,6 +9,10 @@
     },
     "masterToken": {
       "title": "Access token of all users",
+      "type": "string"
+    },
+    "restfulapi": {
+      "title": "RestfulAPI endpoint of the global database",
       "type": "string"
     },
     "activeDirectory": {

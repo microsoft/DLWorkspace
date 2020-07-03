@@ -90,5 +90,20 @@ router.delete('/teams/:teamId/templates/:templateName',
   require('./middlewares/user')(),
   require('./controllers/team/template.delete'))
 
+router.get('/keys',
+  require('./middlewares/user')(),
+  require('./middlewares/global'),
+  require('./controllers/keys'))
+router.post('/keys',
+  require('./middlewares/user')(),
+  require('./middlewares/global'),
+  require('./middlewares/body')('key'),
+  require('./controllers/keys.post'))
+
+router.delete('/keys/:keyId',
+  require('./middlewares/user')(),
+  require('./middlewares/global'),
+  require('./controllers/key.delete'))
+
 router.get('/error.gif',
   require('./controllers/error'))

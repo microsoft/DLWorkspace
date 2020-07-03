@@ -22,6 +22,7 @@ const JobLegacy = lazy(() => import('./pages/JobLegacy'));
 const ClusterStatus = lazy( () => import('./pages/ClusterStatus'));
 const Clusters = lazy(() => import('./pages/Clusters'));
 const Cluster = lazy(() => import('./pages/Cluster'));
+const Keys = lazy(() => import('./pages/Keys'));
 
 const Routes: FunctionComponent = () => (
   <Suspense fallback={<Loading>Loading Your Page...</Loading>}>
@@ -45,6 +46,8 @@ const Routes: FunctionComponent = () => (
       <Route strict exact path="/clusters/:clusterId" component={Cluster}/>
 
       <Route path="/cluster-status" component={ClusterStatus}/>
+
+      <Route path="/keys" component={Keys}/>
 
       {/* Backward Compatibility Routes */}
       <Route strict exact path="/jobs-v2:rest(.*)"

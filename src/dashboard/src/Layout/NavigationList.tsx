@@ -66,6 +66,10 @@ const NavigationList: FunctionComponent = () => {
         <ListItemText secondary="(legacy)">Cluster Status</ListItemText>
       </ListItemLink>
       <Divider/>
+      <ListItemLink to="/keys">
+        <ListItemText>My SSH Keys</ListItemText>
+      </ListItemLink>
+      <Divider/>
       <ListItem button component="a" href={wiki} target="_blank" rel="noopener noreferrer">
         <ListItemText>DLTS Wiki</ListItemText>
       </ListItem>
