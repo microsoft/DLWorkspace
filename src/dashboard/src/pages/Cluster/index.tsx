@@ -136,7 +136,7 @@ const ClusterContent: FunctionComponent = () => {
       <Helmet title={clusterId}/>
       <Container maxWidth="lg">
         <Header/>
-        {data !== undefined ? <TabView data={data}/> : <Loading>Fetching Cluster Status</Loading>}
+        {typeof data === 'object' ? <TabView data={data}/> : <Loading>Fetching Cluster Status</Loading>}
       </Container>
     </>
   );

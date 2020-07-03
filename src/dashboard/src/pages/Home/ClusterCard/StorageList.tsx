@@ -212,6 +212,7 @@ const StorageList: FunctionComponent = () => {
         const sambaPath = getMountpointUrl(containerPath);
         return (
           <StorageListItem
+            key={containerPath}
             containerPath={containerPath}
             sambaPath={sambaPath}
             size={size}

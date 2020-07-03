@@ -195,7 +195,6 @@ const Storages: FunctionComponent<Props> = ({ data: { config } }) => {
     return null;
   }
 
-  console.log(snapshot)
   return <StoragesContent data={data} snapshot={new Date(snapshot * 1000)}/>
 };
 
