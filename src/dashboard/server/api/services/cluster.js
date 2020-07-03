@@ -441,6 +441,60 @@ class Cluster extends Service {
   }
 
   /**
+   * @return {Promise}
+   */
+  async getAllowedIP () {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      userName: user.email,
+      user: user.email
+    })
+    const response = await this.fetch('/AllowRecord?' + params)
+    this.context.assert(response.ok, 502)
+    const data = await response.json()
+    this.context.log.debug({ data }, 'Got allowed ip for %s', user.email)
+    return data[0]
+  }
+
+  /**
+   * @param {string} ip
+   * @return {Promise}
+   */
+  async updateAllowedIP (ip) {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      userName: user.email,
+      user: user.email,
+      ip
+    })
+    const response = await this.fetch('/AllowRecord?' + params, {
+      method: 'POST'
+    })
+    this.context.assert(response.ok, 502)
+    const text = await response.text()
+    this.context.log.debug({ text }, 'Updated allowed ip for %s', user.email)
+    return text
+  }
+
+  /**
+   * @return {Promise}
+   */
+  async deleteAllowedIP () {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      userName: user.email,
+      user: user.email
+    })
+    const response = await this.fetch('/AllowRecord?' + params, {
+      method: 'DELETE'
+    })
+    this.context.assert(response.ok, 502)
+    const text = await response.text()
+    this.context.log.debug({ text }, 'Deleted allowed ip for %s', user.email)
+    return text
+  }
+
+  /**
    * @private
    * @param {string} path
    * @param {import('node-fetch').RequestInit} init

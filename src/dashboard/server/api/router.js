@@ -105,5 +105,16 @@ router.delete('/keys/:keyId',
   require('./middlewares/global'),
   require('./controllers/key.delete'))
 
+router.get('/clusters/:clusterId/allowed-ip',
+  require('./middlewares/user')(),
+  require('./controllers/cluster/allowed-ip'))
+router.put('/clusters/:clusterId/allowed-ip',
+  require('./middlewares/user')(),
+  require('./middlewares/body')('allowed-ip'),
+  require('./controllers/cluster/allowed-ip/index.put'))
+router.delete('/clusters/:clusterId/allowed-ip',
+  require('./middlewares/user')(),
+  require('./controllers/cluster/allowed-ip/index.delete'))
+
 router.get('/error.gif',
   require('./controllers/error'))
