@@ -9,13 +9,14 @@ import {
 
 import {
   Avatar,
+  Card,
+  CardHeader,
   IconButton,
   List,
   ListItem,
   ListItemAvatar,
   ListItemText,
   ListItemSecondaryAction,
-  Paper,
   Tooltip,
   Typography,
 } from '@material-ui/core';
@@ -37,11 +38,18 @@ interface KeyList {
 }
 
 interface KeyListProps {
+  title?: string;
+  empty?: string;
   since?: Date;
   onDelete?(id: number): void;
 }
 
-const KeyList = forwardRef<KeyList, KeyListProps>(({ since, onDelete }, ref) => {
+const KeyList = forwardRef<KeyList, KeyListProps>(({
+  title = 'My SSH Keys',
+  empty = 'No SSH keys added',
+  since,
+  onDelete
+}, ref) => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const confirm = useConfirm();
   const { data, error, get } = useFetch('/api/keys', []);
@@ -76,41 +84,42 @@ const KeyList = forwardRef<KeyList, KeyListProps>(({ since, onDelete }, ref) => 
     }
   }, [error, enqueueSnackbar, closeSnackbar]);
 
-  if (keys === undefined) {
-    return <Loading>Fetching SSH keys</Loading>;
-  }
-
-  if (keys.length === 0) {
-    return <Typography variant="body1" align="center">No SSH keys.</Typography>;
-  }
-
   return (
-    <List dense disablePadding component={Paper}>
-      {
-        keys.map(({ id, name, added }) => (
-          <ListItem key={id}>
-            <ListItemAvatar>
-              <Avatar>
-                <VpnKey/>
-              </Avatar>
-            </ListItemAvatar>
-            <ListItemText
-              primary={name}
-              secondary={`Added ${formatDateDistance(new Date(Date.parse(added)))}`}
-            />
-            { onDelete && (
-              <ListItemSecondaryAction>
-                <Tooltip title="Delete">
-                  <IconButton edge="end" aria-label="delete" onClick={handleDeleteClick(id, name)}>
-                    <Delete/>
-                  </IconButton>
-                </Tooltip>
-              </ListItemSecondaryAction>
-            ) }
-          </ListItem>
-        ))
-      }
-    </List>
+    <Card>
+      <CardHeader title={title}/>
+      { keys === undefined && <Loading>Fetching SSH keys</Loading> }
+      { keys !== undefined && keys.length === 0 && (
+        <Typography variant="body1" align="center">{empty}</Typography>
+      ) }
+      { keys !== undefined && keys.length > 0 && (
+        <List dense disablePadding>
+          {
+            keys.map(({ id, name, added }) => (
+              <ListItem key={id}>
+                <ListItemAvatar>
+                  <Avatar>
+                    <VpnKey/>
+                  </Avatar>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={name}
+                  secondary={`Added ${formatDateDistance(new Date(Date.parse(added)))}`}
+                />
+                { onDelete && (
+                  <ListItemSecondaryAction>
+                    <Tooltip title="Delete">
+                      <IconButton edge="end" aria-label="delete" onClick={handleDeleteClick(id, name)}>
+                        <Delete/>
+                      </IconButton>
+                    </Tooltip>
+                  </ListItemSecondaryAction>
+                ) }
+              </ListItem>
+            ))
+          }
+        </List>
+      ) }
+    </Card>
   );
 });
 
