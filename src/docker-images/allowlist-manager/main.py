@@ -6,6 +6,7 @@ import dateutil.parser
 import json
 import logging
 import os
+import pytz
 import requests
 import subprocess
 import time
@@ -153,7 +154,7 @@ def remove_expired_records(rest_util):
     resp.raise_for_status()
     records = resp.json()
 
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.utcnow().replace(tzinfo=pytz.UTC)
     for record in records:
         valid_util = dateutil.parser.parse(record["valid_util"])
         if valid_util < now:
@@ -235,7 +236,7 @@ def main(params):
             elif az_util.subscription not in subscriptions:
                 raise RuntimeError("no permission to subscription %s" % az_util)
             else:
-                logger.info("%s has permission to subscription %s",
+                logger.info("%s has permission to subscription '%s'",
                             az_util.client_id, az_util.subscription)
                 break
         except Exception as e:
