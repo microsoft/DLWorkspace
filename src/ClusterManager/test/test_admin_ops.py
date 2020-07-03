@@ -47,3 +47,35 @@ def test_vc_quota_change(args):
         assert gpu_memory == int(nodes * gpu_memory_per_node)
         assert cpu == int(nodes * cpu_per_node)
         assert memory == int(nodes * memory_per_node)
+
+
+@utils.case()
+def test_allow_records(args):
+    with utils.AllowRecord(args.rest, args.email, "test_user1", "10.0.0.1"):
+        with utils.AllowRecord(
+                args.rest, args.email, "test_user2", "10.0.0.2"):
+
+            # Update test_user1 record
+            resp = utils.add_allow_record(
+                args.rest, args.email, "test_user1", "10.0.0.3")
+            assert resp.status_code == 200
+
+            resp = utils.get_allow_record(args.rest, args.email, "all")
+            assert resp.status_code == 200
+            allow_records = resp.json()
+            assert "test_user1" in [record["user"] for record in allow_records]
+            assert "test_user2" in [record["user"] for record in allow_records]
+
+            for record in allow_records:
+                if record["user"] == "test_user1":
+                    assert record["ip"] == "10.0.0.3"
+                elif record["user"] == "test_user2":
+                    assert record["ip"] == "10.0.0.2"
+
+    resp = utils.get_allow_record(args.rest, args.email, "all")
+    assert resp.status_code == 200
+    allow_records = resp.json()
+    assert "test_user1" not in [record["user"] for record in allow_records]
+    assert "test_user2" not in [record["user"] for record in allow_records]
+
+

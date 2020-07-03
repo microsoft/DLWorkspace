@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import datetime
 import json
 import os
 import time
@@ -10,6 +11,7 @@ import collections
 import copy
 import requests
 import itertools
+import pytz
 
 import base64
 import re
@@ -2062,6 +2064,75 @@ def set_repair_message(username, job_id, repair_message):
               (job_id, username)
         logger.exception(msg)
         return msg, 500
+
+
+def get_allow_record(username, user):
+    try:
+        if not is_cluster_admin(username) and username != user:
+            msg = "%s is unauthorized to get allow record for %s" % (
+                username, user)
+            logger.error(msg)
+            return msg, 503
+
+        with DataHandler() as data_handler:
+            if user == "all":
+                ret = data_handler.get_all_allow_records()
+            else:
+                ret = data_handler.get_allow_record(user)
+        for obj in ret:
+            convert_date(obj, "valid_util")
+            convert_date(obj, "time")
+        return ret, 200
+    except:
+        logger.exception("failed to get allow record for %s by %s",
+                         user, username)
+    return "Server error", 500
+
+
+def add_allow_record(username, user, ip):
+    try:
+        if not is_cluster_admin(username) and username != user:
+            msg = "%s is unauthorized to add allow record ip %s for %s" % (
+                username, ip, user)
+            logger.error(msg)
+            return msg, 503
+
+        allow_days = config.get("allow_record_days", 30)
+        now = datetime.datetime.utcnow()
+        valid_util = (now + datetime.timedelta(days=allow_days)).isoformat()
+
+        with DataHandler() as data_handler:
+            success = data_handler.add_allow_record(user, ip, valid_util)
+
+        if not success:
+            return "Internal DB error", 500
+        else:
+            return "Success", 200
+    except:
+        logger.exception("failed to add allow record ip %s for %s by %s",
+                         ip, user, username)
+    return "Server error", 500
+
+
+def delete_allow_record(username, user):
+    try:
+        if not is_cluster_admin(username) and username != user:
+            msg = "%s is unauthorized to delete allow record for %s" % (
+                username, user)
+            logger.error(msg)
+            return msg, 503
+
+        with DataHandler() as data_handler:
+            success = data_handler.delete_allow_record(user)
+
+        if not success:
+            return "Internal DB error", 500
+        else:
+            return "Success", 200
+    except:
+        logger.exception("failed to delete allow record for %s by %s",
+                         user, username)
+    return "Server error", 500
 
 
 def getAlias(username):

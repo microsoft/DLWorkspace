@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: allowlist-manager-configmap
+  namespace: kube-system
+data:
+  config.yaml: |-
+    subscription: {{cnf["azure_cluster"]["subscription"]}}
+    resource_group: {{cnf["azure_cluster"]["resource_group"]}}
+    nsg_name: {{cnf["azure_cluster"]["nsg_name"]}}
+    tenant_id: {{cnf["admin-service-principal"]["tenant_id"]}}
+    client_id: {{cnf["admin-service-principal"]["client_id"]}}
+    password: {{cnf["admin-service-principal"]["password"]}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: allowlist-manager
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: allowlist-manager
+  template:
+    metadata:
+      name: allowlist-manager
+      labels:
+        task: access-control
+        app: allowlist-manager
+    spec:
+      hostNetwork: true
+      nodeSelector:
+        allowlist-manager: active
+      containers:
+      - name: allowlist-manager
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["allowlistmanager"]}}:{{cnf["dockertag"]}}
+        command:
+          - "python3"
+          - "/allowlist-manager/main.py"
+        args:
+          - '--config=/etc/allowlist-manager'
+          - '--log=/var/log/allowlist-manager'
+        imagePullPolicy: Always
+        volumeMounts:
+        - mountPath: /etc/allowlist-manager
+          name: config-volume
+        - mountPath: /var/log/allowlist-manager
+          name: log
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
+      volumes:
+      - name: config-volume
+        configMap:
+          name: allowlist-manager-configmap
+      - name: log
+        hostPath:
+          path: /var/log/allowlist-manager
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      - key: node.kubernetes.io/memory-pressure
+        operator: "Exists"
+      - key: node.kubernetes.io/disk-pressure
+        operator: "Exists"
+      - key: node-role.kubernetes.io/master
+        operator: "Exists"

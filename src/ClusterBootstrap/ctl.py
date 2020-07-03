@@ -35,11 +35,25 @@ from cloud_init_deploy import check_buildable_images, push_docker_images
 from utils import walk_json, RestUtil
 
 
+def add_azure_params(config):
+    if "azure_cluster" not in config:
+        return
+
+    if "nsg_name" not in config["azure_cluster"]:
+        config["azure_cluster"]["nsg_name"] = config.get(
+            "nsg_name", config["cluster_name"] + "-nsg")
+
+    if "resource_group" not in config["azure_cluster"]:
+        config["azure_cluster"]["resource_group"] = config[
+            "azure_cluster"]["cluster_name"] + "ResGrp"
+
+
 def load_config_4_ctl(args, command):
     # if we need to load all config
     if command in ["svc", "render_template", "download", "docker", "db", "quota"]:
         args.config = [ENV_CNF_YAML, STATUS_YAML] if not args.config else args.config
         config = load_deploy_config(args)
+        add_azure_params(config)
     else:
         if not args.config and command != "restorefromdir":
             args.config = [STATUS_YAML]
