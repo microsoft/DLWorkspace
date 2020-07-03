@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dlts-scheduler
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dlts-scheduler
+  template:
+    metadata:
+      name: dlts-scheduler
+      labels:
+        app: dlts-scheduler
+    spec:
+      nodeSelector:
+        dlts-scheduler: active
+      containers:
+      - name: scheduler
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/scheduler:{{cnf["dockertag"]}}
+        resources:
+          limits:
+            cpu: 5
+            memory: "1Gi"
+      tolerations:
+      - key: node.kubernetes.io/memory-pressure
+        operator: "Exists"
+      - key: node.kubernetes.io/disk-pressure
+        operator: "Exists"
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
