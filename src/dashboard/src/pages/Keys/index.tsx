@@ -5,11 +5,7 @@ import {
   useRef,
 } from 'react';
 
-import {
-  Box,
-  Container,
-  Grid,
-} from '@material-ui/core';
+import { Container, Grid } from '@material-ui/core';
 
 import { Helmet } from 'react-helmet';
 import { useSnackbar } from 'notistack';
@@ -65,16 +61,14 @@ const Keys: FunctionComponent = () => {
   return (
     <Container fixed maxWidth="lg">
       <Helmet title="My SSH Keys"/>
-      <Box paddingY={3}>
-        <Grid container spacing={1}>
-          <Grid item lg={6} xs={12}>
-            <KeyList ref={keyList} onDelete={handleDelete}/>
-          </Grid>
-          <Grid item lg={6} xs={12}>
-            <KeyAddForm onAdd={handleAdd}/>
-          </Grid>
+      <Grid container spacing={1}>
+        <Grid item lg={6} xs={12}>
+          <KeyList ref={keyList} onDelete={handleDelete}/>
         </Grid>
-      </Box>
+        <Grid item lg={6} xs={12}>
+          <KeyAddForm onAdd={handleAdd}/>
+        </Grid>
+      </Grid>
     </Container>
   );
 };

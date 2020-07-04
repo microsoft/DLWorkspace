@@ -26,7 +26,6 @@ const usePaperStyle = makeStyles(theme => createStyles({
   root: {
     display: 'flex',
     alignItems: 'center',
-    // marginBottom: theme.spacing(1),
     padding: theme.spacing(1),
   },
 }));

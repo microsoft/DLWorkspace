@@ -34,7 +34,7 @@ const Content: FunctionComponent = ({ children }) => {
   return (
     <Box flex={1} py={3} className={styles.root}>
       <Toolbar disableGutters/>
-      <NotificationBox marginTop={-3}/>
+      <NotificationBox marginTop={-3} marginBottom={3}/>
       {children}
     </Box>
   );

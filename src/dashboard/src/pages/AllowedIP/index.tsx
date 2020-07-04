@@ -13,7 +13,6 @@ import {
 } from 'react';
 
 import {
-  Box,
   Button,
   Card,
   CardHeader,
@@ -176,34 +175,32 @@ const AllowedIP: FunctionComponent = () => {
 
   return (
     <Container maxWidth="lg">
-      <Box paddingY={3}>
-        <Grid container spacing={3}>
-          <Grid item xs={12} lg={6}>
-            <Card>
-              <CardHeader title="Allowed IP in Clusters"/>
-              <List disablePadding dense>
-                {
-                  clusters.map(({ id }) => {
-                    if (itemsRef.current[id] === undefined) {
-                      itemsRef.current[id] = createRef();
-                    }
-                    return (
-                      <ClusterListItem
-                        key={id}
-                        ref={itemsRef.current[id]}
-                        id={id}
-                      />
-                    );
-                  })
-                }
-              </List>
-            </Card>
-          </Grid>
-          <Grid item xs={12} lg={6}>
-            <UpdateForm onSubmit={handleUpdateFormSubmit}/>
-          </Grid>
+      <Grid container spacing={3}>
+        <Grid item xs={12} lg={6}>
+          <Card>
+            <CardHeader title="Allowed IP in Clusters"/>
+            <List disablePadding dense>
+              {
+                clusters.map(({ id }) => {
+                  if (itemsRef.current[id] === undefined) {
+                    itemsRef.current[id] = createRef();
+                  }
+                  return (
+                    <ClusterListItem
+                      key={id}
+                      ref={itemsRef.current[id]}
+                      id={id}
+                    />
+                  );
+                })
+              }
+            </List>
+          </Card>
         </Grid>
-      </Box>
+        <Grid item xs={12} lg={6}>
+          <UpdateForm onSubmit={handleUpdateFormSubmit}/>
+        </Grid>
+      </Grid>
     </Container>
   );
 };
