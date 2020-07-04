@@ -69,6 +69,9 @@ const NavigationList: FunctionComponent = () => {
       <ListItemLink to="/keys">
         <ListItemText>My SSH Keys</ListItemText>
       </ListItemLink>
+      <ListItemLink to="/allowed-ip">
+        <ListItemText>My Allowed IP</ListItemText>
+      </ListItemLink>
       <Divider/>
       <ListItem button component="a" href={wiki} target="_blank" rel="noopener noreferrer">
         <ListItemText>DLTS Wiki</ListItemText>

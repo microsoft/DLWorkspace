@@ -23,6 +23,7 @@ const ClusterStatus = lazy( () => import('./pages/ClusterStatus'));
 const Clusters = lazy(() => import('./pages/Clusters'));
 const Cluster = lazy(() => import('./pages/Cluster'));
 const Keys = lazy(() => import('./pages/Keys'));
+const AllowedIP = lazy(() => import('./pages/AllowedIP'));
 
 const Routes: FunctionComponent = () => (
   <Suspense fallback={<Loading>Loading Your Page...</Loading>}>
@@ -48,6 +49,7 @@ const Routes: FunctionComponent = () => (
       <Route path="/cluster-status" component={ClusterStatus}/>
 
       <Route path="/keys" component={Keys}/>
+      <Route path="/allowed-ip" component={AllowedIP}/>
 
       {/* Backward Compatibility Routes */}
       <Route strict exact path="/jobs-v2:rest(.*)"
