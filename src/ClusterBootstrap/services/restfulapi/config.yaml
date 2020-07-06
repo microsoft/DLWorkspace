@@ -4,6 +4,27 @@ mysql :
   port : {{cnf["mysql_port"]}}
   username : {{cnf["mysql_username"]}}
   password : "{{cnf["mysql_password"]}}"
+global-mysql:
+  {% if cnf["global_mysql_node"]%}
+  hostname : {{cnf["global_mysql_node"]}}
+  {% else %}
+  hostname : {{cnf["mysql_node"]}}
+  {% endif %}
+  {% if cnf["global_mysql_port"] %}
+  port : {{cnf["global_mysql_port"]}}
+  {% else %}
+  port : {{cnf["mysql_port"]}}
+  {% endif %}
+  {% if cnf["global_mysql_username"] %}
+  username : {{cnf["global_mysql_username"]}}
+  {% else %}
+  username : {{cnf["mysql_username"]}}
+  {% endif %}
+  {% if cnf["global_mysql_password"] %}
+  password : "{{cnf["global_mysql_password"]}}"
+  {% else %}
+  password : "{{cnf["mysql_password"]}}"
+  {% endif %}
 kubelet-path : /usr/local/bin/kubectl
 storage-mount-path : {{cnf["storage-mount-path"]}}
 root-path : /DLWorkspace/src/
