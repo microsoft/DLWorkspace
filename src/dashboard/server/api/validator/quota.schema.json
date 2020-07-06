@@ -1,0 +1,56 @@
+{
+  "type": "object",
+  "patternProperties": {
+    "[\\w]+": {
+      "type": "object",
+      "properties": {
+        "resourceQuota": {
+          "type": "object",
+          "properties": {
+            "gpu": {
+              "type": "object",
+              "patternProperties": {
+                "[\\w]+": {
+                  "type": "number",
+                  "multipleOf": 1,
+                  "minimum": 0
+                }
+              }
+            },
+            "cpu": {
+              "type": "object",
+              "patternProperties": {
+                "[\\w]+": {
+                  "type": "number",
+                  "multipleOf": 1,
+                  "minimum": 0
+                }
+              }
+            },
+            "memory": {
+              "type": "object",
+              "patternProperties": {
+                "[\\w]+": {
+                  "type": "number",
+                  "multipleOf": 1,
+                  "minimum": 0
+                }
+              }
+            },
+            "gpu_memory": {
+              "type": "object",
+              "patternProperties": {
+                "[\\w]+": {
+                  "type": "number",
+                  "multipleOf": 1,
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      "required": ["resourceQuota"]
+    }
+  }
+}
