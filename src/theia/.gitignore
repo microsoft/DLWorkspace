@@ -1,0 +1,6 @@
+*
+!/.gitignore
+!/package.json
+!/.yarnclean
+!/yarn.lock
+!/Makefile
