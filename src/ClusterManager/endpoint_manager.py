@@ -36,7 +36,7 @@ k8s_core_api = client.CoreV1Api()
 def is_ssh_server_ready(pod_name):
     bash_script = "service ssh status"
     output = k8sUtils.kubectl_exec("exec %s %s" %
-                                   (pod_name, " -- " + bash_script))
+                                   (pod_name, " -- " + bash_script), timeout=5)
     if output == "":
         return False
     return True
@@ -96,7 +96,7 @@ def start_ssh_server(pod_name):
     # TODO setup reasonable timeout
     # output = k8sUtils.kubectl_exec("exec %s %s" % (jobId, " -- " + bash_script), 1)
     output = k8sUtils.kubectl_exec("exec %s %s" %
-                                   (pod_name, " -- " + bash_script))
+                                   (pod_name, " -- " + bash_script), timeout=5)
     if output == "":
         raise Exception("Failed to setup ssh server in container. JobId: %s " %
                         pod_name)
@@ -228,7 +228,7 @@ def setup_jupyter_server(user_name, pod_name):
         " -c \"jupyter notebook --no-browser --ip=0.0.0.0 --NotebookApp.token= --port=" + \
         str(jupyter_port) + " &>> /tmp/dlts-jupyter.out &\"'"
     output = k8sUtils.kubectl_exec("exec %s %s" %
-                                   (pod_name, " -- " + bash_script))
+                                   (pod_name, " -- " + bash_script), timeout=120)
     if output == "":
         raise Exception(
             "Failed to start jupyter server in container. JobId: %s " %
@@ -244,7 +244,7 @@ def setup_tensorboard(user_name, pod_name):
         " -c \"mkdir -p ~/tensorboard/\${DLWS_JOB_ID}/logs; nohup tensorboard --logdir=~/tensorboard/\${DLWS_JOB_ID}/logs --port=" + str(
             tensorboard_port) + " &>> /tmp/dlts-tensorboard.out &\"'"
     output = k8sUtils.kubectl_exec("exec %s %s" %
-                                   (pod_name, " -- " + bash_script))
+                                   (pod_name, " -- " + bash_script), timeout=120)
     if output == "":
         raise Exception("Failed to start tensorboard in container. JobId: %s " %
                         pod_name)
