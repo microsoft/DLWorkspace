@@ -1,7 +1,6 @@
 root: true
 extends:
-- plugin:@typescript-eslint/recommended
+- standard-with-typescript
 - react-app
-rules:
-  '@typescript-eslint/explicit-function-return-type': off
-  '@typescript-eslint/no-explicit-any': off
+parserOptions:
+  project: tsconfig.json
