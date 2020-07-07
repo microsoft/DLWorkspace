@@ -937,7 +937,7 @@ class Endpoint(Resource):
         # endpoints should be ["ssh", "ipython", "tensorboard", {"name": "port name", "podPort": "port on pod in 40000-49999"}]
         for interactive_port in [
                 elem for elem in requested_endpoints
-                if elem not in ["ssh", "ipython", "tensorboard"]
+                if elem not in ["ssh", "ipython", "tensorboard", "theia"]
         ]:
             if any(required_field not in interactive_port
                    for required_field in ["name", "podPort"]):

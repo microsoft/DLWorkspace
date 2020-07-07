@@ -253,6 +253,27 @@ def setup_tensorboard(user_name, pod_name):
     return tensorboard_port
 
 
+def setup_theia(user_name, pod_name):
+    theia_port = random.randint(40000, 49999)
+    bash_script = (
+        "bash -euxo pipefail -c '"
+            "mkdir -p /opt/theia && chown -R {user_name} /opt/theia; "
+            "runuser -l {user_name} -c \"curl -o- https://dltstheiaeastus.blob.core.windows.net/theia/theia.tgz | tar xz -C /opt/theia\"; "
+            "runuser -l {user_name} -c \"cd /opt/theia; PATH=node_modules/.bin:\\$PATH nohup yarn start --hostname 0.0.0.0 --port {theia_port} &>>theia.out &\"; "
+            "echo some outputs to prevent the script fail"
+        "'"
+    ).format(user_name=user_name, theia_port=theia_port)
+    logger.info("run %s in %s", bash_script, pod_name)
+    output = k8sUtils.kubectl_exec("exec %s %s" %
+                                   (pod_name, " -- " + bash_script))
+    if output == "":
+        raise Exception("Failed to start theia in container. JobId: %s " %
+                        pod_name)
+    else:
+        logger.info("install theia output is %s", output)
+    return theia_port
+
+
 def infer_real_pod_name(origin_pod_name):
     """ Because restfulapi will generate pod name according to rule previous launcher do,
     but framework controller will not do this, so we try to generate a real pod name if we
@@ -290,6 +311,8 @@ def start_endpoint(endpoint):
         endpoint["podPort"] = setup_jupyter_server(user_name, pod_name)
     elif port_name == "tensorboard":
         endpoint["podPort"] = setup_tensorboard(user_name, pod_name)
+    elif port_name == "theia":
+        endpoint["podPort"] = setup_theia(user_name, pod_name)
     else:
         endpoint["podPort"] = int(endpoint["podPort"])
 
@@ -396,8 +419,8 @@ def is_need_fix(endpoint_id, endpoint, pods):
             return True
 
         # check if service started
-        if endpoint_type in {"ipython", "tensorboard"}:
-            binary = {"ipython": "jupyter", "tensorboard": "tensorboard"}
+        if endpoint_type in {"ipython", "tensorboard", "theia"}:
+            binary = {"ipython": "jupyter", "tensorboard": "tensorboard", "theia": "node"}
 
             status_code, output = pod_exec(pod_name,
                                            ["pgrep", binary[endpoint_type]])
