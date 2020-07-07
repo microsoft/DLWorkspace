@@ -63,6 +63,13 @@ const EndpointListItem: FunctionComponent<{ endpoint: any }> = ({ endpoint }) =>
       </ListItem>
     );
   }
+  if (endpoint.name === 'theia') {
+    return (
+      <ListItem button component="a" href={url} target="_blank">
+        <ListItemText primary="Visual Studio Code in DLTS (alpha)" secondary={url}/>
+      </ListItem>
+    );
+  }
   return (
     <ListItem button component="a" href={url} target="_blank">
       <ListItemText primary={`Port ${endpoint['podPort']}`} secondary={url}/>
@@ -74,7 +81,7 @@ const EndpointsList: FunctionComponent<{
   endpoints: any[];
 }> = ({ endpoints }) => {
   const sortedEndpoints = useMemo(() => {
-    const nameOrders = ['ssh', 'ipython', 'tensorboard'].reverse();
+    const nameOrders = ['ssh', 'ipython', 'tensorboard', 'theia'].reverse();
     return endpoints.filter((endpoint) => {
       return endpoint.status === 'running';
     }).sort((endpointA, endpointB) => {
@@ -161,6 +168,9 @@ const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoint
   const tensorboard = useMemo(() => {
     return endpoints.some((endpoint) => endpoint.name === 'tensorboard');
   }, [endpoints]);
+  const theia = useMemo(() => {
+    return endpoints.some((endpoint) => endpoint.name === 'theia');
+  }, [endpoints]);
   const { post } =
     useFetch(`/api/clusters/${clusterId}/jobs/${jobId}/endpoints`,
     [clusterId, jobId]);
@@ -188,6 +198,7 @@ const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoint
         <EndpointSwitch label="SSH" endpoint="ssh" enabled={ssh}/>
         <EndpointSwitch label="iPython" endpoint="ipython" enabled={ipython}/>
         <EndpointSwitch label="Tensorboard" endpoint="tensorboard" enabled={tensorboard}/>
+        <EndpointSwitch label="Visual Studio Code in DLTS (alpha)" endpoint="theia" enabled={theia}/>
       </FormGroup>
       <Typography>
         *: Tensorboard will listen on directory
