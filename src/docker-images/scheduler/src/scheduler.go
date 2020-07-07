@@ -18,6 +18,16 @@ import (
 
 const SCHEDULER_NAME = "DLTS"
 
+func IsSelectorMatchs(labels, selector map[string]string) bool {
+	for k, v := range selector {
+		if val, ok := labels[k]; ok && val == v {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 type Scheduler struct {
 	clientset *kubernetes.Clientset
 
@@ -99,6 +109,8 @@ type NodeInfo struct {
 	Labels map[string]string
 
 	allocator *ResourceAllocator
+
+	Unschedulable bool
 }
 
 func (n *NodeInfo) GetFreeResource() *Resource {
@@ -113,6 +125,8 @@ func NewNodeInfo(node *v1.Node) *NodeInfo {
 		Name:      node.Name,
 		Labels:    make(map[string]string),
 		allocator: NewAllocator(),
+
+		Unschedulable: node.Spec.Unschedulable,
 	}
 
 	for k, v := range node.Labels {
@@ -169,7 +183,12 @@ func (n *NodeInfo) String() string {
 
 	free := n.allocator.GetFreeResource()
 
-	return fmt.Sprintf("%s(c:%d,g:%d)", n.Name, free.Cpu, free.Gpu)
+	unschedulable := "f"
+	if n.Unschedulable {
+		unschedulable = "t"
+	}
+
+	return fmt.Sprintf("%s[%s](c:%d,g:%d)", n.Name, unschedulable, free.Cpu, free.Gpu)
 }
 
 type PodInfo struct {
@@ -188,6 +207,8 @@ type PodInfo struct {
 	NodeName string
 
 	SchedulerName string
+
+	NodeSelector map[string]string
 
 	PreemptionAllowed bool
 
@@ -233,7 +254,13 @@ func NewPodInfo(key string, pod *v1.Pod) *PodInfo {
 
 		SchedulerName: pod.Spec.SchedulerName,
 
+		NodeSelector: make(map[string]string),
+
 		PreemptionAllowed: preemptionAllowed,
+	}
+
+	for k, v := range pod.Spec.NodeSelector {
+		info.NodeSelector[k] = v
 	}
 
 	for _, container := range pod.Spec.Containers {
@@ -407,7 +434,7 @@ func (s *Scheduler) bindPodToNode(pod *PodInfo, node *NodeInfo) {
 		FirstTimestamp: metav1.NewTime(timestamp),
 		Type:           "Normal",
 		Source: v1.EventSource{
-			Component: SCHEDULER_NAME,
+			Component: SCHEDULER_NAME + " scheduler",
 		},
 		InvolvedObject: v1.ObjectReference{
 			Kind:      "Pod",
@@ -421,10 +448,11 @@ func (s *Scheduler) bindPodToNode(pod *PodInfo, node *NodeInfo) {
 	})
 }
 
-func (s *Scheduler) scheduleFailed(pod *PodInfo, resource int) {
+func (s *Scheduler) scheduleFailed(pod *PodInfo, counter *SchedulerCounter) {
 	timestamp := time.Now().UTC()
 
-	message := fmt.Sprintf("Failed to schedule: %d resource not enough node", resource)
+	message := fmt.Sprintf("Failed to schedule: %d resource not enough nodes, %d selector mismatch nodes, unschedulable %d",
+		counter.ResourceNotEnought, counter.SelectorNotMatch, counter.Unschedulable)
 
 	s.clientset.CoreV1().Events(pod.Namespace).Create(&v1.Event{
 		Count:          1,
@@ -434,7 +462,7 @@ func (s *Scheduler) scheduleFailed(pod *PodInfo, resource int) {
 		FirstTimestamp: metav1.NewTime(timestamp),
 		Type:           "Normal",
 		Source: v1.EventSource{
-			Component: SCHEDULER_NAME,
+			Component: SCHEDULER_NAME + " scheduler",
 		},
 		InvolvedObject: v1.ObjectReference{
 			Kind:      "Pod",
@@ -446,6 +474,16 @@ func (s *Scheduler) scheduleFailed(pod *PodInfo, resource int) {
 			GenerateName: pod.Name + "-",
 		},
 	})
+}
+
+type SchedulerCounter struct {
+	ResourceNotEnought int
+	SelectorNotMatch   int
+	Unschedulable      int
+}
+
+func (c *SchedulerCounter) String() string {
+	return fmt.Sprintf("r:%d,s:%d,u:%d", c.ResourceNotEnought, c.SelectorNotMatch, c.Unschedulable)
 }
 
 // whenever want to lock pods and nodes, should always lock pods first to avoid deadlock
@@ -485,18 +523,27 @@ func (s *Scheduler) schedule() {
 			continue
 		}
 		scheduled := false
-		resourceNotEnoughtCount := 0
+		schedulerCounter := &SchedulerCounter{}
 
-		// sort according to available resource to avoid fragmentation
+		// TODO sort according to available resource to avoid fragmentation
 		for _, node := range s.nodes {
+			if node.Unschedulable {
+				schedulerCounter.Unschedulable += 1
+				continue
+			}
+
+			if !IsSelectorMatchs(node.Labels, pod.NodeSelector) {
+				schedulerCounter.SelectorNotMatch += 1
+				continue
+			}
+
 			// TODO cache free
 			free := node.GetFreeResource()
 
 			if !free.CanSatisfy(&pod.RequiredResource) {
-				resourceNotEnoughtCount += 1
+				schedulerCounter.ResourceNotEnought += 1
 				continue
 			}
-			// TODO check pod.Spec.NodeSelector
 
 			node.Use(pod.Key, &pod.RequiredResource)
 
@@ -507,9 +554,9 @@ func (s *Scheduler) schedule() {
 		}
 
 		if !scheduled {
-			s.scheduleFailed(pod, resourceNotEnoughtCount)
-			klog.Infof("failed to schedule %s in one pass, resourceNotEnoughtCount %d",
-				pod.Key, resourceNotEnoughtCount)
+			s.scheduleFailed(pod, schedulerCounter)
+			klog.Infof("failed to schedule %s in one pass: %s",
+				pod.Key, schedulerCounter)
 		}
 	}
 }
