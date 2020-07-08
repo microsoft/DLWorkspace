@@ -54,6 +54,7 @@ interface WorkerStateProps {
 }
 
 const WorkerState: FunctionComponent<WorkerStateProps> = ({ state, message }) => {
+  if (state === undefined) state = 'IN_SERVICE';
   const icon = useMemo(() =>
     state === 'IN_SERVICE' ? <DoneOutline/>
     : state === 'OUT_OF_POOL' ? <ErrorOutline/>
@@ -63,7 +64,7 @@ const WorkerState: FunctionComponent<WorkerStateProps> = ({ state, message }) =>
     : state === 'AFTER_REPAIR' ? <Build/>
     : <Help/>
   , [state]);
-  const label = useMemo(() => kebabCase(state) || 'unknown', [state]);
+  const label = useMemo(() => kebabCase(state), [state]);
   const deleteIcon = message ? (
     <Tooltip title={message} placement="right" interactive>
       <More/>
