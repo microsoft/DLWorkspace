@@ -84,3 +84,8 @@ logging: elasticsearch
 azure_blob_log:
   connection_string: {{cnf["azure_blob_log"]["connection_string"]}}
   container_name: {{cnf["azure_blob_log"]["container_name"]}}
+
+{% if cnf["theia"] %}
+theia:
+  tarball: {{cnf["theia"]["tarball"]}}
+{% endif %}
