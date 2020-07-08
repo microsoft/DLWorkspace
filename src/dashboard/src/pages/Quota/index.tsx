@@ -7,7 +7,7 @@ import {
   useRef,
 } from 'react';
 
-import { each, mapValues, sortBy } from 'lodash';
+import { each, get, set, sortBy } from 'lodash';
 
 import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router';
@@ -45,26 +45,6 @@ const useQuota = (clusterId: string) => {
   return { data: response.ok ? response.data : undefined, get };
 };
 
-const useConfig = (clusterId: string) => {
-  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const { response, error, get } = useFetch(`/api/clusters/${clusterId}`, [clusterId]);
-
-  useEffect(() => {
-    if (error !== undefined) {
-      const key = enqueueSnackbar(`Failed to fetch cluster config: ${error.message}`, {
-        variant: 'error',
-        persist: true,
-        action: <Button color="inherit" onClick={() => get()}>Retry</Button>,
-      })
-      if (key != null) {
-        return () => closeSnackbar(key);
-      }
-    }
-  }, [error, enqueueSnackbar, get, closeSnackbar]);
-
-  return response.ok ? response.data : undefined;
-}
-
 type QuotaRowData = {
   id: string;
   types: { [type: string]: number };
@@ -73,16 +53,10 @@ type QuotaRowData = {
 const Quota: FunctionComponent = () => {
   const { clusterId } = useParams<{ clusterId: string }>();
   const { enqueueSnackbar } = useSnackbar();
-  const config = useConfig(clusterId);
   const { data: quota, get: getQuota } = useQuota(clusterId);
   const { response, patch } = useFetch(`/api/clusters/${clusterId}/quota`, {
     headers: { 'Content-Type': 'application/json' }
   });
-
-  const isPureCPU = useMemo(() => {
-    if (config == null) return undefined;
-    return Boolean(config.isPureCPU);
-  }, [config]);
 
   const idColumn = useRef<Column<QuotaRowData>>({
     field: 'id',
@@ -94,29 +68,32 @@ const Quota: FunctionComponent = () => {
     ),
   }).current;
 
-  const [data, columns] = useMemo(() => {
-    if (quota === undefined || isPureCPU === undefined) {
-      return [[], [idColumn]];
+  const [data, typeGpuType, columns] = useMemo(() => {
+    if (quota === undefined) {
+      return [[], Object.create(null), [idColumn]];
     }
     const data: QuotaRowData[] = [];
     const columns = [idColumn];
-    const typeNameSet: { [typeName: string]: true } = Object.create(null);
-    each(quota, ({ resourceQuota: quota }, id) => {
-      const types = isPureCPU ? quota.cpu : quota.gpu;
+    const typeGpuType: { [typeName: string]: string | null } = Object.create(null);
+    each(quota, ({ resourceQuota: quota, resourceMetadata: meta }, id) => {
+      const types = Object.create(null);
       data.push({ id, types });
-      each(types, (_, typeName) => {
-        typeNameSet[typeName] = true;
-      });
+      each(meta.cpu, (_, type) => {
+        const gpuType = get(meta, ['gpu', type, 'gpu_type']);
+
+        typeGpuType[type] = gpuType;
+        types[type] = gpuType == null ? quota.cpu[type] : quota.gpu[type];
+      })
     });
-    each(typeNameSet, (_, typeName) => {
+    each(typeGpuType, (gpuType, type) => {
       columns.push({
-        field: 'types.' + typeName,
+        field: `types.${type}`,
         type: 'numeric',
-        title: typeName
+        title: `${type} (${gpuType !== null ? gpuType : 'CPU'})`
       })
     })
-    return [sortBy(data, 'id'), columns];
-  }, [quota, isPureCPU, idColumn]);
+    return [sortBy(data, 'id'), typeGpuType, columns];
+  }, [quota, idColumn]);
 
   const options = useRef<Options>({
     actionsColumnIndex: -1,
@@ -124,25 +101,21 @@ const Quota: FunctionComponent = () => {
     paging: false,
   }).current;
 
-  const title = useMemo(() => {
-    if (isPureCPU === undefined) {
-      return `Quota of ${clusterId}`
-    } else if (isPureCPU) {
-      return `CPU Quota of ${clusterId}`
-    } else {
-      return `GPU Quota of ${clusterId}`
-    }
-  }, [isPureCPU, clusterId]);
-
   const isEditable = useCallback(() => true, []);
   const handleRowUpdate = useCallback((data: QuotaRowData) => {
+    const quota = Object.create(null)
     const body = {
       [data.id]: {
-        resourceQuota: {
-          [isPureCPU ? 'cpu' : 'gpu']: mapValues(data.types, Number),
-        },
+        resourceQuota: quota,
       },
     };
+    each(data.types, (value, type) => {
+      const isGPU = typeGpuType[type] != null;
+      const number = Number(value);
+      if (Number.isFinite(number)) {
+        set(quota, [isGPU ? 'gpu' : 'cpu', type], number);
+      }
+    })
     return patch(body).then(() => {
       if (!response.ok) {
         throw Error(response.data);
@@ -155,14 +128,14 @@ const Quota: FunctionComponent = () => {
       });
       throw error;
     })
-  }, [isPureCPU, patch, response, getQuota, enqueueSnackbar]);
+  }, [typeGpuType, patch, response, getQuota, enqueueSnackbar]);
 
   return (
     <Container>
-      <Helmet title={title}/>
+      <Helmet title={`Quota - ${clusterId}`}/>
       <SvgIconMaterialTable
-        title={title}
-        isLoading={config === undefined || quota === undefined}
+        title={`Quota - ${clusterId}`}
+        isLoading={quota === undefined}
         data={data}
         columns={columns}
         editable={{ isEditable, onRowUpdate: handleRowUpdate }}
