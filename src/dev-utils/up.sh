@@ -84,10 +84,7 @@ update_code
 restore_config
 
 update_service_config `cat <(cat << EOF
-restfulapi
 storagemanager
-repairmanager
-dashboard
 EOF
 ) | grep -v '#' `
 
@@ -103,10 +100,10 @@ job-exporter
 job-insighter
 reaper
 repairmanager
-repairmanageragent
 storagemanager
 user-synchronizer
 watchdog
+allowlist-manager
 EOF
 ) | grep -v '#' `
 
