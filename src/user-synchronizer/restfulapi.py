@@ -27,7 +27,7 @@ def generate_ssh_key_pair():
 
 def iter_acls(restfulapi_url):
     ''' Iterate group identities from RestfulAPI '''
-    response = get(restfulapi_url + '/GetAllACL')
+    response = get(restfulapi_url + '/GetAllACL', timeout=(3.05, 27))
     response.raise_for_status()
     response_json = response.json()
     result = response_json['result']
@@ -48,7 +48,7 @@ def update_identity(restfulapi_url, user_name, uid, gid, groups):
         'private_key': private,
         'public_key': public,
     }
-    response = get(restfulapi_url + '/AddUser', params=params)
+    response = get(restfulapi_url + '/AddUser', params=params, timeout=(3.05, 27))
     response.raise_for_status()
 
     logger.info('Updated {} to cluster'.format(user_name))

@@ -1,7 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from os import environ
 import logging
 
 from oauthlib.oauth2 import BackendApplicationClient
@@ -27,7 +26,7 @@ def build_oauth(tenant_id, client_id, client_secret):
 
 def _get_object(oauth, url, params=None):
     try:
-        response = oauth.get(url, params=params)
+        response = oauth.get(url, params=params, timeout=(3.05, 27))
         response.raise_for_status()
         response_json = response.json()
 
@@ -42,7 +41,7 @@ def _get_object(oauth, url, params=None):
 
 def _iter_objects(oauth, url, params=None):
     while url is not None:
-        response = oauth.get(url, params=params)
+        response = oauth.get(url, params=params, timeout=(3.05, 27))
         response.raise_for_status()
         response_json = response.json()
         objects = response_json['value']
@@ -52,7 +51,7 @@ def _iter_objects(oauth, url, params=None):
         yield from objects
 
         url = response_json.get('@odata.nextLink')
-        params = None  # next urls contains params
+        params = None  # next urls contain params
 
 
 def iter_groups_by_mail(oauth, group_mail, fields):
