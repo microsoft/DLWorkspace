@@ -173,7 +173,7 @@ const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoint
   }, [endpoints])
   const { post } =
     useFetch(`/api/clusters/${clusterId}/jobs/${jobId}/endpoints`,
-    [clusterId, jobId])
+      [clusterId, jobId])
   const portInput = useRef<HTMLInputElement>()
   const onSubmit = useCallback((event: FormEvent) => {
     event.preventDefault()
@@ -234,7 +234,7 @@ const Endpoints: FunctionComponent = () => {
   const { job } = useContext(Context)
   const { error, data, get } =
     useFetch(`/api/clusters/${clusterId}/jobs/${jobId}/endpoints`,
-    [clusterId, jobId])
+      [clusterId, jobId])
   const [endpoints, setEndpoints] = useState<any[]>()
 
   useEffect(() => {

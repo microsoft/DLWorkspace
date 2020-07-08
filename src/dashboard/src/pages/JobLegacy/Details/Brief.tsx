@@ -1,5 +1,5 @@
 import * as React from 'react'
-import {Fragment, useCallback, useContext, useState} from 'react'
+import { Fragment, useCallback, useContext, useState } from 'react'
 import {
   Button,
   Card,
@@ -12,17 +12,17 @@ import useFetch from 'use-http'
 import Context from './Context'
 import DoneIcon from '@material-ui/icons/Done'
 import ClearIcon from '@material-ui/icons/Clear'
-import {green, red} from '@material-ui/core/colors'
+import { green, red } from '@material-ui/core/colors'
 import IconButton from '@material-ui/core/IconButton'
 import DeleteIcon from '@material-ui/icons/Delete'
 import CheckIcon from '@material-ui/icons/Check'
-import {JobsOperationDialog} from '../../JobsLegacy/components/JobsOperationDialog'
+import { JobsOperationDialog } from '../../JobsLegacy/components/JobsOperationDialog'
 import {
   SUCESSFULKILLED,
   SUCCESSFULLYPAUSED,
   SUCCESSFULLYRESUMED, SUCCESSFULLYAPPROVED
 } from '../../../Constants/WarnConstants'
-import {DLTSSnackbar} from '../../CommonComponents/DLTSSnackbar'
+import { DLTSSnackbar } from '../../CommonComponents/DLTSSnackbar'
 
 interface BriefProps {
   readonly?: boolean;
@@ -46,8 +46,8 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
     status === 'unapproved' ||
     status === 'pausing'
   ), [])
-  const isApproveable =  useCallback((status: string) => (status === 'unapproved'),[])
-  const isResumeable =  useCallback((status: string) => (status === 'paused'), [])
+  const isApproveable = useCallback((status: string) => (status === 'unapproved'), [])
+  const isResumeable = useCallback((status: string) => (status === 'paused'), [])
   const api = useFetch('/api')
 
   const operations = {
@@ -57,7 +57,7 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
     QUEUED: 'queued'
   }
   const actionHandle = useCallback(async (operation: string) => {
-    const body = {'status':operation}
+    const body = { 'status': operation }
     const data = await api.put(`/clusters/${clusterId}/jobs/${jobId}/status`, body)
     return data
   }, [api, clusterId, jobId])
@@ -67,16 +67,16 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
   const isResumeDisplay = !readonly && isResumeable(job['jobStatus'])
   const isApproveDisplay = !readonly && isApproveable(job['jobStatus'])
 
-  const[open, setOpen] = React.useState(false)
-  const[openApprove, setOpenApprove] = React.useState(false)
-  const[openResumeWarn, setOpenResumeWarn] = React.useState(false)
-  const[openPause, setOpenPause] = React.useState(false)
-  const[openResume, setOpenResume] = React.useState(false)
-  const[openUpdatePriority,setOpenUpdatePriority] = React.useState(false)
-  const[openApproveWarn, setOpenApproveWarn] = React.useState(false)
-  const[openPauseWarn, setOpenPauseWarn] = React.useState(false)
-  const [message,setMessage] = useState('')
-  const[openKillWarn, setOpenKillWarn] = React.useState(false)
+  const [open, setOpen] = React.useState(false)
+  const [openApprove, setOpenApprove] = React.useState(false)
+  const [openResumeWarn, setOpenResumeWarn] = React.useState(false)
+  const [openPause, setOpenPause] = React.useState(false)
+  const [openResume, setOpenResume] = React.useState(false)
+  const [openUpdatePriority, setOpenUpdatePriority] = React.useState(false)
+  const [openApproveWarn, setOpenApproveWarn] = React.useState(false)
+  const [openPauseWarn, setOpenPauseWarn] = React.useState(false)
+  const [message, setMessage] = useState('')
+  const [openKillWarn, setOpenKillWarn] = React.useState(false)
 
   const handleClose = () => {
     setOpen(false)
@@ -84,27 +84,27 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
     setOpenPause(false)
     setOpenResume(false)
   }
-  const handleKill = useCallback(()=>{
+  const handleKill = useCallback(() => {
     setOpen(true)
-  },[])
-  const handlePause = useCallback(()=>{
+  }, [])
+  const handlePause = useCallback(() => {
     setOpenPause(true)
-  },[])
-  const handleResume = useCallback(()=>{
+  }, [])
+  const handleResume = useCallback(() => {
     setOpenResume(true)
-  },[])
-  const handleApprove = useCallback(()=>{
+  }, [])
+  const handleApprove = useCallback(() => {
     setOpenApprove(true)
-  },[])
+  }, [])
   const handleWarnClose = () => {
     setOpenKillWarn(false)
     setOpenApproveWarn(false)
     setOpenPauseWarn(false)
     setOpenResumeWarn(false)
   }
-  const handleConfirm = useCallback(()=>{
+  const handleConfirm = useCallback(() => {
     if (open) {
-      actionHandle(operations.KILLING).then((res)=>{
+      actionHandle(operations.KILLING).then((res) => {
         if (res) {
           setOpenKillWarn(true)
           setOpen(false)
@@ -113,8 +113,8 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
           alert('kill fail')
         }
       })
-    } else if (openPause){
-      actionHandle(operations.PAUSING).then((res)=>{
+    } else if (openPause) {
+      actionHandle(operations.PAUSING).then((res) => {
         if (res) {
           setOpenKillWarn(true)
           setOpenPause(false)
@@ -124,7 +124,7 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
         }
       })
     } else if (openResume) {
-      actionHandle(operations.QUEUED).then((res)=>{
+      actionHandle(operations.QUEUED).then((res) => {
         if (res) {
           setOpenResumeWarn(true)
           setOpenResume(false)
@@ -134,7 +134,7 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
         }
       })
     } else if (openApprove) {
-      actionHandle(operations.APPROVED).then((res)=>{
+      actionHandle(operations.APPROVED).then((res) => {
         if (res) {
           setOpenApproveWarn(true)
           setOpenApprove(false)
@@ -144,11 +144,11 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
         }
       })
     }
-  },[actionHandle, open, openApprove, openPause, openResume, operations.APPROVED, operations.KILLING, operations.PAUSING, operations.QUEUED])
+  }, [actionHandle, open, openApprove, openPause, openResume, operations.APPROVED, operations.KILLING, operations.PAUSING, operations.QUEUED])
   return (
     <Card>
       <JobsOperationDialog handleClose={handleClose}
-        titleStyle={{color:red[200]}}
+        titleStyle={{ color: red[200] }}
         title={'Info'}
         handleConfirm={handleConfirm}
         job={job}
@@ -185,7 +185,7 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
             secondary={`${cluster ? cluster['workStorage'] : ''}/${job['jobParams']['jobPath']}`}
           />
         </ListItem>
-        <ListItem><ListItemText primary="PreemptionAllowed" secondary={job['jobParams']['preemptionAllowed'] ? <DoneIcon style={{color:green[500]}}></DoneIcon> : <ClearIcon  style={{color:red[500]}}></ClearIcon>}/></ListItem>
+        <ListItem><ListItemText primary="PreemptionAllowed" secondary={job['jobParams']['preemptionAllowed'] ? <DoneIcon style={{ color: green[500] }}></DoneIcon> : <ClearIcon style={{ color: red[500] }}></ClearIcon>}/></ListItem>
         <ListItem><ListItemText primary="Job Type" secondary={job['jobParams']['jobType']}/></ListItem>
         {
           job['jobParams']['jobtrainingtype'] === 'PSDistJob' && <ListItem><ListItemText primary="Number of Nodes" secondary={job['jobParams']['numpsworker']}/></ListItem>
@@ -216,15 +216,15 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
                 </SvgIcon>
               </IconButton>
             </Tooltip>}
-            {isResumeDisplay &&<Tooltip title="Resume Job">
-              <IconButton style={{ color:green[400] }} size="small" onClick={handleResume}>
+            {isResumeDisplay && <Tooltip title="Resume Job">
+              <IconButton style={{ color: green[400] }} size="small" onClick={handleResume}>
                 <SvgIcon>
                   <path d="M8 5v14l11-7z"/><path d="M0 0h24v24H0z" fill="none"/>
                 </SvgIcon>
               </IconButton>
             </Tooltip>}
             {isApproveDisplay && <Tooltip title="Approve Job">
-              <IconButton color="primary"  size={'small'} onClick={handleApprove}>
+              <IconButton color="primary" size={'small'} onClick={handleApprove}>
                 <CheckIcon />
               </IconButton>
             </Tooltip>}

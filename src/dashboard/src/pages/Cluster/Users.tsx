@@ -63,17 +63,17 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
 
   const usersGPUMetrics = useMemo(() => {
     const usersGPUMetrics: { [user: string]: GpuMetrics } = Object.create(null)
-    if (gpuIdleMetrics != null)  {
+    if (gpuIdleMetrics != null) {
       for (const { metric, value } of gpuIdleMetrics.result) {
         set(usersGPUMetrics, [metric.username, 'idle'], Number(value[1]))
       }
     }
-    if (gpuBookedLast31DaysMetrics != null)  {
+    if (gpuBookedLast31DaysMetrics != null) {
       for (const { metric, value } of gpuBookedLast31DaysMetrics.result) {
         set(usersGPUMetrics, [metric.user, 'bookedLast31Days'], Number(value[1]))
       }
     }
-    if (gpuIdleLast31DaysMetrics != null)  {
+    if (gpuIdleLast31DaysMetrics != null) {
       for (const { metric, value } of gpuIdleLast31DaysMetrics.result) {
         set(usersGPUMetrics, [metric.user, 'idleLast31Days'], Number(value[1]))
       }
@@ -141,22 +141,22 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
     field: 'id',
     render: (row) =>
       row.id === undefined
-      ? <Typography variant="subtitle2">(total)</Typography>
-      : row.userName
-      ? <Typography variant="subtitle2">{row.id}</Typography>
-      : (
-        <Tooltip title={`Show ${row.id}'s Pods`}>
-          <Link
-            component="button"
-            variant="subtitle2"
-            style={{ textAlign: 'left', whiteSpace: 'nowrap' }}
-            onClick={handleUserClick(row.id)}
-          >
-            <AccountBox fontSize="inherit"/>
-            {row.id}
-          </Link>
-        </Tooltip>
-      )
+        ? <Typography variant="subtitle2">(total)</Typography>
+        : row.userName
+          ? <Typography variant="subtitle2">{row.id}</Typography>
+          : (
+            <Tooltip title={`Show ${row.id}'s Pods`}>
+              <Link
+                component="button"
+                variant="subtitle2"
+                style={{ textAlign: 'left', whiteSpace: 'nowrap' }}
+                onClick={handleUserClick(row.id)}
+              >
+                <AccountBox fontSize="inherit"/>
+                {row.id}
+              </Link>
+            </Tooltip>
+          )
   }, {
     title: <CaptionColumnTitle caption="Used (Preemptable)">CPU</CaptionColumnTitle>,
     field: 'status.cpu.used',

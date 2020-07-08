@@ -7,7 +7,7 @@ import ClustersContext from '../../../contexts/Clusters'
 import TeamContext from '../../../contexts/Team'
 import useFetch from 'use-http'
 import * as _ from 'lodash'
-import {sumValues} from '../../../utlities/ObjUtlities'
+import { sumValues } from '../../../utlities/ObjUtlities'
 
 interface ClusterSelectFieldProps {
   cluster: string | undefined;
@@ -15,12 +15,12 @@ interface ClusterSelectFieldProps {
 }
 
 const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps> = (
-  { cluster, onClusterChange, variant='standard', ...props }
+  { cluster, onClusterChange, variant = 'standard', ...props }
 ) => {
   const { clusters } = React.useContext(ClustersContext)
   const { currentTeamId } = React.useContext(TeamContext)
   const fetchVcStatusUrl = '/api'
-  const[helperText, setHelperText] = React.useState('')
+  const [helperText, setHelperText] = React.useState('')
 
   const request = useFetch(fetchVcStatusUrl)
   const fetchVC = async () => {
@@ -35,14 +35,14 @@ const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps>
   )
   const isEmpty = (obj: object) => {
     if (obj === undefined) return true
-    for(const key in obj) {
-      if(obj.hasOwnProperty(key))
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key))
         return false
     }
     return true
   }
   React.useEffect(() => {
-    fetchVC().then((res)=>{
+    fetchVC().then((res) => {
       let clusterName = ''
       if (!isEmpty(res)) {
         clusterName = (String)(Object.keys(res['gpu_capacity'])[0])
@@ -50,8 +50,8 @@ const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps>
       if (clusterName === 'undefined') {
         clusterName = (String)(Object.keys(res['cpu_capacity'])[0])
       }
-      const gpuCapacity =  isEmpty(res) ? 0 : (String)(sumValues(res['gpu_capacity']))
-      const gpuAvailable =  isEmpty(res) ? 0 : (String)(sumValues(res['gpu_avaliable']))
+      const gpuCapacity = isEmpty(res) ? 0 : (String)(sumValues(res['gpu_capacity']))
+      const gpuAvailable = isEmpty(res) ? 0 : (String)(sumValues(res['gpu_avaliable']))
       if (isEmpty(res['gpu_capacity'])) {
         setHelperText(`${clusterName}`)
       } else {
@@ -77,8 +77,8 @@ const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps>
       value={cluster}
       onChange={onChange}
     >
-      {//const filterclusters = clusters.filter((cluster)=>(boolean)cluster["admin"]);
-        clusters && _.map(clusters,'id').map(cluster => (
+      {// const filterclusters = clusters.filter((cluster)=>(boolean)cluster["admin"]);
+        clusters && _.map(clusters, 'id').map(cluster => (
           <MenuItem key={cluster} value={cluster}>{cluster}</MenuItem>
         ))
       }

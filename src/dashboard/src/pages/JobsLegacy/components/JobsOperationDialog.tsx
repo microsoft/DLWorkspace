@@ -1,5 +1,5 @@
 import * as React from 'react'
-import {DLTSDialog} from '../../CommonComponents/DLTSDialog'
+import { DLTSDialog } from '../../CommonComponents/DLTSDialog'
 
 
 interface DialogProps {
@@ -16,7 +16,7 @@ interface DialogProps {
   titleStyle: object;
 }
 export const JobsOperationDialog = (props: DialogProps) => {
-  const {job,open,handleClose,handleConfirm,openApprove,openPause,openResume,openUpdatePriority,title,titleStyle} = props
+  const { job, open, handleClose, handleConfirm, openApprove, openPause, openResume, openUpdatePriority, title, titleStyle } = props
   let message = ''
   if (openApprove) {
     message = `${job.jobId} will be approved soon`

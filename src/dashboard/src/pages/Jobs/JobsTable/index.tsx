@@ -16,8 +16,8 @@ import { Job } from '../utils'
 import DetailPanel from './DetailPanel'
 
 interface JobsTableProps extends Omit<
-  MaterialTableProps<Job>,
-  'data' | 'options' | 'onChangeRowsPerPage' | 'onChangePage' | 'onRowClick'
+MaterialTableProps<Job>,
+'data' | 'options' | 'onChangeRowsPerPage' | 'onChangePage' | 'onRowClick'
 > {
   jobs: Array<Job>;
   defaultPageSize?: number;
@@ -27,8 +27,8 @@ interface JobsTableProps extends Omit<
 
 const JobsTable: FunctionComponent<JobsTableProps> = ({
   jobs,
-  defaultPageSize=10,
-  selection=false,
+  defaultPageSize = 10,
+  selection = false,
   onLastPage,
   ...props
 }) => {

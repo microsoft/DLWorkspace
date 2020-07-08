@@ -180,7 +180,7 @@ const Messages: FunctionComponent = () => {
 
   const messageProps = useMemo(() =>
     diagnosticMessageProps.concat(repairMessageProps)
-      .sort(({level: levelA}, {level: levelB}) => {
+      .sort(({ level: levelA }, { level: levelB }) => {
         const valueA = LEVELS_VALUE[levelA] || 0
         const valueB = LEVELS_VALUE[levelB] || 0
         return valueA - valueB

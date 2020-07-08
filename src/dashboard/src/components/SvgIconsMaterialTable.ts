@@ -49,7 +49,7 @@ const icons: Icons = {
   ViewColumn: forwardIcon(ViewColumn),
 }
 
-const SvgIconMaterialTable = function SvgIconMaterialTable<T extends object>(props: MaterialTableProps<T>) {
+const SvgIconMaterialTable = function SvgIconMaterialTable<T extends object> (props: MaterialTableProps<T>) {
   return createElement<MaterialTableProps<T>>(MaterialTable, { icons, ...props })
 }
 

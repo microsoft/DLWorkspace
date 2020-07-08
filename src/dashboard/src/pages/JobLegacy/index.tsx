@@ -45,7 +45,7 @@ const ErrorDialog = withRouter(({ match, history }) => {
 })
 
 const Job: React.FC<RouteComponentProps<Params>> = ({ match }) => {
-  const { clusterId, jobId,team } = match.params
+  const { clusterId, jobId, team } = match.params
   const [job, error] = useJob(clusterId, jobId)
 
   if (error) return <ErrorDialog/>

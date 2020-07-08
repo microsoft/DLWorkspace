@@ -96,7 +96,7 @@ ${log[podName]}
     <Card>
       <CardHeader title="Console Output"/>
       <CardContent>
-        <Typography component='pre' style={{overflow:'auto'}}>{logText}</Typography>
+        <Typography component='pre' style={{ overflow: 'auto' }}>{logText}</Typography>
       </CardContent>
     </Card>
   )

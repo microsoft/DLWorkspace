@@ -3,7 +3,7 @@ import * as React from 'react'
 import { Redirect, Route, Switch, withRouter } from 'react-router-dom'
 
 import Training from './Training'
-import DataJob  from './DataJob'
+import DataJob from './DataJob'
 
 const Submit = withRouter(({ match }) => {
   return (

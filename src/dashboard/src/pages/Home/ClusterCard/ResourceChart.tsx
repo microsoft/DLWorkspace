@@ -105,7 +105,7 @@ const ResourceChart: FunctionComponent = () => {
     const { name, value } = cpu[active.index]
     const children = `${value} of ${totalCPUs} ${capitalize(name)}`
     if (name === 'unschedulable') {
-      return { fill: colors.red[500] , children }
+      return { fill: colors.red[500], children }
     } else {
       return { children }
     }
@@ -119,7 +119,7 @@ const ResourceChart: FunctionComponent = () => {
     const { name, value } = gpu[active.index]
     const children = `${value} of ${totalGPUs} ${capitalize(name)}`
     if (name === 'unschedulable') {
-      return { fill: colors.red[500] , children }
+      return { fill: colors.red[500], children }
     } else {
       return { children }
     }
@@ -133,7 +133,7 @@ const ResourceChart: FunctionComponent = () => {
     const { name, value } = node[active.index]
     const children = `${value} of ${totalNodes} ${capitalize(name)}`
     if (name === 'unschedulable') {
-      return { fill: colors.red[500] , children }
+      return { fill: colors.red[500], children }
     } else {
       return { children }
     }
@@ -163,8 +163,8 @@ const ResourceChart: FunctionComponent = () => {
           >
             <Label content={getLabelContent} fill={colors.green[500]} {...cpuLabelProps}/>
             <Cell key='available' fill={colors.green[500]}/>
-            <Cell key='used'  fill={colors.green[100]}/>
-            <Cell key='unschedulable'  fill={colors.red[100]}/>
+            <Cell key='used' fill={colors.green[100]}/>
+            <Cell key='unschedulable' fill={colors.red[100]}/>
           </Pie>
         ) }
         { !isPureCPU && gpu && gpuTotal && (
@@ -178,8 +178,8 @@ const ResourceChart: FunctionComponent = () => {
           >
             <Label content={getLabelContent} fill={colors.lightBlue[500]} {...gpuLabelProps}/>
             <Cell key='available' fill={colors.lightBlue[500]}/>
-            <Cell key='used'  fill={colors.lightBlue[100]}/>
-            <Cell key='unschedulable'  fill={colors.red[100]}/>
+            <Cell key='used' fill={colors.lightBlue[100]}/>
+            <Cell key='unschedulable' fill={colors.red[100]}/>
           </Pie>
         ) }
         { isPureCPU && node && nodeTotal && (
@@ -193,8 +193,8 @@ const ResourceChart: FunctionComponent = () => {
           >
             <Label content={getLabelContent} fill={colors.blueGrey[500]} {...nodeLabelProps}/>
             <Cell key='available' fill={colors.blueGrey[500]}/>
-            <Cell key='used'  fill={colors.blueGrey[100]}/>
-            <Cell key='unschedulable'  fill={colors.red[100]}/>
+            <Cell key='used' fill={colors.blueGrey[100]}/>
+            <Cell key='unschedulable' fill={colors.red[100]}/>
           </Pie>
         ) }
       </PieChart>

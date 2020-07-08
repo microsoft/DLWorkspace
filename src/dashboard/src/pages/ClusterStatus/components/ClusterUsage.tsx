@@ -12,11 +12,11 @@ interface ClusterUsageType {
 }
 
 export const ClusterUsage = (props: ClusterUsageType) => {
-  const {showIframe, iframeUrl} = props
+  const { showIframe, iframeUrl } = props
   if (showIframe) {
     return (<Iframe url={iframeUrl} width="100%" height="400"/>)
 
-  } else  {
+  } else {
     return (
       <CircularProgress/>
     )

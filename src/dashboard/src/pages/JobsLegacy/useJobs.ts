@@ -11,7 +11,7 @@ const useJobs = (): UseJob => {
   const resp = useFetch<Jobs>('/api')
   const { data, error, get } = resp
   const params = new URLSearchParams({
-    limit:'20'
+    limit: '20'
   })
   useEffect(() => {
     if (data == null) return

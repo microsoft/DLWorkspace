@@ -114,10 +114,10 @@ const valueOf = (job: Job): number => {
 export default (): Column<Job> => ({
   title: 'Priority',
   type: 'numeric',
-  render(job) {
+  render (job) {
     return <PriorityField job={job}/>
   },
-  customSort(job1, job2) {
+  customSort (job1, job2) {
     return valueOf(job1) - valueOf(job2)
   }
 })

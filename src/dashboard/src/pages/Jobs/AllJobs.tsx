@@ -112,7 +112,7 @@ const AllJobs: FunctionComponent = () => {
     [cluster.id, currentTeamId, limit]
   )
 
-  const { Inactive: inactiveJobs=[], ...activeStatusesJobs } = useMemo(() => {
+  const { Inactive: inactiveJobs = [], ...activeStatusesJobs } = useMemo(() => {
     if (data === undefined) return {}
     return groupByActiveStatus(data)
   }, [data])
@@ -152,7 +152,7 @@ const AllJobs: FunctionComponent = () => {
   return (
     <>
       { title && <Helmet title={title}/> }
-      { [ 'Running', 'Pending', 'Unapproved', 'Paused' ].map(
+      { ['Running', 'Pending', 'Unapproved', 'Paused'].map(
         status => activeStatusesJobs[status] && (
           <ActiveJobsTable
             key={status}

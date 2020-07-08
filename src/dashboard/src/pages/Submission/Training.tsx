@@ -1,5 +1,5 @@
 import * as React from 'react'
-import {useState} from 'react'
+import { useState } from 'react'
 
 import {
   Card,
@@ -38,18 +38,18 @@ import UserContext from '../../contexts/User'
 import ClustersContext from '../../contexts/Clusters'
 import TeamContext from '../../contexts/Team'
 import theme, { Provider as MonospacedThemeProvider } from '../../contexts/MonospacedTheme'
-import {BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList} from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts'
 import Paper, { PaperProps } from '@material-ui/core/Paper'
 import Draggable from 'react-draggable'
-import {TransitionProps} from '@material-ui/core/transitions'
+import { TransitionProps } from '@material-ui/core/transitions'
 import Slide from '@material-ui/core/Slide'
-import {green, grey, red} from '@material-ui/core/colors'
-import {DLTSDialog} from '../CommonComponents/DLTSDialog'
+import { green, grey, red } from '@material-ui/core/colors'
+import { DLTSDialog } from '../CommonComponents/DLTSDialog'
 import {
   SUCCESSFULSUBMITTED,
   SUCCESSFULTEMPLATEDELETE, SUCCESSFULTEMPLATEDSAVE
 } from '../../Constants/WarnConstants'
-import {DLTSSnackbar} from '../CommonComponents/DLTSSnackbar'
+import { DLTSSnackbar } from '../CommonComponents/DLTSSnackbar'
 import * as _ from 'lodash'
 
 interface EnvironmentVariable {
@@ -75,10 +75,10 @@ const sanitizePath = (path: string) => {
 }
 const Training: React.ComponentClass = withRouter(({ history }) => {
   const { clusters } = React.useContext(ClustersContext)
-  const [ selectedCluster,saveSelectedCluster ] = React.useState(() => clusters[0].id)
+  const [selectedCluster, saveSelectedCluster] = React.useState(() => clusters[0].id)
   const { email } = React.useContext(UserContext)
-  const { currentTeamId }= React.useContext(TeamContext)
-  //const team = 'platform';
+  const { currentTeamId } = React.useContext(TeamContext)
+  // const team = 'platform';
   const [showGPUFragmentation, setShowGPUFragmentation] = React.useState(false)
   const [grafanaUrl, setGrafanaUrl] = React.useState('')
   const [name, setName] = React.useState('')
@@ -582,7 +582,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       if (value > 0) { value = 26 }
       setGpus(event.target.valueAsNumber)
       setEnableSubmit(false)
-      if (type === 'RegularJob' && event.target.valueAsNumber > gpusPerNode)  {
+      if (type === 'RegularJob' && event.target.valueAsNumber > gpusPerNode) {
         setEnableSubmit(true)
       }
     },
@@ -625,8 +625,8 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       jobPath: jobPath || '',
       enablejobpath: enableJobPath,
       envs: environmentVariables,
-      hostNetwork : type === 'PSDistJob',
-      isPrivileged : type === 'PSDistJob',
+      hostNetwork: type === 'PSDistJob',
+      isPrivileged: type === 'PSDistJob',
       plugins: plugins,
       'max_retry_count': String(maxRetryCount),
     }
@@ -696,7 +696,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const fetchGrafanaUrl = '/api/clusters'
   const request = useFetch(fetchGrafanaUrl)
   const fetchGrafana = async () => {
-    const {grafana} = await request.get(`/${selectedCluster}`)
+    const { grafana } = await request.get(`/${selectedCluster}`)
     setGrafanaUrl(grafana)
   }
   const handleCloseGPUGramentation = () => {
@@ -707,7 +707,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     fetchGrafana()
     if (postEndpointsData) {
       setOpen(true)
-      setTimeout(()=>{
+      setTimeout(() => {
         history.push(`/job/${currentTeamId}/${selectedCluster}/${jobId.current}`)
       }, 2000)
 
@@ -739,19 +739,19 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     if (!grafanaUrl) return
     let getNodeGpuAva = `${grafanaUrl}/api/datasources/proxy/1/api/v1/query?`
     const params = new URLSearchParams({
-      query:'count_values("gpu_available", k8s_node_gpu_available)'
+      query: 'count_values("gpu_available", k8s_node_gpu_available)'
     })
-    fetch(getNodeGpuAva+params).then(async (res: any) => {
-      const {data} = await res.json()
+    fetch(getNodeGpuAva + params).then(async (res: any) => {
+      const { data } = await res.json()
       const result = data['result']
-      const sortededResult = result.sort((a: any, b: any)=>a['metric']['gpu_available'] - b['metric']['gpu_available'])
+      const sortededResult = result.sort((a: any, b: any) => a['metric']['gpu_available'] - b['metric']['gpu_available'])
       setGpuFragmentation(sortededResult)
     })
   }, [grafanaUrl])
 
   const isDesktop = useMediaQuery(theme.breakpoints.up('sm'))
 
-  const showMessage = (open: boolean,showDeleteTemplate: boolean,showSaveTemplate: boolean) => {
+  const showMessage = (open: boolean, showDeleteTemplate: boolean, showSaveTemplate: boolean) => {
     let message = ''
     if (open) {
       message = SUCCESSFULSUBMITTED
@@ -777,7 +777,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       </g>
     )
   }
-  const styleSnack={backgroundColor:showDeleteTemplate ? red[400] : green[400]}
+  const styleSnack = { backgroundColor: showDeleteTemplate ? red[400] : green[400] }
   return (
 
     <Container maxWidth={isDesktop ? 'lg' : 'xs'}>
@@ -786,13 +786,13 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         handleClose={handleCloseGPUGramentation}
         handleConfirm={null} confirmBtnTxt={null} cancelBtnTxt={null}
         title={'View Cluster GPU Status Per Node'}
-        titleStyle={{color:grey[400]}}
+        titleStyle={{ color: grey[400] }}
       >
-        <BarChart width={500} height={700} data={gpuFragmentation}  margin={{top: 20}}>
+        <BarChart width={500} height={700} data={gpuFragmentation} margin={{ top: 20 }}>
           <CartesianGrid strokeDasharray="10 10"/>
-          <XAxis dataKey={"metric['gpu_available']"} label={{value: 'Available gpu count', offset:0,position:'insideBottom'}}>
+          <XAxis dataKey={"metric['gpu_available']"} label={{ value: 'Available gpu count', offset: 0, position: 'insideBottom' }}>
           </XAxis>
-          <YAxis label={{value: 'Node count', angle: -90, position: 'insideLeft'}} />
+          <YAxis label={{ value: 'Node count', angle: -90, position: 'insideLeft' }} />
           <Bar dataKey="value[1]" fill="#8884d8" >
             <LabelList dataKey="value[1]" content={renderCustomizedLabel} />
           </Bar>
@@ -844,7 +844,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   onChange={onTemplateChange}
                 >
                   <MenuItem value="-1" divider>None (Apply a Template)</MenuItem>
-                  {Array.isArray(templates) && templates.sort((a,b)=>a.name.localeCompare(b.name)).map(({ name, json }: any, index: number) => (
+                  {Array.isArray(templates) && templates.sort((a, b) => a.name.localeCompare(b.name)).map(({ name, json }: any, index: number) => (
                     <MenuItem key={index} value={json}>{name}</MenuItem>
                   ))}
                 </TextField>
@@ -856,7 +856,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   fullWidth
                   variant="filled"
                   value={type}
-                  disabled={json!=='-1'}
+                  disabled={json !== '-1'}
                   onChange={onTypeChange}
                 >
                   <MenuItem value="RegularJob">Regular Job</MenuItem>
@@ -877,7 +877,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   <MenuItem value="true">YES</MenuItem>
                 </TextField>
               </Grid>
-              { (type === 'RegularJob' ||  type === 'InferenceJob') && (
+              { (type === 'RegularJob' || type === 'InferenceJob') && (
                 <Grid item xs={12}>
                   <TextField
                     type="number"
@@ -890,7 +890,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   />
                 </Grid>
               )}
-              { type === 'PSDistJob'  && (
+              { type === 'PSDistJob' && (
                 <Grid item xs={12} sm={6}>
                   <TextField
                     type="number"
@@ -1254,15 +1254,15 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           <CardActions>
             <Grid item xs={12} container justify="space-between">
               <Grid item xs container>
-                <Button type="button" color="secondary"  onClick={onAdvancedClick}>Advanced</Button>
-                <Button type="button" color="secondary"  onClick={onTemplateClick}>Template</Button>
+                <Button type="button" color="secondary" onClick={onAdvancedClick}>Advanced</Button>
+                <Button type="button" color="secondary" onClick={onTemplateClick}>Template</Button>
               </Grid>
               <Button type="submit" color="primary" variant="contained" disabled={!submittable || enableSubmit || postJobLoading || postEndpointsLoading || open }>Submit</Button>
             </Grid>
           </CardActions>
         </Card>
       </form>
-      <DLTSSnackbar message={showMessage(open,showDeleteTemplate,showSaveTemplate)}
+      <DLTSSnackbar message={showMessage(open, showDeleteTemplate, showSaveTemplate)}
         open={open || showSaveTemplate || showDeleteTemplate}
         style={styleSnack}
         handleWarnClose={handleClose}

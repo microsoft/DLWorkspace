@@ -1,5 +1,5 @@
 import * as React from 'react'
-import {useEffect, useState} from 'react'
+import { useEffect, useState } from 'react'
 import { TransitionProps } from '@material-ui/core/transitions'
 import {
   Card,
@@ -18,9 +18,9 @@ import { DirectoryPathTextField } from './components/GPUCard'
 import ClustersContext from '../../contexts/Clusters'
 import UserContext from '../../contexts/User'
 import TeamContext from '../../contexts/Team'
-import {Link} from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import Slide from '@material-ui/core/Slide'
-import {green} from '@material-ui/core/colors'
+import { green } from '@material-ui/core/colors'
 import useFetch from 'use-http'
 import formats from '../../Configuration/foldFormat.json'
 const useStyles = makeStyles(() =>
@@ -32,12 +32,12 @@ const useStyles = makeStyles(() =>
       marginLeft: 'auto'
     },
     dialogText: {
-      color:green[400]
+      color: green[400]
     }
   })
 )
 
-const Transition = React.forwardRef<unknown, TransitionProps & { children?: React.ReactElement }>(function Transition(props, ref) {
+const Transition = React.forwardRef<unknown, TransitionProps & { children?: React.ReactElement }>(function Transition (props, ref) {
   return <Slide direction="down" ref={ref} {...props} />
 })
 
@@ -46,13 +46,13 @@ const DataJob: React.FC = (props: any) => {
   const [azureDataStorage, setAzureDataStorage] = useState('')
   const [nfsDataStorage, setNFSDataStorage] = useState('')
   const [openDialog, setOpenDialog] = useState(false)
-  const[dialogContentText, setDialogContentText] = useState('')
+  const [dialogContentText, setDialogContentText] = useState('')
   const [submittable, setSubmittable] = useState(true)
-  const {email} = React.useContext(UserContext)
-  const {currentTeamId} = React.useContext(TeamContext)
-  const {clusters} = React.useContext(ClustersContext)
-  const [ selectedCluster,saveSelectedCluster ] = React.useState(() => clusters[0].id)
-  const [workStorage, setWorkStorage ] = useState('')
+  const { email } = React.useContext(UserContext)
+  const { currentTeamId } = React.useContext(TeamContext)
+  const { clusters } = React.useContext(ClustersContext)
+  const [selectedCluster, saveSelectedCluster] = React.useState(() => clusters[0].id)
+  const [workStorage, setWorkStorage] = useState('')
   const [dataStorage, setDataStorage] = useState('')
 
   const cluster = React.useMemo(() => {
@@ -71,15 +71,15 @@ const DataJob: React.FC = (props: any) => {
   const request = useFetch(fetchDiretoryUrl)
   const fetchStorage = async () => {
     const data = await request.get('/')
-    const name = typeof email === 'string' ?  email.split('@', 1)[0] : email
+    const name = typeof email === 'string' ? email.split('@', 1)[0] : email
     setDataStorage(data.dataStorage)
     setWorkStorage(`${data.workStorage}/${name}`)
   }
-  useEffect(()=>{
+  useEffect(() => {
     const { cluster } = props.location.state || ''
-    if (cluster) {saveSelectedCluster(cluster)}
+    if (cluster) { saveSelectedCluster(cluster) }
     fetchStorage()
-  },[selectedCluster, props.location.state, email, saveSelectedCluster])
+  }, [selectedCluster, props.location.state, email, saveSelectedCluster])
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.name === 'azureDataStorage') {
@@ -125,8 +125,8 @@ const DataJob: React.FC = (props: any) => {
   const covert = (dataJob: any) => {
     dataJob.vcName = currentTeamId
     dataJob.jobName = 'Data Job @ ' + new Date().toISOString()
-    if (azureDataStorage) {dataJob.fromFolder = azureDataStorage}
-    if (nfsDataStorage) {dataJob.toFolder = nfsDataStorage}
+    if (azureDataStorage) { dataJob.fromFolder = azureDataStorage }
+    if (nfsDataStorage) { dataJob.toFolder = nfsDataStorage }
     dataJob.userName = email
     dataJob.jobType = 'training'
     dataJob.jobtrainingtype = 'RegularJob'
@@ -143,14 +143,14 @@ const DataJob: React.FC = (props: any) => {
     ].join(' ')
     return dataJob
   }
-  const[currentJobId, setCurrentJobId] = useState('')
+  const [currentJobId, setCurrentJobId] = useState('')
   const postDataJob = () => {
     let dataJob: any = {}
     dataJob = covert(dataJob)
-    fetch(`/api/clusters/${selectedCluster}/jobs`,{
+    fetch(`/api/clusters/${selectedCluster}/jobs`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body:JSON.stringify(dataJob)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dataJob)
     }).then(async (res: any) => {
       const data = await res.json()
       const { jobId } = data
@@ -213,7 +213,7 @@ const DataJob: React.FC = (props: any) => {
           </Grid>
         </CardContent>
         <CardActions>
-          <Button type="submit"  disabled ={submittable} color="primary" variant="contained" className={styles.submitButton}  onClick={postDataJob}>Submit</Button>
+          <Button type="submit" disabled ={submittable} color="primary" variant="contained" className={styles.submitButton} onClick={postDataJob}>Submit</Button>
         </CardActions>
       </Card>
       <Dialog

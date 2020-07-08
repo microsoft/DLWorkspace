@@ -35,16 +35,16 @@ const JobStatus: FunctionComponent<Props> = ({ cluster, job }) => {
   const status = useMemo<string>(() => job['jobStatus'], [job])
   const icon = useMemo(() =>
     status === 'unapproved' ? <HourglassEmpty/>
-    : status === 'queued' ? <HourglassEmpty/>
-    : status === 'scheduling' ? <HourglassEmpty/>
-    : status === 'running' ? <HourglassFull/>
-    : status === 'finished' ? <CheckCircleOutline/>
-    : status === 'failed' ? <ErrorOutline/>
-    : status === 'pausing' ? <PauseCircleFilled/>
-    : status === 'paused' ? <PauseCircleOutline/>
-    : status === 'killing' ? <RemoveCircle/>
-    : status === 'killed' ? <RemoveCircleOutline/>
-    : <Help/>
+      : status === 'queued' ? <HourglassEmpty/>
+        : status === 'scheduling' ? <HourglassEmpty/>
+          : status === 'running' ? <HourglassFull/>
+            : status === 'finished' ? <CheckCircleOutline/>
+              : status === 'failed' ? <ErrorOutline/>
+                : status === 'pausing' ? <PauseCircleFilled/>
+                  : status === 'paused' ? <PauseCircleOutline/>
+                    : status === 'killing' ? <RemoveCircle/>
+                      : status === 'killed' ? <RemoveCircleOutline/>
+                        : <Help/>
   , [status])
   // const theme = useMemo(() => createMuiTheme({
   //   palette: {

@@ -74,7 +74,7 @@ const ClusterListItem = forwardRef<ClusterListItem, ClusterListItemProps>(({ id 
   }, [supportAllowedIp, get])
 
   useImperativeHandle(ref, () => ({
-    update(data) {
+    update (data) {
       if (supportAllowedIp !== true) return
       put(data).then(() => get(), (error) => {
         console.error(error)

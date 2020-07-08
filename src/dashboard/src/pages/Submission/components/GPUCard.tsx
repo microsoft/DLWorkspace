@@ -1,5 +1,5 @@
 import * as React from 'react'
-import {useEffect, useMemo, useState} from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import useFetch from 'use-http'
 import Table from '@material-ui/core/Table'
@@ -29,9 +29,9 @@ import {
   Theme,
   lighten
 } from '@material-ui/core/styles'
-import { MoreVert, FileCopyRounded} from '@material-ui/icons'
+import { MoreVert, FileCopyRounded } from '@material-ui/icons'
 
-import {Cell, PieChart, Pie, ResponsiveContainer,Sector} from 'recharts'
+import { Cell, PieChart, Pie, ResponsiveContainer, Sector } from 'recharts'
 import UserContext from '../../../contexts/User'
 import TeamContext from '../../../contexts/Team'
 import {
@@ -42,8 +42,8 @@ import {
   yellow
 } from '@material-ui/core/colors'
 import copy from 'clipboard-copy'
-import {checkObjIsEmpty, sumValues} from '../../../utlities/ObjUtlities'
-import {DLTSSnackbar} from '../../CommonComponents/DLTSSnackbar'
+import { checkObjIsEmpty, sumValues } from '../../../utlities/ObjUtlities'
+import { DLTSSnackbar } from '../../CommonComponents/DLTSSnackbar'
 
 import * as _ from 'lodash'
 
@@ -63,7 +63,7 @@ const useStyles = makeStyles((theme: Theme) => createStyles({
     backgroundColor: theme.palette.background.default,
   },
   dialogText: {
-    color:green[400]
+    color: green[400]
   },
   success: {
     backgroundColor: green[600],
@@ -81,7 +81,7 @@ const useStyles = makeStyles((theme: Theme) => createStyles({
   }
 }))
 
-const ActionIconButton: React.FC<{cluster?: string}> = ({cluster}) => {
+const ActionIconButton: React.FC<{cluster?: string}> = ({ cluster }) => {
   const [open, setOpen] = React.useState(false)
   const iconButton = React.useRef<any>()
   const onIconButtonClick = React.useCallback(() => setOpen(true), [setOpen])
@@ -112,15 +112,15 @@ const Chart: React.FC<{
   reserved: number;
   isActive: boolean;
 
-}> = ({ available, used, reserved ,isActive}) => {
+}> = ({ available, used, reserved, isActive }) => {
   const theme = useTheme()
   let data = [
     { name: 'Available', value: available, color: lightGreen[400] },
     { name: 'Used', value: used, color: theme.palette.grey[500] },
-    { name: 'Unschedulable', value: reserved, color: deepOrange[400]},
+    { name: 'Unschedulable', value: reserved, color: deepOrange[400] },
   ]
   if (reserved === 0) {
-    data = data.filter((item)=>item.name !== 'Reserved')
+    data = data.filter((item) => item.name !== 'Reserved')
   }
   const renderActiveShape = (props: any) => {
     const RADIAN = Math.PI / 180
@@ -162,7 +162,7 @@ const Chart: React.FC<{
       </g>
     )
   }
-  const[activeIndex, setActiveIndex] = useState(0)
+  const [activeIndex, setActiveIndex] = useState(0)
   const onPieEnter = (data: any, index: number) => {
     setActiveIndex(index)
   }
@@ -213,12 +213,12 @@ export const DirectoryPathTextField: React.FC<{
   [input])
   const handleCopy = React.useCallback(() => {
     if (input.current) {
-      copy(input.current.innerHTML).then(()=>{
+      copy(input.current.innerHTML).then(() => {
         setOpenCopyWarn(true)
       })
 
     }
-  },[input])
+  }, [input])
   return (
     <>
       <TextField
@@ -257,16 +257,16 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
   const [available, setAvailable] = useState(0)
   const [used, setUsed] = useState(0)
   const [reversed, setReserved] = useState(0)
-  const [workStorage, setWorkStorage ] = useState('')
+  const [workStorage, setWorkStorage] = useState('')
   const [dataStorage, setDataStorage] = useState('')
-  const [activate,setActivate] = useState(false)
+  const [activate, setActivate] = useState(false)
   const { email } = React.useContext(UserContext)
-  const {currentTeamId} = React.useContext(TeamContext)
+  const { currentTeamId } = React.useContext(TeamContext)
   const fetchDiretoryUrl = `api/clusters/${clusterId}`
   const request = useFetch(fetchDiretoryUrl)
   const fetchDirectories = async () => {
     const data = await request.get('')
-    const name = typeof email === 'string' ?  email.split('@', 1)[0] : email
+    const name = typeof email === 'string' ? email.split('@', 1)[0] : email
     setDataStorage(data.dataStorage)
     setWorkStorage(`${data.workStorage}/${name}`)
     return data
@@ -279,7 +279,7 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
     return data
   }
   const [nfsStorage, setNfsStorage] = useState([])
-  useEffect(()=>{
+  useEffect(() => {
     fetchDirectories().then((res) => {
       const fetchStorage = []
       const availBytesSubPath = '/api/datasources/proxy/1/api/v1/query?query=node_filesystem_avail_bytes%7Bfstype%3D%27nfs4%27%7D'
@@ -301,7 +301,7 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
                 tmp['total'] = val
               }
               const tmpAvail = {} as any
-              //node_filesystem_avail_bytes
+              // node_filesystem_avail_bytes
               if (item['metric']['__name__'] === 'node_filesystem_avail_bytes') {
                 const mountpointName = item['metric']['mountpoint']
                 const val = Math.floor(item['value'][1] / (Math.pow(10, 9)))
@@ -312,7 +312,7 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
               tmpStorage.push(tmpAvail)
             }
           }
-          //({ mountpointName: key, users: value })
+          // ({ mountpointName: key, users: value })
           storageRes = tmpStorage.filter((store: any) => !checkObjIsEmpty(store))
           let finalStorageRes: any = []
           if (storageRes && storageRes.length > 0) {
@@ -321,17 +321,17 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
               const tmpAvail: any = value.filter((item: any) => item.hasOwnProperty('Avail'))
               let total = 0
               let used = 0
-              if (typeof tmpTotal[0] !== 'undefined' && typeof  tmpAvail[0] !== 'undefined') {
+              if (typeof tmpTotal[0] !== 'undefined' && typeof tmpAvail[0] !== 'undefined') {
                 total = tmpTotal[0]['total']
                 used = tmpTotal[0]['total'] - tmpAvail[0]['Avail']
               }
               return {
-                mountpointName: key, total:total, used: used
+                mountpointName: key, total: total, used: used
               }
             }).value()
           }
-          finalStorageRes.forEach((item: any,i: number) => {
-            if(item['mountpointName'].indexOf('dlws/nfs') !== -1){
+          finalStorageRes.forEach((item: any, i: number) => {
+            if (item['mountpointName'].indexOf('dlws/nfs') !== -1) {
               finalStorageRes.splice(i, 1)
               finalStorageRes.unshift(item)
             }
@@ -358,15 +358,15 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
       setActiveJobs((Number)(sumValues(res['AvaliableJobNum'])))
       setActivate(true)
     })
-  },[currentTeamId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentTeamId]) // eslint-disable-line react-hooks/exhaustive-deps
   const tableTheme = createMuiTheme({
     overrides: {
       MuiTableCell: {
         root: {
           paddingTop: 10,
           paddingBottom: 10,
-          paddingLeft:2,
-          paddingRight:5,
+          paddingLeft: 2,
+          paddingRight: 5,
         }
       }
     }
@@ -440,7 +440,7 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
       <CardContent className={styles.chart}>
         <Chart available={available} used={used} reserved={reversed} isActive={activate} />
         <Divider />
-        <Typography  variant="h6" id="tableTitle" className={styles.tableTitle}>
+        <Typography variant="h6" id="tableTitle" className={styles.tableTitle}>
           {'Storage (GB)'}
         </Typography>
         <Box height={102} style={{ overflow: 'auto' }}>
@@ -470,13 +470,13 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
       </CardContent>
       <CardActions>
         <Button component={Link}
-          to={{pathname: '/submission/training-cluster', state: { cluster: clusterId } }}
+          to={{ pathname: '/submission/training-cluster', state: { cluster: clusterId } }}
           size="small" color="secondary"
         >
           Submit Training Job
         </Button>
         <Button component={Link}
-          to={{pathname: '/submission/data', state: { cluster: clusterId } }}
+          to={{ pathname: '/submission/data', state: { cluster: clusterId } }}
           size="small" color="secondary"
         >
           Submit Data Job

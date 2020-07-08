@@ -5,12 +5,12 @@ import TeamContext from '../../contexts/Team'
 type Jobs = object
 type useJobsAll = [Jobs | undefined, Error | undefined]
 
-const useJobsAll = (openKillWarn?: boolean,openApproveWan?: boolean): useJobsAll => {
+const useJobsAll = (openKillWarn?: boolean, openApproveWan?: boolean): useJobsAll => {
   const [jobsAll, setJobsAll] = useState<Jobs>()
   const { currentTeamId } = React.useContext(TeamContext)
   const params = new URLSearchParams({
-    user:'all',
-    limit:'100'
+    user: 'all',
+    limit: '100'
   })
   const resp = useFetch<Jobs>('/api')
   const { data, error, get } = resp

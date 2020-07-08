@@ -15,7 +15,7 @@ const JobStatusColumn: FunctionComponent<{ job: Job }> = ({ job }) => {
 export default (): Column<Job> => ({
   title: 'Status',
   field: 'jobStatus',
-  render(job) {
+  render (job) {
     return <JobStatusColumn job={job}/>
   },
 })

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import useFetch from 'use-http'
-import {useTimeoutFn} from 'react-use'
+import { useTimeoutFn } from 'react-use'
 
 type Job = object
 type UseJob = [Job | undefined, Error | undefined]

@@ -121,10 +121,10 @@ const valueOf = (job: Job): number => {
 export default (): Column<Job> => ({
   title: 'Timeout',
   type: 'numeric',
-  render(job) {
+  render (job) {
     return <TimeoutField job={job}/>
   },
-  customSort(job1, job2) {
+  customSort (job1, job2) {
     return valueOf(job1) - valueOf(job2)
   }
 })

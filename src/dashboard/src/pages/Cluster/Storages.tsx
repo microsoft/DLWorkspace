@@ -79,7 +79,7 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data, snapsh
   }, {
     field: 'bytes',
     title: 'Storage Used',
-    render({ bytes }) { return formatBytes(bytes) }
+    render ({ bytes }) { return formatBytes(bytes) }
   }]).current
   const options = useMemo<Options>(() => ({
     padding: 'dense',

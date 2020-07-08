@@ -17,7 +17,7 @@ interface QueryContext {
 }
 
 const QueryContext = createContext<QueryContext>({
-  setQuery() { return }
+  setQuery () { return }
 })
 
 interface QueryProviderProps {

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import Typography from '@material-ui/core/Typography'
-import {Container, Grid, Paper, Toolbar, useTheme} from '@material-ui/core'
+import { Container, Grid, Paper, Toolbar, useTheme } from '@material-ui/core'
 import useCheckIsDesktop from '../../utlities/layoutUtlities'
 
 interface TabPanelProps {
@@ -12,7 +12,7 @@ interface TabPanelProps {
 }
 
 export const DLTSTabPanel = (props: TabPanelProps) => {
-  const { children, value, index, title,...other } = props
+  const { children, value, index, title, ...other } = props
   const checkIsDesktop = useCheckIsDesktop()
   return (
     <Container maxWidth={checkIsDesktop ? 'xl' : 'lg'}>
@@ -26,7 +26,7 @@ export const DLTSTabPanel = (props: TabPanelProps) => {
       >
         <Grid container alignItems={'center'}>
           <Grid item xs={12}>
-            <Paper  style={{ marginTop: '10px', }}>
+            <Paper style={{ marginTop: '10px', }}>
               <Toolbar>
                 <Typography component="h2" variant="h6">
                   {title}

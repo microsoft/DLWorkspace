@@ -145,7 +145,7 @@ const Clusters: FunctionComponent = () => {
       field: 'metrics',
       render: ({ metrics }) => metrics !== undefined ? (
         <>{Number(metrics).toFixed(2)}%</>
-      ): null,
+      ) : null,
       width: 'auto'
     }, {
       title: 'Running Jobs',

@@ -1,4 +1,4 @@
-import {useMediaQuery, useTheme} from '@material-ui/core'
+import { useMediaQuery, useTheme } from '@material-ui/core'
 
 const useCheckIsDesktop = () => {
   const theme = useTheme()

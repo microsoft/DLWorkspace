@@ -57,12 +57,12 @@ const WorkerState: FunctionComponent<WorkerStateProps> = ({ state, message }) =>
   if (state === undefined) state = 'IN_SERVICE';
   const icon = useMemo(() =>
     state === 'IN_SERVICE' ? <DoneOutline/>
-    : state === 'OUT_OF_POOL' ? <ErrorOutline/>
-    : state === 'OUT_OF_POOL_UNTRACKED' ? <ErrorOutline/>
-    : state === 'READY_FOR_REPAIR' ? <Build/>
-    : state === 'IN_REPAIR' ? <Build/>
-    : state === 'AFTER_REPAIR' ? <Build/>
-    : <Help/>
+      : state === 'OUT_OF_POOL' ? <ErrorOutline/>
+        : state === 'OUT_OF_POOL_UNTRACKED' ? <ErrorOutline/>
+          : state === 'READY_FOR_REPAIR' ? <Build/>
+            : state === 'IN_REPAIR' ? <Build/>
+              : state === 'AFTER_REPAIR' ? <Build/>
+                : <Help/>
   , [state])
   const label = useMemo(() => kebabCase(state), [state])
   const deleteIcon = message ? (

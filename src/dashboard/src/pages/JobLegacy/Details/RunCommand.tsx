@@ -6,7 +6,7 @@ import {
   InputAdornment,
   TextField,
 } from '@material-ui/core'
-import {DirectionsRun} from '@material-ui/icons'
+import { DirectionsRun } from '@material-ui/icons'
 
 import useFetch from 'use-http'
 

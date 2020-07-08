@@ -17,10 +17,10 @@ const valueOf = (job: Job): Date => {
 export default (): Column<Job> => ({
   title: 'Started',
   type: 'datetime',
-  render(job) {
+  render (job) {
     return renderDate(valueOf(job))
   },
-  customSort(job1, job2) {
+  customSort (job1, job2) {
     return valueOf(job1).getTime() - valueOf(job2).getTime()
   }
 })

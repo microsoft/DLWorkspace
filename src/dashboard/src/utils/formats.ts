@@ -1,6 +1,6 @@
 import { formatDistanceToNow } from 'date-fns'
 
-export function formatBytes(bytes: number) {
+export function formatBytes (bytes: number) {
   if (bytes >= 1024 * 1024 * 1024 * 1024) {
     return (bytes / 1024 / 1024 / 1024 / 1024).toFixed(1) + ' TiB'
   }
@@ -19,15 +19,15 @@ export function formatBytes(bytes: number) {
   return bytes + ' B'
 }
 
-export function formatFloat(float: number) {
+export function formatFloat (float: number) {
   return String(Math.floor(float * 100) / 100)
 }
 
-export function formatPercent(float: number, digits = 2) {
+export function formatPercent (float: number, digits = 2) {
   return String(Math.round(float * 100).toFixed(digits)) + '%'
 }
 
-export function formatDateDistance(date: Date) {
+export function formatDateDistance (date: Date) {
   return formatDistanceToNow(date, {
     includeSeconds: true,
     addSuffix: true
