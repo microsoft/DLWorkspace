@@ -1,4 +1,4 @@
-import * as _ from "lodash"
+import * as _ from 'lodash'
 import * as React from 'react'
 const { DateTime } = require('luxon')
 export const checkObjIsEmpty = (obj: object) => {
@@ -28,12 +28,12 @@ export const sumValues= (obj: any) => {
 
 export const toLocalTime = (data: any) => {
   if (!data) {
-    return ""
+    return ''
   }
   if (new Date(data).toString().indexOf('Invalid') !== -1) {
-    data = data.concat("0")
+    data = data.concat('0')
   }
-  return DateTime.fromJSDate(new Date(Date.parse(data))).toFormat("yyyy/LL/dd HH:mm:ss")
+  return DateTime.fromJSDate(new Date(Date.parse(data))).toFormat('yyyy/LL/dd HH:mm:ss')
 }
 
 

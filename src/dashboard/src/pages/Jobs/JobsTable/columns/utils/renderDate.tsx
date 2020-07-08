@@ -7,7 +7,7 @@ const renderDate = (date: Date) => {
   if (isNaN(date.valueOf())) return null
   return (
     <Tooltip title={date.toLocaleString()}>
-      <span style={{ whiteSpace: "nowrap" }}>
+      <span style={{ whiteSpace: 'nowrap' }}>
         {formatDateDistance(date)}
       </span>
     </Tooltip>

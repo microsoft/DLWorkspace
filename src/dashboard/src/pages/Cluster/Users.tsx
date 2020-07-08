@@ -196,7 +196,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
     type: 'numeric',
     render: ({ gpuMetrics }) => gpuMetrics != null && typeof gpuMetrics.idle === 'number'
       ? (
-        <Typography variant="inherit" color={gpuMetrics.idle > 0 ? "error" : "inherit"}>
+        <Typography variant="inherit" color={gpuMetrics.idle > 0 ? 'error' : 'inherit'}>
           {gpuMetrics.idle}
         </Typography>
       )
@@ -225,14 +225,14 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
         return (
           <>
             {humanHours(idle)}
-            {" ("}
+            {' ('}
             <Typography variant="inherit" color="error">{formatPercent(ratio, 1)}</Typography>
             )
           </>
         )
       }
 
-      return <>{humanHours(idle)}{" ("}{formatPercent(ratio, 1)})</>
+      return <>{humanHours(idle)}{' ('}{formatPercent(ratio, 1)})</>
     },
     width: 'auto'
   }])).current
@@ -253,7 +253,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
     <SvgIconsMaterialTable
       title={
         <Button variant="outlined" onClick={handleButtonClick}>
-          { filterCurrent ? "Show All Users" : "Show Current Users Only" }
+          { filterCurrent ? 'Show All Users' : 'Show Current Users Only' }
         </Button>
       }
       data={tableData}

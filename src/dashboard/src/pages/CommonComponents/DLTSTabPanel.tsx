@@ -1,7 +1,7 @@
 import * as React from 'react'
 import Typography from '@material-ui/core/Typography'
-import {Container, Grid, Paper, Toolbar, useTheme} from "@material-ui/core"
-import useCheckIsDesktop from "../../utlities/layoutUtlities"
+import {Container, Grid, Paper, Toolbar, useTheme} from '@material-ui/core'
+import useCheckIsDesktop from '../../utlities/layoutUtlities'
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -24,7 +24,7 @@ export const DLTSTabPanel = (props: TabPanelProps) => {
         aria-labelledby={`full-width-tab-${index}`}
         {...other}
       >
-        <Grid container alignItems={"center"}>
+        <Grid container alignItems={'center'}>
           <Grid item xs={12}>
             <Paper  style={{ marginTop: '10px', }}>
               <Toolbar>

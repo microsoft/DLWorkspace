@@ -3,8 +3,8 @@ import {
   Tooltip,
   Switch,
   CircularProgress
-} from "@material-ui/core"
-import {MTableToolbar} from "material-table"
+} from '@material-ui/core'
+import {MTableToolbar} from 'material-table'
 import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable'
 
 interface TeamUsr {

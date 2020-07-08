@@ -36,7 +36,7 @@ import Context from '../Context'
 
 const EndpointListItem: FunctionComponent<{ endpoint: any }> = ({ endpoint }) => {
   const { cluster, job } = useContext(Context)
-  if (endpoint.status !== "running") return null
+  if (endpoint.status !== 'running') return null
   if (endpoint.name === 'ssh') {
     const identify = `${cluster['workStorage'].replace(/^file:\/\//i, '//')}/${job['jobParams']['workPath']}/.ssh/id_rsa`
     const host = `${endpoint['nodeName']}.${endpoint['domain']}`
@@ -212,7 +212,7 @@ const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoint
           fullWidth
           label="New Interactive Port"
           placeholder="40000 - 49999"
-          inputProps={{ min: "40000", max: "49999" }}
+          inputProps={{ min: '40000', max: '49999' }}
           InputProps={{
             endAdornment: (
               <InputAdornment position="end">

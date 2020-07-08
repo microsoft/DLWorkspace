@@ -24,7 +24,7 @@ import {
   createMuiTheme,
   useTheme,
 } from '@material-ui/core'
-import { ThemeProvider } from "@material-ui/styles"
+import { ThemeProvider } from '@material-ui/styles'
 import { useWindowSize } from 'react-use'
 import useFetch from 'use-http-1'
 import { useSnackbar } from 'notistack'
@@ -42,7 +42,7 @@ const logTheme = createMuiTheme({
     type: 'dark'
   },
   typography: {
-    fontFamily: `"Roboto-mono", "Menlo", "Consolas", monospace`
+    fontFamily: '"Roboto-mono", "Menlo", "Consolas", monospace'
   }
 })
 

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import {useEffect, useState} from "react"
+import {useEffect, useState} from 'react'
 import { TransitionProps } from '@material-ui/core/transitions'
 import {
   Card,
@@ -11,25 +11,25 @@ import {
   TextField,
   Button,
   Divider, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
-} from "@material-ui/core"
-import { makeStyles, createStyles } from "@material-ui/core/styles"
-import ClusterSelectField from "./components/ClusterSelectField"
+} from '@material-ui/core'
+import { makeStyles, createStyles } from '@material-ui/core/styles'
+import ClusterSelectField from './components/ClusterSelectField'
 import { DirectoryPathTextField } from './components/GPUCard'
-import ClustersContext from "../../contexts/Clusters"
-import UserContext from "../../contexts/User"
-import TeamContext from "../../contexts/Team"
-import {Link} from "react-router-dom"
-import Slide from "@material-ui/core/Slide"
-import {green} from "@material-ui/core/colors"
-import useFetch from "use-http"
+import ClustersContext from '../../contexts/Clusters'
+import UserContext from '../../contexts/User'
+import TeamContext from '../../contexts/Team'
+import {Link} from 'react-router-dom'
+import Slide from '@material-ui/core/Slide'
+import {green} from '@material-ui/core/colors'
+import useFetch from 'use-http'
 import formats from '../../Configuration/foldFormat.json'
 const useStyles = makeStyles(() =>
   createStyles({
     container: {
-      margin: "auto"
+      margin: 'auto'
     },
     submitButton: {
-      marginLeft: "auto"
+      marginLeft: 'auto'
     },
     dialogText: {
       color:green[400]
@@ -97,50 +97,50 @@ const DataJob: React.FC = (props: any) => {
   }
 
   const convertURI = (type: string, folder: string) => {
-    if (type === "adls") {
+    if (type === 'adls') {
       if (folder.match(/^adl:\/\//)) {
         // adl://example.com/file
         return folder
       } else if (folder.match(/^\/\//i)) {
         // //example.com/file
-        return "adl:" + folder
+        return 'adl:' + folder
       } else if (folder.match(/^\//i)) {
         // /example.com/file
-        return "adl:/" + folder
+        return 'adl:/' + folder
       } else {
         // example.com/file
-        return "adl://" + folder
+        return 'adl://' + folder
       }
-    } else if (type === "nfs") {
+    } else if (type === 'nfs') {
       if (folder.match(/^\//)) {
         // /dir/file
         return folder
       } else {
         // dir/file
-        return "/" + folder
+        return '/' + folder
       }
     }
     return folder
   }
   const covert = (dataJob: any) => {
     dataJob.vcName = currentTeamId
-    dataJob.jobName = "Data Job @ " + new Date().toISOString()
+    dataJob.jobName = 'Data Job @ ' + new Date().toISOString()
     if (azureDataStorage) {dataJob.fromFolder = azureDataStorage}
     if (nfsDataStorage) {dataJob.toFolder = nfsDataStorage}
     dataJob.userName = email
     dataJob.jobType = 'training'
-    dataJob.jobtrainingtype = "RegularJob"
+    dataJob.jobtrainingtype = 'RegularJob'
     dataJob.gpuType = gpuModel
-    dataJob.runningasroot = "1"
+    dataJob.runningasroot = '1'
     dataJob.resourcegpu = 0
     dataJob.containerUserId = 0
-    dataJob.image = "indexserveregistry.azurecr.io/dlts-data-transfer-image"
+    dataJob.image = 'indexserveregistry.azurecr.io/dlts-data-transfer-image'
     dataJob.cmd = [
-      "cd /DataUtils && ./copy_data.sh",
-      convertURI("adls", dataJob.fromFolder),
-      convertURI("nfs", dataJob.toFolder),
-      "False 33554432 4 8"
-    ].join(" ")
+      'cd /DataUtils && ./copy_data.sh',
+      convertURI('adls', dataJob.fromFolder),
+      convertURI('nfs', dataJob.toFolder),
+      'False 33554432 4 8'
+    ].join(' ')
     return dataJob
   }
   const[currentJobId, setCurrentJobId] = useState('')
@@ -190,7 +190,7 @@ const DataJob: React.FC = (props: any) => {
             />
             <TextField
               error={ !azureDataStorage}
-              name={"azureDataStorage"}
+              name={'azureDataStorage'}
               onChange={handleChange}
               id="outlined-error"
               label="From Folder of Azure Data Lake Storage *"
@@ -201,7 +201,7 @@ const DataJob: React.FC = (props: any) => {
             />
             <TextField
               error={!nfsDataStorage}
-              name={"nfsDataStorage"}
+              name={'nfsDataStorage'}
               onChange={handleChange}
               id="outlined-error"
               defaultValue={formats.nfsDataStorage}
@@ -223,7 +223,7 @@ const DataJob: React.FC = (props: any) => {
         aria-labelledby="alert-dialog-title"
         aria-describedby="alert-dialog-description"
       >
-        <DialogTitle id="alert-dialog-title">{"Info"}</DialogTitle>
+        <DialogTitle id="alert-dialog-title">{'Info'}</DialogTitle>
         <DialogContent>
           <DialogContentText id="alert-dialog-description" className={styles.dialogText}>
             { dialogContentText }

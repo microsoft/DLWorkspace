@@ -5,10 +5,10 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle
-} from "@material-ui/core"
-import {grey} from "@material-ui/core/colors"
-import {TransitionProps} from "@material-ui/core/transitions"
-import Slide from "@material-ui/core/Slide"
+} from '@material-ui/core'
+import {grey} from '@material-ui/core/colors'
+import {TransitionProps} from '@material-ui/core/transitions'
+import Slide from '@material-ui/core/Slide'
 
 interface DialogProps {
   children?: React.ReactNode;

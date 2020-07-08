@@ -22,13 +22,13 @@ import Log from './Log'
 import Monitor from './Monitor'
 import Endpoints from './Endpoints'
 import { DLTSTabPanel } from '../../CommonComponents/DLTSTabPanel'
-import SwipeableViews from "react-swipeable-views"
-import {DLTSTabs} from "../../CommonComponents/DLTSTabs"
-import {JobDetailTitles, readOnlyJobDetailTitles} from "../../../Constants/TabsContants"
-import {DLTSSnackbar} from "../../CommonComponents/DLTSSnackbar"
-import ClusterContext from "../../../contexts/Clusters"
-import TeamContext from "../../../contexts/Team"
-import {useTimeoutFn} from "react-use"
+import SwipeableViews from 'react-swipeable-views'
+import {DLTSTabs} from '../../CommonComponents/DLTSTabs'
+import {JobDetailTitles, readOnlyJobDetailTitles} from '../../../Constants/TabsContants'
+import {DLTSSnackbar} from '../../CommonComponents/DLTSSnackbar'
+import ClusterContext from '../../../contexts/Clusters'
+import TeamContext from '../../../contexts/Team'
+import {useTimeoutFn} from 'react-use'
 interface Props {
   team: string;
   clusterId: string;
@@ -67,7 +67,7 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job, team }) => {
       cancel()
     }
   },[])
-  const isDesktop = useMediaQuery(theme.breakpoints.up("sm"))
+  const isDesktop = useMediaQuery(theme.breakpoints.up('sm'))
   const [showOpen, setshowOpen] = useState(false)
   const handleWarnClose = () => {
     setshowOpen(false)
@@ -117,7 +117,7 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job, team }) => {
             <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Log/></Container>
           </DLTSTabPanel>
         </SwipeableViews>
-        <DLTSSnackbar message={"Copied"}
+        <DLTSSnackbar message={'Copied'}
           open={showOpen}
           handleWarnClose={handleWarnClose}
           autoHideDuration={500}

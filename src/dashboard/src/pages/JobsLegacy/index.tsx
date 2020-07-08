@@ -1,42 +1,42 @@
 import * as React from 'react'
-import {Fragment, useEffect, useState} from "react"
+import {Fragment, useEffect, useState} from 'react'
 import {
   Box,
   CircularProgress,
   TextField,
   SvgIcon,
   Tooltip, createMuiTheme, MuiThemeProvider,
-} from "@material-ui/core"
+} from '@material-ui/core'
 import CheckCircleIcon from '@material-ui/icons/CheckCircle'
-import { makeStyles, Theme, createStyles } from "@material-ui/core/styles"
-import {red, green, blue} from "@material-ui/core/colors"
+import { makeStyles, Theme, createStyles } from '@material-ui/core/styles'
+import {red, green, blue} from '@material-ui/core/colors'
 import { DLTSTabPanel } from '../CommonComponents/DLTSTabPanel'
-import {Link} from "react-router-dom"
-import useFetch from "use-http"
+import {Link} from 'react-router-dom'
+import useFetch from 'use-http'
 import useJobs from './useJobs'
 import * as _ from 'lodash'
-import ClusterContext from "../../contexts/Clusters"
-import useJobsAll from "./useJobsAll"
-import IconButton from "@material-ui/core/IconButton"
+import ClusterContext from '../../contexts/Clusters'
+import useJobsAll from './useJobsAll'
+import IconButton from '@material-ui/core/IconButton'
 import DeleteIcon from '@material-ui/icons/Delete'
 import CheckIcon from '@material-ui/icons/CheckSharp'
-import {DLTSTabs} from "../CommonComponents/DLTSTabs"
-import {JobsTitles} from "../../Constants/TabsContants"
-import {JobsOperationDialog} from "./components/JobsOperationDialog"
-import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar"
+import {DLTSTabs} from '../CommonComponents/DLTSTabs'
+import {JobsTitles} from '../../Constants/TabsContants'
+import {JobsOperationDialog} from './components/JobsOperationDialog'
+import {DLTSSnackbar} from '../CommonComponents/DLTSSnackbar'
 import {
   SUCCESSFULLYAPPROVED,
   SUCCESSFULLYPAUSED,
   SUCCESSFULLYRESUMED,
   SUCCESSFULLYUPDATEDPRIORITY,
   SUCESSFULKILLED
-} from "../../Constants/WarnConstants"
-import {JobsSelectByCluster} from "./components/JobsSelectByCluster"
-import TeamContext from "../../contexts/Team"
-import {checkObjIsEmpty, toLocalTime} from "../../utlities/ObjUtlities"
-import ReactJson from "react-json-view"
-import TablePagination from "@material-ui/core/TablePagination"
-import {checkFinishedJob} from "../../utlities/interactionUtlties"
+} from '../../Constants/WarnConstants'
+import {JobsSelectByCluster} from './components/JobsSelectByCluster'
+import TeamContext from '../../contexts/Team'
+import {checkObjIsEmpty, toLocalTime} from '../../utlities/ObjUtlities'
+import ReactJson from 'react-json-view'
+import TablePagination from '@material-ui/core/TablePagination'
+import {checkFinishedJob} from '../../utlities/interactionUtlties'
 import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable'
 
 const variantIcon = {
@@ -57,8 +57,8 @@ const useStyles = makeStyles((theme: Theme) =>
       backgroundColor: theme.palette.background.paper
     },
     searchContainer: {
-      display: "flex",
-      alignItems: "center",
+      display: 'flex',
+      alignItems: 'center',
       marginLeft:20,
       marginTop:40
     },
@@ -109,7 +109,7 @@ const Jobs: React.FC = (props: any) => {
   const [openUpatePriorityWarn, setUpdatePriorityWarn] = React.useState(false)
   const { clusters } = React.useContext(ClusterContext)
   const [currentJob, setCurrentJob] = React.useState({jobId:'',cluster:'',priority: 100})
-  const deleteUrl = `/api/clusters/`
+  const deleteUrl = '/api/clusters/'
   const requestDelete =  useFetch(deleteUrl)
   useEffect(() => {
     let mount = true
@@ -125,22 +125,22 @@ const Jobs: React.FC = (props: any) => {
     }
   }, [])
   const killJob = async () => {
-    const body = {"status":"killing"}
+    const body = {'status':'killing'}
     const data = await requestDelete.put(`${currentJob.cluster}/jobs/${currentJob.jobId}/status/`,body)
     return data
   }
   const approveJob = async () => {
-    const body = {"status":"approved"}
+    const body = {'status':'approved'}
     const data = await requestDelete.put(`${currentJob.cluster}/jobs/${currentJob.jobId}/status/`,body)
     return data
   }
   const pauseJob = async () => {
-    const body = {"status":"pausing"}
+    const body = {'status':'pausing'}
     const data = await requestDelete.put(`${currentJob.cluster}/jobs/${currentJob.jobId}/status/`,body)
     return data
   }
   const resumeJob = async () => {
-    const body = {"status":"queued"}
+    const body = {'status':'queued'}
     const data = await requestDelete.put(`${currentJob.cluster}/jobs/${currentJob.jobId}/status/`,body)
     return data
   }
@@ -234,7 +234,7 @@ const Jobs: React.FC = (props: any) => {
           setOpenApprove(false)
           setMessage(SUCCESSFULLYAPPROVED)
         } else {
-          alert("approve fail")
+          alert('approve fail')
         }
       })
     } else if (openPause) {
@@ -244,7 +244,7 @@ const Jobs: React.FC = (props: any) => {
           setOpenPause(false)
           setMessage(SUCCESSFULLYPAUSED)
         } else {
-          alert("pause fail")
+          alert('pause fail')
         }
       })
     } else if (openResume) {
@@ -254,12 +254,12 @@ const Jobs: React.FC = (props: any) => {
           setOpenResume(false)
           setMessage(SUCCESSFULLYRESUMED)
         } else {
-          alert("resume fail")
+          alert('resume fail')
         }
       })
     } else if (openUpdatePriority) {
       setOpenUpdatePriority(false)
-      const body = { "priority": currentJob.priority}
+      const body = { 'priority': currentJob.priority}
       const response = setPriority(`/clusters/${currentJob.cluster}/jobs/${currentJob.jobId}/priority`, body)
       if (response) {
         setUpdatePriorityWarn(true)
@@ -295,7 +295,7 @@ const Jobs: React.FC = (props: any) => {
     })
     setOpenResume(true)
   }
-  const renderUserName = (rowData: any)=><span>{rowData['userName'].split("@").shift()}</span>
+  const renderUserName = (rowData: any)=><span>{rowData['userName'].split('@').shift()}</span>
   const renderPrioritySet = (rowData: any) => {
     return (
       <>
@@ -324,11 +324,11 @@ const Jobs: React.FC = (props: any) => {
 
   const renderDateTime = (rowData: any,time?: string)=> {
     if (time === 'jobTime') {
-      return (<span>{ DateTime.fromJSDate(new Date(Date.parse(rowData['jobTime']))).toFormat("yyyy/LL/dd HH:mm:ss")}</span>)
+      return (<span>{ DateTime.fromJSDate(new Date(Date.parse(rowData['jobTime']))).toFormat('yyyy/LL/dd HH:mm:ss')}</span>)
     } else if (time === 'startedAt') {
-      return (<span>{ DateTime.fromJSDate(new Date(Date.parse(rowData['jobStatusDetail'][0]['startedAt']))).toFormat("yyyy/LL/dd HH:mm:ss")}</span>)
+      return (<span>{ DateTime.fromJSDate(new Date(Date.parse(rowData['jobStatusDetail'][0]['startedAt']))).toFormat('yyyy/LL/dd HH:mm:ss')}</span>)
     } else if (time === 'finishedAt') {
-      return (<span>{ DateTime.fromJSDate(new Date(Date.parse(rowData['jobStatusDetail'][0]['finishedAt']))).toFormat("yyyy/LL/dd HH:mm:ss")}</span>)
+      return (<span>{ DateTime.fromJSDate(new Date(Date.parse(rowData['jobStatusDetail'][0]['finishedAt']))).toFormat('yyyy/LL/dd HH:mm:ss')}</span>)
     }
   }
 
@@ -358,7 +358,7 @@ const Jobs: React.FC = (props: any) => {
     if (props.action.icon === 'Approve' && props.data.jobStatus === 'unapproved') {
       return(
         <Tooltip title="Approve Job">
-          <IconButton color="primary"  size={"small"} aria-label="delete" onClick={(event) => props.action.onClick(event, props.data)}>
+          <IconButton color="primary"  size={'small'} aria-label="delete" onClick={(event) => props.action.onClick(event, props.data)}>
             <CheckIcon />
           </IconButton>
         </Tooltip>
@@ -366,7 +366,7 @@ const Jobs: React.FC = (props: any) => {
     } else if (props.action.icon === 'kill') {
       return(
         <Tooltip title="Kill Job">
-          <IconButton color="secondary"  size={"small"} aria-label="delete" onClick={(event) => props.action.onClick(event, props.data)}>
+          <IconButton color="secondary"  size={'small'} aria-label="delete" onClick={(event) => props.action.onClick(event, props.data)}>
             <DeleteIcon />
           </IconButton>
         </Tooltip>
@@ -405,9 +405,9 @@ const Jobs: React.FC = (props: any) => {
     overrides: {
       MuiTooltip: {
         tooltip: {
-          fontSize: "1.0em",
-          overflow:"auto",
-          backgroundColor:"rgb(29, 31, 33)"
+          fontSize: '1.0em',
+          overflow:'auto',
+          backgroundColor:'rgb(29, 31, 33)'
         }
       }
     }
@@ -415,20 +415,20 @@ const Jobs: React.FC = (props: any) => {
 
 
   const renderJobStatus = (rowData: any) => {
-    let message = "unknown"
+    let message = 'unknown'
     let schedulingMessage = {}
     if (rowData.jobStatusDetail && rowData.jobStatusDetail.length > 0 && rowData.jobStatusDetail[0].message) {
       let tmp = rowData.jobStatusDetail[0].message
       let dateType = /(\d{4})([\/-])/
-      let date = ""
-      let text = ""
+      let date = ''
+      let text = ''
       if (dateType.test(tmp)){
-        let datePart = tmp.split(" ")[2]
+        let datePart = tmp.split(' ')[2]
         let lastIndex = tmp.indexOf(datePart)
         text = (tmp.substring(0, lastIndex))
         date = tmp.substring(lastIndex).substring(0, datePart.length - 1)
         if (new Date(date).toString().indexOf('Invalid') !== -1) {
-          date = date.concat("0")
+          date = date.concat('0')
         }
         message = text.concat(toLocalTime(date))
       } else {
@@ -437,8 +437,8 @@ const Jobs: React.FC = (props: any) => {
     }
     if (rowData['jobStatus'] === 'scheduling' && rowData.jobStatusDetail && rowData.jobStatusDetail.length > 0  ) {
       for (let item of rowData.jobStatusDetail) {
-        if (item.hasOwnProperty("message")) {
-          schedulingMessage = item["message"]
+        if (item.hasOwnProperty('message')) {
+          schedulingMessage = item['message']
         }
       }
     }
@@ -449,11 +449,11 @@ const Jobs: React.FC = (props: any) => {
             <React.Fragment>
               {
                 typeof schedulingMessage === 'string' ? <span>{schedulingMessage}</span> :
-                  <ReactJson src={schedulingMessage} theme={"tomorrow"} displayObjectSize={false}/>
+                  <ReactJson src={schedulingMessage} theme={'tomorrow'} displayObjectSize={false}/>
               }
             </React.Fragment>
           }  placement="top">
-            <IconButton edge={"start"} size="small" >
+            <IconButton edge={'start'} size="small" >
               <SvgIcon>
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
               </SvgIcon>
@@ -473,7 +473,7 @@ const Jobs: React.FC = (props: any) => {
       <Fragment>
         <JobsOperationDialog handleClose={handleClose}
           titleStyle={{color:red[200]}}
-          title={"Info"}
+          title={'Info'}
           handleConfirm={handleConfirm}
           job={currentJob}
           openApprove={openApprove}
@@ -517,8 +517,8 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'center',
                 flexDirection: 'row',
                 padding:'0',
-              },type: 'date', customSort:(a,b) => sortByJobTime(a, b, "jobTime"),
-              render:(rowData: any)=>renderDateTime(rowData,"jobTime")
+              },type: 'date', customSort:(a,b) => sortByJobTime(a, b, 'jobTime'),
+              render:(rowData: any)=>renderDateTime(rowData,'jobTime')
               },
               {
                 title: 'Preemptible',
@@ -620,7 +620,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'0',
-              },type: 'date', customSort:(a,b) => sortByJobTime(a, b, "jobTime"),render:(rowData: any)=>renderDateTime(rowData,"jobTime")},
+              },type: 'date', customSort:(a,b) => sortByJobTime(a, b, 'jobTime'),render:(rowData: any)=>renderDateTime(rowData,'jobTime')},
               {
                 title: 'Preemptible',
                 field: 'jobParams.preemptionAllowed',
@@ -706,7 +706,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'center',
                 flexDirection: 'row',
                 padding:'0',
-              }, field: 'jobTime',customSort:(a,b) => sortByJobTime(a, b, "jobTime"), type: 'date',render: (rowData: any)=>renderDateTime(rowData, 'jobTime')},
+              }, field: 'jobTime',customSort:(a,b) => sortByJobTime(a, b, 'jobTime'), type: 'date',render: (rowData: any)=>renderDateTime(rowData, 'jobTime')},
               {
                 title: 'Preemptible',
                 field: 'jobParams.preemptionAllowed',
@@ -795,7 +795,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'3',
-              }, field: 'jobTime', type: 'date', customSort:(a,b) => sortByJobTime(a, b, "jobTime"),render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+              }, field: 'jobTime', type: 'date', customSort:(a,b) => sortByJobTime(a, b, 'jobTime'),render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
               {title:'Preemptible', cellStyle: {
                 textAlign:'center',
                 flexDirection: 'row',
@@ -805,7 +805,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'2',
-              }, field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown', customSort:(a,b) => sortByJobTime(a, b, "finishedAt"),
+              }, field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown', customSort:(a,b) => sortByJobTime(a, b, 'finishedAt'),
               render: (rowData: any)=>renderDateTime(rowData, 'finishedAt')}
             ]}
             data={filterPauseJobs(jobs)}
@@ -877,7 +877,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'0',
-              }, field:'jobTime',type:'date',customSort:(a,b) => sortByJobTime(a, b, "jobTime") ,render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+              }, field:'jobTime',type:'date',customSort:(a,b) => sortByJobTime(a, b, 'jobTime') ,render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
               {title:'Preemptible',cellStyle: {
                 textAlign:'center',
                 flexDirection: 'row',
@@ -894,7 +894,7 @@ const Jobs: React.FC = (props: any) => {
                   padding:'5',
                   whiteSpace:'nowrap'
                 },
-                customSort: (a, b) => sortByJobTime(a, b, "startedAt"),
+                customSort: (a, b) => sortByJobTime(a, b, 'startedAt'),
                 render: (rowData: any)=>renderDateTime(rowData, 'startedAt')
               },
               {title:'Finished Time',cellStyle: {
@@ -902,7 +902,7 @@ const Jobs: React.FC = (props: any) => {
                 flexDirection: 'row',
                 padding:'2',
               }, field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
-              customSort: (a, b) => sortByJobTime(a, b, "finishedAt"),
+              customSort: (a, b) => sortByJobTime(a, b, 'finishedAt'),
               render: (rowData: any)=>renderDateTime(rowData,'finishedAt'),
               },
             ]}
@@ -991,7 +991,7 @@ const Jobs: React.FC = (props: any) => {
                         padding:'0',
                       },
                       emptyValue: 'unknown',
-                      customSort: (a, b) => sortByJobTime(a, b, "startedAt"),
+                      customSort: (a, b) => sortByJobTime(a, b, 'startedAt'),
                       render: (rowData: any)=>renderDateTime(rowData,'startedAt')
                     }
                   ]}
@@ -1074,7 +1074,7 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'center',
                       flexDirection: 'row',
                       padding:'0',
-                    },field: 'jobTime', type: 'date', customSort: (a, b) => sortByJobTime(a, b, "jobTime")
+                    },field: 'jobTime', type: 'date', customSort: (a, b) => sortByJobTime(a, b, 'jobTime')
                     ,render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
                     {
                       title: 'Preemptible'
@@ -1177,7 +1177,7 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'center',
                       flexDirection: 'row',
                       padding:'0',
-                    },field: 'jobTime', type: 'date',customSort: (a, b) => sortByJobTime(a, b, "jobTime"),render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+                    },field: 'jobTime', type: 'date',customSort: (a, b) => sortByJobTime(a, b, 'jobTime'),render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
                     {
                       title: 'Preemptible',cellStyle: {
                         textAlign:'center',
@@ -1278,7 +1278,7 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'2',
-                    },field: 'jobTime', type: 'date', customSort: (a, b) => sortByJobTime(a, b, "jobTime") ,render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+                    },field: 'jobTime', type: 'date', customSort: (a, b) => sortByJobTime(a, b, 'jobTime') ,render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
                     {title:'Preemptible',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
@@ -1289,7 +1289,7 @@ const Jobs: React.FC = (props: any) => {
                       flexDirection: 'row',
                       padding:'2',
                     },field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
-                    customSort: (a, b) => sortByJobTime(a, b, "finishedAt"),
+                    customSort: (a, b) => sortByJobTime(a, b, 'finishedAt'),
                     render: (rowData: any)=>renderDateTime(rowData, 'finishedAt')},
                   ]}
                   data={filterPauseJobs(allJobs)}
@@ -1360,7 +1360,7 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'0',
-                    }, field:'jobTime',type:'date',customSort:(a,b) => sortByJobTime(a, b, "jobTime") ,render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+                    }, field:'jobTime',type:'date',customSort:(a,b) => sortByJobTime(a, b, 'jobTime') ,render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
                     {title:'Preemptible',cellStyle: {
                       textAlign:'center',
                       flexDirection: 'row',
@@ -1377,7 +1377,7 @@ const Jobs: React.FC = (props: any) => {
                         padding:'5',
                         whiteSpace:'nowrap'
                       },
-                      customSort: (a, b) => sortByJobTime(a, b, "startedAt"),
+                      customSort: (a, b) => sortByJobTime(a, b, 'startedAt'),
                       render: (rowData: any)=>renderDateTime(rowData, 'startedAt')
                     },
                     {title:'Finished Time',cellStyle: {
@@ -1385,7 +1385,7 @@ const Jobs: React.FC = (props: any) => {
                       flexDirection: 'row',
                       padding:'2',
                     }, field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
-                    customSort: (a, b) => sortByJobTime(a, b, "finishedAt"),
+                    customSort: (a, b) => sortByJobTime(a, b, 'finishedAt'),
                     render: (rowData: any)=>renderDateTime(rowData,'finishedAt'),
                     },
                   ]}

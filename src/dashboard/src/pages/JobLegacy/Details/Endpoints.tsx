@@ -18,8 +18,8 @@ import { Add, FileCopy } from '@material-ui/icons'
 import useFetch from 'use-http'
 
 import Context from './Context'
-import copy from "clipboard-copy"
-import {checkFinishedJob} from "../../../utlities/interactionUtlties"
+import copy from 'clipboard-copy'
+import {checkFinishedJob} from '../../../utlities/interactionUtlties'
 
 interface ListProps {
   endpoints: any[];
@@ -36,8 +36,8 @@ const List: React.FC<ListProps> = ({ endpoints, setOpen }) => {
     }
   }
   const sortSSH =(a: any, b: any) => {
-    var worker1 = a.podName.split("-").pop().replace("worker", "")
-    var worker2 = b.podName.split("-").pop().replace("worker", "")
+    var worker1 = a.podName.split('-').pop().replace('worker', '')
+    var worker2 = b.podName.split('-').pop().replace('worker', '')
     return parseInt(worker1) - parseInt(worker2)
   }
   const finalEnpoints =  endpoints.filter((endpoint: any)=>endpoint['status'] === 'running').sort(

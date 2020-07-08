@@ -18,13 +18,13 @@ const ClusterCardActions: FunctionComponent = () => {
   return (
     <CardActions>
       <Button component={Link}
-        to={{pathname: "/submission/training-cluster", state: { cluster: clusterId } }}
+        to={{pathname: '/submission/training-cluster', state: { cluster: clusterId } }}
         size="small" color="secondary"
       >
         Submit Training Job
       </Button>
       <Button component={Link}
-        to={{pathname: "/submission/data", state: { cluster: clusterId } }}
+        to={{pathname: '/submission/data', state: { cluster: clusterId } }}
         size="small" color="secondary"
       >
         Submit Data Job

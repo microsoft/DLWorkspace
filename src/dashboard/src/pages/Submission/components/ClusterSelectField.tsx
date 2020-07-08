@@ -1,13 +1,13 @@
 import * as React from 'react'
 
-import { MenuItem, TextField } from "@material-ui/core"
-import { BaseTextFieldProps } from "@material-ui/core/TextField"
+import { MenuItem, TextField } from '@material-ui/core'
+import { BaseTextFieldProps } from '@material-ui/core/TextField'
 
-import ClustersContext from "../../../contexts/Clusters"
-import TeamContext from "../../../contexts/Team"
-import useFetch from "use-http"
-import * as _ from "lodash"
-import {sumValues} from "../../../utlities/ObjUtlities"
+import ClustersContext from '../../../contexts/Clusters'
+import TeamContext from '../../../contexts/Team'
+import useFetch from 'use-http'
+import * as _ from 'lodash'
+import {sumValues} from '../../../utlities/ObjUtlities'
 
 interface ClusterSelectFieldProps {
   cluster: string | undefined;
@@ -15,11 +15,11 @@ interface ClusterSelectFieldProps {
 }
 
 const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps> = (
-  { cluster, onClusterChange, variant="standard", ...props }
+  { cluster, onClusterChange, variant='standard', ...props }
 ) => {
   const { clusters } = React.useContext(ClustersContext)
   const { currentTeamId } = React.useContext(TeamContext)
-  const fetchVcStatusUrl = `/api`
+  const fetchVcStatusUrl = '/api'
   const[helperText, setHelperText] = React.useState('')
 
   const request = useFetch(fetchVcStatusUrl)

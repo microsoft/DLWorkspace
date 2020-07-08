@@ -1,20 +1,20 @@
 import * as React from 'react'
-import {useState} from "react"
+import {useState} from 'react'
 
 import {
   Chip,
   Theme,
   createStyles,
-  makeStyles } from "@material-ui/core"
-import AddIcon from "@material-ui/icons/Add"
-import RemoveIcon from "@material-ui/icons/Remove"
+  makeStyles } from '@material-ui/core'
+import AddIcon from '@material-ui/icons/Add'
+import RemoveIcon from '@material-ui/icons/Remove'
 interface ServicesProps {
   services: string[];
 }
 const useStyles = makeStyles((theme: Theme) => {
   return createStyles({
     ChipsColor:{
-      color:"secondary"
+      color:'secondary'
     }
   })
 })

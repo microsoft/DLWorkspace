@@ -1,11 +1,11 @@
 import * as React from 'react'
 
-import { createMuiTheme } from "@material-ui/core"
-import { ThemeProvider } from "@material-ui/styles"
+import { createMuiTheme } from '@material-ui/core'
+import { ThemeProvider } from '@material-ui/styles'
 
 const theme = createMuiTheme({
   typography: {
-    fontFamily: `"Roboto-mono", "Menlo", "Consolas", monospace`
+    fontFamily: '"Roboto-mono", "Menlo", "Consolas", monospace'
   }
 })
 

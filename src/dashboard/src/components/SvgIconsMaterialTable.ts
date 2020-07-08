@@ -26,7 +26,7 @@ import {
 import { Icons } from 'material-table'
 
 const forwardIcon = (Icon: SvgIconComponent) => forwardRef<SVGSVGElement>(function (props, ref) {
-  return createElement(Icon, { fontSize: "small", ref, ...props })
+  return createElement(Icon, { fontSize: 'small', ref, ...props })
 })
 
 const icons: Icons = {

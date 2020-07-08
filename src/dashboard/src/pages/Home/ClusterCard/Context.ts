@@ -42,7 +42,7 @@ const ClusterProvider: FunctionComponent<ClusterProviderProps> = ({ id, children
   useEffect(() => {
     if (error) {
       const key = enqueueSnackbar(`Failed to fetch status of cluster ${id}`, {
-        variant: "error",
+        variant: 'error',
         persist: true
       })
       return () => {

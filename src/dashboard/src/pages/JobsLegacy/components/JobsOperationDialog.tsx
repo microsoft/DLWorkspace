@@ -1,5 +1,5 @@
 import * as React from 'react'
-import {DLTSDialog} from "../../CommonComponents/DLTSDialog"
+import {DLTSDialog} from '../../CommonComponents/DLTSDialog'
 
 
 interface DialogProps {
@@ -41,6 +41,6 @@ export const JobsOperationDialog = (props: DialogProps) => {
       message={message}
       handleClose={handleClose}
       handleConfirm={handleConfirm}
-      confirmBtnTxt={"Yes"} cancelBtnTxt={"No"}/>
+      confirmBtnTxt={'Yes'} cancelBtnTxt={'No'}/>
   )
 }

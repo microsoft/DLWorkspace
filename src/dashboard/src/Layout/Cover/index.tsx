@@ -14,15 +14,15 @@ import {
   Typography
 } from '@material-ui/core'
 
-import image1 from "./image1.jpeg"
-import image2 from "./image2.jpeg"
-import image3 from "./image3.jpeg"
+import image1 from './image1.jpeg'
+import image2 from './image2.jpeg'
+import image3 from './image3.jpeg'
 
 const useStyles = makeStyles(() => createStyles({
   container: {
     backgroundImage: `url(${sample([image1, image2, image3])})`,
-    backgroundSize: "cover",
-    backgroundPosition: "right"
+    backgroundSize: 'cover',
+    backgroundPosition: 'right'
   }
 }))
 
@@ -45,9 +45,9 @@ const Cover: FunctionComponent = ({ children }) => {
               <Grid item>{children}</Grid>
               <Grid item>
                 <Typography variant="body2">
-                  {"Built with "}
+                  {'Built with '}
                   <span role="img" aria-label="heart">❤️</span>
-                  {" by Bing DLTS"}
+                  {' by Bing DLTS'}
                 </Typography>
               </Grid>
             </Grid>

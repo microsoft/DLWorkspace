@@ -4,11 +4,11 @@ import {
   createContext,
   useContext,
   useMemo
-} from "react"
+} from 'react'
 
 import { find } from 'lodash'
 
-import TeamContext from "./Team"
+import TeamContext from './Team'
 interface ClustersContext {
   clusters: any[];
 }

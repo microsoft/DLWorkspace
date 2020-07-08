@@ -6,9 +6,9 @@ import {
   useEffect,
   useState
 } from 'react'
-import useFetch from "use-http-1"
+import useFetch from 'use-http-1'
 
-import { find } from "lodash"
+import { find } from 'lodash'
 
 import UserContext from './User'
 

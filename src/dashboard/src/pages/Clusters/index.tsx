@@ -53,7 +53,7 @@ const useClusterStatus = (clusterId: string) => {
   useEffect(() => {
     if (error) {
       const key = enqueueSnackbar(`Failed to fetch status of cluster ${clusterId}`, {
-        variant: "error",
+        variant: 'error',
         persist: true
       })
       return () => {
@@ -164,7 +164,7 @@ const Clusters: FunctionComponent = () => {
     return columns
   }, [resourceColumns])
   const options = useRef<Options>({
-    padding: "dense",
+    padding: 'dense',
     draggable: false,
     paging: false
   }).current

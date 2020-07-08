@@ -10,19 +10,19 @@ import {
 import useFetch from 'use-http'
 
 import Context from './Context'
-import DoneIcon from "@material-ui/icons/Done"
-import ClearIcon from "@material-ui/icons/Clear"
-import {green, red} from "@material-ui/core/colors"
-import IconButton from "@material-ui/core/IconButton"
+import DoneIcon from '@material-ui/icons/Done'
+import ClearIcon from '@material-ui/icons/Clear'
+import {green, red} from '@material-ui/core/colors'
+import IconButton from '@material-ui/core/IconButton'
 import DeleteIcon from '@material-ui/icons/Delete'
-import CheckIcon from "@material-ui/icons/Check"
-import {JobsOperationDialog} from "../../JobsLegacy/components/JobsOperationDialog"
+import CheckIcon from '@material-ui/icons/Check'
+import {JobsOperationDialog} from '../../JobsLegacy/components/JobsOperationDialog'
 import {
   SUCESSFULKILLED,
   SUCCESSFULLYPAUSED,
   SUCCESSFULLYRESUMED, SUCCESSFULLYAPPROVED
-} from "../../../Constants/WarnConstants"
-import {DLTSSnackbar} from "../../CommonComponents/DLTSSnackbar"
+} from '../../../Constants/WarnConstants'
+import {DLTSSnackbar} from '../../CommonComponents/DLTSSnackbar'
 
 interface BriefProps {
   readonly?: boolean;
@@ -57,7 +57,7 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
     QUEUED: 'queued'
   }
   const actionHandle = useCallback(async (operation: string) => {
-    const body = {"status":operation}
+    const body = {'status':operation}
     const data = await api.put(`/clusters/${clusterId}/jobs/${jobId}/status`, body)
     return data
   }, [api, clusterId, jobId])
@@ -120,7 +120,7 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
           setOpenPause(false)
           setMessage(SUCCESSFULLYPAUSED)
         } else {
-          alert("pause fail")
+          alert('pause fail')
         }
       })
     } else if (openResume) {
@@ -130,7 +130,7 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
           setOpenResume(false)
           setMessage(SUCCESSFULLYRESUMED)
         } else {
-          alert("approve fail")
+          alert('approve fail')
         }
       })
     } else if (openApprove) {
@@ -140,7 +140,7 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
           setOpenApprove(false)
           setMessage(SUCCESSFULLYAPPROVED)
         } else {
-          alert("resume fail")
+          alert('resume fail')
         }
       })
     }
@@ -149,7 +149,7 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
     <Card>
       <JobsOperationDialog handleClose={handleClose}
         titleStyle={{color:red[200]}}
-        title={"Info"}
+        title={'Info'}
         handleConfirm={handleConfirm}
         job={job}
         openApprove={openApprove}
@@ -224,7 +224,7 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
               </IconButton>
             </Tooltip>}
             {isApproveDisplay && <Tooltip title="Approve Job">
-              <IconButton color="primary"  size={"small"} onClick={handleApprove}>
+              <IconButton color="primary"  size={'small'} onClick={handleApprove}>
                 <CheckIcon />
               </IconButton>
             </Tooltip>}

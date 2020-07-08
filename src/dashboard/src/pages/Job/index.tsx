@@ -96,7 +96,7 @@ const JobContent: FunctionComponent = () => {
   const previousStatus = usePrevious(status)
   useEffect(() => {
     if (previousStatus !== undefined && status !== previousStatus) {
-      enqueueSnackbar(`Job is ${status} now.`, { variant: "info" })
+      enqueueSnackbar(`Job is ${status} now.`, { variant: 'info' })
     }
   }, [previousStatus, status, enqueueSnackbar])
 

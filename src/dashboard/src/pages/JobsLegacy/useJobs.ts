@@ -1,7 +1,7 @@
 import * as React from 'react'
-import { useEffect, useState } from "react"
-import useFetch from "use-http"
-import TeamContext from "../../contexts/Team"
+import { useEffect, useState } from 'react'
+import useFetch from 'use-http'
+import TeamContext from '../../contexts/Team'
 
 type Jobs = object
 type UseJob = [Jobs | undefined, Error | undefined]

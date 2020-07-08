@@ -41,7 +41,7 @@ const Log: React.FC = () => {
       }
       const newLog = Object.assign(Object.create(null), log)
       for (const podName of Object.keys(nextLog)) {
-        newLog[podName] = (newLog[podName] || "") + nextLog[podName]
+        newLog[podName] = (newLog[podName] || '') + nextLog[podName]
       }
       setLog(newLog)
       setCursor(cursor)
@@ -71,7 +71,7 @@ ${log[podName]}
 
 `)
     }
-    return logText.join("")
+    return logText.join('')
   }, [log])
 
   const timeout = useRef<ReturnType<typeof setTimeout>>()

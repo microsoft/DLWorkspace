@@ -30,13 +30,13 @@ const ListItemLink: FunctionComponent<LinkProps> = (props) => {
   const location = useLocation()
 
   const locationPathname = location.pathname
-  const toPathname = typeof to === "string"
+  const toPathname = typeof to === 'string'
     ? to
-    : typeof to === "object"
+    : typeof to === 'object'
       ? to.pathname
       : undefined
 
-  const selected = typeof toPathname === "string"
+  const selected = typeof toPathname === 'string'
     ? matchPath(locationPathname, toPathname) !== null
     : true
 

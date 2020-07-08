@@ -38,8 +38,8 @@ const ActionIconButton: FunctionComponent = () => {
       </IconButton>
       <Menu
         anchorEl={iconButton.current}
-        anchorOrigin={{ horizontal: "right", vertical: "top" }}
-        transformOrigin={{ horizontal: "right", vertical: "top" }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'top' }}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         open={open}
         onClose={handleMenuClose}
       >

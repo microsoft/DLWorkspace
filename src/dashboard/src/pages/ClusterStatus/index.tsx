@@ -1,5 +1,5 @@
 import * as React from 'react'
-import {FC, useEffect, useState} from "react"
+import {FC, useEffect, useState} from 'react'
 import SwipeableViews from 'react-swipeable-views'
 import {
   Typography,
@@ -9,31 +9,31 @@ import {
   createStyles,
   makeStyles,
   CircularProgress,
-} from "@material-ui/core"
+} from '@material-ui/core'
 import { DLTSTabPanel } from '../CommonComponents/DLTSTabPanel'
-import TeamContext from "../../contexts/Team"
+import TeamContext from '../../contexts/Team'
 import ClusterContext from '../../contexts/Clusters'
-import useFetch from "use-http"
+import useFetch from 'use-http'
 
-import * as _ from "lodash"
+import * as _ from 'lodash'
 import { mergeTwoObjsByKey, convertToArrayByKey } from '../../utlities/ObjUtlities'
-import {handleChangeIndex} from "../../utlities/interactionUtlties"
-import {DLTSTabs} from "../CommonComponents/DLTSTabs"
+import {handleChangeIndex} from '../../utlities/interactionUtlties'
+import {DLTSTabs} from '../CommonComponents/DLTSTabs'
 import {
   ClusterStatusTitles,
   ClusterUsagesTitles
-} from "../../Constants/TabsContants"
-import {TeamVirtualClusterStatus} from "./components/TeamVirtualClusterStatus"
-import {TeamVCUserStatus} from "./components/TeamVCUserStatus"
-import {ClusterUsage} from "./components/ClusterUsage"
-import {PhysicalClusterNodeStatus} from "./components/PhysicalClusterNodeStatus"
+} from '../../Constants/TabsContants'
+import {TeamVirtualClusterStatus} from './components/TeamVirtualClusterStatus'
+import {TeamVCUserStatus} from './components/TeamVCUserStatus'
+import {ClusterUsage} from './components/ClusterUsage'
+import {PhysicalClusterNodeStatus} from './components/PhysicalClusterNodeStatus'
 
 const ClusterStatus: FC = () => {
   const theme = useTheme()
   const [value, setValue] = React.useState(0)
   const {clusters} = React.useContext(ClusterContext)
   const { currentTeamId } = React.useContext(TeamContext)
-  const [selectedValue, setSelectedValue] = useState("")
+  const [selectedValue, setSelectedValue] = useState('')
   const [vcStatus, setVcStatus] = useState([])
   const [userStatus, setUserStatus] = useState(Array())
   const [nodeStatus, setNodeStatus] = useState([])
@@ -47,8 +47,8 @@ const ClusterStatus: FC = () => {
   const options = {
     onMount: true
   }
-  const fetchVcStatusUrl = `/api`
-  const fetchiGrafanaUrl = `/api/clusters`
+  const fetchVcStatusUrl = '/api'
+  const fetchiGrafanaUrl = '/api/clusters'
 
   const request = useFetch(fetchVcStatusUrl,options)
   const requestGrafana = useFetch(fetchiGrafanaUrl, options)
@@ -74,8 +74,8 @@ const ClusterStatus: FC = () => {
       })
       const filterclusters = convertToArrayByKey(clusters, 'id')
       setSelectedValue(filterclusters[0])
-      if (localStorage.getItem("selectedCluster")) {
-        setSelectedValue((String)(localStorage.getItem("selectedCluster")))
+      if (localStorage.getItem('selectedCluster')) {
+        setSelectedValue((String)(localStorage.getItem('selectedCluster')))
       } else {
         if (selectedValue === '') {
           setSelectedValue(filterclusters[0])
@@ -93,7 +93,7 @@ const ClusterStatus: FC = () => {
       Promise.all(fetchs).then((res: any) => {
         //init user status & node status when loading page
         let userfetchs: any = []
-        if (localStorage.getItem("selectedCluster") === null)  {
+        if (localStorage.getItem('selectedCluster') === null)  {
           userfetchs = res[0]
         } else {
           userfetchs = res.filter((vc: any) => vc['ClusterName'] === localStorage.getItem('selectedCluster'))[0]
@@ -146,7 +146,7 @@ const ClusterStatus: FC = () => {
         }
         fetch(userfetchs['getIdleGPUPerUserUrl']+params).then(async (response: any) => {
           const res = await response.json()
-          for (let item of res['data']["result"]) {
+          for (let item of res['data']['result']) {
             let idleUser: any = {}
             idleUser['userName'] = item['metric']['username']
             idleUser['idleGPU'] = item['value'][1]
@@ -155,19 +155,19 @@ const ClusterStatus: FC = () => {
           let tmpMerged = _.values(mergeTwoObjsByKey(fetchIdes,fetchUsrs,'userName'))
           _.values(tmpMerged).forEach((mu: any)=>{
             if (!mu.hasOwnProperty('usedGPU')) {
-              mu['usedGPU'] = "0"
+              mu['usedGPU'] = '0'
             }
             if (!mu.hasOwnProperty('idleGPU')) {
-              mu['idleGPU'] = "0"
+              mu['idleGPU'] = '0'
             }
             if (!mu.hasOwnProperty('booked')) {
-              mu['booked'] = "0"
+              mu['booked'] = '0'
             }
             if (!mu.hasOwnProperty('idle')) {
-              mu['idle'] = "0"
+              mu['idle'] = '0'
             }
             if (!mu.hasOwnProperty('preemptableGPU')) {
-              mu['preemptableGPU'] = "0"
+              mu['preemptableGPU'] = '0'
             }
           })
           let finalUserStatus = _.values(mergeTwoObjsByKey(tmpMerged,prometheusResp,'userName'))

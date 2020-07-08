@@ -1,13 +1,13 @@
 import * as React from 'react'
-import {CSSProperties} from "react"
+import {CSSProperties} from 'react'
 import {
   createStyles,
   makeStyles,
   Snackbar,
   SnackbarContent,
   Theme
-} from "@material-ui/core"
-import {green} from "@material-ui/core/colors"
+} from '@material-ui/core'
+import {green} from '@material-ui/core/colors'
 
 
 interface SnackbarProps {

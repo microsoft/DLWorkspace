@@ -1,7 +1,7 @@
 import * as React from 'react'
-import {AppBar, Container, Tabs, Tab} from "@material-ui/core"
-import useCheckIsDesktop from "../../utlities/layoutUtlities"
-import {handleChangeTab} from "../../utlities/interactionUtlties"
+import {AppBar, Container, Tabs, Tab} from '@material-ui/core'
+import useCheckIsDesktop from '../../utlities/layoutUtlities'
+import {handleChangeTab} from '../../utlities/interactionUtlties'
 interface TabsProps {
   children?: React.ReactNode;
   value: any;

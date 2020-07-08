@@ -1,5 +1,5 @@
 import * as React from 'react'
-import {useState} from "react"
+import {useState} from 'react'
 
 import {
   Card,
@@ -24,33 +24,33 @@ import {
   Switch,
   MenuItem,
   SvgIcon, useMediaQuery
-} from "@material-ui/core"
+} from '@material-ui/core'
 import Tooltip from '@material-ui/core/Tooltip'
-import { makeStyles, createStyles } from "@material-ui/core/styles"
-import { Info, Delete, Add } from "@material-ui/icons"
-import { withRouter } from "react-router-dom"
+import { makeStyles, createStyles } from '@material-ui/core/styles'
+import { Info, Delete, Add } from '@material-ui/icons'
+import { withRouter } from 'react-router-dom'
 import IconButton from '@material-ui/core/IconButton'
-import useFetch from "use-http"
+import useFetch from 'use-http'
 import { join } from 'path'
 
-import ClusterSelectField from "./components/ClusterSelectField"
-import UserContext from "../../contexts/User"
+import ClusterSelectField from './components/ClusterSelectField'
+import UserContext from '../../contexts/User'
 import ClustersContext from '../../contexts/Clusters'
-import TeamContext from "../../contexts/Team"
-import theme, { Provider as MonospacedThemeProvider } from "../../contexts/MonospacedTheme"
-import {BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList} from "recharts"
+import TeamContext from '../../contexts/Team'
+import theme, { Provider as MonospacedThemeProvider } from '../../contexts/MonospacedTheme'
+import {BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList} from 'recharts'
 import Paper, { PaperProps } from '@material-ui/core/Paper'
 import Draggable from 'react-draggable'
-import {TransitionProps} from "@material-ui/core/transitions"
-import Slide from "@material-ui/core/Slide"
-import {green, grey, red} from "@material-ui/core/colors"
-import {DLTSDialog} from "../CommonComponents/DLTSDialog"
+import {TransitionProps} from '@material-ui/core/transitions'
+import Slide from '@material-ui/core/Slide'
+import {green, grey, red} from '@material-ui/core/colors'
+import {DLTSDialog} from '../CommonComponents/DLTSDialog'
 import {
   SUCCESSFULSUBMITTED,
   SUCCESSFULTEMPLATEDELETE, SUCCESSFULTEMPLATEDSAVE
-} from "../../Constants/WarnConstants"
-import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar"
-import * as _ from "lodash"
+} from '../../Constants/WarnConstants'
+import {DLTSSnackbar} from '../CommonComponents/DLTSSnackbar'
+import * as _ from 'lodash'
 
 interface EnvironmentVariable {
   name: string;
@@ -60,10 +60,10 @@ interface EnvironmentVariable {
 const useStyles = makeStyles(() =>
   createStyles({
     container: {
-      margin: "auto"
+      margin: 'auto'
     },
     submitButton: {
-      marginLeft: "auto"
+      marginLeft: 'auto'
     }
   })
 )
@@ -81,7 +81,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   //const team = 'platform';
   const [showGPUFragmentation, setShowGPUFragmentation] = React.useState(false)
   const [grafanaUrl, setGrafanaUrl] = React.useState('')
-  const [name, setName] = React.useState("")
+  const [name, setName] = React.useState('')
   const [gpuFragmentation, setGpuFragmentation] = React.useState<any[]>([])
   const onNameChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,7 +110,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     getTemplates(`/teams/${currentTeamId}/templates`)
   }, [currentTeamId])
 
-  const [type, setType] = React.useState("RegularJob")
+  const [type, setType] = React.useState('RegularJob')
   const onTypeChange = React.useCallback(
     (event: React.ChangeEvent<{ value: unknown }>) => {
       setType(event.target.value as string)
@@ -139,7 +139,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     [setWorkers]
   )
 
-  const [image, setImage] = React.useState("")
+  const [image, setImage] = React.useState('')
   const onImageChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setImage(event.target.value)
@@ -147,7 +147,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     [setImage]
   )
 
-  const [command, setCommand] = React.useState("")
+  const [command, setCommand] = React.useState('')
   const onCommandChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setCommand(event.target.value)
@@ -155,7 +155,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     [setCommand]
   )
 
-  const [interactivePorts, setInteractivePorts] = React.useState("")
+  const [interactivePorts, setInteractivePorts] = React.useState('')
   const onInteractivePortsChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setInteractivePorts(event.target.value)
@@ -191,11 +191,11 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const onAdvancedClick = () => {
     setAdvanced(!advanced)
   }
-  const [accountName, setAccountName] = React.useState("")
-  const [accountKey, setAccountKey] = React.useState("")
-  const [containerName, setContainerName] = React.useState("")
-  const [mountPath, setMountPath] = React.useState("")
-  const [mountOptions, setMountOptions] = React.useState("")
+  const [accountName, setAccountName] = React.useState('')
+  const [accountKey, setAccountKey] = React.useState('')
+  const [containerName, setContainerName] = React.useState('')
+  const [mountPath, setMountPath] = React.useState('')
+  const [mountOptions, setMountOptions] = React.useState('')
   const onAccountNameChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setAccountName(event.target.value)
@@ -226,16 +226,16 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     },
     [setMountOptions]
   )
-  const [workPath, setWorkPath] = React.useState("")
+  const [workPath, setWorkPath] = React.useState('')
   const onWorkPathChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setWorkPath(event.target.value)
     },
     [setWorkPath]
   )
-  const [dockerRegistry, setDockerRegistry] = React.useState("")
-  const [dockerUsername, setDockerUsername] = React.useState("")
-  const [dockerPassword, setDockerPassword] = React.useState("")
+  const [dockerRegistry, setDockerRegistry] = React.useState('')
+  const [dockerUsername, setDockerUsername] = React.useState('')
+  const [dockerPassword, setDockerPassword] = React.useState('')
   const onDockerRegistryChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setDockerRegistry(event.target.value)
@@ -262,7 +262,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     [setEnableWorkPath]
   )
 
-  const [dataPath, setDataPath] = React.useState("")
+  const [dataPath, setDataPath] = React.useState('')
   const onDataPathChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setDataPath(event.target.value)
@@ -278,7 +278,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     [setEnableDataPath]
   )
 
-  const [jobPath, setJobPath] = React.useState("")
+  const [jobPath, setJobPath] = React.useState('')
   const onJobPathChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setJobPath(event.target.value)
@@ -322,7 +322,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const onAddEnvironmentVariableClick = React.useCallback(() => {
     setEnvironmentVariables(
       environmentVariables.concat(
-        [{ name: "", value: "" }]))
+        [{ name: '', value: '' }]))
   }, [environmentVariables])
 
   const [maxRetryCount, setMaxRetryCount] = React.useState(3)
@@ -344,7 +344,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   }
 
 
-  const [saveTemplateName, setSaveTemplateName] = React.useState("")
+  const [saveTemplateName, setSaveTemplateName] = React.useState('')
   const onSaveTemplateNameChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setSaveTemplateName(event.target.value)
@@ -352,7 +352,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     [setSaveTemplateName]
   )
 
-  const [saveTemplateDatabase, setSaveTemplateDatabase] = React.useState("user")
+  const [saveTemplateDatabase, setSaveTemplateDatabase] = React.useState('user')
   const onSaveTemplateDatabaseChange = React.useCallback(
     (event: React.ChangeEvent<{ value: unknown }>) => {
       setSaveTemplateDatabase(event.target.value as string)
@@ -473,17 +473,17 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     (event: React.ChangeEvent<{ value: unknown }>) => {
       setJson(event.target.value as string)
       if (event.target.value === '-1') {
-        setName("")
-        setType("RegularJob")
+        setName('')
+        setType('RegularJob')
         setGpus(0)
         setWorkers(0)
-        setImage("")
-        setCommand("")
-        setWorkPath("")
+        setImage('')
+        setCommand('')
+        setWorkPath('')
         setEnableWorkPath(true)
-        setDataPath("")
+        setDataPath('')
         setEnableDataPath(true)
-        setJobPath("")
+        setJobPath('')
         setEnableJobPath(true)
         setEnvironmentVariables([])
         setSsh(false)
@@ -527,17 +527,17 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         if (ipython !== undefined) setIpython(ipython)
         if (tensorboard !== undefined) setTensorboard(tensorboard)
         if (plugins === undefined) {
-          setAccountName("")
-          setAccountKey("")
-          setContainerName("")
-          setMountPath("")
-          setMountOptions("")
-          setDockerRegistry("")
-          setDockerUsername("")
-          setDockerPassword("")
+          setAccountName('')
+          setAccountKey('')
+          setContainerName('')
+          setMountPath('')
+          setMountOptions('')
+          setDockerRegistry('')
+          setDockerUsername('')
+          setDockerPassword('')
         }
         if (plugins !== undefined) {
-          if (plugins.hasOwnProperty("blobfuse") && Array.isArray(plugins['blobfuse'])) {
+          if (plugins.hasOwnProperty('blobfuse') && Array.isArray(plugins['blobfuse'])) {
             let blobfuseObj = plugins['blobfuse'][0]
             setAccountName(blobfuseObj['accountName'])
             setAccountKey(blobfuseObj['accountKey'])
@@ -693,7 +693,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       history.push(`/job/${currentTeamId}/${selectedCluster}/${jobId.current}`)
     }
   }, [postJobData, ssh, ipython, tensorboard, interactivePorts, history, selectedCluster, postEndpoints, currentTeamId])
-  const fetchGrafanaUrl = `/api/clusters`
+  const fetchGrafanaUrl = '/api/clusters'
   const request = useFetch(fetchGrafanaUrl)
   const fetchGrafana = async () => {
     const {grafana} = await request.get(`/${selectedCluster}`)
@@ -749,7 +749,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     })
   }, [grafanaUrl])
 
-  const isDesktop = useMediaQuery(theme.breakpoints.up("sm"))
+  const isDesktop = useMediaQuery(theme.breakpoints.up('sm'))
 
   const showMessage = (open: boolean,showDeleteTemplate: boolean,showSaveTemplate: boolean) => {
     let message = ''
@@ -785,7 +785,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         message={null}
         handleClose={handleCloseGPUGramentation}
         handleConfirm={null} confirmBtnTxt={null} cancelBtnTxt={null}
-        title={"View Cluster GPU Status Per Node"}
+        title={'View Cluster GPU Status Per Node'}
         titleStyle={{color:grey[400]}}
       >
         <BarChart width={500} height={700} data={gpuFragmentation}  margin={{top: 20}}>
@@ -967,7 +967,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
               <Grid item xs={4} container justify="center">
                 <FormControlLabel
                   control={<Checkbox />}
-                  label={<>{"Tensorboard "}<Info fontSize="inherit"/></>}
+                  label={<>{'Tensorboard '}<Info fontSize="inherit"/></>}
                   checked={tensorboard}
                   onChange={onTensorboardChange}
                 />

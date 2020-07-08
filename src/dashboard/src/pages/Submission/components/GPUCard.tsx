@@ -1,12 +1,12 @@
 import * as React from 'react'
-import {useEffect, useMemo, useState} from "react"
-import { Link } from "react-router-dom"
-import useFetch from "use-http"
+import {useEffect, useMemo, useState} from 'react'
+import { Link } from 'react-router-dom'
+import useFetch from 'use-http'
 import Table from '@material-ui/core/Table'
 import TableBody from '@material-ui/core/TableBody'
 import TableCell from '@material-ui/core/TableCell'
 import TableRow from '@material-ui/core/TableRow'
-import LinearProgress from "@material-ui/core/LinearProgress"
+import LinearProgress from '@material-ui/core/LinearProgress'
 import {
   Box,
   Button,
@@ -21,18 +21,18 @@ import {
   MenuItem, MuiThemeProvider,
   TextField,
   Tooltip, Typography, withStyles
-} from "@material-ui/core"
+} from '@material-ui/core'
 import {
   makeStyles,
   createStyles,
   useTheme,
   Theme,
   lighten
-} from "@material-ui/core/styles"
-import { MoreVert, FileCopyRounded} from "@material-ui/icons"
+} from '@material-ui/core/styles'
+import { MoreVert, FileCopyRounded} from '@material-ui/icons'
 
-import {Cell, PieChart, Pie, ResponsiveContainer,Sector} from "recharts"
-import UserContext from "../../../contexts/User"
+import {Cell, PieChart, Pie, ResponsiveContainer,Sector} from 'recharts'
+import UserContext from '../../../contexts/User'
 import TeamContext from '../../../contexts/Team'
 import {
   green,
@@ -40,12 +40,12 @@ import {
   deepOrange,
   red,
   yellow
-} from "@material-ui/core/colors"
+} from '@material-ui/core/colors'
 import copy from 'clipboard-copy'
-import {checkObjIsEmpty, sumValues} from "../../../utlities/ObjUtlities"
-import {DLTSSnackbar} from "../../CommonComponents/DLTSSnackbar"
+import {checkObjIsEmpty, sumValues} from '../../../utlities/ObjUtlities'
+import {DLTSSnackbar} from '../../CommonComponents/DLTSSnackbar'
 
-import * as _ from "lodash"
+import * as _ from 'lodash'
 
 const useStyles = makeStyles((theme: Theme) => createStyles({
   avatar: {
@@ -72,12 +72,12 @@ const useStyles = makeStyles((theme: Theme) => createStyles({
     margin: '0 auto',
   },
   tableTitle: {
-    display: "flex",
-    justifyContent: "center"
+    display: 'flex',
+    justifyContent: 'center'
   },
   tableInfo: {
-    justifyContent: "space-between",
-    display: "flex"
+    justifyContent: 'space-between',
+    display: 'flex'
   }
 }))
 
@@ -94,12 +94,12 @@ const ActionIconButton: React.FC<{cluster?: string}> = ({cluster}) => {
       </IconButton>
       <Menu
         anchorEl={iconButton.current}
-        anchorOrigin={{ horizontal: "right", vertical: "top" }}
-        transformOrigin={{ horizontal: "right", vertical: "top" }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'top' }}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         open={open}
         onClose={onMenuClose}
       >
-        <MenuItem component={Link} to={"/cluster-status"}>Cluster Status</MenuItem>
+        <MenuItem component={Link} to={'/cluster-status'}>Cluster Status</MenuItem>
         <MenuItem component={Link} to={`/jobs/${cluster}`}>View Jobs</MenuItem>
       </Menu>
     </>
@@ -115,9 +115,9 @@ const Chart: React.FC<{
 }> = ({ available, used, reserved ,isActive}) => {
   const theme = useTheme()
   let data = [
-    { name: "Available", value: available, color: lightGreen[400] },
-    { name: "Used", value: used, color: theme.palette.grey[500] },
-    { name: "Unschedulable", value: reserved, color: deepOrange[400]},
+    { name: 'Available', value: available, color: lightGreen[400] },
+    { name: 'Used', value: used, color: theme.palette.grey[500] },
+    { name: 'Unschedulable', value: reserved, color: deepOrange[400]},
   ]
   if (reserved === 0) {
     data = data.filter((item)=>item.name !== 'Reserved')
@@ -246,7 +246,7 @@ export const DirectoryPathTextField: React.FC<{
         onFocus={onFocus}
         onClick={handleCopy}
       />
-      <DLTSSnackbar message={"Successfully copied"} autoHideDuration={500} open={openCopyWarn} handleWarnClose={handleWarnClose} />
+      <DLTSSnackbar message={'Successfully copied'} autoHideDuration={500} open={openCopyWarn} handleWarnClose={handleWarnClose} />
     </>
   )
 }
@@ -271,7 +271,7 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
     setWorkStorage(`${data.workStorage}/${name}`)
     return data
   }
-  const fetchClusterStatusUrl = `/api`
+  const fetchClusterStatusUrl = '/api'
   const requestClusterStatus = useFetch(fetchClusterStatusUrl)
   const fetchClusterStatus = async () => {
     setActivate(false)
@@ -292,9 +292,9 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
         responses.forEach(async (response: any) => {
           const res = await response.json()
           if (res['data']) {
-            for (const item of res['data']["result"]) {
+            for (const item of res['data']['result']) {
               const tmp = {} as any
-              if (item['metric']['__name__'] === "node_filesystem_size_bytes") {
+              if (item['metric']['__name__'] === 'node_filesystem_size_bytes') {
                 const mountpointName = item['metric']['mountpoint']
                 const val = Math.floor(item['value'][1] / (Math.pow(10, 9)))
                 tmp['mountpointName'] = mountpointName
@@ -302,7 +302,7 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
               }
               const tmpAvail = {} as any
               //node_filesystem_avail_bytes
-              if (item['metric']['__name__'] === "node_filesystem_avail_bytes") {
+              if (item['metric']['__name__'] === 'node_filesystem_avail_bytes') {
                 const mountpointName = item['metric']['mountpoint']
                 const val = Math.floor(item['value'][1] / (Math.pow(10, 9)))
                 tmpAvail['mountpointName'] = mountpointName
@@ -321,9 +321,9 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
               const tmpAvail: any = value.filter((item: any) => item.hasOwnProperty('Avail'))
               let total = 0
               let used = 0
-              if (typeof tmpTotal[0] !== "undefined" && typeof  tmpAvail[0] !== "undefined") {
-                total = tmpTotal[0]["total"]
-                used = tmpTotal[0]["total"] - tmpAvail[0]["Avail"]
+              if (typeof tmpTotal[0] !== 'undefined' && typeof  tmpAvail[0] !== 'undefined') {
+                total = tmpTotal[0]['total']
+                used = tmpTotal[0]['total'] - tmpAvail[0]['Avail']
               }
               return {
                 mountpointName: key, total:total, used: used
@@ -331,19 +331,19 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
             }).value()
           }
           finalStorageRes.forEach((item: any,i: number) => {
-            if(item["mountpointName"].indexOf("dlws/nfs") !== -1){
+            if(item['mountpointName'].indexOf('dlws/nfs') !== -1){
               finalStorageRes.splice(i, 1)
               finalStorageRes.unshift(item)
             }
           })
           finalStorageRes = finalStorageRes.filter((item: any) => {
-            return !(item["mountpointName"].indexOf("dlts") === -1 && item["mountpointName"].indexOf("dlws/nfs") === -1)
+            return !(item['mountpointName'].indexOf('dlts') === -1 && item['mountpointName'].indexOf('dlws/nfs') === -1)
           })
           setNfsStorage(finalStorageRes.filter((store: any) => {
             if (currentTeamId === 'MMBellevue' && store['mountpointName'].indexOf('/mntdlws/nfs') !== -1) {
               return null
             }
-            return store['mountpointName'].indexOf(currentTeamId) !== -1 || store['mountpointName'].indexOf("dlws/nfs") !== -1
+            return store['mountpointName'].indexOf(currentTeamId) !== -1 || store['mountpointName'].indexOf('dlws/nfs') !== -1
           }))
         })
       })
@@ -429,8 +429,8 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
       <CardHeader
         title={clusterId}
         titleTypographyProps={{
-          component: "h3",
-          variant: "body2",
+          component: 'h3',
+          variant: 'body2',
           noWrap: true
         }}
         subheader={` ${activeJobs} Active Jobs`}
@@ -441,7 +441,7 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
         <Chart available={available} used={used} reserved={reversed} isActive={activate} />
         <Divider />
         <Typography  variant="h6" id="tableTitle" className={styles.tableTitle}>
-          {"Storage (GB)"}
+          {'Storage (GB)'}
         </Typography>
         <Box height={102} style={{ overflow: 'auto' }}>
           <MuiThemeProvider theme={tableTheme}>
@@ -455,7 +455,7 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
                       <TableRow key={mounName}>
                         <TableCell>
                           {
-                            value < 80 ? <BorderLinearProgress value={value} variant={"determinate"}/> : value >= 80 && value < 90 ? <GenernalLinerProgress value={value} variant={"determinate"}/> : <FullBorderLinearProgress value={value} variant={"determinate"}/>
+                            value < 80 ? <BorderLinearProgress value={value} variant={'determinate'}/> : value >= 80 && value < 90 ? <GenernalLinerProgress value={value} variant={'determinate'}/> : <FullBorderLinearProgress value={value} variant={'determinate'}/>
                           }
                           <div className={styles.tableInfo}><span>{`${mounName}`}</span><span>{`(${nfs['used']}/${nfs['total']}) ${Math.floor(value)}% used`}</span></div>
                         </TableCell>
@@ -470,13 +470,13 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
       </CardContent>
       <CardActions>
         <Button component={Link}
-          to={{pathname: "/submission/training-cluster", state: { cluster: clusterId } }}
+          to={{pathname: '/submission/training-cluster', state: { cluster: clusterId } }}
           size="small" color="secondary"
         >
           Submit Training Job
         </Button>
         <Button component={Link}
-          to={{pathname: "/submission/data", state: { cluster: clusterId } }}
+          to={{pathname: '/submission/data', state: { cluster: clusterId } }}
           size="small" color="secondary"
         >
           Submit Data Job

@@ -2,9 +2,9 @@ import * as React from 'react'
 import {
 
   CircularProgress
-} from "@material-ui/core"
+} from '@material-ui/core'
 
-import Iframe from "react-iframe"
+import Iframe from 'react-iframe'
 
 interface ClusterUsageType {
   showIframe: boolean;

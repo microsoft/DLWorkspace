@@ -20,7 +20,7 @@ const useNameId = (): Column<Job> => {
     <>
       <Typography
         variant="inherit"
-        color={showId ? "textSecondary" : "primary"}
+        color={showId ? 'textSecondary' : 'primary'}
       >
         Name
       </Typography>
@@ -32,7 +32,7 @@ const useNameId = (): Column<Job> => {
       />
       <Typography
         variant="inherit"
-        color={showId ? "primary" : "textSecondary"}
+        color={showId ? 'primary' : 'textSecondary'}
       >
         Id
       </Typography>

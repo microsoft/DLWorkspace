@@ -41,7 +41,7 @@ import { formatBytes } from '../../utils/formats'
 const useLabelStyle = makeStyles((theme) => createStyles({
   root: {
     fill: theme.palette.text.primary,
-    stroke: "transparent"
+    stroke: 'transparent'
   }
 }))
 

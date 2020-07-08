@@ -135,13 +135,13 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
     field: 'gpuMetrics.idle',
     type: 'numeric',
     render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && (
-      <Typography variant="inherit" color={(gpuMetrics.idle || 0) > 0 ? "error" : "inherit"}>
+      <Typography variant="inherit" color={(gpuMetrics.idle || 0) > 0 ? 'error' : 'inherit'}>
         {(gpuMetrics.idle || 0)}
       </Typography>
     )
   }])).current
   const options = useMemo<Options>(() => ({
-    padding: "dense",
+    padding: 'dense',
     paging: false,
     searchText: query,
   }), [query])

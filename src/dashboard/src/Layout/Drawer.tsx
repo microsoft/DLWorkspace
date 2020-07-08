@@ -29,8 +29,8 @@ const Drawer: FunctionComponent = ({ children }) => {
   const onClose = useCallback(() => setDrawerOpen(false), [setDrawerOpen])
   const theme = useTheme()
   const styles = useStyles()
-  const isDesktop = useMediaQuery(theme.breakpoints.up("sm"))
-  const variant = isDesktop ? "persistent" : "temporary"
+  const isDesktop = useMediaQuery(theme.breakpoints.up('sm'))
+  const variant = isDesktop ? 'persistent' : 'temporary'
 
   useEffect(() => {
     if (isDesktop) { setDrawerOpen(true) }

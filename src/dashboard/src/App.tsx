@@ -7,23 +7,23 @@ import 'typeface-roboto-mono'
 import { BrowserRouter } from 'react-router-dom'
 import Helmet from 'react-helmet'
 import { CssBaseline, createMuiTheme } from '@material-ui/core'
-import { ThemeProvider } from "@material-ui/styles"
-import { SnackbarProvider } from "notistack"
+import { ThemeProvider } from '@material-ui/styles'
+import { SnackbarProvider } from 'notistack'
 import {
   Provider as FetchProvider,
   IncomingOptions,
   CachePolicies,
-} from "use-http-1"
+} from 'use-http-1'
 
-import ConfigContext, { Provider as ConfigProvider } from "./contexts/Config"
-import UserContext, { Provider as UserProvider } from "./contexts/User"
-import { Provider as ClustersProvider } from "./contexts/Clusters"
+import ConfigContext, { Provider as ConfigProvider } from './contexts/Config'
+import UserContext, { Provider as UserProvider } from './contexts/User'
+import { Provider as ClustersProvider } from './contexts/Clusters'
 import { Provider as TeamProvider } from './contexts/Team'
 
 import { ConfirmProvider } from './hooks/useConfirm'
 
-import Layout from "./Layout"
-import Routes from "./Routes"
+import Layout from './Layout'
+import Routes from './Routes'
 
 const theme = createMuiTheme()
 const useHttpOptions: IncomingOptions = {
