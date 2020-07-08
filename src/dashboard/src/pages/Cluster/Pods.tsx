@@ -26,6 +26,7 @@ import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
 import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
 import TeamContext from '../../contexts/Team';
+import UserContext from '../../contexts/User';
 import { formatBytes, formatPercent } from '../../utils/formats';
 
 import QueryContext from './QueryContext';
@@ -37,12 +38,13 @@ interface Props {
 const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
   const { clusterId } = useParams();
   const { currentTeamId } = useContext(TeamContext);
+  const { email } = useContext(UserContext);
   const { query } = useContext(QueryContext);
 
   const gpuUtilizationMetrics = usePrometheus(config['grafana'], `avg(task_gpu_percent {vc_name="${currentTeamId}"}) by (pod_name)`);
   const gpuIdleMetrics = usePrometheus(config['grafana'], `count(task_gpu_percent {vc_name="${currentTeamId}"} == 0) by (pod_name)`);
 
-  const [filterCurrentTeam, setFilterCurrentTeam] = useState(true);
+  const [filterCurrentUser, setFilterCurrentUser] = useState(false);
 
   const podsGPUMetrics = useMemo(() => {
     type GPUMetrics = { utilization: number; idle: number };
@@ -62,6 +64,11 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
     return podsGPUMetrics;
   }, [gpuUtilizationMetrics, gpuIdleMetrics]);
 
+  const username = useMemo(() => {
+    if (email === undefined) return '';
+    return email.split('@', 1)[0];
+  }, [email]);
+
   const pods = useMemo(() => {
     const pods = flatMap(workers, ({ pods }, workerName) =>
       map(pods, (pod, podName) =>
@@ -71,13 +78,13 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
           gpuMetrics: podsGPUMetrics[podName],
           ...pod
         })));
-    if (filterCurrentTeam) return pods;
-    return filter(pods, ({ team }) => team === currentTeamId);
-  }, [filterCurrentTeam, podsGPUMetrics, currentTeamId, workers]);
+    if (!filterCurrentUser) return pods;
+    return filter(pods, ({ user }) => user === username);
+  }, [filterCurrentUser, podsGPUMetrics, username, workers]);
   const tableData = useTableData(pods);
 
   const handleButtonClick = useCallback(() => {
-    setFilterCurrentTeam((filterCurrentTeam) => !filterCurrentTeam)
+    setFilterCurrentUser((filterCurrentTeam) => !filterCurrentTeam)
   }, []);
 
   const columns = useRef<Column<any>[]>(compact([{
@@ -143,7 +150,7 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
     <SvgIconsMaterialTable
       title={
         <Button variant="outlined" onClick={handleButtonClick}>
-          {filterCurrentTeam ? 'Show Pods in All Teams' : 'Show Current Team Only'}
+          {filterCurrentUser ? 'Show Pods of the Team' : 'Show My Pods Only'}
         </Button>
       }
       data={tableData}
