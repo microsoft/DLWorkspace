@@ -20,7 +20,7 @@ const getTemplatesParams = new URLSearchParams({
 
 describe('GET /teams/:teamId/templates', function () {
   it('should return template info', async function () {
-    for (let key in clusterConfig) {
+    for (const key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .get('/templates?' + getTemplatesParams)
         .reply(200, {
@@ -38,7 +38,7 @@ describe('GET /teams/:teamId/templates', function () {
   })
 
   it('response should be empty if templates getting failed', async function () {
-    for (let key in clusterConfig) {
+    for (const key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .get('/templates?' + getTemplatesParams)
         .reply(500)

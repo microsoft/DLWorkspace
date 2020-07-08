@@ -44,7 +44,7 @@ const testJobs = {
 
 describe('GET /teams/:teamId/jobs', function () {
   it('[P-01] should return jobs info in the team with user as all', async function () {
-    for (let key in clusterConfig) {
+    for (const key in clusterConfig) {
       // nock for getJobs()
       nock(clusterConfig[key]['restfulapi'])
         .get('/ListJobs?' + getJobsParams)
@@ -72,7 +72,7 @@ describe('GET /teams/:teamId/jobs', function () {
   })
 
   it('[P-02] should return jobs info in the team with specific user', async function () {
-    for (let key in clusterConfig) {
+    for (const key in clusterConfig) {
       // change the jobOwner in getJobs params
       getJobsParams.set('jobOwner', userParams.email)
 
@@ -106,7 +106,7 @@ describe('GET /teams/:teamId/jobs', function () {
     // change back the jobOwner in getJobs params
     getJobsParams.set('jobOwner', 'all')
 
-    for (let key in clusterConfig) {
+    for (const key in clusterConfig) {
       // nock for getJobs()
       nock(clusterConfig[key]['restfulapi'])
         .get('/ListJobs?' + getJobsParams)
@@ -129,7 +129,7 @@ describe('GET /teams/:teamId/jobs', function () {
   })
 
   it('[N-02] should ignore errors if getJobsPriority failed', async function () {
-    for (let key in clusterConfig) {
+    for (const key in clusterConfig) {
       // nock for getJobs()
       nock(clusterConfig[key]['restfulapi'])
         .get('/ListJobs?' + getJobsParams)

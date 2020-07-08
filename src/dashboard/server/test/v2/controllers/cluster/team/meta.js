@@ -3,7 +3,7 @@ const nock = require('nock')
 const api = require('../../../../../api').callback()
 const User = require('../../../../../api/services/user')
 
-const EMAIL = `dlts@example.com`
+const EMAIL = 'dlts@example.com'
 const PASSWORD = User.generateToken(EMAIL).toString('hex')
 const TEAM_ID = 'team'
 
