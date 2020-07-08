@@ -31,7 +31,7 @@ export const JobsOperationDialog = (props: DialogProps) => {
   if (message === '') {
     return null
   }
-  let finalOpen = open || openApprove || openPause || openResume || openUpdatePriority
+  const finalOpen = open || openApprove || openPause || openResume || openUpdatePriority
   return (
     <DLTSDialog
       titleStyle={titleStyle}

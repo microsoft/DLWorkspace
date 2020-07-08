@@ -374,10 +374,10 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   }, [gpuModel, currentTeamId, name, image, command, type, gpus, gpusPerNode])
   const onSaveTemplateClick = async () => {
     try {
-      let plugins: any = {}
+      const plugins: any = {}
       plugins['blobfuse'] = []
 
-      let blobfuseObj: any = {}
+      const blobfuseObj: any = {}
       blobfuseObj['accountName'] = accountName || ''
       blobfuseObj['accountKey'] = accountKey || ''
       blobfuseObj['containerName'] = containerName || ''
@@ -386,7 +386,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       plugins['blobfuse'].push(blobfuseObj)
 
       plugins['imagePull'] = []
-      let imagePullObj: any = {}
+      const imagePullObj: any = {}
       imagePullObj['registry'] = dockerRegistry
       imagePullObj['username'] = dockerUsername
       imagePullObj['password'] = dockerPassword
@@ -423,16 +423,16 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const [showDeleteTemplate, setShowDeleteTemplate] = useState(false)
   const onDeleteTemplateClick = async () => {
     try {
-      let plugins: any = {}
+      const plugins: any = {}
       plugins['blobfuse'] = []
-      let blobfuseObj: any = {}
+      const blobfuseObj: any = {}
       blobfuseObj['accountName'] = accountName || ''
       blobfuseObj['accountKey'] = accountKey || ''
       blobfuseObj['containerName'] = containerName || ''
       blobfuseObj['mountPath'] = mountPath || ''
       plugins['blobfuse'].push(blobfuseObj)
       plugins['imagePull'] = []
-      let imagePullObj: any = {}
+      const imagePullObj: any = {}
       imagePullObj['registry'] = dockerRegistry
       imagePullObj['username'] = dockerUsername
       imagePullObj['password'] = dockerPassword
@@ -535,7 +535,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         }
         if (plugins !== undefined) {
           if (plugins.hasOwnProperty('blobfuse') && Array.isArray(plugins['blobfuse'])) {
-            let blobfuseObj = plugins['blobfuse'][0]
+            const blobfuseObj = plugins['blobfuse'][0]
             setAccountName(blobfuseObj['accountName'])
             setAccountKey(blobfuseObj['accountKey'])
             setContainerName(blobfuseObj['containerName'])
@@ -544,7 +544,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           }
 
           if (plugins.hasOwnProperty('imagePull') && Array.isArray(plugins['imagePull'])) {
-            let imagePullObj = plugins['imagePull'][0]
+            const imagePullObj = plugins['imagePull'][0]
             setDockerRegistry(imagePullObj['registry'])
             setDockerUsername(imagePullObj['username'])
             setDockerPassword(imagePullObj['password'])
@@ -587,9 +587,9 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const onSubmit = (event: React.FormEvent) => {
     event.preventDefault()
     if (!submittable) return
-    let plugins: any = {}
+    const plugins: any = {}
     plugins['blobfuse'] = []
-    let blobfuseObj: any = {}
+    const blobfuseObj: any = {}
     blobfuseObj['accountName'] = accountName || ''
     blobfuseObj['accountKey'] = accountKey || ''
     blobfuseObj['containerName'] = containerName || ''
@@ -597,7 +597,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     blobfuseObj['mountOptions'] = mountOptions || ''
     plugins['blobfuse'].push(blobfuseObj)
     plugins['imagePull'] = []
-    let imagePullObj: any = {}
+    const imagePullObj: any = {}
     imagePullObj['registry'] = dockerRegistry
     imagePullObj['username'] = dockerUsername
     imagePullObj['password'] = dockerPassword
@@ -730,7 +730,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   }
   React.useEffect(() => {
     if (!grafanaUrl) return
-    let getNodeGpuAva = `${grafanaUrl}/api/datasources/proxy/1/api/v1/query?`
+    const getNodeGpuAva = `${grafanaUrl}/api/datasources/proxy/1/api/v1/query?`
     const params = new URLSearchParams({
       query: 'count_values("gpu_available", k8s_node_gpu_available)'
     })

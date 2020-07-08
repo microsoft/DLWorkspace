@@ -209,7 +209,7 @@ const Jobs: React.FC = (props: any) => {
   const handlePriorityKeyPress = (rowData: any, event: React.KeyboardEvent) => {
     // return async () => {
     // console.log('--->', event.target);
-    let inputValue = (event.target as HTMLInputElement).valueAsNumber
+    const inputValue = (event.target as HTMLInputElement).valueAsNumber
     if (inputValue < 1 || inputValue > 1000) {
       return
     }
@@ -414,13 +414,13 @@ const Jobs: React.FC = (props: any) => {
     let message = 'unknown'
     let schedulingMessage = {}
     if (rowData.jobStatusDetail && rowData.jobStatusDetail.length > 0 && rowData.jobStatusDetail[0].message) {
-      let tmp = rowData.jobStatusDetail[0].message
-      let dateType = /(\d{4})([\/-])/
+      const tmp = rowData.jobStatusDetail[0].message
+      const dateType = /(\d{4})([\/-])/
       let date = ''
       let text = ''
       if (dateType.test(tmp)) {
-        let datePart = tmp.split(' ')[2]
-        let lastIndex = tmp.indexOf(datePart)
+        const datePart = tmp.split(' ')[2]
+        const lastIndex = tmp.indexOf(datePart)
         text = (tmp.substring(0, lastIndex))
         date = tmp.substring(lastIndex).substring(0, datePart.length - 1)
         if (new Date(date).toString().indexOf('Invalid') !== -1) {
@@ -432,7 +432,7 @@ const Jobs: React.FC = (props: any) => {
       }
     }
     if (rowData['jobStatus'] === 'scheduling' && rowData.jobStatusDetail && rowData.jobStatusDetail.length > 0) {
-      for (let item of rowData.jobStatusDetail) {
+      for (const item of rowData.jobStatusDetail) {
         if (item.hasOwnProperty('message')) {
           schedulingMessage = item['message']
         }

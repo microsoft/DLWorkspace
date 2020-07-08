@@ -25,7 +25,7 @@ const useStyles = makeStyles((theme: Theme) =>
 )
 export const DLTSSnackbar: React.FC<SnackbarProps> = (props: SnackbarProps) => {
   const classes = useStyles()
-  let { handleWarnClose, autoHideDuration, message, open, style } = props
+  const { handleWarnClose, autoHideDuration, message, open, style } = props
   const ogStyle = {}
   return (
     <>

@@ -81,7 +81,7 @@ const ClusterStatus: FC = () => {
           setSelectedValue(filterclusters[0])
         }
       }
-      let fetchs: any = []
+      const fetchs: any = []
       filterclusters.forEach((cluster) => {
         if (fetchVC(cluster)) {
           fetchs.push(fetchVC(cluster))
@@ -112,10 +112,10 @@ const ClusterStatus: FC = () => {
             )
           })
         }
-        let tmpMergedUsers = _.values(mergeTwoObjsByKey(userfetchs['user_status'], newuserStatusPreemptable, 'userName'))
-        let fetchUsrs: any = []
-        for (let fetchedUser of tmpMergedUsers) {
-          let tmpUser: any = {}
+        const tmpMergedUsers = _.values(mergeTwoObjsByKey(userfetchs['user_status'], newuserStatusPreemptable, 'userName'))
+        const fetchUsrs: any = []
+        for (const fetchedUser of tmpMergedUsers) {
+          const tmpUser: any = {}
           tmpUser['userName'] = fetchedUser['userName']
           if (fetchedUser['userGPU']) {
             tmpUser['usedGPU'] = (String)(Object.values(fetchedUser['userGPU'])[0])
@@ -132,13 +132,13 @@ const ClusterStatus: FC = () => {
         }
         console.log('--->', fetchUsrs)
 
-        let prometheusResp: any = []
-        let fetchIdes: any = []
+        const prometheusResp: any = []
+        const fetchIdes: any = []
         if (userfetchs['gpu_idle'] != null) {
-          for (let [key, value] of Object.entries(userfetchs['gpu_idle'])) {
-            let idleTmp: any = {}
+          for (const [key, value] of Object.entries(userfetchs['gpu_idle'])) {
+            const idleTmp: any = {}
             idleTmp['userName'] = key
-            let arr: any = value
+            const arr: any = value
             idleTmp['booked'] = Math.floor(arr['booked'] / 3600)
             idleTmp['idle'] = Math.floor(arr['idle'] / 3600)
             fetchIdes.push(idleTmp)
@@ -146,13 +146,13 @@ const ClusterStatus: FC = () => {
         }
         fetch(userfetchs['getIdleGPUPerUserUrl'] + params).then(async (response: any) => {
           const res = await response.json()
-          for (let item of res['data']['result']) {
-            let idleUser: any = {}
+          for (const item of res['data']['result']) {
+            const idleUser: any = {}
             idleUser['userName'] = item['metric']['username']
             idleUser['idleGPU'] = item['value'][1]
             prometheusResp.push(idleUser)
           }
-          let tmpMerged = _.values(mergeTwoObjsByKey(fetchIdes, fetchUsrs, 'userName'))
+          const tmpMerged = _.values(mergeTwoObjsByKey(fetchIdes, fetchUsrs, 'userName'))
           _.values(tmpMerged).forEach((mu: any) => {
             if (!mu.hasOwnProperty('usedGPU')) {
               mu['usedGPU'] = '0'
@@ -170,15 +170,15 @@ const ClusterStatus: FC = () => {
               mu['preemptableGPU'] = '0'
             }
           })
-          let finalUserStatus = _.values(mergeTwoObjsByKey(tmpMerged, prometheusResp, 'userName'))
-          let totalRow: any = {}
+          const finalUserStatus = _.values(mergeTwoObjsByKey(tmpMerged, prometheusResp, 'userName'))
+          const totalRow: any = {}
           totalRow['userName'] = 'Total'
           totalRow['booked'] = 0
           totalRow['idle'] = 0
           totalRow['usedGPU'] = 0
           totalRow['idleGPU'] = 0
           totalRow['preemptableGPU'] = 0
-          for (let us of finalUserStatus) {
+          for (const us of finalUserStatus) {
             console.log(us['preemptableGPU'])
             totalRow['booked'] += parseInt(us['booked'])
             totalRow['idle'] += parseInt(us['idle'])
