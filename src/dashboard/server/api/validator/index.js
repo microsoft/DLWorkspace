@@ -12,5 +12,6 @@ validator.addSchema(require('./batch-status.schema'), 'batch-status')
 validator.addSchema(require('./meta.schema'), 'meta')
 validator.addSchema(require('./key.schema'), 'key')
 validator.addSchema(require('./allowed-ip.schema'), 'allowed-ip')
+validator.addSchema(require('./quota.schema'), 'quota')
 
 module.exports = validator

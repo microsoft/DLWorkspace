@@ -495,6 +495,37 @@ class Cluster extends Service {
   }
 
   /**
+   * @return {Promise<object>}
+   */
+  async getQuota () {
+    const { user } = this.context.state
+    const params = new URLSearchParams({ userName: user.email })
+    const response = await this.fetch('/ResourceQuota?' + params)
+    this.context.assert(response.ok, response.status)
+    const data = await response.json()
+    this.context.log.debug({ data }, 'Got cluster quota')
+    return data
+  }
+
+  /**
+   * @param {object} quota
+   * @return {Promise}
+   */
+  async updateQuota (quota) {
+    const { user } = this.context.state
+    const params = new URLSearchParams({ userName: user.email })
+    const response = await this.fetch('/ResourceQuota?' + params, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(quota)
+    })
+    this.context.assert(response.ok, response.status)
+    const text = await response.text()
+    this.context.log.debug({ text }, 'Updated cluster quota')
+    return text
+  }
+
+  /**
    * @private
    * @param {string} path
    * @param {import('node-fetch').RequestInit} init

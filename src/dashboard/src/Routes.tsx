@@ -22,6 +22,7 @@ const JobLegacy = lazy(() => import('./pages/JobLegacy'));
 const ClusterStatus = lazy( () => import('./pages/ClusterStatus'));
 const Clusters = lazy(() => import('./pages/Clusters'));
 const Cluster = lazy(() => import('./pages/Cluster'));
+const Quota = lazy(() => import('./pages/Quota'));
 const Keys = lazy(() => import('./pages/Keys'));
 const AllowedIP = lazy(() => import('./pages/AllowedIP'));
 
@@ -45,6 +46,8 @@ const Routes: FunctionComponent = () => (
       <Redirect strict exact from="/clusters" to="/clusters/"/>
       <Route strict exact path="/clusters/" component={Clusters}/>
       <Route strict exact path="/clusters/:clusterId" component={Cluster}/>
+      {/* Hidden Admin-only Route */}
+      <Route strict exact path="/clusters/:clusterId/quota" component={Quota}/>
 
       <Route path="/cluster-status" component={ClusterStatus}/>
 

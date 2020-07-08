@@ -116,5 +116,13 @@ router.delete('/clusters/:clusterId/allowed-ip',
   require('./middlewares/user')(),
   require('./controllers/cluster/allowed-ip/index.delete'))
 
+router.get('/clusters/:clusterId/quota',
+  require('./middlewares/user')(),
+  require('./controllers/cluster/quota'))
+router.patch('/clusters/:clusterId/quota',
+  require('./middlewares/user')(),
+  require('./middlewares/body')('quota'),
+  require('./controllers/cluster/quota.patch'))
+
 router.get('/error.gif',
   require('./controllers/error'))
