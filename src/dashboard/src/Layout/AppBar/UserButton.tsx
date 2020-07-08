@@ -1,10 +1,10 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useCallback,
   useContext,
   useState
-} from 'react';
+} from 'react'
 
 import {
   Button,
@@ -17,13 +17,13 @@ import {
   ListItemText,
   makeStyles,
   createStyles
-} from '@material-ui/core';
+} from '@material-ui/core'
 import {
   AccountBox
-} from '@material-ui/icons';
+} from '@material-ui/icons'
 
-import UserContext from '../../contexts/User';
-import TeamContext from '../../contexts/Team';
+import UserContext from '../../contexts/User'
+import TeamContext from '../../contexts/Team'
 
 const useStyles = makeStyles(() => createStyles({
   'root': {
@@ -32,18 +32,18 @@ const useStyles = makeStyles(() => createStyles({
 }))
 
 const UserButton: FunctionComponent = () => {
-  const { email, password, givenName, familyName } = useContext(UserContext);
-  const { currentTeamId } = useContext(TeamContext);
+  const { email, password, givenName, familyName } = useContext(UserContext)
+  const { currentTeamId } = useContext(TeamContext)
   const api = window.location.origin + `/api/teams/${currentTeamId}/jobs`
-    + `?email=${encodeURIComponent(email || '')}&password=${encodeURIComponent(password || '')}`;
-  const [open, setOpen] = useState(false);
+    + `?email=${encodeURIComponent(email || '')}&password=${encodeURIComponent(password || '')}`
+  const [open, setOpen] = useState(false)
   const handleClick = useCallback(() => {
-    setOpen(true);
-  }, []);
+    setOpen(true)
+  }, [])
   const handleClose = useCallback(() => {
-    setOpen(false);
-  }, []);
-  const styles = useStyles();
+    setOpen(false)
+  }, [])
+  const styles = useStyles()
   return (
     <>
       <Button
@@ -85,7 +85,7 @@ const UserButton: FunctionComponent = () => {
         </List>
       </Dialog>
     </>
-  );
-};
+  )
+}
 
-export default UserButton;
+export default UserButton

@@ -1,14 +1,14 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   ChangeEvent,
   FunctionComponent,
   useCallback,
   useContext,
   useEffect
-} from 'react';
-import { Link as RouterLink, useParams } from 'react-router-dom';
-import { Helmet } from 'react-helmet';
-import SwipeableViews from 'react-swipeable-views';
+} from 'react'
+import { Link as RouterLink, useParams } from 'react-router-dom'
+import { Helmet } from 'react-helmet'
+import SwipeableViews from 'react-swipeable-views'
 import {
   Breadcrumbs,
   Container,
@@ -18,24 +18,24 @@ import {
   Toolbar,
   Typography,
   Paper,
-} from '@material-ui/core';
-import useFetch from 'use-http-1';
-import { useSnackbar } from 'notistack';
+} from '@material-ui/core'
+import useFetch from 'use-http-1'
+import { useSnackbar } from 'notistack'
 
-import TeamContext from '../../contexts/Team';
-import Loading from '../../components/Loading';
-import useHashTab from '../../hooks/useHashTab';
+import TeamContext from '../../contexts/Team'
+import Loading from '../../components/Loading'
+import useHashTab from '../../hooks/useHashTab'
 
-import { QueryProvider } from './QueryContext';
-import Users from './Users';
-import Workers from './Workers';
-import Storages from './Storages';
-import Pods from './Pods';
-import Metrics from './Metrics';
-import Settings from './Settings';
+import { QueryProvider } from './QueryContext'
+import Users from './Users'
+import Workers from './Workers'
+import Storages from './Storages'
+import Pods from './Pods'
+import Metrics from './Metrics'
+import Settings from './Settings'
 
 const Header: FunctionComponent = () => {
-  const { clusterId } = useParams();
+  const { clusterId } = useParams()
   return (
     <Toolbar disableGutters variant="dense">
       <Breadcrumbs aria-label="breadcrumb">
@@ -45,26 +45,26 @@ const Header: FunctionComponent = () => {
         <Typography color="textPrimary">{clusterId}</Typography>
       </Breadcrumbs>
     </Toolbar>
-  );
-};
+  )
+}
 
 interface TabViewProps {
   data: any;
 }
 
 const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
-  const [index, setIndex] = useHashTab('users', 'workers', 'storages', 'pods', 'metrics', 'settings');
+  const [index, setIndex] = useHashTab('users', 'workers', 'storages', 'pods', 'metrics', 'settings')
 
   const handleChange = useCallback((event: ChangeEvent<{}>, value: number) => {
-    setIndex(value);
-  }, [setIndex]);
+    setIndex(value)
+  }, [setIndex])
   const handleChangeIndex = useCallback((index: number) => {
-    setIndex(index);
-  }, [setIndex]);
+    setIndex(index)
+  }, [setIndex])
 
   const handleQueryChanged = useCallback(() => {
-    setIndex(3); // Pods
-  }, [setIndex]);
+    setIndex(3) // Pods
+  }, [setIndex])
 
   return (
     <QueryProvider onQueryChanged={handleQueryChanged}>
@@ -100,21 +100,21 @@ const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
 }
 
 const ClusterContent: FunctionComponent = () => {
-  const { clusterId } = useParams();
-  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const { currentTeamId } = useContext(TeamContext);
+  const { clusterId } = useParams()
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar()
+  const { currentTeamId } = useContext(TeamContext)
 
   const { data, error, loading, get } = useFetch(
     `/api/v2/clusters/${clusterId}/teams/${currentTeamId}`,
     [clusterId, currentTeamId]
-  );
+  )
 
   useEffect(() => {
     if (!loading) {
       const timeout = setTimeout(get, 3000)
-      return () => { clearTimeout(timeout); }
+      return () => { clearTimeout(timeout) }
     }
-  }, [loading, get]);
+  }, [loading, get])
 
   useEffect(() => {
     if (error) {
@@ -122,14 +122,14 @@ const ClusterContent: FunctionComponent = () => {
       const key = enqueueSnackbar(message, {
         variant: 'error',
         persist: true
-      });
+      })
       return () => {
         if (key != null) {
-          closeSnackbar(key);
+          closeSnackbar(key)
         }
       }
     }
-  }, [error, clusterId, enqueueSnackbar, closeSnackbar]);
+  }, [error, clusterId, enqueueSnackbar, closeSnackbar])
 
   return (
     <>
@@ -139,12 +139,12 @@ const ClusterContent: FunctionComponent = () => {
         {typeof data === 'object' ? <TabView data={data}/> : <Loading>Fetching Cluster Status</Loading>}
       </Container>
     </>
-  );
+  )
 }
 
 const Cluster: FunctionComponent = () => {
-  const { clusterId } = useParams();
-  return <ClusterContent key={clusterId}/>;
+  const { clusterId } = useParams()
+  return <ClusterContent key={clusterId}/>
 }
 
-export default Cluster;
+export default Cluster

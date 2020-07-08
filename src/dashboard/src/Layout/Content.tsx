@@ -1,18 +1,18 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useContext
-} from 'react';
+} from 'react'
 
 import {
   Box,
   Toolbar,
   createStyles,
   makeStyles
-} from '@material-ui/core';
+} from '@material-ui/core'
 
-import LayoutContext from './Context';
-import NotificationBox from './NotificationBox';
+import LayoutContext from './Context'
+import NotificationBox from './NotificationBox'
 
 const useStyles = makeStyles(theme => createStyles({
   root: ({ drawerOpen }: { drawerOpen: boolean }) => ({
@@ -24,12 +24,12 @@ const useStyles = makeStyles(theme => createStyles({
         : theme.transitions.duration.leavingScreen
     })
   })
-}));
+}))
 
 const Content: FunctionComponent = ({ children }) => {
-  const { drawerOpen } = useContext(LayoutContext);
+  const { drawerOpen } = useContext(LayoutContext)
 
-  const styles = useStyles({ drawerOpen });
+  const styles = useStyles({ drawerOpen })
 
   return (
     <Box flex={1} py={3} className={styles.root}>
@@ -37,7 +37,7 @@ const Content: FunctionComponent = ({ children }) => {
       <NotificationBox marginTop={-3} marginBottom={3}/>
       {children}
     </Box>
-  );
-};
+  )
+}
 
-export default Content;
+export default Content

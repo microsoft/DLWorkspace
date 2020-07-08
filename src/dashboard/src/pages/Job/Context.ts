@@ -1,4 +1,4 @@
-import { createContext } from 'react';
+import { createContext } from 'react'
 
 interface Context {
   cluster: any;
@@ -12,4 +12,4 @@ export default createContext<Context>({
   accessible: false,
   admin: false,
   job: undefined
-});
+})

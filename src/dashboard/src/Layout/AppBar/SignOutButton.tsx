@@ -1,15 +1,15 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent
-} from 'react';
+} from 'react'
 
 import {
   IconButton,
   Tooltip
-} from '@material-ui/core';
+} from '@material-ui/core'
 import {
   ExitToApp
-} from '@material-ui/icons';
+} from '@material-ui/icons'
 
 const SignOutButton: FunctionComponent = () => {
   return (
@@ -18,7 +18,7 @@ const SignOutButton: FunctionComponent = () => {
         <ExitToApp />
       </IconButton>
     </Tooltip>
-  );
-};
+  )
+}
 
-export default SignOutButton;
+export default SignOutButton

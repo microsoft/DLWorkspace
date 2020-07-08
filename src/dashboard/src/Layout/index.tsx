@@ -1,33 +1,33 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useContext,
-} from 'react';
+} from 'react'
 
-import { Box, CircularProgress } from '@material-ui/core';
+import { Box, CircularProgress } from '@material-ui/core'
 
-import UserContext from '../contexts/User';
-import TeamContext from '../contexts/Team';
+import UserContext from '../contexts/User'
+import TeamContext from '../contexts/Team'
 
-import AppBar from './AppBar';
-import Content from './Content';
-import { LayoutProvider } from './Context';
-import Cover from './Cover';
-import SignInButton from './Cover/SignInButton';
-import UnauthorizedDialog from './Cover/UnauthorizedDialog';
-import Drawer from './Drawer';
-import NavigationList from './NavigationList';
+import AppBar from './AppBar'
+import Content from './Content'
+import { LayoutProvider } from './Context'
+import Cover from './Cover'
+import SignInButton from './Cover/SignInButton'
+import UnauthorizedDialog from './Cover/UnauthorizedDialog'
+import Drawer from './Drawer'
+import NavigationList from './NavigationList'
 
 const LayoutContent: FunctionComponent = ({ children }) => {
-  const { email } = useContext(UserContext);
-  const { teams, currentTeamId } = useContext(TeamContext);
+  const { email } = useContext(UserContext)
+  const { teams, currentTeamId } = useContext(TeamContext)
 
   if (email == null) {
     return (
       <Cover>
         <SignInButton/>
       </Cover>
-    );
+    )
   }
 
   if (teams == null) {
@@ -35,14 +35,14 @@ const LayoutContent: FunctionComponent = ({ children }) => {
       <Cover>
         <CircularProgress/>
       </Cover>
-    );
+    )
   }
   if (teams.length === 0) {
     return (
       <Cover>
         <UnauthorizedDialog/>
       </Cover>
-    );
+    )
   }
 
   return (
@@ -55,8 +55,8 @@ const LayoutContent: FunctionComponent = ({ children }) => {
         {children}
       </Content>
     </LayoutProvider>
-  );
-};
+  )
+}
 
 const Layout: FunctionComponent = ({ children }) => (
   <Box width="100%" minHeight="100vh" display="flex">
@@ -64,6 +64,6 @@ const Layout: FunctionComponent = ({ children }) => (
       {children}
     </LayoutContent>
   </Box>
-);
+)
 
-export default Layout;
+export default Layout

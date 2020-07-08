@@ -1,4 +1,4 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useCallback,
@@ -6,128 +6,128 @@ import {
   useEffect,
   useRef,
   useMemo
-} from 'react';
+} from 'react'
 
-import { entries, find, get, set, zipWith } from 'lodash';
+import { entries, find, get, set, zipWith } from 'lodash'
 
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom'
 import {
   Container,
   Link as UILink,
   Tooltip,
   Typography
-} from '@material-ui/core';
+} from '@material-ui/core'
 
 import {
   Column,
   Options
-} from 'material-table';
+} from 'material-table'
 
-import { useSnackbar } from 'notistack';
-import useFetch from 'use-http-1';
+import { useSnackbar } from 'notistack'
+import useFetch from 'use-http-1'
 
-import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
-import TeamContext from '../../contexts/Team';
-import ClustersContext from '../../contexts/Clusters';
-import useTableData from '../../hooks/useTableData';
+import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable'
+import TeamContext from '../../contexts/Team'
+import ClustersContext from '../../contexts/Clusters'
+import useTableData from '../../hooks/useTableData'
 
-import useResourceColumns, { ResourceKind } from './useResourceColumns';
-import usePrometheus from '../../hooks/usePrometheus';
+import useResourceColumns, { ResourceKind } from './useResourceColumns'
+import usePrometheus from '../../hooks/usePrometheus'
 
 const useClusterStatus = (clusterId: string) => {
-  const { currentTeamId } = useContext(TeamContext);
-  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+  const { currentTeamId } = useContext(TeamContext)
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar()
 
   const { data, loading, error, get } = useFetch(
     `/api/v2/clusters/${clusterId}/teams/${currentTeamId}`,
-    [clusterId, currentTeamId]);
+    [clusterId, currentTeamId])
 
   useEffect(() => {
-    if (loading) return;
+    if (loading) return
 
-    const timeout = setTimeout(get, 3000);
+    const timeout = setTimeout(get, 3000)
     return () => {
-      clearTimeout(timeout);
+      clearTimeout(timeout)
     }
-  }, [loading, get]);
+  }, [loading, get])
   useEffect(() => {
     if (error) {
       const key = enqueueSnackbar(`Failed to fetch status of cluster ${clusterId}`, {
         variant: "error",
         persist: true
-      });
+      })
       return () => {
-        if (key != null) closeSnackbar(key);
+        if (key != null) closeSnackbar(key)
       }
     }
-  }, [error, clusterId, enqueueSnackbar, closeSnackbar]);
+  }, [error, clusterId, enqueueSnackbar, closeSnackbar])
 
-  return data;
-};
+  return data
+}
 
 const useClusterMetrics = (status: any) => { // Actually Cluster-Team Metrics
-  const { currentTeamId } = useContext(TeamContext);
+  const { currentTeamId } = useContext(TeamContext)
 
   const metrics = usePrometheus(status && status.config ? status.config['grafana'] : undefined,
-    `avg(task_gpu_percent {vc_name="${currentTeamId}"})`);
+    `avg(task_gpu_percent {vc_name="${currentTeamId}"})`)
 
-  return get(metrics, 'result[0].value[1]');
+  return get(metrics, 'result[0].value[1]')
 }
 
 const Clusters: FunctionComponent = () => {
-  const { clusters } = useContext(ClustersContext);
+  const { clusters } = useContext(ClustersContext)
 
-  const clustersId = clusters.map(({ id }) => id);
-  const clustersStatus = clustersId.map(useClusterStatus);
-  const clustersMetrics = clustersStatus.map(useClusterMetrics);
+  const clustersId = clusters.map(({ id }) => id)
+  const clustersStatus = clustersId.map(useClusterStatus)
+  const clustersMetrics = clustersStatus.map(useClusterMetrics)
 
   const clustersData = useMemo(() => zipWith(
     clustersId, clustersStatus, clustersMetrics,
     (id, status, metrics) => ({ id, status, metrics })),
-  [...clustersId, ...clustersStatus, ...clustersMetrics]); // eslint-disable-line react-hooks/exhaustive-deps
+  [...clustersId, ...clustersStatus, ...clustersMetrics]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const clusterTypesStatus = useMemo(() => {
-    const clusterTypesStatus = [];
+    const clusterTypesStatus = []
     for (const { id: clusterId, status: clusterStatus, metrics: clusterMetrics } of clustersData) {
       if (clusterStatus == null) {
         clusterTypesStatus.push({ id: clusterId, metrics: clusterMetrics })
-        continue;
+        continue
       }
 
-      const clusterSumStatus = Object.create(null);
+      const clusterSumStatus = Object.create(null)
       clusterTypesStatus.push({
         id: clusterId,
         status: clusterSumStatus,
         runningJobs: clusterStatus.runningJobs,
         metrics: clusterMetrics
-      });
+      })
 
       for (const [typeId, typeStatus] of entries(clusterStatus.types)) {
         clusterTypesStatus.push({
           id: typeId,
           clusterId,
           status: typeStatus
-        });
+        })
 
         for (const type of ['cpu', 'gpu', 'memory']) {
           for (const kind of ['total', 'unschedulable', 'used', 'preemptable', 'available']) {
-            const path = [type, kind];
-            set(clusterSumStatus, path, get(clusterSumStatus, path, 0) + get(typeStatus, path, 0));
+            const path = [type, kind]
+            set(clusterSumStatus, path, get(clusterSumStatus, path, 0) + get(typeStatus, path, 0))
           }
         }
       }
     }
-    return clusterTypesStatus;
-  }, clustersData); // eslint-disable-line react-hooks/exhaustive-deps
+    return clusterTypesStatus
+  }, clustersData) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const data = useTableData(clusterTypesStatus);
+  const data = useTableData(clusterTypesStatus)
 
   const resourceKinds = useRef<ResourceKind[]>(
     ['total', 'unschedulable', 'used', 'preemptable', 'available']
-  ).current;
-  const resourceColumns = useResourceColumns(resourceKinds);
+  ).current
+  const resourceColumns = useResourceColumns(resourceKinds)
   const columns = useMemo(() => {
-    const columns: Array<Column<any>> = [];
+    const columns: Array<Column<any>> = []
 
     columns.push({
       field: 'id',
@@ -135,9 +135,9 @@ const Clusters: FunctionComponent = () => {
         ? <UILink variant="subtitle2" component={RouterLink} to={data.id}>{data.id}</UILink>
         : <Typography variant="subtitle2">{data.id}</Typography>,
       width: 'auto'
-    });
+    })
 
-    columns.push(...resourceColumns);
+    columns.push(...resourceColumns)
 
     columns.push({
       title: 'Assigned GPU Utilization',
@@ -159,18 +159,18 @@ const Clusters: FunctionComponent = () => {
         </Tooltip>
       ) : null,
       width: 'auto'
-    });
+    })
 
-    return columns;
-  }, [resourceColumns]);
+    return columns
+  }, [resourceColumns])
   const options = useRef<Options>({
     padding: "dense",
     draggable: false,
     paging: false
-  }).current;
+  }).current
   const parentChildData = useCallback(({ clusterId }, rows: any[]) => {
-    return find(rows, ({ id }) => clusterId === id);
-  }, []);
+    return find(rows, ({ id }) => clusterId === id)
+  }, [])
 
   return (
     <Container fixed maxWidth="xl">
@@ -185,4 +185,4 @@ const Clusters: FunctionComponent = () => {
   )
 }
 
-export default Clusters;
+export default Clusters

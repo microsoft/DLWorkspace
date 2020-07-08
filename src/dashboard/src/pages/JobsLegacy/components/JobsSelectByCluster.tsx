@@ -1,6 +1,6 @@
-import * as React from 'react';
-import {MenuItem, TextField} from "@material-ui/core";
-import {convertToArrayByKey} from "../../../utlities/ObjUtlities";
+import * as React from 'react'
+import {MenuItem, TextField} from "@material-ui/core"
+import {convertToArrayByKey} from "../../../utlities/ObjUtlities"
 
 
 interface JobsSelectProps {
@@ -10,7 +10,7 @@ interface JobsSelectProps {
   clusters: any [];
 }
 export const JobsSelectByCluster = (props: JobsSelectProps) => {
-  const { currentCluster,onClusterChange,clusters } = props;
+  const { currentCluster,onClusterChange,clusters } = props
   return (
     <TextField
       select

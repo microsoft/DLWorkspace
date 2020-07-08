@@ -1,32 +1,32 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   createContext,
   useContext,
   useMemo
-} from "react";
+} from "react"
 
-import { find } from 'lodash';
+import { find } from 'lodash'
 
-import TeamContext from "./Team";
+import TeamContext from "./Team"
 interface ClustersContext {
   clusters: any[];
 }
 
-const ClustersContext = createContext<ClustersContext>({ clusters: [] });
+const ClustersContext = createContext<ClustersContext>({ clusters: [] })
 
-export default ClustersContext;
+export default ClustersContext
 
 export const Provider: FunctionComponent = ({ children }) => {
-  const { teams, currentTeamId } = useContext(TeamContext);
+  const { teams, currentTeamId } = useContext(TeamContext)
 
   const clusters = useMemo(() => {
-    const team = find(teams, ({ id }) => id === currentTeamId);
-    if (team === undefined) return [];
-    return team['clusters'];
+    const team = find(teams, ({ id }) => id === currentTeamId)
+    if (team === undefined) return []
+    return team['clusters']
   }, [teams, currentTeamId])
 
   return (
     <ClustersContext.Provider value={{ clusters }} children={children}/>
-  );
-};
+  )
+}

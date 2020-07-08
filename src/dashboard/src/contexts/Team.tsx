@@ -1,16 +1,16 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   createContext,
   useContext,
   useEffect,
   useState
-} from 'react';
-import useFetch from "use-http-1";
+} from 'react'
+import useFetch from "use-http-1"
 
-import { find } from "lodash";
+import { find } from "lodash"
 
-import UserContext from './User';
+import UserContext from './User'
 
 interface TeamContext {
   teams?: any[];
@@ -20,31 +20,31 @@ interface TeamContext {
 
 const TeamContext = createContext<TeamContext>({
   currentTeamId: '',
-  setCurrentTeamId (teamId: string) { return; },
-});
+  setCurrentTeamId (teamId: string) { return },
+})
 
 const Provider: FunctionComponent = ({ children }) => {
-  const { email } = useContext(UserContext);
+  const { email } = useContext(UserContext)
 
   const [teams, setTeams] = useState<any[] | undefined>(() => {
     try {
       const teams = JSON.parse(window.localStorage.getItem('teams') || '')
       if (Array.isArray(teams)) {
-        return teams;
+        return teams
       }
     } catch (e) { /* ignored */ }
-  });
+  })
   const [currentTeamId, setCurrentTeamId] = useState<string>(
-    () => (window.localStorage.getItem('currentTeamId') || ''));
+    () => (window.localStorage.getItem('currentTeamId') || ''))
 
-  const { get, abort } = useFetch<any[]>('/api/teams');
+  const { get, abort } = useFetch<any[]>('/api/teams')
 
   useEffect(() => {
     if (email === undefined) { // Not signed in
       // Clean teams cache
       window.localStorage.removeItem('teams')
     }
-  }, [email]);
+  }, [email])
 
   useEffect(() => {
     if (
@@ -60,34 +60,34 @@ const Provider: FunctionComponent = ({ children }) => {
       }, () => {
         setTeams([])
       })
-      return abort;
+      return abort
     }
-  }, [teams, email, get, abort]);
+  }, [teams, email, get, abort])
 
   useEffect(() => {
     // Validate currentTeamId
-    if (teams == null || teams.length === 0) return;
+    if (teams == null || teams.length === 0) return
     const team = currentTeamId !== ''
       ? find(teams, ({ id }) => id === currentTeamId)
-      : null;
+      : null
     if (team == null) {
-      setCurrentTeamId(teams[0].id);
+      setCurrentTeamId(teams[0].id)
     }
-  }, [teams, currentTeamId]);
+  }, [teams, currentTeamId])
 
   useEffect(() => {
     // Persistent currentTeamId
-    if (currentTeamId === '') return;
-    window.localStorage.setItem('currentTeamId', currentTeamId);
-  }, [currentTeamId]);
+    if (currentTeamId === '') return
+    window.localStorage.setItem('currentTeamId', currentTeamId)
+  }, [currentTeamId])
 
   return (
     <TeamContext.Provider
       value={{ teams, currentTeamId, setCurrentTeamId }}
       children={children}
     />
-  );
+  )
 }
 
-export default TeamContext;
-export { Provider };
+export default TeamContext
+export { Provider }

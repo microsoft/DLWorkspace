@@ -1,5 +1,5 @@
-import { useRef } from 'react';
+import { useRef } from 'react'
 
-const useConstant = <T>(value: T) => useRef(value).current;
+const useConstant = <T>(value: T) => useRef(value).current
 
 export default useConstant

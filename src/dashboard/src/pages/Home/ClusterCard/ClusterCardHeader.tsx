@@ -1,35 +1,35 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useCallback,
   useMemo,
   useRef,
   useState
-} from 'react';
+} from 'react'
 
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom'
 
 import {
   CardHeader,
   IconButton,
   Menu,
   MenuItem
-} from '@material-ui/core';
+} from '@material-ui/core'
 import {
   MoreVert
-} from '@material-ui/icons';
+} from '@material-ui/icons'
 
-import { useCluster } from './Context';
+import { useCluster } from './Context'
 
 const ActionIconButton: FunctionComponent = () => {
-  const { id } = useCluster();
+  const { id } = useCluster()
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false)
 
-  const iconButton = useRef<never>(null);
+  const iconButton = useRef<never>(null)
 
-  const handleIconButtonClick = useCallback(() => setOpen(true), [setOpen]);
-  const handleMenuClose = useCallback(() => setOpen(false), [setOpen]);
+  const handleIconButtonClick = useCallback(() => setOpen(true), [setOpen])
+  const handleMenuClose = useCallback(() => setOpen(false), [setOpen])
 
   return (
     <>
@@ -51,13 +51,13 @@ const ActionIconButton: FunctionComponent = () => {
 }
 
 const ClusterCardHeader: FunctionComponent = () => {
-  const { id, status } = useCluster();
+  const { id, status } = useCluster()
 
   const subheader = useMemo(() => (
     status && typeof status['runningJobs'] === 'number'
       ? `${status['runningJobs']} Job${status['runningJobs'] !== 1 ? 's' : ''} Running`
       : 'Loading'
-  ), [status]);
+  ), [status])
 
   return (
     <CardHeader
@@ -67,7 +67,7 @@ const ClusterCardHeader: FunctionComponent = () => {
       subheaderTypographyProps={{ variant: 'body2' }}
       action={<ActionIconButton/>}
     />
-  );
-};
+  )
+}
 
-export default ClusterCardHeader;
+export default ClusterCardHeader

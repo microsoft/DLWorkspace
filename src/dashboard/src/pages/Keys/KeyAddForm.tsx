@@ -1,10 +1,10 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useCallback,
   useEffect,
   useState,
-} from 'react';
+} from 'react'
 
 import {
   Button,
@@ -14,9 +14,9 @@ import {
   CardActions,
   CircularProgress,
   TextField,
-} from '@material-ui/core';
+} from '@material-ui/core'
 
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form'
 
 export interface KeyAddFormData {
   name: string;
@@ -41,32 +41,32 @@ const KeyAddForm: FunctionComponent<KeyAddFormProps> = ({ onAdd }) => {
       name: '',
       key: '',
     },
-  });
-  const [busy, setBusy] = useState(false);
-  const key = watch('key');
+  })
+  const [busy, setBusy] = useState(false)
+  const key = watch('key')
 
   useEffect(() => {
-    const name = getValues('name');
-    if (name !== '') return;
+    const name = getValues('name')
+    if (name !== '') return
 
     const keyParts = key.split(' ', 3)
-    if (keyParts.length < 3) return;
-    const inferredName = keyParts[2];
-    if (inferredName.indexOf('@') === -1) return;
+    if (keyParts.length < 3) return
+    const inferredName = keyParts[2]
+    if (inferredName.indexOf('@') === -1) return
 
-    setValue('name', inferredName);
-  }, [key, getValues, setValue]);
+    setValue('name', inferredName)
+  }, [key, getValues, setValue])
 
   const handleFormSubmit = useCallback((keyItem) => {
-    if (busy) return;
-    setBusy(true);
+    if (busy) return
+    setBusy(true)
     onAdd(keyItem).then(() => {
-      reset();
-      setBusy(false);
+      reset()
+      setBusy(false)
     }, () => {
-      setBusy(false);
+      setBusy(false)
     })
-  }, [busy, setBusy, onAdd, reset]);
+  }, [busy, setBusy, onAdd, reset])
 
   return (
     <Card component="form" onSubmit={handleSubmit(handleFormSubmit)}>
@@ -114,7 +114,7 @@ const KeyAddForm: FunctionComponent<KeyAddFormProps> = ({ onAdd }) => {
         </Button>
       </CardActions>
     </Card>
-  );
-};
+  )
+}
 
-export default KeyAddForm;
+export default KeyAddForm

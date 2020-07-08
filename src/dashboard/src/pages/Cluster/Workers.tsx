@@ -1,4 +1,4 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   ChangeEvent,
   FunctionComponent,
@@ -7,7 +7,7 @@ import {
   useMemo,
   useRef,
   useState
-} from 'react';
+} from 'react'
 import {
   kebabCase,
   each,
@@ -15,7 +15,7 @@ import {
   map,
   mapValues,
   noop,
-} from 'lodash';
+} from 'lodash'
 import {
   Card,
   CardMedia,
@@ -26,27 +26,27 @@ import {
   Tooltip,
   Typography,
   makeStyles
-} from '@material-ui/core';
+} from '@material-ui/core'
 import {
   Build,
   DoneOutline,
   ErrorOutline,
   Help,
   More,
-} from '@material-ui/icons';
+} from '@material-ui/icons'
 import {
   Column,
   Options,
   DetailPanel
-} from 'material-table';
+} from 'material-table'
 
-import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
-import TeamContext from '../../contexts/Team';
-import useTableData from '../../hooks/useTableData';
-import usePrometheus from '../../hooks/usePrometheus';
+import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable'
+import TeamContext from '../../contexts/Team'
+import useTableData from '../../hooks/useTableData'
+import usePrometheus from '../../hooks/usePrometheus'
 
-import useResourceColumns, { ResourceKind } from '../Clusters/useResourceColumns';
-import QueryContext from './QueryContext';
+import useResourceColumns, { ResourceKind } from '../Clusters/useResourceColumns'
+import QueryContext from './QueryContext'
 
 interface WorkerStateProps {
   state: string | undefined;
@@ -63,13 +63,13 @@ const WorkerState: FunctionComponent<WorkerStateProps> = ({ state, message }) =>
     : state === 'IN_REPAIR' ? <Build/>
     : state === 'AFTER_REPAIR' ? <Build/>
     : <Help/>
-  , [state]);
-  const label = useMemo(() => kebabCase(state), [state]);
+  , [state])
+  const label = useMemo(() => kebabCase(state), [state])
   const deleteIcon = message ? (
     <Tooltip title={message} placement="right" interactive>
       <More/>
     </Tooltip>
-  ) : undefined;
+  ) : undefined
 
   return (
     <Chip
@@ -80,8 +80,8 @@ const WorkerState: FunctionComponent<WorkerStateProps> = ({ state, message }) =>
       size="small"
       color={state === 'IN_SERVICE' ? 'default' : 'secondary'}
     />
-  );
-};
+  )
+}
 
 interface Props {
   data: any;
@@ -92,32 +92,32 @@ const useLinkStyles = makeStyles({
     display: 'block',
     textAlign: 'left'
   }
-});
+})
 
 const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } }) => {
-  const { currentTeamId } = useContext(TeamContext);
-  const { setQuery } = useContext(QueryContext);
+  const { currentTeamId } = useContext(TeamContext)
+  const { setQuery } = useContext(QueryContext)
 
-  const linkStyles = useLinkStyles();
+  const linkStyles = useLinkStyles()
 
-  const [filterType, setFilterType] = useState<string>('__all__');
+  const [filterType, setFilterType] = useState<string>('__all__')
 
-  const metrics = usePrometheus(config['grafana'], `avg(task_gpu_percent{vc_name="${currentTeamId}"}) by (instance)`);
+  const metrics = usePrometheus(config['grafana'], `avg(task_gpu_percent{vc_name="${currentTeamId}"}) by (instance)`)
   const workersGPUUtilization = useMemo(() => {
-    const workersGPUUtilization: { [workerName: string]: number } = Object.create(null);
+    const workersGPUUtilization: { [workerName: string]: number } = Object.create(null)
     if (metrics) {
       for (const { metric, value } of metrics.result) {
-        const instanceIP = metric.instance.split(':', 1)[0];
-        workersGPUUtilization[instanceIP] = value[1];
+        const instanceIP = metric.instance.split(':', 1)[0]
+        workersGPUUtilization[instanceIP] = value[1]
       }
     }
-    return workersGPUUtilization;
-  }, [metrics]);
+    return workersGPUUtilization
+  }, [metrics])
 
   const data = useMemo(() => {
-    let workersData = map(workers, (worker, id) => ({ id, ...worker }));
+    let workersData = map(workers, (worker, id) => ({ id, ...worker }))
     if (filterType !== '__all__') {
-      workersData = filter(workersData, ({ type }) => type === filterType);
+      workersData = filter(workersData, ({ type }) => type === filterType)
     }
     each(workersData, (workerData) => {
       workerData.status = mapValues(workerData.status, (value) => {
@@ -126,21 +126,21 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } })
           unschedulable: (value.total || 0) - (value.allocatable || 0),
           available: (value.allocatable || 0) - (value.used || 0)
         }
-      });
-      workerData.gpuUtilization = workersGPUUtilization[workerData.ip];
+      })
+      workerData.gpuUtilization = workersGPUUtilization[workerData.ip]
     })
     return workersData
-  }, [workers, workersGPUUtilization, filterType]);
-  const tableData = useTableData(data);
+  }, [workers, workersGPUUtilization, filterType])
+  const tableData = useTableData(data)
 
   const handleWorkerClick = useCallback((workerName: string) => () => {
-    setQuery(workerName);
-  }, [setQuery]);
+    setQuery(workerName)
+  }, [setQuery])
 
   const resourceKinds = useRef<ResourceKind[]>(
     ['total', 'unschedulable', 'used', 'preemptable', 'available']
-  ).current;
-  const resourceColumns = useResourceColumns(resourceKinds, config['isPureCPU']);
+  ).current
+  const resourceColumns = useResourceColumns(resourceKinds, config['isPureCPU'])
   const columns = useMemo(() => {
     const columns: Column<any>[] = [{
       field: 'id',
@@ -166,29 +166,29 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } })
           />
         </>
       )
-    }];
-    columns.push(...resourceColumns);
+    }]
+    columns.push(...resourceColumns)
     if (!config['isPureCPU']) {
       columns.push({
         title: 'GPU Utilization',
         field: 'gpuUtilization',
         type: 'numeric',
         render: ({ gpuUtilization }) => <>{Number(gpuUtilization || 0).toFixed(2)}%</>
-      });
+      })
     }
-    return columns;
-  }, [config, resourceColumns, handleWorkerClick, linkStyles]);
+    return columns
+  }, [config, resourceColumns, handleWorkerClick, linkStyles])
 
   const options = useRef<Options>({
     padding: 'dense',
     draggable: false,
     paging: false,
     detailPanelType: 'single'
-  }).current;
+  }).current
 
   const handleSelectChange = useCallback((event: ChangeEvent<{ value: unknown }>) => {
-    setFilterType(event.target.value as string);
-  }, []);
+    setFilterType(event.target.value as string)
+  }, [])
 
   const detailPanel = useMemo<DetailPanel<any>[]>(() => {
     return [{
@@ -203,8 +203,8 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } })
           />
         </Card>
       )
-    }];
-  }, [config]);
+    }]
+  }, [config])
 
   return (
     <SvgIconsMaterialTable
@@ -223,7 +223,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } })
       options={options}
       detailPanel={detailPanel}
     />
-  );
-};
+  )
+}
 
-export default Workers;
+export default Workers

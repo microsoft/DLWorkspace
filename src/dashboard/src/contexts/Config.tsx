@@ -1,4 +1,4 @@
-import * as React from 'react';
+import * as React from 'react'
 
 interface Context {
   addGroup?: string;
@@ -7,10 +7,10 @@ interface Context {
   notifications?: { [team: string]: string };
 }
 
-const Context = React.createContext<Context>({});
+const Context = React.createContext<Context>({})
 
-export default Context;
+export default Context
 
 export const Provider: React.FC<Context> = ({ children, ...props }) => {
-  return <Context.Provider value={props} children={children}/>;
-};
+  return <Context.Provider value={props} children={children}/>
+}

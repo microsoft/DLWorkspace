@@ -1,13 +1,13 @@
-import * as React from 'react';
-import {CSSProperties} from "react";
+import * as React from 'react'
+import {CSSProperties} from "react"
 import {
   createStyles,
   makeStyles,
   Snackbar,
   SnackbarContent,
   Theme
-} from "@material-ui/core";
-import {green} from "@material-ui/core/colors";
+} from "@material-ui/core"
+import {green} from "@material-ui/core/colors"
 
 
 interface SnackbarProps {
@@ -23,11 +23,11 @@ const useStyles = makeStyles((theme: Theme) =>
       backgroundColor: green[600],
     },
   })
-);
+)
 export const DLTSSnackbar: React.FC<SnackbarProps> = (props: SnackbarProps) => {
-  const classes = useStyles();
-  let { handleWarnClose, autoHideDuration, message, open, style } = props;
-  const ogStyle = {};
+  const classes = useStyles()
+  let { handleWarnClose, autoHideDuration, message, open, style } = props
+  const ogStyle = {}
   return (
     <>
       {

@@ -1,11 +1,11 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   Tooltip,
   Switch,
   CircularProgress
-} from "@material-ui/core";
-import {MTableToolbar} from "material-table";
-import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable';
+} from "@material-ui/core"
+import {MTableToolbar} from "material-table"
+import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable'
 
 interface TeamUsr {
   userStatus: any;
@@ -15,7 +15,7 @@ interface TeamUsr {
 }
 
 export const TeamVCUserStatus = (props: TeamUsr) => {
-  const{userStatus, showCurrentUser,handleSwitch, currentCluster } = props;
+  const{userStatus, showCurrentUser,handleSwitch, currentCluster } = props
   if (currentCluster === 'Lab-RR1-V100') {
     return (
       <>

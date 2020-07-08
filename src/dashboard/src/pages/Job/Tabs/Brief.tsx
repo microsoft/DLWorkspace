@@ -1,36 +1,36 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useContext
-} from 'react';
+} from 'react'
 import {
   Box,
   Divider,
   List,
   ListItem,
   ListItemText
-} from '@material-ui/core';
+} from '@material-ui/core'
 import {
   AccountBox,
   Check,
   Group,
   Remove
-} from '@material-ui/icons';
-import { get } from 'lodash';
+} from '@material-ui/icons'
+import { get } from 'lodash'
 
-import CodeBlock from '../../../components/CodeBlock';
-import CopyableTextListItem from '../../../components/CopyableTextListItem';
+import CodeBlock from '../../../components/CodeBlock'
+import CopyableTextListItem from '../../../components/CopyableTextListItem'
 
-import useRouteParams from '../useRouteParams';
-import Context from '../Context';
+import useRouteParams from '../useRouteParams'
+import Context from '../Context'
 
 const Brief: FunctionComponent = () => {
-  const { clusterId, jobId } = useRouteParams();
-  const { cluster, job } = useContext(Context);
+  const { clusterId, jobId } = useRouteParams()
+  const { cluster, job } = useContext(Context)
 
-  const submitted = new Date(get(job, 'jobTime'));
-  const started = new Date(get(job, 'jobStatusDetail.0.startedAt'));
-  const finished = new Date(get(job, 'jobStatusDetail.0.finishedAt'));
+  const submitted = new Date(get(job, 'jobTime'))
+  const started = new Date(get(job, 'jobStatusDetail.0.startedAt'))
+  const finished = new Date(get(job, 'jobStatusDetail.0.finishedAt'))
   return (
     <List dense disablePadding>
       <CopyableTextListItem primary="Job Id" secondary={jobId}/>
@@ -147,9 +147,9 @@ const Brief: FunctionComponent = () => {
         )
       }
     </List>
-  );
-};
+  )
+}
 
-Brief.displayName = 'Brief';
+Brief.displayName = 'Brief'
 
-export default Brief;
+export default Brief

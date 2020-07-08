@@ -1,16 +1,16 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useMemo
-} from 'react';
+} from 'react'
 
 import {
   Input,
   makeStyles,
   createStyles,
-} from '@material-ui/core';
+} from '@material-ui/core'
 
-import { Provider as MonospacedThemeProvider } from '../contexts/MonospacedTheme';
+import { Provider as MonospacedThemeProvider } from '../contexts/MonospacedTheme'
 
 const useStyles = makeStyles((theme) => createStyles({
   root: {
@@ -24,12 +24,12 @@ const useStyles = makeStyles((theme) => createStyles({
 }))
 
 const CodeBlock: FunctionComponent<{ children: string }> = ({ children }) => {
-  const styles = useStyles();
+  const styles = useStyles()
   const newLinedCode = useMemo(() => {
     if (children.charAt(children.length - 1) === '\n') {
-      return children;
+      return children
     }
-    return children + '\n';
+    return children + '\n'
   }, [children])
   return (
     <MonospacedThemeProvider>
@@ -49,7 +49,7 @@ const CodeBlock: FunctionComponent<{ children: string }> = ({ children }) => {
         }}
       />
     </MonospacedThemeProvider>
-  );
-};
+  )
+}
 
-export default CodeBlock;
+export default CodeBlock

@@ -1,11 +1,11 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useCallback,
   useContext,
   useMemo,
   useRef,
-} from 'react';
+} from 'react'
 
 import {
   CardContent,
@@ -13,16 +13,16 @@ import {
   InputAdornment,
   TextField,
   Tooltip,
-} from '@material-ui/core';
+} from '@material-ui/core'
 import {
   FileCopyRounded,
-} from '@material-ui/icons';
+} from '@material-ui/icons'
 
-import copy from 'clipboard-copy';
-import { useSnackbar } from 'notistack';
+import copy from 'clipboard-copy'
+import { useSnackbar } from 'notistack'
 
-import UserContext from '../../../contexts/User';
-import { useCluster } from './Context';
+import UserContext from '../../../contexts/User'
+import { useCluster } from './Context'
 
 interface CopyableTextFieldProps {
   label: string;
@@ -30,17 +30,17 @@ interface CopyableTextFieldProps {
 }
 
 const CopyableTextField: FunctionComponent<CopyableTextFieldProps> = ({ label, value }) => {
-  const { enqueueSnackbar } = useSnackbar();
-  const input = useRef<HTMLInputElement>();
+  const { enqueueSnackbar } = useSnackbar()
+  const input = useRef<HTMLInputElement>()
   const handleMouseOver = useCallback(() => {
     if (input.current) {
-      input.current.select();
+      input.current.select()
     }
-  }, [input]);
+  }, [input])
   const handleClick = React.useCallback(() => {
-    copy(value);
-    enqueueSnackbar('Successfully copied', { variant: 'success' });
-  }, [value, enqueueSnackbar]);
+    copy(value)
+    enqueueSnackbar('Successfully copied', { variant: 'success' })
+  }, [value, enqueueSnackbar])
   return (
     <TextField
       inputRef={input}
@@ -65,23 +65,23 @@ const CopyableTextField: FunctionComponent<CopyableTextFieldProps> = ({ label, v
       }}
       onMouseOver={handleMouseOver}
     />
-  );
+  )
 }
 
 const DirectoryContent: FunctionComponent = () => {
-  const { email } = useContext(UserContext);
-  const { status } = useCluster();
+  const { email } = useContext(UserContext)
+  const { status } = useCluster()
   const workStorage = useMemo(() => {
-    if (email == null) return '';
-    if (status == null) return '';
-    if (status.config == null) return '';
-    return status.config.workStorage + '/' + email.split('@', 1)[0];
-  }, [email, status]);
+    if (email == null) return ''
+    if (status == null) return ''
+    if (status.config == null) return ''
+    return status.config.workStorage + '/' + email.split('@', 1)[0]
+  }, [email, status])
   const dataStorage = useMemo(() => {
-    if (status == null) return '';
-    if (status.config == null) return '';
-    return status.config.dataStorage;
-  }, [status]);
+    if (status == null) return ''
+    if (status.config == null) return ''
+    return status.config.dataStorage
+  }, [status])
   return (
     <CardContent>
       <CopyableTextField
@@ -93,7 +93,7 @@ const DirectoryContent: FunctionComponent = () => {
         value={dataStorage}
       />
     </CardContent>
-  );
-};
+  )
+}
 
-export default DirectoryContent;
+export default DirectoryContent

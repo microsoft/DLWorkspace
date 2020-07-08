@@ -1,17 +1,17 @@
-import * as React from 'react';
-import {useContext} from 'react';
+import * as React from 'react'
+import {useContext} from 'react'
 
 import {
   Card,
   CardHeader,
   CardMedia,
-} from '@material-ui/core';
+} from '@material-ui/core'
 
-import Context from './Context';
+import Context from './Context'
 
 const Monitor: React.FC = () => {
-  const { cluster, job } = useContext(Context);
-  const jobStatusGrafanaUrl = `${cluster['grafana']}/dashboard/db/job-status?var-job_name=${encodeURIComponent(job['jobId'])}`;
+  const { cluster, job } = useContext(Context)
+  const jobStatusGrafanaUrl = `${cluster['grafana']}/dashboard/db/job-status?var-job_name=${encodeURIComponent(job['jobId'])}`
 
   return (
     <Card>
@@ -22,7 +22,7 @@ const Monitor: React.FC = () => {
         height={1080}
       />
     </Card>
-  );
-};
+  )
+}
 
-export default Monitor;
+export default Monitor

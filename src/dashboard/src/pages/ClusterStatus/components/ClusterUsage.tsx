@@ -1,10 +1,10 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
 
   CircularProgress
-} from "@material-ui/core";
+} from "@material-ui/core"
 
-import Iframe from "react-iframe";
+import Iframe from "react-iframe"
 
 interface ClusterUsageType {
   showIframe: boolean;
@@ -12,7 +12,7 @@ interface ClusterUsageType {
 }
 
 export const ClusterUsage = (props: ClusterUsageType) => {
-  const {showIframe, iframeUrl} = props;
+  const {showIframe, iframeUrl} = props
   if (showIframe) {
     return (<Iframe url={iframeUrl} width="100%" height="400"/>)
 

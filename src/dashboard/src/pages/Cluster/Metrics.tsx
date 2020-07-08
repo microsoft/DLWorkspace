@@ -1,24 +1,24 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useContext
-} from 'react';
+} from 'react'
 
 import {
   Card,
   CardMedia,
   CardHeader
-} from '@material-ui/core';
+} from '@material-ui/core'
 
 
-import TeamContext from '../../contexts/Team';
+import TeamContext from '../../contexts/Team'
 
 interface Props {
   data: any;
 }
 
 const Metrics: FunctionComponent<Props> = ({ data: { config } }) => {
-  const { currentTeamId } = useContext(TeamContext);
+  const { currentTeamId } = useContext(TeamContext)
 
   return (
     <>
@@ -41,7 +41,7 @@ const Metrics: FunctionComponent<Props> = ({ data: { config } }) => {
         />
       </Card>
     </>
-  );
-};
+  )
+}
 
-export default Metrics;
+export default Metrics

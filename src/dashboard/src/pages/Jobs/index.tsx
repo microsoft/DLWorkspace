@@ -1,16 +1,16 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   ChangeEvent,
   FunctionComponent,
   useCallback,
   useContext,
   useMemo
-} from 'react';
+} from 'react'
 import {
   useHistory,
   useLocation,
   useParams,
-} from 'react-router-dom';
+} from 'react-router-dom'
 import {
   Container,
   FormControl,
@@ -19,30 +19,30 @@ import {
   Tabs,
   Tab,
   Toolbar
-} from '@material-ui/core';
-import SwipeableViews from 'react-swipeable-views';
+} from '@material-ui/core'
+import SwipeableViews from 'react-swipeable-views'
 
-import ClustersContext from '../../contexts/Clusters';
-import ClusterSelector from '../../components/ClusterSelector';
+import ClustersContext from '../../contexts/Clusters'
+import ClusterSelector from '../../components/ClusterSelector'
 
-import Loading from '../../components/Loading';
-import useHashTab from '../../hooks/useHashTab';
-import ClusterContext from './ClusterContext';
-import MyJobs from './MyJobs';
-import AllJobs from './AllJobs';
+import Loading from '../../components/Loading'
+import useHashTab from '../../hooks/useHashTab'
+import ClusterContext from './ClusterContext'
+import MyJobs from './MyJobs'
+import AllJobs from './AllJobs'
 
 interface RouteParams {
   clusterId: string;
 }
 
 const TabView: FunctionComponent = () => {
-  const [index, setIndex] = useHashTab('my', 'all');
+  const [index, setIndex] = useHashTab('my', 'all')
   const onChange = useCallback((event: ChangeEvent<{}>, value: any) => {
-    setIndex(value as number);
-  }, [setIndex]);
+    setIndex(value as number)
+  }, [setIndex])
   const onChangeIndex = useCallback((index: number, prevIndex: number) => {
-    setIndex(index);
-  }, [setIndex]);
+    setIndex(index)
+  }, [setIndex])
   return (
     <>
       <Tabs
@@ -63,7 +63,7 @@ const TabView: FunctionComponent = () => {
         {index === 1 ? <AllJobs/> : <div/>}
       </SwipeableViews>
     </>
-  );
+  )
 }
 
 const ClusterJobs: FunctionComponent<{ cluster: any }> = ({ cluster }) => {
@@ -73,27 +73,27 @@ const ClusterJobs: FunctionComponent<{ cluster: any }> = ({ cluster }) => {
         <TabView/>
       </Paper>
     </ClusterContext.Provider>
-  );
+  )
 }
 
 const Jobs: FunctionComponent = () => {
-  const { clusters } = useContext(ClustersContext);
+  const { clusters } = useContext(ClustersContext)
 
-  const history = useHistory();
-  const { hash } = useLocation();
-  const { clusterId } = useParams<RouteParams>();
+  const history = useHistory()
+  const { hash } = useLocation()
+  const { clusterId } = useParams<RouteParams>()
 
   const cluster = useMemo(() => {
     return clusters.filter(cluster => cluster.id === clusterId)[0]
-  }, [clusters, clusterId]);
+  }, [clusters, clusterId])
 
   const onClusterChange = useCallback((cluster: any) => {
     // Use absolute pathname to support both
     // - Autofill at the beginning (/jobs -> /jobs/Default-Cluster/)
     // - Select Switching (/jobs/Default-Cluster/ -> /jobs/Other-Cluster/)
-    const pathname = `/jobs/${cluster.id}/`;
-    history.replace({ pathname, hash });
-  }, [history, hash]);
+    const pathname = `/jobs/${cluster.id}/`
+    history.replace({ pathname, hash })
+  }, [history, hash])
 
   return (
     <Container fixed maxWidth="xl">
@@ -109,7 +109,7 @@ const Jobs: FunctionComponent = () => {
           : <Loading/>
       }
     </Container>
-  );
-};
+  )
+}
 
-export default Jobs;
+export default Jobs

@@ -1,9 +1,9 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent
-} from 'react';
+} from 'react'
 
-import { sample } from 'lodash';
+import { sample } from 'lodash'
 
 import {
   createStyles,
@@ -12,11 +12,11 @@ import {
   Grid,
   Paper,
   Typography
-} from '@material-ui/core';
+} from '@material-ui/core'
 
-import image1 from "./image1.jpeg";
-import image2 from "./image2.jpeg";
-import image3 from "./image3.jpeg";
+import image1 from "./image1.jpeg"
+import image2 from "./image2.jpeg"
+import image3 from "./image3.jpeg"
 
 const useStyles = makeStyles(() => createStyles({
   container: {
@@ -24,10 +24,10 @@ const useStyles = makeStyles(() => createStyles({
     backgroundSize: "cover",
     backgroundPosition: "right"
   }
-}));
+}))
 
 const Cover: FunctionComponent = ({ children }) => {
-  const styles = useStyles();
+  const styles = useStyles()
   return (
     <Grid container justify="flex-end" classes={styles}>
       <Grid
@@ -55,7 +55,7 @@ const Cover: FunctionComponent = ({ children }) => {
         </Paper>
       </Grid>
     </Grid>
-  );
-};
+  )
+}
 
-export default Cover;
+export default Cover

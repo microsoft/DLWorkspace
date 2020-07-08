@@ -1,6 +1,6 @@
-import * as React from 'react';
-import Typography from '@material-ui/core/Typography';
-import Box from '@material-ui/core/Box';
+import * as React from 'react'
+import Typography from '@material-ui/core/Typography'
+import Box from '@material-ui/core/Box'
 interface TabPanelProps {
   children?: React.ReactNode;
   dir?: string;
@@ -9,7 +9,7 @@ interface TabPanelProps {
 }
 
 export const TabPanel = (props: TabPanelProps) => {
-      const { children, value, index, ...other } = props;
+      const { children, value, index, ...other } = props
       return (
         <Typography
           component="div"

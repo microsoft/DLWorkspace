@@ -1,4 +1,4 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   memo,
@@ -6,9 +6,9 @@ import {
   useContext,
   useMemo,
   useState,
-} from 'react';
+} from 'react'
 
-import { get, map } from 'lodash';
+import { get, map } from 'lodash'
 
 import {
   Box,
@@ -25,13 +25,13 @@ import {
   Error,
   Info,
   Warning,
-} from '@material-ui/icons';
+} from '@material-ui/icons'
 
-import useActions from '../../hooks/useActions';
-import { formatDateDistance } from '../../utils/formats';
+import useActions from '../../hooks/useActions'
+import { formatDateDistance } from '../../utils/formats'
 
-import useRouteParams from './useRouteParams';
-import Context from './Context';
+import useRouteParams from './useRouteParams'
+import Context from './Context'
 
 const LEVELS_VALUE: { [level: string]: number } = {
   CRITICAL: 50,
@@ -39,7 +39,7 @@ const LEVELS_VALUE: { [level: string]: number } = {
   WARNING: 30,
   INFO: 20,
   DEBUG: 10
-};
+}
 
 const useMessagePaperStyle = makeStyles(theme => createStyles({
   root: {
@@ -49,33 +49,33 @@ const useMessagePaperStyle = makeStyles(theme => createStyles({
     marginBottom: theme.spacing(1),
     padding: theme.spacing(1),
   },
-}));
+}))
 
 const LevelIcon: FunctionComponent<{ children: string }> = memo(({ children }) => {
-  const { palette } = useTheme();
+  const { palette } = useTheme()
 
   if (children === 'CRITICAL') {
-    return <Cancel fontSize="small" htmlColor={palette.error.main}/>;
+    return <Cancel fontSize="small" htmlColor={palette.error.main}/>
   } else if (children === 'ERROR') {
-    return <Error fontSize="small" htmlColor={palette.error.main}/>;
+    return <Error fontSize="small" htmlColor={palette.error.main}/>
   } else if (children === 'WARNING') {
-    return <Warning fontSize="small" htmlColor={palette.warning.main}/>;
+    return <Warning fontSize="small" htmlColor={palette.warning.main}/>
   } else { // 'INFO' by default
-    return <Info fontSize="small" htmlColor={palette.info.main}/>;
+    return <Info fontSize="small" htmlColor={palette.info.main}/>
   }
-}, ({ children: prevChildren }, { children: nextChildren }) => prevChildren === nextChildren);
+}, ({ children: prevChildren }, { children: nextChildren }) => prevChildren === nextChildren)
 
 const ActionButton: FunctionComponent<{ children: string }> = ({ children }) => {
-  const { clusterId } = useRouteParams();
-  const { job } = useContext(Context);
-  const { pause, kill } = useActions(clusterId);
+  const { clusterId } = useRouteParams()
+  const { job } = useContext(Context)
+  const { pause, kill } = useActions(clusterId)
 
   const handlePauseButtonClick = useCallback((event: unknown) => {
-    pause(job).onClick(event, job);
-  }, [pause, job]);
+    pause(job).onClick(event, job)
+  }, [pause, job])
   const handleKillButtonClick = useCallback((event: unknown) => {
-    kill(job).onClick(event, job);
-  }, [kill, job]);
+    kill(job).onClick(event, job)
+  }, [kill, job])
 
   if (/^https?:\/\//.test(children)) {
     return <Button size="small" color="primary" href={children} target="_blank" rel="noopener noreferrer">Link</Button>
@@ -86,8 +86,8 @@ const ActionButton: FunctionComponent<{ children: string }> = ({ children }) => 
   if (children === 'KillJob') {
     return <Button size="small" color="secondary" onClick={handleKillButtonClick}>Kill</Button>
   }
-  return null;
-};
+  return null
+}
 
 interface CollapsedMessageProps {
   level: string;
@@ -97,7 +97,7 @@ interface CollapsedMessageProps {
 }
 
 const CollapsedMessage: FunctionComponent<CollapsedMessageProps> = ({ level, count, onExpand, children }) => {
-  const paperStyle = useMessagePaperStyle(false);
+  const paperStyle = useMessagePaperStyle(false)
   return (
     <Paper variant="outlined" classes={paperStyle}>
       <LevelIcon>{level}</LevelIcon>
@@ -120,8 +120,8 @@ const CollapsedMessage: FunctionComponent<CollapsedMessageProps> = ({ level, cou
       ) }
       <Button size="small" color="primary" onClick={onExpand}>Show All</Button>
     </Paper>
-  );
-};
+  )
+}
 
 interface MessageProps {
   date: Date;
@@ -131,7 +131,7 @@ interface MessageProps {
 }
 
 const Message: FunctionComponent<MessageProps> = ({ date, level, action, children }) => {
-  const paperStyle = useMessagePaperStyle(true);
+  const paperStyle = useMessagePaperStyle(true)
   return (
     <Paper variant="outlined" classes={paperStyle}>
       <Box display="flex" alignItems="flex-start">
@@ -153,50 +153,50 @@ const Message: FunctionComponent<MessageProps> = ({ date, level, action, childre
         <ActionButton>{action}</ActionButton>
       </Box>
     </Paper>
-  );
-};
+  )
+}
 
 const Messages: FunctionComponent = () => {
-  const { job } = useContext(Context);
+  const { job } = useContext(Context)
 
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(true)
 
   const diagnosticMessageProps = useMemo<MessageProps[]>(() => {
-    const timestamp = get(job, ['insight', 'timestamp'], NaN);
-    const date = new Date(timestamp * 1000);
-    const diagnostics = get(job, ['insight', 'diagnostics'], []);
+    const timestamp = get(job, ['insight', 'timestamp'], NaN)
+    const date = new Date(timestamp * 1000)
+    const diagnostics = get(job, ['insight', 'diagnostics'], [])
 
     return map(diagnostics,
-      ([level, children, action]: [string, string, string]) => ({ date, level, action, children }));
-  }, [job]);
+      ([level, children, action]: [string, string, string]) => ({ date, level, action, children }))
+  }, [job])
 
   const repairMessageProps = useMemo<MessageProps[]>(() => {
-    const repairMessage = get(job, 'repairMessage');
-    if (repairMessage == null || repairMessage.timestamp == null) return [];
-    const date = new Date(repairMessage.timestamp * 1000);
-    const [level, children, action] = repairMessage.message;
-    return [{ date, level, action, children }];
-  }, [job]);
+    const repairMessage = get(job, 'repairMessage')
+    if (repairMessage == null || repairMessage.timestamp == null) return []
+    const date = new Date(repairMessage.timestamp * 1000)
+    const [level, children, action] = repairMessage.message
+    return [{ date, level, action, children }]
+  }, [job])
 
   const messageProps = useMemo(() =>
     diagnosticMessageProps.concat(repairMessageProps)
       .sort(({level: levelA}, {level: levelB}) => {
-        const valueA = LEVELS_VALUE[levelA] || 0;
-        const valueB = LEVELS_VALUE[levelB] || 0;
-        return valueA - valueB;
+        const valueA = LEVELS_VALUE[levelA] || 0
+        const valueB = LEVELS_VALUE[levelB] || 0
+        return valueA - valueB
       })
       .reverse(),
-  [diagnosticMessageProps, repairMessageProps]);
+  [diagnosticMessageProps, repairMessageProps])
 
   const handleExpand = useCallback(() => {
-    setCollapsed(false);
-  }, [setCollapsed]);
+    setCollapsed(false)
+  }, [setCollapsed])
 
   if (messageProps.length === 0) {
-    return null;
+    return null
   }
   if (collapsed) {
-    const { level, children } = messageProps[0];
+    const { level, children } = messageProps[0]
     return (
       <CollapsedMessage
         level={level}
@@ -205,11 +205,11 @@ const Messages: FunctionComponent = () => {
       >
         {children}
       </CollapsedMessage>
-    );
+    )
   }
   return (
     <>{ messageProps.map((props, index) => <Message key={index} {...props}/>) }</>
-  );
+  )
 }
 
-export default Messages;
+export default Messages

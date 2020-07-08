@@ -1,35 +1,35 @@
-import * as React from 'react';
-import {Fragment, useCallback, useContext, useState} from 'react';
+import * as React from 'react'
+import {Fragment, useCallback, useContext, useState} from 'react'
 import {
   Button,
   Card,
   List,
   ListItem,
   ListItemText, SvgIcon, TextField, Tooltip,
-} from '@material-ui/core';
-import useFetch from 'use-http';
+} from '@material-ui/core'
+import useFetch from 'use-http'
 
-import Context from './Context';
-import DoneIcon from "@material-ui/icons/Done";
-import ClearIcon from "@material-ui/icons/Clear";
-import {green, red} from "@material-ui/core/colors";
-import IconButton from "@material-ui/core/IconButton";
-import DeleteIcon from '@material-ui/icons/Delete';
-import CheckIcon from "@material-ui/icons/Check";
-import {JobsOperationDialog} from "../../JobsLegacy/components/JobsOperationDialog";
+import Context from './Context'
+import DoneIcon from "@material-ui/icons/Done"
+import ClearIcon from "@material-ui/icons/Clear"
+import {green, red} from "@material-ui/core/colors"
+import IconButton from "@material-ui/core/IconButton"
+import DeleteIcon from '@material-ui/icons/Delete'
+import CheckIcon from "@material-ui/icons/Check"
+import {JobsOperationDialog} from "../../JobsLegacy/components/JobsOperationDialog"
 import {
   SUCESSFULKILLED,
   SUCCESSFULLYPAUSED,
   SUCCESSFULLYRESUMED, SUCCESSFULLYAPPROVED
-} from "../../../Constants/WarnConstants";
-import {DLTSSnackbar} from "../../CommonComponents/DLTSSnackbar";
+} from "../../../Constants/WarnConstants"
+import {DLTSSnackbar} from "../../CommonComponents/DLTSSnackbar"
 
 interface BriefProps {
   readonly?: boolean;
 }
 
 const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
-  const { cluster, job, clusterId, jobId } = useContext(Context);
+  const { cluster, job, clusterId, jobId } = useContext(Context)
 
   const isKillable = useCallback((status: string) => (
     status === 'running' ||
@@ -38,17 +38,17 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
     status === 'unapproved' ||
     status === 'pausing' ||
     status === 'paused'
-  ), []);
+  ), [])
   const isPausable = useCallback((status: string) => (
     status === 'running' ||
     status === 'scheduling' ||
     status === 'queued' ||
     status === 'unapproved' ||
     status === 'pausing'
-  ), []);
-  const isApproveable =  useCallback((status: string) => (status === 'unapproved'),[]);
-  const isResumeable =  useCallback((status: string) => (status === 'paused'), []);
-  const api = useFetch('/api');
+  ), [])
+  const isApproveable =  useCallback((status: string) => (status === 'unapproved'),[])
+  const isResumeable =  useCallback((status: string) => (status === 'paused'), [])
+  const api = useFetch('/api')
 
   const operations = {
     KILLING: 'killing',
@@ -57,32 +57,32 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
     QUEUED: 'queued'
   }
   const actionHandle = useCallback(async (operation: string) => {
-    const body = {"status":operation};
-    const data = await api.put(`/clusters/${clusterId}/jobs/${jobId}/status`, body);
-    return data;
-  }, [api, clusterId, jobId]);
+    const body = {"status":operation}
+    const data = await api.put(`/clusters/${clusterId}/jobs/${jobId}/status`, body)
+    return data
+  }, [api, clusterId, jobId])
 
-  const isPauseDisplay = !readonly && isPausable(job['jobStatus']);
-  const isKillDisplay = !readonly && isKillable(job['jobStatus']);
-  const isResumeDisplay = !readonly && isResumeable(job['jobStatus']);
-  const isApproveDisplay = !readonly && isApproveable(job['jobStatus']);
+  const isPauseDisplay = !readonly && isPausable(job['jobStatus'])
+  const isKillDisplay = !readonly && isKillable(job['jobStatus'])
+  const isResumeDisplay = !readonly && isResumeable(job['jobStatus'])
+  const isApproveDisplay = !readonly && isApproveable(job['jobStatus'])
 
-  const[open, setOpen] = React.useState(false);
-  const[openApprove, setOpenApprove] = React.useState(false);
-  const[openResumeWarn, setOpenResumeWarn] = React.useState(false);
-  const[openPause, setOpenPause] = React.useState(false);
-  const[openResume, setOpenResume] = React.useState(false);
-  const[openUpdatePriority,setOpenUpdatePriority] = React.useState(false);
-  const[openApproveWarn, setOpenApproveWarn] = React.useState(false);
-  const[openPauseWarn, setOpenPauseWarn] = React.useState(false);
-  const [message,setMessage] = useState('');
-  const[openKillWarn, setOpenKillWarn] = React.useState(false);
+  const[open, setOpen] = React.useState(false)
+  const[openApprove, setOpenApprove] = React.useState(false)
+  const[openResumeWarn, setOpenResumeWarn] = React.useState(false)
+  const[openPause, setOpenPause] = React.useState(false)
+  const[openResume, setOpenResume] = React.useState(false)
+  const[openUpdatePriority,setOpenUpdatePriority] = React.useState(false)
+  const[openApproveWarn, setOpenApproveWarn] = React.useState(false)
+  const[openPauseWarn, setOpenPauseWarn] = React.useState(false)
+  const [message,setMessage] = useState('')
+  const[openKillWarn, setOpenKillWarn] = React.useState(false)
 
   const handleClose = () => {
-    setOpen(false);
-    setOpenApprove(false);
-    setOpenPause(false);
-    setOpenResume(false);
+    setOpen(false)
+    setOpenApprove(false)
+    setOpenPause(false)
+    setOpenResume(false)
   }
   const handleKill = useCallback(()=>{
     setOpen(true)
@@ -97,8 +97,8 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
     setOpenApprove(true)
   },[])
   const handleWarnClose = () => {
-    setOpenKillWarn(false);
-    setOpenApproveWarn(false);
+    setOpenKillWarn(false)
+    setOpenApproveWarn(false)
     setOpenPauseWarn(false)
     setOpenResumeWarn(false)
   }
@@ -106,29 +106,29 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
     if (open) {
       actionHandle(operations.KILLING).then((res)=>{
         if (res) {
-          setOpenKillWarn(true);
-          setOpen(false);
-          setMessage(SUCESSFULKILLED);
+          setOpenKillWarn(true)
+          setOpen(false)
+          setMessage(SUCESSFULKILLED)
         } else {
-          alert('kill fail');
+          alert('kill fail')
         }
       })
     } else if (openPause){
       actionHandle(operations.PAUSING).then((res)=>{
         if (res) {
-          setOpenKillWarn(true);
-          setOpenPause(false);
-          setMessage(SUCCESSFULLYPAUSED);
+          setOpenKillWarn(true)
+          setOpenPause(false)
+          setMessage(SUCCESSFULLYPAUSED)
         } else {
-          alert("pause fail");
+          alert("pause fail")
         }
       })
     } else if (openResume) {
       actionHandle(operations.QUEUED).then((res)=>{
         if (res) {
-          setOpenResumeWarn(true);
-          setOpenResume(false);
-          setMessage(SUCCESSFULLYRESUMED);
+          setOpenResumeWarn(true)
+          setOpenResume(false)
+          setMessage(SUCCESSFULLYRESUMED)
         } else {
           alert("approve fail")
         }
@@ -136,15 +136,15 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
     } else if (openApprove) {
       actionHandle(operations.APPROVED).then((res)=>{
         if (res) {
-          setOpenApproveWarn(true);
-          setOpenApprove(false);
-          setMessage(SUCCESSFULLYAPPROVED);
+          setOpenApproveWarn(true)
+          setOpenApprove(false)
+          setMessage(SUCCESSFULLYAPPROVED)
         } else {
           alert("resume fail")
         }
       })
     }
-  },[actionHandle, open, openApprove, openPause, openResume, operations.APPROVED, operations.KILLING, operations.PAUSING, operations.QUEUED]);
+  },[actionHandle, open, openApprove, openPause, openResume, operations.APPROVED, operations.KILLING, operations.PAUSING, operations.QUEUED])
   return (
     <Card>
       <JobsOperationDialog handleClose={handleClose}
@@ -237,7 +237,7 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
         autoHideDuration={2000}
       />
     </Card>
-  );
-};
+  )
+}
 
-export default Brief;
+export default Brief

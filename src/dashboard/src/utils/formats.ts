@@ -1,4 +1,4 @@
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns'
 
 export function formatBytes(bytes: number) {
   if (bytes >= 1024 * 1024 * 1024 * 1024) {
@@ -20,7 +20,7 @@ export function formatBytes(bytes: number) {
 }
 
 export function formatFloat(float: number) {
-  return String(Math.floor(float * 100) / 100);
+  return String(Math.floor(float * 100) / 100)
 }
 
 export function formatPercent(float: number, digits = 2) {

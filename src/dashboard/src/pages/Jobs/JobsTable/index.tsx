@@ -1,19 +1,19 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useCallback,
   useEffect,
   useRef,
   useState,
-} from 'react';
-import { Options, MaterialTableProps } from 'material-table';
-import { zipWith } from 'lodash';
+} from 'react'
+import { Options, MaterialTableProps } from 'material-table'
+import { zipWith } from 'lodash'
 
-import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable';
+import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable'
 
-import { Job } from '../utils';
+import { Job } from '../utils'
 
-import DetailPanel from './DetailPanel';
+import DetailPanel from './DetailPanel'
 
 interface JobsTableProps extends Omit<
   MaterialTableProps<Job>,
@@ -32,21 +32,21 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({
   onLastPage,
   ...props
 }) => {
-  const [pageSize, setPageSize] = useState(defaultPageSize);
-  const [data, setData] = useState(jobs);
+  const [pageSize, setPageSize] = useState(defaultPageSize)
+  const [data, setData] = useState(jobs)
 
   const detailPanel = useCallback((job: Job) => {
-    return <DetailPanel job={job}/>;
-  }, []);
+    return <DetailPanel job={job}/>
+  }, [])
   const handleChangeRowsPerPage = useCallback((pageSize: number) => {
-    setPageSize(pageSize);
-  }, [setPageSize]);
+    setPageSize(pageSize)
+  }, [setPageSize])
   const handleChangePage = useCallback((page: number) => {
-    const maxPage = Math.ceil(data.length / pageSize) - 1;
+    const maxPage = Math.ceil(data.length / pageSize) - 1
     if (page >= maxPage && onLastPage !== undefined) {
-      onLastPage(pageSize);
+      onLastPage(pageSize)
     }
-  }, [data, pageSize, onLastPage]);
+  }, [data, pageSize, onLastPage])
 
   const options = useRef<Options>({
     padding: 'dense',
@@ -55,15 +55,15 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({
     draggable: false,
     pageSize: defaultPageSize,
     selection
-  }).current;
+  }).current
 
   useEffect(() => {
     setData((data) => {
-      if (data === undefined) return jobs;
-      if (jobs === undefined) return data;
+      if (data === undefined) return jobs
+      if (jobs === undefined) return data
       return zipWith(data, jobs, (currentJob, newJob) => {
-        if (currentJob === undefined) return newJob;
-        if (newJob === undefined) return undefined;
+        if (currentJob === undefined) return newJob
+        if (newJob === undefined) return undefined
         newJob.tableData = currentJob.tableData
         return newJob
       }).filter(Boolean)
@@ -91,7 +91,7 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({
       onChangePage={handleChangePage}
       {...props}
     />
-  );
-};
+  )
+}
 
-export default JobsTable;
+export default JobsTable

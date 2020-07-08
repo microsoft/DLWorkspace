@@ -1,43 +1,43 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   createElement,
   useContext,
   useMemo,
-} from 'react';
-import { Link } from 'react-router-dom';
+} from 'react'
+import { Link } from 'react-router-dom'
 import {
   Box,
   IconButton,
   Toolbar,
   Typography,
   Tooltip
-} from '@material-ui/core';
+} from '@material-ui/core'
 import {
   ArrowBack
-} from '@material-ui/icons';
+} from '@material-ui/icons'
 
-import useActions from '../../hooks/useActions';
-import JobStatus from '../../components/JobStatus';
+import useActions from '../../hooks/useActions'
+import JobStatus from '../../components/JobStatus'
 
-import useRouteParams from './useRouteParams';
-import Context from './Context';
+import useRouteParams from './useRouteParams'
+import Context from './Context'
 
 const Header: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
-  const { clusterId } = useRouteParams();
-  const { accessible, admin, job } = useContext(Context);
-  const { support, approve, kill, pause, resume } = useActions(clusterId);
+  const { clusterId } = useRouteParams()
+  const { accessible, admin, job } = useContext(Context)
+  const { support, approve, kill, pause, resume } = useActions(clusterId)
 
   const availableActions = useMemo(() => {
-    const actions = [support];
-    if (manageable && admin) actions.push(approve);
-    if (manageable) actions.push(pause, resume, kill);
-    return actions;
-  }, [manageable, admin, support, approve, kill, pause, resume]);
+    const actions = [support]
+    if (manageable && admin) actions.push(approve)
+    if (manageable) actions.push(pause, resume, kill)
+    return actions
+  }, [manageable, admin, support, approve, kill, pause, resume])
 
   const actionButtons = availableActions.map((action, index) => {
-    const { hidden, icon, tooltip, onClick } = action(job);
-    if (hidden) return null;
+    const { hidden, icon, tooltip, onClick } = action(job)
+    if (hidden) return null
     return (
       <Tooltip key={index} title={tooltip as string}>
         <IconButton onClick={(event) => onClick(event, job)}>
@@ -69,7 +69,7 @@ const Header: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
       </Box>
       {actionButtons}
     </Toolbar>
-  );
+  )
 }
 
-export default Header;
+export default Header

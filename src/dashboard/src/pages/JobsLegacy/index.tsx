@@ -1,47 +1,47 @@
-import * as React from 'react';
-import {Fragment, useEffect, useState} from "react";
+import * as React from 'react'
+import {Fragment, useEffect, useState} from "react"
 import {
   Box,
   CircularProgress,
   TextField,
   SvgIcon,
   Tooltip, createMuiTheme, MuiThemeProvider,
-} from "@material-ui/core";
-import CheckCircleIcon from '@material-ui/icons/CheckCircle';
-import { makeStyles, Theme, createStyles } from "@material-ui/core/styles";
-import {red, green, blue} from "@material-ui/core/colors";
+} from "@material-ui/core"
+import CheckCircleIcon from '@material-ui/icons/CheckCircle'
+import { makeStyles, Theme, createStyles } from "@material-ui/core/styles"
+import {red, green, blue} from "@material-ui/core/colors"
 import { DLTSTabPanel } from '../CommonComponents/DLTSTabPanel'
-import {Link} from "react-router-dom";
-import useFetch from "use-http";
-import useJobs from './useJobs';
-import * as _ from 'lodash';
-import ClusterContext from "../../contexts/Clusters";
-import useJobsAll from "./useJobsAll";
-import IconButton from "@material-ui/core/IconButton";
-import DeleteIcon from '@material-ui/icons/Delete';
-import CheckIcon from '@material-ui/icons/CheckSharp';
-import {DLTSTabs} from "../CommonComponents/DLTSTabs";
-import {JobsTitles} from "../../Constants/TabsContants";
-import {JobsOperationDialog} from "./components/JobsOperationDialog";
-import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar";
+import {Link} from "react-router-dom"
+import useFetch from "use-http"
+import useJobs from './useJobs'
+import * as _ from 'lodash'
+import ClusterContext from "../../contexts/Clusters"
+import useJobsAll from "./useJobsAll"
+import IconButton from "@material-ui/core/IconButton"
+import DeleteIcon from '@material-ui/icons/Delete'
+import CheckIcon from '@material-ui/icons/CheckSharp'
+import {DLTSTabs} from "../CommonComponents/DLTSTabs"
+import {JobsTitles} from "../../Constants/TabsContants"
+import {JobsOperationDialog} from "./components/JobsOperationDialog"
+import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar"
 import {
   SUCCESSFULLYAPPROVED,
   SUCCESSFULLYPAUSED,
   SUCCESSFULLYRESUMED,
   SUCCESSFULLYUPDATEDPRIORITY,
   SUCESSFULKILLED
-} from "../../Constants/WarnConstants";
-import {JobsSelectByCluster} from "./components/JobsSelectByCluster";
-import TeamContext from "../../contexts/Team";
-import {checkObjIsEmpty, toLocalTime} from "../../utlities/ObjUtlities";
-import ReactJson from "react-json-view";
-import TablePagination from "@material-ui/core/TablePagination";
-import {checkFinishedJob} from "../../utlities/interactionUtlties";
-import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
+} from "../../Constants/WarnConstants"
+import {JobsSelectByCluster} from "./components/JobsSelectByCluster"
+import TeamContext from "../../contexts/Team"
+import {checkObjIsEmpty, toLocalTime} from "../../utlities/ObjUtlities"
+import ReactJson from "react-json-view"
+import TablePagination from "@material-ui/core/TablePagination"
+import {checkFinishedJob} from "../../utlities/interactionUtlties"
+import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable'
 
 const variantIcon = {
   success: CheckCircleIcon,
-};
+}
 interface Props {
   className?: string;
   message?: string;
@@ -49,7 +49,7 @@ interface Props {
   variant: keyof typeof variantIcon;
 }
 
-const { DateTime } = require('luxon');
+const { DateTime } = require('luxon')
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     root: {
@@ -92,116 +92,116 @@ const useStyles = makeStyles((theme: Theme) =>
       fontSize:'12px',
     },
   })
-);
+)
 const Jobs: React.FC = (props: any) => {
-  const classes = useStyles();
-  const [value, setValue] = React.useState(0);
-  const [refresh, setRefresh] = React.useState(window.navigator.userAgent.indexOf('Edge') == -1);
-  const[open, setOpen] = React.useState(false);
-  const[openApprove, setOpenApprove] = React.useState(false);
-  const[openPause, setOpenPause] = React.useState(false);
-  const[openResume, setOpenResume] = React.useState(false);
-  const[openKillWarn, setOpenKillWarn] = React.useState(false);
-  const[openApproveWarn, setOpenApproveWarn] = React.useState(false);
-  const[openPauseWarn, setOpenPauseWarn] = React.useState(false);
-  const[openResumeWarn, setOpenResumeWarn] = React.useState(false);
-  const[openUpdatePriority,setOpenUpdatePriority] = React.useState(false);
-  const [openUpatePriorityWarn, setUpdatePriorityWarn] = React.useState(false);
-  const { clusters } = React.useContext(ClusterContext);
-  const [currentJob, setCurrentJob] = React.useState({jobId:'',cluster:'',priority: 100});
-  const deleteUrl = `/api/clusters/`;
-  const requestDelete =  useFetch(deleteUrl);
+  const classes = useStyles()
+  const [value, setValue] = React.useState(0)
+  const [refresh, setRefresh] = React.useState(window.navigator.userAgent.indexOf('Edge') == -1)
+  const[open, setOpen] = React.useState(false)
+  const[openApprove, setOpenApprove] = React.useState(false)
+  const[openPause, setOpenPause] = React.useState(false)
+  const[openResume, setOpenResume] = React.useState(false)
+  const[openKillWarn, setOpenKillWarn] = React.useState(false)
+  const[openApproveWarn, setOpenApproveWarn] = React.useState(false)
+  const[openPauseWarn, setOpenPauseWarn] = React.useState(false)
+  const[openResumeWarn, setOpenResumeWarn] = React.useState(false)
+  const[openUpdatePriority,setOpenUpdatePriority] = React.useState(false)
+  const [openUpatePriorityWarn, setUpdatePriorityWarn] = React.useState(false)
+  const { clusters } = React.useContext(ClusterContext)
+  const [currentJob, setCurrentJob] = React.useState({jobId:'',cluster:'',priority: 100})
+  const deleteUrl = `/api/clusters/`
+  const requestDelete =  useFetch(deleteUrl)
   useEffect(() => {
-    let mount = true;
-    let timeout: any;
+    let mount = true
+    let timeout: any
     if (window.navigator.userAgent.indexOf('Edge') != -1) {
       timeout = setTimeout(()=>{
-        setRefresh(true);
-      }, 1000);
+        setRefresh(true)
+      }, 1000)
     }
     return () => {
-      mount = false;
+      mount = false
       clearTimeout(timeout)
     }
   }, [])
   const killJob = async () => {
-    const body = {"status":"killing"};
-    const data = await requestDelete.put(`${currentJob.cluster}/jobs/${currentJob.jobId}/status/`,body);
-    return data;
+    const body = {"status":"killing"}
+    const data = await requestDelete.put(`${currentJob.cluster}/jobs/${currentJob.jobId}/status/`,body)
+    return data
   }
   const approveJob = async () => {
-    const body = {"status":"approved"};
-    const data = await requestDelete.put(`${currentJob.cluster}/jobs/${currentJob.jobId}/status/`,body);
-    return data;
+    const body = {"status":"approved"}
+    const data = await requestDelete.put(`${currentJob.cluster}/jobs/${currentJob.jobId}/status/`,body)
+    return data
   }
   const pauseJob = async () => {
-    const body = {"status":"pausing"};
-    const data = await requestDelete.put(`${currentJob.cluster}/jobs/${currentJob.jobId}/status/`,body);
-    return data;
+    const body = {"status":"pausing"}
+    const data = await requestDelete.put(`${currentJob.cluster}/jobs/${currentJob.jobId}/status/`,body)
+    return data
   }
   const resumeJob = async () => {
-    const body = {"status":"queued"};
-    const data = await requestDelete.put(`${currentJob.cluster}/jobs/${currentJob.jobId}/status/`,body);
-    return data;
+    const body = {"status":"queued"}
+    const data = await requestDelete.put(`${currentJob.cluster}/jobs/${currentJob.jobId}/status/`,body)
+    return data
   }
-  const { put: setPriority } = useFetch('/api');
-  const [currentCluster, setCurrentCluster] = useState(props.match.params.cluster ? props.match.params.cluster : Array.isArray(_.map(clusters,'id') )?_.map(clusters,'id')[0] : '');
-  const [jobs, error] = useJobs();
-  const [allJobs, err] = useJobsAll();
+  const { put: setPriority } = useFetch('/api')
+  const [currentCluster, setCurrentCluster] = useState(props.match.params.cluster ? props.match.params.cluster : Array.isArray(_.map(clusters,'id') )?_.map(clusters,'id')[0] : '')
+  const [jobs, error] = useJobs()
+  const [allJobs, err] = useJobsAll()
 
-  const[isAdmin, setIsAdmin] = useState(clusters.filter((cluster) => cluster.id === currentCluster)[0].admin);
+  const[isAdmin, setIsAdmin] = useState(clusters.filter((cluster) => cluster.id === currentCluster)[0].admin)
   const filterJobsByCluster = (jobs: any, clusterName: string) => {
     if (clusterName == '-1' || clusterName === '') {
-      return Jobs;
+      return Jobs
     } else {
       return jobs.filter((job: any)=>job['cluster'] === clusterName)
     }
   }
   const filterFinishedJobs = (jobs: any) => {
-    const filteredJobs = filterJobsByCluster(jobs, currentCluster);
+    const filteredJobs = filterJobsByCluster(jobs, currentCluster)
     return filteredJobs.filter((job: any) => checkFinishedJob(job['jobStatus']))
   }
   const filterRunningJobs = (jobs: any) => {
-    const filteredJobs = filterJobsByCluster(jobs, currentCluster);
+    const filteredJobs = filterJobsByCluster(jobs, currentCluster)
     return filteredJobs.filter((job: any) => job['jobStatus'] === 'running')
   }
   const filterQueuedJobs = (jobs: any) => {
-    const filteredJobs = filterJobsByCluster(jobs, currentCluster);
+    const filteredJobs = filterJobsByCluster(jobs, currentCluster)
     return filteredJobs.filter((job: any) => job['jobStatus'] === 'queued' || job['jobStatus'] === 'scheduling' )
   }
   const filterPauseJobs = (jobs: any) => {
-    const filteredJobs = filterJobsByCluster(jobs, currentCluster);
+    const filteredJobs = filterJobsByCluster(jobs, currentCluster)
     return filteredJobs.filter((job: any) => job['jobStatus'] === 'paused' || job['jobStatus'] === 'pausing' )
   }
   const filterUnApprovedJobs = (jobs: any) => {
-    const filteredJobs = filterJobsByCluster(jobs, currentCluster);
-    return filteredJobs.filter((job: any)=>job['jobStatus'] === 'unapproved');
+    const filteredJobs = filterJobsByCluster(jobs, currentCluster)
+    return filteredJobs.filter((job: any)=>job['jobStatus'] === 'unapproved')
   }
 
   const handleClose = () => {
-    setOpen(false);
-    setOpenApprove(false);
-    setOpenPause(false);
-    setOpenResume(false);
-    setOpenUpdatePriority(false);
+    setOpen(false)
+    setOpenApprove(false)
+    setOpenPause(false)
+    setOpenResume(false)
+    setOpenUpdatePriority(false)
   }
   const handleWarnClose = () => {
-    setOpenKillWarn(false);
-    setOpenApproveWarn(false);
+    setOpenKillWarn(false)
+    setOpenApproveWarn(false)
     setOpenPauseWarn(false)
     setOpenResumeWarn(false)
     setUpdatePriorityWarn(false)
   }
 
-  const [message,setMessage] = useState('');
+  const [message,setMessage] = useState('')
 
   const[warn, setWarn] = useState(false)
-  const[currId, setCurrId] = useState(0);
+  const[currId, setCurrId] = useState(0)
   const handleChangePriority = (rowData: any, event: any) => {
     console.log(event.target.value)
     if (event.target.value < 1 || event.target.value > 1000) {
-      setCurrId(event.target.id);
-      setWarn(true);
+      setCurrId(event.target.id)
+      setWarn(true)
     } else {
       setWarn(false)
     }
@@ -209,9 +209,9 @@ const Jobs: React.FC = (props: any) => {
   const handlePriorityKeyPress = (rowData: any,event: React.KeyboardEvent) => {
     //return async () => {
     //console.log('--->', event.target);
-    let inputValue = (event.target as HTMLInputElement).valueAsNumber;
+    let inputValue = (event.target as HTMLInputElement).valueAsNumber
     if (inputValue < 1 || inputValue > 1000) {
-      return;
+      return
     }
     if (event.key === 'Enter') {
       setWarn(false)
@@ -219,20 +219,20 @@ const Jobs: React.FC = (props: any) => {
         jobId: rowData['jobId'],
         cluster:rowData['cluster'],
         priority:(event.target as HTMLInputElement).valueAsNumber
-      });
-      setOpenUpdatePriority(true);
+      })
+      setOpenUpdatePriority(true)
     }
     //};
-  };
+  }
 
 
   const handleConfirm = () => {
     if (openApprove) {
       approveJob().then((res)=>{
         if (res) {
-          setOpenApproveWarn(true);
-          setOpenApprove(false);
-          setMessage(SUCCESSFULLYAPPROVED);
+          setOpenApproveWarn(true)
+          setOpenApprove(false)
+          setMessage(SUCCESSFULLYAPPROVED)
         } else {
           alert("approve fail")
         }
@@ -240,9 +240,9 @@ const Jobs: React.FC = (props: any) => {
     } else if (openPause) {
       pauseJob().then((res)=>{
         if (res) {
-          setOpenPauseWarn(true);
-          setOpenPause(false);
-          setMessage(SUCCESSFULLYPAUSED);
+          setOpenPauseWarn(true)
+          setOpenPause(false)
+          setMessage(SUCCESSFULLYPAUSED)
         } else {
           alert("pause fail")
         }
@@ -251,28 +251,28 @@ const Jobs: React.FC = (props: any) => {
       resumeJob().then((res)=>{
         if (res) {
           setOpenResumeWarn(true)
-          setOpenResume(false);
-          setMessage(SUCCESSFULLYRESUMED);
+          setOpenResume(false)
+          setMessage(SUCCESSFULLYRESUMED)
         } else {
           alert("resume fail")
         }
       })
     } else if (openUpdatePriority) {
       setOpenUpdatePriority(false)
-      const body = { "priority": currentJob.priority};
-      const response = setPriority(`/clusters/${currentJob.cluster}/jobs/${currentJob.jobId}/priority`, body);
+      const body = { "priority": currentJob.priority}
+      const response = setPriority(`/clusters/${currentJob.cluster}/jobs/${currentJob.jobId}/priority`, body)
       if (response) {
         setUpdatePriorityWarn(true)
-        setMessage(SUCCESSFULLYUPDATEDPRIORITY);
+        setMessage(SUCCESSFULLYUPDATEDPRIORITY)
       } else {
-        alert('Priority set failed');
+        alert('Priority set failed')
       }
     } else {
       killJob().then((res)=> {
         if (res) {
-          setOpenKillWarn(true);
+          setOpenKillWarn(true)
           setOpen(false)
-          setMessage(SUCESSFULKILLED);
+          setMessage(SUCESSFULKILLED)
         } else {
           alert('kill fail')
         }
@@ -285,7 +285,7 @@ const Jobs: React.FC = (props: any) => {
       jobId: data['jobId'],
       priority:currentJob.priority
     })
-    setOpenPause(true);
+    setOpenPause(true)
   }
   const handleResume = (data: any) => {
     setCurrentJob({
@@ -293,7 +293,7 @@ const Jobs: React.FC = (props: any) => {
       jobId: data['jobId'],
       priority:currentJob.priority
     })
-    setOpenResume(true);
+    setOpenResume(true)
   }
   const renderUserName = (rowData: any)=><span>{rowData['userName'].split("@").shift()}</span>
   const renderPrioritySet = (rowData: any) => {
@@ -372,7 +372,7 @@ const Jobs: React.FC = (props: any) => {
         </Tooltip>
       )
     } else {
-      return null;
+      return null
     }
   }
 
@@ -380,23 +380,23 @@ const Jobs: React.FC = (props: any) => {
 
   const onClusterChange = (event: React.ChangeEvent<{ value: unknown }>) => {
     setCurrentCluster(event.target.value as string)
-    let checkAdmin = false;
+    let checkAdmin = false
     if (clusters.filter((cluster) => cluster.id === event.target.value as string)[0] !== undefined) {
       checkAdmin = clusters.filter((cluster) => cluster.id === event.target.value as string)[0].admin
     }
-    setIsAdmin(checkAdmin);
+    setIsAdmin(checkAdmin)
   }
 
   const sortByJobTime = (a: any, b: any,time?: string) => {
     if (time === 'jobTime') {
       return isNaN(Date.parse(a['jobTime'])) && isNaN(Date.parse(b['jobTime'])) ? a['jobTime'].trim().localeCompare(b['jobTime'].trim()) :
-        Date.parse(a['jobTime']) - Date.parse(b['jobTime']);
+        Date.parse(a['jobTime']) - Date.parse(b['jobTime'])
     } else if (time === 'startedAt') {
       return isNaN(Date.parse(a['jobStatusDetail'][0]['startedAt'])) && isNaN(Date.parse(b['jobStatusDetail'][0]['startedAt'])) ? a['jobStatusDetail'][0]['startedAt'].trim().localeCompare(b['jobStatusDetail'][0]['startedAt'].trim()) :
-        Date.parse(a['jobStatusDetail'][0]['startedAt']) - Date.parse(b['jobStatusDetail'][0]['startedAt']);
+        Date.parse(a['jobStatusDetail'][0]['startedAt']) - Date.parse(b['jobStatusDetail'][0]['startedAt'])
     } else if (time === 'finishedAt') {
       return isNaN(Date.parse(a['jobStatusDetail'][0]['finishedAt'])) && isNaN(Date.parse(b['jobStatusDetail'][0]['finishedAt'])) ? a['jobStatusDetail'][0]['finishedAt'].trim().localeCompare(b['jobStatusDetail'][0]['finishedAt'].trim()) :
-        Date.parse(a['jobStatusDetail'][0]['finishedAt']) - Date.parse(b['jobStatusDetail'][0]['finishedAt']);
+        Date.parse(a['jobStatusDetail'][0]['finishedAt']) - Date.parse(b['jobStatusDetail'][0]['finishedAt'])
     }
     // return isNaN(Date.parse(a)) && isNaN(Date.parse(b)) ? a.trim().localeCompare(b.trim()) : Date.parse(val1) - Date.parse(val2)
     // return Date.parse(a['jobTime']) - Date.parse(b['jobTime'])
@@ -411,34 +411,34 @@ const Jobs: React.FC = (props: any) => {
         }
       }
     }
-  });
+  })
 
 
   const renderJobStatus = (rowData: any) => {
-    let message = "unknown";
-    let schedulingMessage = {};
+    let message = "unknown"
+    let schedulingMessage = {}
     if (rowData.jobStatusDetail && rowData.jobStatusDetail.length > 0 && rowData.jobStatusDetail[0].message) {
-      let tmp = rowData.jobStatusDetail[0].message;
-      let dateType = /(\d{4})([\/-])/;
+      let tmp = rowData.jobStatusDetail[0].message
+      let dateType = /(\d{4})([\/-])/
       let date = ""
-      let text = "";
+      let text = ""
       if (dateType.test(tmp)){
-        let datePart = tmp.split(" ")[2];
-        let lastIndex = tmp.indexOf(datePart);
+        let datePart = tmp.split(" ")[2]
+        let lastIndex = tmp.indexOf(datePart)
         text = (tmp.substring(0, lastIndex))
         date = tmp.substring(lastIndex).substring(0, datePart.length - 1)
         if (new Date(date).toString().indexOf('Invalid') !== -1) {
-          date = date.concat("0");
+          date = date.concat("0")
         }
-        message = text.concat(toLocalTime(date));
+        message = text.concat(toLocalTime(date))
       } else {
-        message = rowData.jobStatusDetail[0].message;
+        message = rowData.jobStatusDetail[0].message
       }
     }
     if (rowData['jobStatus'] === 'scheduling' && rowData.jobStatusDetail && rowData.jobStatusDetail.length > 0  ) {
       for (let item of rowData.jobStatusDetail) {
         if (item.hasOwnProperty("message")) {
-          schedulingMessage = item["message"];
+          schedulingMessage = item["message"]
         }
       }
     }
@@ -464,9 +464,9 @@ const Jobs: React.FC = (props: any) => {
       </React.Fragment>
     )
   }
-  const { currentTeamId } = React.useContext(TeamContext);
+  const { currentTeamId } = React.useContext(TeamContext)
   const generatePageSize = (jobs: any) => {
-    return jobs.length < 10 ? jobs.length : 10;
+    return jobs.length < 10 ? jobs.length : 10
   }
   if (jobs && allJobs) {
     return (
@@ -564,7 +564,7 @@ const Jobs: React.FC = (props: any) => {
               {
                 icon: 'kill',
                 onClick: (event, rowData: any) => {
-                  setOpen(true);
+                  setOpen(true)
                   setCurrentJob({
                     cluster:rowData['cluster'],
                     jobId: rowData['jobId'],
@@ -575,7 +575,7 @@ const Jobs: React.FC = (props: any) => {
               {
                 icon: 'Pause',
                 onClick: (event, rowData: any)  => {
-                  console.log(rowData);
+                  console.log(rowData)
                 }
               }
             ]}
@@ -651,7 +651,7 @@ const Jobs: React.FC = (props: any) => {
               {
                 icon: 'kill',
                 onClick: (event, rowData: any) => {
-                  setOpen(true);
+                  setOpen(true)
                   setCurrentJob({
                     cluster:rowData['cluster'],
                     jobId: rowData['jobId'],
@@ -662,7 +662,7 @@ const Jobs: React.FC = (props: any) => {
               {
                 icon: 'Pause',
                 onClick: (event, rowData: any)  => {
-                  console.log(rowData);
+                  console.log(rowData)
                 }
               }
             ]}
@@ -740,7 +740,7 @@ const Jobs: React.FC = (props: any) => {
               {
                 icon: 'kill',
                 onClick: (event, rowData: any) => {
-                  setOpen(true);
+                  setOpen(true)
                   setCurrentJob({
                     cluster:rowData['cluster'],
                     jobId: rowData['jobId'],
@@ -751,7 +751,7 @@ const Jobs: React.FC = (props: any) => {
               {
                 icon: 'Pause',
                 onClick: (event, rowData: any)  => {
-                  console.log(rowData);
+                  console.log(rowData)
                 }
               }
             ]}
@@ -827,7 +827,7 @@ const Jobs: React.FC = (props: any) => {
               {
                 icon: 'kill',
                 onClick: (event, rowData: any) => {
-                  setOpen(true);
+                  setOpen(true)
                   setCurrentJob({
                     cluster:rowData['cluster'],
                     jobId: rowData['jobId'],
@@ -838,7 +838,7 @@ const Jobs: React.FC = (props: any) => {
               {
                 icon: 'Pause',
                 onClick: (event, rowData: any)  => {
-                  console.log(rowData);
+                  console.log(rowData)
                 },
               }
             ]}
@@ -1013,7 +1013,7 @@ const Jobs: React.FC = (props: any) => {
                     {
                       icon: 'kill',
                       onClick: (event, rowData: any) => {
-                        setOpen(true);
+                        setOpen(true)
                         setCurrentJob({
                           cluster:rowData['cluster'],
                           jobId: rowData['jobId'],
@@ -1024,7 +1024,7 @@ const Jobs: React.FC = (props: any) => {
                     {
                       icon: 'Pause',
                       onClick: (event, rowData: any)  => {
-                        console.log(rowData);
+                        console.log(rowData)
                       }
                     }
                   ]}
@@ -1106,7 +1106,7 @@ const Jobs: React.FC = (props: any) => {
                     {
                       icon: 'kill',
                       onClick: (event, rowData: any) => {
-                        setOpen(true);
+                        setOpen(true)
                         setCurrentJob({
                           cluster:rowData['cluster'],
                           jobId: rowData['jobId'],
@@ -1117,7 +1117,7 @@ const Jobs: React.FC = (props: any) => {
                     {
                       icon: 'Approve',
                       onClick: (event, rowData: any)  => {
-                        setOpenApprove(true);
+                        setOpenApprove(true)
                         setCurrentJob({
                           cluster:rowData['cluster'],
                           jobId: rowData['jobId'],
@@ -1128,7 +1128,7 @@ const Jobs: React.FC = (props: any) => {
                     {
                       icon: 'Pause',
                       onClick: (event, rowData: any)  => {
-                        console.log(rowData);
+                        console.log(rowData)
                       }
                     }
                   ]}
@@ -1207,7 +1207,7 @@ const Jobs: React.FC = (props: any) => {
                     {
                       icon: 'kill',
                       onClick: (event, rowData: any) => {
-                        setOpen(true);
+                        setOpen(true)
                         setCurrentJob({
                           cluster:rowData['cluster'],
                           jobId: rowData['jobId'],
@@ -1218,7 +1218,7 @@ const Jobs: React.FC = (props: any) => {
                     {
                       icon: 'Approve',
                       onClick: (event, rowData: any)  => {
-                        setOpenApprove(true);
+                        setOpenApprove(true)
                         setCurrentJob({
                           cluster:rowData['cluster'],
                           jobId: rowData['jobId'],
@@ -1229,7 +1229,7 @@ const Jobs: React.FC = (props: any) => {
                     {
                       icon: 'Pause',
                       onClick: (event, rowData: any)  => {
-                        console.log(rowData);
+                        console.log(rowData)
                       }
                     }
                   ]}
@@ -1311,7 +1311,7 @@ const Jobs: React.FC = (props: any) => {
                     {
                       icon: 'kill',
                       onClick: (event, rowData: any) => {
-                        setOpen(true);
+                        setOpen(true)
                         setCurrentJob({
                           cluster:rowData['cluster'],
                           jobId: rowData['jobId'],
@@ -1420,5 +1420,5 @@ const Jobs: React.FC = (props: any) => {
       <CircularProgress/>
     </Box>
   )
-};
-export default Jobs;
+}
+export default Jobs

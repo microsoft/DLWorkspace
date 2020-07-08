@@ -1,8 +1,8 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useContext,
-} from 'react';
+} from 'react'
 
 import {
   Box,
@@ -13,13 +13,13 @@ import {
   ListItemIcon,
   ListItemSecondaryAction,
   ListItemText,
-} from '@material-ui/core';
+} from '@material-ui/core'
 import {
   SvgIconComponent,
   Settings,
-} from '@material-ui/icons';
+} from '@material-ui/icons'
 
-import Context from './Context';
+import Context from './Context'
 
 interface SettingItemProps {
   Icon: SvgIconComponent;
@@ -29,7 +29,7 @@ interface SettingItemProps {
 }
 
 const SettingItem: FunctionComponent<SettingItemProps> = ({ Icon, name, text, onConfigure }) => {
-  const { admin } = useContext(Context);
+  const { admin } = useContext(Context)
   return (
     <ListItem>
       <ListItemIcon>
@@ -53,7 +53,7 @@ const SettingItem: FunctionComponent<SettingItemProps> = ({ Icon, name, text, on
         </ListItemSecondaryAction>
       ) }
     </ListItem>
-  );
-};
+  )
+}
 
-export default SettingItem;
+export default SettingItem

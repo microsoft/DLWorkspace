@@ -1,13 +1,13 @@
-import * as React from 'react';
-import {useState} from "react";
+import * as React from 'react'
+import {useState} from "react"
 
 import {
   Chip,
   Theme,
   createStyles,
-  makeStyles } from "@material-ui/core";
+  makeStyles } from "@material-ui/core"
 import AddIcon from "@material-ui/icons/Add"
-import RemoveIcon from "@material-ui/icons/Remove";
+import RemoveIcon from "@material-ui/icons/Remove"
 interface ServicesProps {
   services: string[];
 }
@@ -16,18 +16,18 @@ const useStyles = makeStyles((theme: Theme) => {
     ChipsColor:{
       color:"secondary"
     }
-  });
-});
+  })
+})
 const ServicesChips: React.FC<ServicesProps> = ({services}) => {
-  const styles = useStyles();
-  const [showMoreDetails, setShowMoreDetails] = useState(false);
-  const [details, setDetails] = useState('...');
+  const styles = useStyles()
+  const [showMoreDetails, setShowMoreDetails] = useState(false)
+  const [details, setDetails] = useState('...')
   const handleShowMoreDetails = () => {
-    setShowMoreDetails(!showMoreDetails);
+    setShowMoreDetails(!showMoreDetails)
     if (details === '...') {
-      setDetails('');
+      setDetails('')
     } else {
-      setDetails('...');
+      setDetails('...')
     }
   }
   return (
@@ -46,4 +46,4 @@ const ServicesChips: React.FC<ServicesProps> = ({services}) => {
   )
 }
 
-export default ServicesChips;
+export default ServicesChips

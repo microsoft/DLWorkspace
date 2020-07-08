@@ -1,4 +1,4 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useCallback,
@@ -6,35 +6,35 @@ import {
   useMemo,
   useRef,
   useState
-} from 'react';
-import { compact, entries, find, get, keys, set, union } from 'lodash';
+} from 'react'
+import { compact, entries, find, get, keys, set, union } from 'lodash'
 
 import {
   Button,
   Link,
   Tooltip,
   Typography
-} from '@material-ui/core';
+} from '@material-ui/core'
 import {
   AccountBox
-} from '@material-ui/icons';
+} from '@material-ui/icons'
 import {
   Column,
   Options
-} from 'material-table';
+} from 'material-table'
 
-import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
-import CaptionColumnTitle from '../../components/CaptionColumnTitle';
-import TeamContext from '../../contexts/Team';
-import usePrometheus from '../../hooks/usePrometheus';
-import useTableData from '../../hooks/useTableData';
-import { formatBytes, formatPercent } from '../../utils/formats';
+import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable'
+import CaptionColumnTitle from '../../components/CaptionColumnTitle'
+import TeamContext from '../../contexts/Team'
+import usePrometheus from '../../hooks/usePrometheus'
+import useTableData from '../../hooks/useTableData'
+import { formatBytes, formatPercent } from '../../utils/formats'
 
-import QueryContext from './QueryContext';
+import QueryContext from './QueryContext'
 
 const humanHours = (seconds: number) => {
-  if (typeof seconds !== 'number') return seconds;
-  return Math.round(seconds / 60 / 60);
+  if (typeof seconds !== 'number') return seconds
+  return Math.round(seconds / 60 / 60)
 }
 
 interface GpuMetrics {
@@ -48,43 +48,43 @@ interface Props {
 }
 
 const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
-  const { currentTeamId } = useContext(TeamContext);
-  const { setQuery } = useContext(QueryContext);
+  const { currentTeamId } = useContext(TeamContext)
+  const { setQuery } = useContext(QueryContext)
 
-  const [filterCurrent, setFilterCurrent] = useState(true);
+  const [filterCurrent, setFilterCurrent] = useState(true)
 
-  const gpuIdleMetrics = usePrometheus(config.grafana, `count (task_gpu_percent{vc_name="${currentTeamId}"} == 0) by (username)`);
+  const gpuIdleMetrics = usePrometheus(config.grafana, `count (task_gpu_percent{vc_name="${currentTeamId}"} == 0) by (username)`)
   const gpuBookedLast31DaysMetrics = usePrometheus(config.grafana, `sum(job_booked_gpu_second{vc="${currentTeamId}", since="31d"}) by (user)`)
   const gpuIdleLast31DaysMetrics = usePrometheus(config.grafana, `sum(job_idle_gpu_second{vc="${currentTeamId}", since="31d"}) by (user)`)
 
   const handleButtonClick = useCallback(() => {
-    setFilterCurrent((filterCurrent) => !filterCurrent);
-  }, [setFilterCurrent]);
+    setFilterCurrent((filterCurrent) => !filterCurrent)
+  }, [setFilterCurrent])
 
   const usersGPUMetrics = useMemo(() => {
-    const usersGPUMetrics: { [user: string]: GpuMetrics } = Object.create(null);
+    const usersGPUMetrics: { [user: string]: GpuMetrics } = Object.create(null)
     if (gpuIdleMetrics != null)  {
       for (const { metric, value } of gpuIdleMetrics.result) {
-        set(usersGPUMetrics, [metric.username, 'idle'], Number(value[1]));
+        set(usersGPUMetrics, [metric.username, 'idle'], Number(value[1]))
       }
     }
     if (gpuBookedLast31DaysMetrics != null)  {
       for (const { metric, value } of gpuBookedLast31DaysMetrics.result) {
-        set(usersGPUMetrics, [metric.user, 'bookedLast31Days'], Number(value[1]));
+        set(usersGPUMetrics, [metric.user, 'bookedLast31Days'], Number(value[1]))
       }
     }
     if (gpuIdleLast31DaysMetrics != null)  {
       for (const { metric, value } of gpuIdleLast31DaysMetrics.result) {
-        set(usersGPUMetrics, [metric.user, 'idleLast31Days'], Number(value[1]));
+        set(usersGPUMetrics, [metric.user, 'idleLast31Days'], Number(value[1]))
       }
     }
-    return usersGPUMetrics;
-  }, [gpuIdleMetrics, gpuBookedLast31DaysMetrics, gpuIdleLast31DaysMetrics]);
+    return usersGPUMetrics
+  }, [gpuIdleMetrics, gpuBookedLast31DaysMetrics, gpuIdleLast31DaysMetrics])
 
   const data = useMemo(() => {
-    const data = [];
+    const data = []
 
-    const totalStatus = Object.create(null);
+    const totalStatus = Object.create(null)
     const total = {
       status: totalStatus,
       gpuMetrics: {
@@ -93,49 +93,49 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
         idleLast31Days: 0
       },
       tableData: { isTreeExpanded: true }
-    };
-    data.push(total);
+    }
+    data.push(total)
 
-    const userNames = filterCurrent ? keys(users) : union(keys(users), keys(usersGPUMetrics));
-    userNames.sort();
+    const userNames = filterCurrent ? keys(users) : union(keys(users), keys(usersGPUMetrics))
+    userNames.sort()
 
     for (const userName of userNames) {
-      const userStatus = Object.create(null);
-      const gpuMetrics: GpuMetrics | undefined = get(usersGPUMetrics, [userName]);
-      data.push({ id: userName, status: userStatus, gpuMetrics });
+      const userStatus = Object.create(null)
+      const gpuMetrics: GpuMetrics | undefined = get(usersGPUMetrics, [userName])
+      data.push({ id: userName, status: userStatus, gpuMetrics })
       if (gpuMetrics != null) {
         const {
           idle,
           bookedLast31Days,
           idleLast31Days,
-        } = gpuMetrics;
-        total.gpuMetrics.idle += idle || 0;
-        total.gpuMetrics.bookedLast31Days += bookedLast31Days || 0;
-        total.gpuMetrics.idleLast31Days += idleLast31Days || 0;
+        } = gpuMetrics
+        total.gpuMetrics.idle += idle || 0
+        total.gpuMetrics.bookedLast31Days += bookedLast31Days || 0
+        total.gpuMetrics.idleLast31Days += idleLast31Days || 0
       }
 
-      const types = get(users, [userName, 'types']);
+      const types = get(users, [userName, 'types'])
       for (const [typeName, status] of entries(types)) {
         data.push({ id: typeName, userName, status })
         for (const resourceType of ['cpu', 'gpu', 'memory']) {
           for (const resourceKind of ['used', 'preemptable']) {
             set(userStatus, [resourceType, resourceKind],
               get(userStatus, [resourceType, resourceKind], 0) +
-              get(status, [resourceType, resourceKind], 0));
+              get(status, [resourceType, resourceKind], 0))
             set(totalStatus, [resourceType, resourceKind],
               get(totalStatus, [resourceType, resourceKind], 0) +
-              get(status, [resourceType, resourceKind], 0));
+              get(status, [resourceType, resourceKind], 0))
           }
         }
       }
     }
-    return data;
-  }, [filterCurrent, users, usersGPUMetrics]);
-  const tableData = useTableData(data);
+    return data
+  }, [filterCurrent, users, usersGPUMetrics])
+  const tableData = useTableData(data)
 
   const handleUserClick = useCallback((userName: string) => () => {
-    setQuery(userName);
-  }, [setQuery]);
+    setQuery(userName)
+  }, [setQuery])
 
   const columns = useRef<Column<any>[]>(compact([{
     field: 'id',
@@ -213,14 +213,14 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
     field: 'gpu.idleLast31Days',
     type: 'numeric',
     render: (data) => {
-      if (data.userName) return;
+      if (data.userName) return
 
-      const booked = get(data, 'gpuMetrics.bookedLast31Days', 0);
-      const idle = get(data, 'gpuMetrics.idleLast31Days', 0);
+      const booked = get(data, 'gpuMetrics.bookedLast31Days', 0)
+      const idle = get(data, 'gpuMetrics.idleLast31Days', 0)
 
-      if (booked === 0) return <>{humanHours(idle)}</>;
+      if (booked === 0) return <>{humanHours(idle)}</>
 
-      const ratio = idle / booked;
+      const ratio = idle / booked
       if (ratio > .5) {
         return (
           <>
@@ -229,25 +229,25 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
             <Typography variant="inherit" color="error">{formatPercent(ratio, 1)}</Typography>
             )
           </>
-        );
+        )
       }
 
-      return <>{humanHours(idle)}{" ("}{formatPercent(ratio, 1)})</>;
+      return <>{humanHours(idle)}{" ("}{formatPercent(ratio, 1)})</>
     },
     width: 'auto'
-  }])).current;
+  }])).current
 
   const options = useRef<Options>({
     padding: 'dense',
     draggable: false,
     paging: false
-  }).current;
+  }).current
 
   const parentChildData = useCallback(({ id, userName }, rows: any[]) => {
     if (id !== undefined) {
-      return find(rows, ({ id }) => userName === id);
+      return find(rows, ({ id }) => userName === id)
     }
-  }, []);
+  }, [])
 
   return (
     <SvgIconsMaterialTable
@@ -262,6 +262,6 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
       parentChildData={parentChildData}
     />
   )
-};
+}
 
-export default Users;
+export default Users

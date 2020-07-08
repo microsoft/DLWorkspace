@@ -1,4 +1,4 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   ChangeEvent,
   FunctionComponent,
@@ -7,9 +7,9 @@ import {
   useMemo,
   useRef,
   useState
-} from 'react';
+} from 'react'
 
-import { clamp, each, map, set, sortBy } from 'lodash';
+import { clamp, each, map, set, sortBy } from 'lodash'
 
 import {
   Box,
@@ -19,7 +19,7 @@ import {
   createStyles,
   colors,
   makeStyles,
-} from '@material-ui/core';
+} from '@material-ui/core'
 
 import {
   PieChart,
@@ -27,16 +27,16 @@ import {
   ResponsiveContainer,
   Cell,
   LabelList
-} from 'recharts';
+} from 'recharts'
 
-import { Column, Options } from 'material-table';
+import { Column, Options } from 'material-table'
 
-import Loading from '../../components/Loading';
-import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable';
-import TeamContext from '../../contexts/Team';
-import usePrometheus from '../../hooks/usePrometheus';
-import useTableData from '../../hooks/useTableData';
-import { formatBytes } from '../../utils/formats';
+import Loading from '../../components/Loading'
+import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable'
+import TeamContext from '../../contexts/Team'
+import usePrometheus from '../../hooks/usePrometheus'
+import useTableData from '../../hooks/useTableData'
+import { formatBytes } from '../../utils/formats'
 
 const useLabelStyle = makeStyles((theme) => createStyles({
   root: {
@@ -47,7 +47,7 @@ const useLabelStyle = makeStyles((theme) => createStyles({
 
 const getPieColor = (ratio: number) => colors.red[
   clamp(Math.floor(ratio * 10), .5, 9) * 100 as keyof typeof colors.red
-];
+]
 
 interface StoragesContentProps {
   data: {
@@ -62,14 +62,14 @@ interface StoragesContentProps {
 }
 
 const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data, snapshot }) => {
-  const [index, setIndex] = useState(0);
-  const { data: mountpoint } = data[index];
+  const [index, setIndex] = useState(0)
+  const { data: mountpoint } = data[index]
 
   const handleSelectChange = useCallback((event: ChangeEvent<{ value: unknown }>) => {
-    setIndex(event.target.value as number);
-  }, []);
+    setIndex(event.target.value as number)
+  }, [])
 
-  const tableData = useTableData(mountpoint);
+  const tableData = useTableData(mountpoint)
   const columns = useRef<Column<{
     user: string;
     bytes: number;
@@ -79,8 +79,8 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data, snapsh
   }, {
     field: 'bytes',
     title: 'Storage Used',
-    render({ bytes }) { return formatBytes(bytes); }
-  }]).current;
+    render({ bytes }) { return formatBytes(bytes) }
+  }]).current
   const options = useMemo<Options>(() => ({
     padding: 'dense',
     search: false,
@@ -88,14 +88,14 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data, snapsh
     draggable: false,
     exportButton: true,
     exportFileName: `Storage@${snapshot.toISOString()}`,
-  }), [snapshot]);
+  }), [snapshot])
 
-  const labelStyle = useLabelStyle();
+  const labelStyle = useLabelStyle()
 
   const valueAccessor = useCallback(({ percent, payload }) => {
-    if (percent < 0.05) return null;
-    return payload.user;
-  }, []);
+    if (percent < 0.05) return null
+    return payload.user
+  }, [])
 
   return (
     <Box display="flex" alignItems="stretch">
@@ -153,49 +153,49 @@ interface Props {
 }
 
 const Storages: FunctionComponent<Props> = ({ data: { config } }) => {
-  const { currentTeamId } = useContext(TeamContext);
-  const metrics = usePrometheus(config['grafana'], `storage_usage_in_bytes_by_user{vc="${currentTeamId}"} or storage_usage_in_bytes_by_user{vc="cluster"}`);
+  const { currentTeamId } = useContext(TeamContext)
+  const metrics = usePrometheus(config['grafana'], `storage_usage_in_bytes_by_user{vc="${currentTeamId}"} or storage_usage_in_bytes_by_user{vc="cluster"}`)
 
   const [data, snapshot] = useMemo(() => {
-    if (metrics == null || metrics.result == null) return [undefined, 0] as const;
+    if (metrics == null || metrics.result == null) return [undefined, 0] as const
 
-    const mountpointUserBytes = Object.create(null);
-    let latestSnapshot = 0;
+    const mountpointUserBytes = Object.create(null)
+    let latestSnapshot = 0
     for (const { metric, value } of metrics.result) {
-      const { mountpoint, user, snapshot_time: snapshot } = metric;
-      const bytes = Number(value[1]);
+      const { mountpoint, user, snapshot_time: snapshot } = metric
+      const bytes = Number(value[1])
 
-      if (!bytes) continue;
+      if (!bytes) continue
 
-      set(mountpointUserBytes, [mountpoint, user], bytes);
+      set(mountpointUserBytes, [mountpoint, user], bytes)
       if (latestSnapshot < snapshot) {
-        latestSnapshot = snapshot;
+        latestSnapshot = snapshot
       }
     }
 
     return [sortBy(map(mountpointUserBytes, (userBytes, mountpoint) => {
-      let sum = 0;
+      let sum = 0
 
       const data = sortBy(map(userBytes, (bytes: number, user) => {
-        sum += bytes;
-        return { user, bytes, ratio: 0 };
+        sum += bytes
+        return { user, bytes, ratio: 0 }
       }), 'bytes').reverse()
 
-      each(data, (obj) => { obj.ratio = obj.bytes / sum });
+      each(data, (obj) => { obj.ratio = obj.bytes / sum })
 
       return { mountpoint, data }
-    }), 'mountpoint'), latestSnapshot] as const;
-  }, [metrics]);
+    }), 'mountpoint'), latestSnapshot] as const
+  }, [metrics])
 
   if (data === undefined) {
-    return <Loading>Fetching Storage Metrics</Loading>;
+    return <Loading>Fetching Storage Metrics</Loading>
   }
 
   if (data.length === 0) {
-    return null;
+    return null
   }
 
   return <StoragesContent data={data} snapshot={new Date(snapshot * 1000)}/>
-};
+}
 
-export default Storages;
+export default Storages

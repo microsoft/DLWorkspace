@@ -1,4 +1,4 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   Table,
   TableHead,
@@ -9,14 +9,14 @@ import {
   createMuiTheme,
   MuiThemeProvider,
   SvgIcon, Typography, CircularProgress, useTheme
-} from "@material-ui/core";
-import {checkObjIsEmpty, sumValues} from "../../../utlities/ObjUtlities";
-import { TeamVCTitles } from "../../../Constants/TabsContants";
-import useCheckIsDesktop from "../../../utlities/layoutUtlities";
-import Tooltip from "@material-ui/core/Tooltip";
-import IconButton from "@material-ui/core/IconButton";
-import {red} from "@material-ui/core/colors";
-import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable';
+} from "@material-ui/core"
+import {checkObjIsEmpty, sumValues} from "../../../utlities/ObjUtlities"
+import { TeamVCTitles } from "../../../Constants/TabsContants"
+import useCheckIsDesktop from "../../../utlities/layoutUtlities"
+import Tooltip from "@material-ui/core/Tooltip"
+import IconButton from "@material-ui/core/IconButton"
+import {red} from "@material-ui/core/colors"
+import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable'
 
 interface TeamVC {
   children?: React.ReactNode;
@@ -36,7 +36,7 @@ const tableTheme = createMuiTheme({
       }
     }
   }
-});
+})
 
 const renderData = (data: any) => {
   return (
@@ -49,8 +49,8 @@ const renderData = (data: any) => {
   )
 }
 export const TeamVirtualClusterStatus = (props: TeamVC) => {
-  const{vcStatus,selectedValue,handleChange, children} = props;
-  const theme = useTheme();
+  const{vcStatus,selectedValue,handleChange, children} = props
+  const theme = useTheme()
   const checkIsDesktop = useCheckIsDesktop()
   return (
     <MuiThemeProvider theme={checkIsDesktop ? theme : tableTheme}>

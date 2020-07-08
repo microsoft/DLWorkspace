@@ -1,17 +1,17 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useContext
-} from "react";
+} from "react"
 
-import { Box } from "@material-ui/core";
+import { Box } from "@material-ui/core"
 
-import ClustersContext from "../../contexts/Clusters";
+import ClustersContext from "../../contexts/Clusters"
 
-import ClusterCard from "./ClusterCard";
+import ClusterCard from "./ClusterCard"
 
 const Home: FunctionComponent = () => {
-  const { clusters } = useContext(ClustersContext);
+  const { clusters } = useContext(ClustersContext)
 
   return (
     <Box display="flex" flexWrap="wrap" paddingX={2}>
@@ -21,7 +21,7 @@ const Home: FunctionComponent = () => {
         </Box>
       ))}
     </Box>
-  );
-};
+  )
+}
 
-export default Home;
+export default Home

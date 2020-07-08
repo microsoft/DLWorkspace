@@ -1,11 +1,11 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   ComponentPropsWithoutRef,
   useCallback,
   useMemo,
   useState
-} from 'react';
+} from 'react'
 
 import {
   colors
@@ -20,11 +20,11 @@ import {
   ResponsiveContainer,
   Sector,
   Text
-} from 'recharts';
+} from 'recharts'
 
-import { capitalize, get, map, sumBy, transform } from 'lodash';
+import { capitalize, get, map, sumBy, transform } from 'lodash'
 
-import { useCluster } from './Context';
+import { useCluster } from './Context'
 
 const getActiveShape = ({ innerRadius, outerRadius, ...props }: ComponentPropsWithoutRef<typeof Sector>) => {
   return (
@@ -33,14 +33,14 @@ const getActiveShape = ({ innerRadius, outerRadius, ...props }: ComponentPropsWi
       outerRadius={Number(outerRadius) + 6}
       {...props}
     />
-  );
-};
+  )
+}
 
 const getLabelContent = ({ viewBox, offset, ...props }: ComponentPropsWithoutRef<typeof Label>) => {
-  const { cx, cy, innerRadius, outerRadius } = viewBox as PolarViewBox;
-  const x = Number(cx) - Number(offset);
-  const y = Number(cy) - (Number(innerRadius) + Number(outerRadius)) / 2;
-  const width = x;
+  const { cx, cy, innerRadius, outerRadius } = viewBox as PolarViewBox
+  const x = Number(cx) - Number(offset)
+  const y = Number(cy) - (Number(innerRadius) + Number(outerRadius)) / 2
+  const width = x
   const { fill, children } = props
   return (
     <Text
@@ -49,8 +49,8 @@ const getLabelContent = ({ viewBox, offset, ...props }: ComponentPropsWithoutRef
       fontWeight="bold"
       {...{ x, y, width, fill, children }}
     />
-  );
-};
+  )
+}
 
 const pieProps: ComponentPropsWithoutRef<typeof Pie> = {
   nameKey: 'name',
@@ -58,96 +58,96 @@ const pieProps: ComponentPropsWithoutRef<typeof Pie> = {
   startAngle: 90,
   endAngle: -180,
   activeShape: getActiveShape
-};
+}
 
 const ResourceChart: FunctionComponent = () => {
-  const { status } = useCluster();
-  const isPureCPU = get(status, ['config', 'isPureCPU'], false);
+  const { status } = useCluster()
+  const isPureCPU = get(status, ['config', 'isPureCPU'], false)
 
   const [active, setActive] = useState<{
     pie: 'cpu' | 'gpu' | 'node';
     index: number;
-  }>();
+  }>()
 
   const { cpu, gpu, node } = useMemo(() => {
     const { cpu, gpu, node } = transform(status && status.types, ({ cpu, gpu, node }, type) => {
-      cpu.available += get(type, ['cpu', 'available'], 0);
-      cpu.used += get(type, ['cpu', 'used'], 0);
-      cpu.unschedulable += get(type, ['cpu', 'unschedulable'], 0);
-      gpu.available += get(type, ['gpu', 'available'], 0);
-      gpu.used += get(type, ['gpu', 'used'], 0);
-      gpu.unschedulable += get(type, ['gpu', 'unschedulable'], 0);
-      node.available += get(type, ['node', 'available'], 0);
-      node.used += get(type, ['node', 'used'], 0);
-      node.unschedulable += get(type, ['node', 'unschedulable'], 0);
+      cpu.available += get(type, ['cpu', 'available'], 0)
+      cpu.used += get(type, ['cpu', 'used'], 0)
+      cpu.unschedulable += get(type, ['cpu', 'unschedulable'], 0)
+      gpu.available += get(type, ['gpu', 'available'], 0)
+      gpu.used += get(type, ['gpu', 'used'], 0)
+      gpu.unschedulable += get(type, ['gpu', 'unschedulable'], 0)
+      node.available += get(type, ['node', 'available'], 0)
+      node.used += get(type, ['node', 'used'], 0)
+      node.unschedulable += get(type, ['node', 'unschedulable'], 0)
     }, {
       cpu: { available: 0, used: 0, unschedulable: 0 },
       gpu: { available: 0, used: 0, unschedulable: 0 },
       node: { available: 0, used: 0, unschedulable: 0 },
-    });
+    })
     return {
       cpu: map(cpu, (value, name) => ({ name, value })),
       gpu: map(gpu, (value, name) => ({ name, value })),
       node: map(node, (value, name) => ({ name, value })),
     }
-  }, [status]);
+  }, [status])
 
-  const cpuTotal = useMemo(() => sumBy(cpu, 'value'), [cpu]);
-  const gpuTotal = useMemo(() => sumBy(gpu, 'value'), [gpu]);
-  const nodeTotal = useMemo(() => sumBy(node, 'value'), [node]);
+  const cpuTotal = useMemo(() => sumBy(cpu, 'value'), [cpu])
+  const gpuTotal = useMemo(() => sumBy(gpu, 'value'), [gpu])
+  const nodeTotal = useMemo(() => sumBy(node, 'value'), [node])
 
   const cpuLabelProps = useMemo(() => {
-    if (cpu === undefined) return {};
-    const totalCPUs = `${cpuTotal} CPU${cpuTotal === 1 ? '' : 's'}`;
+    if (cpu === undefined) return {}
+    const totalCPUs = `${cpuTotal} CPU${cpuTotal === 1 ? '' : 's'}`
     if (active === undefined || active.pie !== 'cpu') {
       return { children: totalCPUs }
     }
-    const { name, value } = cpu[active.index];
-    const children = `${value} of ${totalCPUs} ${capitalize(name)}`;
+    const { name, value } = cpu[active.index]
+    const children = `${value} of ${totalCPUs} ${capitalize(name)}`
     if (name === 'unschedulable') {
-      return { fill: colors.red[500] , children };
+      return { fill: colors.red[500] , children }
     } else {
-      return { children };
+      return { children }
     }
-  }, [active, cpu, cpuTotal]);
+  }, [active, cpu, cpuTotal])
   const gpuLabelProps = useMemo(() => {
-    if (gpu === undefined) return {};
-    const totalGPUs = `${gpuTotal} GPU${gpuTotal === 1 ? '' : 's'}`;
+    if (gpu === undefined) return {}
+    const totalGPUs = `${gpuTotal} GPU${gpuTotal === 1 ? '' : 's'}`
     if (active === undefined || active.pie !== 'gpu') {
       return { children: totalGPUs }
     }
-    const { name, value } = gpu[active.index];
-    const children = `${value} of ${totalGPUs} ${capitalize(name)}`;
+    const { name, value } = gpu[active.index]
+    const children = `${value} of ${totalGPUs} ${capitalize(name)}`
     if (name === 'unschedulable') {
-      return { fill: colors.red[500] , children };
+      return { fill: colors.red[500] , children }
     } else {
-      return { children };
+      return { children }
     }
-  }, [active, gpu, gpuTotal]);
+  }, [active, gpu, gpuTotal])
   const nodeLabelProps = useMemo(() => {
-    if (node === undefined) return {};
-    const totalNodes = `${nodeTotal} node${nodeTotal === 1 ? '' : 's'}`;
+    if (node === undefined) return {}
+    const totalNodes = `${nodeTotal} node${nodeTotal === 1 ? '' : 's'}`
     if (active === undefined || active.pie !== 'node') {
       return { children: totalNodes }
     }
-    const { name, value } = node[active.index];
-    const children = `${value} of ${totalNodes} ${capitalize(name)}`;
+    const { name, value } = node[active.index]
+    const children = `${value} of ${totalNodes} ${capitalize(name)}`
     if (name === 'unschedulable') {
-      return { fill: colors.red[500] , children };
+      return { fill: colors.red[500] , children }
     } else {
-      return { children };
+      return { children }
     }
-  }, [active, node, nodeTotal]);
+  }, [active, node, nodeTotal])
 
   const handleCPUMouseEnter = useCallback((data: unknown, index: number) => {
     setActive({ pie: 'cpu', index })
-  }, [setActive]);
+  }, [setActive])
   const handleGPUMouseEnter = useCallback((data: unknown, index: number) => {
     setActive({ pie: 'gpu', index })
-  }, [setActive]);
+  }, [setActive])
   const handleNodeMouseEnter = useCallback((data: unknown, index: number) => {
     setActive({ pie: 'node', index })
-  }, [setActive]);
+  }, [setActive])
 
   return (
     <ResponsiveContainer aspect={1}>
@@ -202,4 +202,4 @@ const ResourceChart: FunctionComponent = () => {
   )
 }
 
-export default ResourceChart;
+export default ResourceChart

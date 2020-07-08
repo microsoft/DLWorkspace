@@ -1,11 +1,11 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useContext,
   useMemo,
-} from 'react';
+} from 'react'
 
-import { get } from 'lodash';
+import { get } from 'lodash'
 
 import {
   Box,
@@ -15,12 +15,12 @@ import {
   Typography,
   createStyles,
   makeStyles,
-} from '@material-ui/core';
+} from '@material-ui/core'
 
-import { Info } from '@material-ui/icons';
+import { Info } from '@material-ui/icons'
 
-import ConfigContext from '../contexts/Config';
-import TeamContext from '../contexts/Team';
+import ConfigContext from '../contexts/Config'
+import TeamContext from '../contexts/Team'
 
 const usePaperStyle = makeStyles(theme => createStyles({
   root: {
@@ -28,23 +28,23 @@ const usePaperStyle = makeStyles(theme => createStyles({
     alignItems: 'center',
     padding: theme.spacing(1),
   },
-}));
+}))
 
 const NotificationBox: FunctionComponent<BoxProps> = (props) => {
-  const { notifications } = useContext(ConfigContext);
-  const { currentTeamId } = useContext(TeamContext);
+  const { notifications } = useContext(ConfigContext)
+  const { currentTeamId } = useContext(TeamContext)
 
   const notification = useMemo(() => {
-    const notification = get(notifications, [currentTeamId]);
+    const notification = get(notifications, [currentTeamId])
     if (notification === undefined) {
-      return get(notifications, ['.default']);
+      return get(notifications, ['.default'])
     }
     return notification
-  }, [notifications, currentTeamId]);
+  }, [notifications, currentTeamId])
 
-  const paperStyle = usePaperStyle();
+  const paperStyle = usePaperStyle()
 
-  if (Boolean(notification) === false) return null;
+  if (Boolean(notification) === false) return null
 
   return (
     <Box {...props}>
@@ -54,7 +54,7 @@ const NotificationBox: FunctionComponent<BoxProps> = (props) => {
       </Paper>
       <Divider/>
     </Box>
-  );
-};
+  )
+}
 
-export default NotificationBox;
+export default NotificationBox

@@ -1,11 +1,11 @@
-import * as React from 'react';
-import * as ReactDOM from 'react-dom';
+import * as React from 'react'
+import * as ReactDOM from 'react-dom'
 
-import App from './App';
+import App from './App'
 
 window.bootstrap = (props) => ReactDOM.render(
   React.createElement(App, props),
-  document.getElementById('root'));
+  document.getElementById('root'))
 
 window.onerror = (message, source, line, col, error) => {
   const image = new Image()
