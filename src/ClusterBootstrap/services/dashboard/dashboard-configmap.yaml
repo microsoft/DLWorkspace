@@ -8,6 +8,8 @@ data:
 
     masterToken: {{cnf["master_token"]}}
 
+    restfulapi: http://{{cnf["kubernetes_master_node"][0]}}:{{cnf["restfulapiport"]}}
+
     activeDirectory:
       tenant: {{cnf["activeDirectory"]["tenant"]}}
       clientId: {{cnf["activeDirectory"]["clientId"]}}
