@@ -257,10 +257,10 @@ def setup_theia(user_name, pod_name):
     theia_port = random.randint(40000, 49999)
     bash_script = (
         "bash -euxo pipefail -c '"
+            "pip install python-language-server || true; "
             "mkdir -p /opt/theia && chown -R {user_name} /opt/theia; "
             "runuser -l {user_name} -c \"curl -o- https://dltstheiaeastus.blob.core.windows.net/theia/theia.tgz | tar xz -C /opt/theia\"; "
             "runuser -l {user_name} -c \"cd /opt/theia; PATH=node_modules/.bin:\\$PATH nohup yarn start --hostname 0.0.0.0 --port {theia_port} &>>theia.out &\"; "
-            "echo some outputs to prevent the script fail"
         "'"
     ).format(user_name=user_name, theia_port=theia_port)
     logger.info("run %s in %s", bash_script, pod_name)
