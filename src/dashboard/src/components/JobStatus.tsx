@@ -75,9 +75,11 @@ const JobStatus: FunctionComponent<Props> = ({ cluster, job }) => {
     if (typeof firstDetail !== 'object') return null
     const firstDetailMessage = firstDetail.message
     if (typeof firstDetailMessage === 'string') return firstDetailMessage
-    if (typeof firstDetailMessage === 'object') return (
-      <pre>{JSON.stringify(firstDetailMessage, null, 2)}</pre>
-    )
+    if (typeof firstDetailMessage === 'object') {
+      return (
+        <pre>{JSON.stringify(firstDetailMessage, null, 2)}</pre>
+      )
+    }
     return <pre>{JSON.stringify(firstDetail, null, 2)}</pre>
   }, [statusData, detail])
 
