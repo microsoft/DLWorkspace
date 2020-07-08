@@ -131,7 +131,7 @@ const Quota: FunctionComponent = () => {
   }, [typeGpuType, patch, response, getQuota, enqueueSnackbar]);
 
   return (
-    <Container>
+    <Container maxWidth="md">
       <Helmet title={`Quota - ${clusterId}`}/>
       <SvgIconMaterialTable
         title={`Quota - ${clusterId}`}
