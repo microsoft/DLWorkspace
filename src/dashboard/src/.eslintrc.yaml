@@ -4,3 +4,13 @@ extends:
 - react-app
 parserOptions:
   project: tsconfig.json
+rules:
+  dot-notation: off
+  quote-props: off
+  '@typescript-eslint/dot-notation': off
+  '@typescript-eslint/explicit-function-return-type': off
+  '@typescript-eslint/prefer-nullish-coalescing': off
+  '@typescript-eslint/promise-function-async': off
+
+  # FIXME
+  '@typescript-eslint/restrict-template-expressions': off
