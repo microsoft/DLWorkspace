@@ -1,10 +1,10 @@
 import * as React from 'react'
 
 interface Context {
-  email?: string;
-  familyName?: string;
-  givenName?: string;
-  password?: string;
+  email?: string
+  familyName?: string
+  givenName?: string
+  password?: string
 }
 
 const Context = React.createContext<Context>({})
@@ -12,10 +12,10 @@ const Context = React.createContext<Context>({})
 export default Context
 
 interface ProviderProps {
-  email?: string;
-  familyName?: string;
-  givenName?: string;
-  password?: string;
+  email?: string
+  familyName?: string
+  givenName?: string
+  password?: string
 }
 
 export const Provider: React.FC<ProviderProps> = ({ email, familyName, givenName, password, children }) => {

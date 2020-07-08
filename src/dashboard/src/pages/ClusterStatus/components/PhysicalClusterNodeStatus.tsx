@@ -12,7 +12,7 @@ import IconButton from '@material-ui/core/IconButton'
 import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable'
 
 interface PhClusterNSType {
-  nodeStatus: any;
+  nodeStatus: any
 }
 const tableTheme = createMuiTheme({
   overrides: {
@@ -21,7 +21,7 @@ const tableTheme = createMuiTheme({
         paddingTop: 4,
         paddingBottom: 4,
         paddingLeft: 2,
-        paddingRight: 4,
+        paddingRight: 4
       }
     }
   }

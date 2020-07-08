@@ -49,27 +49,27 @@ import * as _ from 'lodash'
 
 const useStyles = makeStyles((theme: Theme) => createStyles({
   avatar: {
-    backgroundColor: theme.palette.secondary.main,
+    backgroundColor: theme.palette.secondary.main
   },
   cardHeaderContent: {
     width: 0
   },
   textField: {
     marginLeft: theme.spacing(1),
-    marginRight: theme.spacing(1),
+    marginRight: theme.spacing(1)
   },
   chart: {
     padding: 3,
-    backgroundColor: theme.palette.background.default,
+    backgroundColor: theme.palette.background.default
   },
   dialogText: {
     color: green[400]
   },
   success: {
-    backgroundColor: green[600],
+    backgroundColor: green[600]
   },
   container: {
-    margin: '0 auto',
+    margin: '0 auto'
   },
   tableTitle: {
     display: 'flex',
@@ -107,17 +107,17 @@ const ActionIconButton: React.FC<{cluster?: string}> = ({ cluster }) => {
 }
 
 const Chart: React.FC<{
-  available: number;
-  used: number;
-  reserved: number;
-  isActive: boolean;
+  available: number
+  used: number
+  reserved: number
+  isActive: boolean
 
 }> = ({ available, used, reserved, isActive }) => {
   const theme = useTheme()
   let data = [
     { name: 'Available', value: available, color: lightGreen[400] },
     { name: 'Used', value: used, color: theme.palette.grey[500] },
-    { name: 'Unschedulable', value: reserved, color: deepOrange[400] },
+    { name: 'Unschedulable', value: reserved, color: deepOrange[400] }
   ]
   if (reserved === 0) {
     data = data.filter((item) => item.name !== 'Reserved')
@@ -194,8 +194,8 @@ const Chart: React.FC<{
 }
 
 export const DirectoryPathTextField: React.FC<{
-  label: string;
-  value: string;
+  label: string
+  value: string
 }> = ({ label, value }) => {
   const input = React.useRef<HTMLInputElement>(null)
   const [openCopyWarn, setOpenCopyWarn] = React.useState(false)
@@ -367,7 +367,7 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
           paddingTop: 10,
           paddingBottom: 10,
           paddingLeft: 2,
-          paddingRight: 5,
+          paddingRight: 5
         }
       }
     }
@@ -375,32 +375,32 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
   const BorderLinearProgress = withStyles({
     root: {
       height: 10,
-      backgroundColor: lighten('#363636', 0.5),
+      backgroundColor: lighten('#363636', 0.5)
     },
     bar: {
       borderRadius: 20,
-      backgroundColor: green[400],
-    },
+      backgroundColor: green[400]
+    }
   })(LinearProgress)
   const GenernalLinerProgress = withStyles({
     root: {
       height: 10,
-      backgroundColor: lighten('#363636', 0.5),
+      backgroundColor: lighten('#363636', 0.5)
     },
     bar: {
       borderRadius: 20,
-      backgroundColor: yellow[800],
-    },
+      backgroundColor: yellow[800]
+    }
   })(LinearProgress)
   const FullBorderLinearProgress = withStyles({
     root: {
       height: 10,
-      backgroundColor: lighten('#363636', 0.5),
+      backgroundColor: lighten('#363636', 0.5)
     },
     bar: {
       borderRadius: 20,
-      backgroundColor: red[400],
-    },
+      backgroundColor: red[400]
+    }
   })(LinearProgress)
 
   const processedNfsStorage = useMemo(() => {

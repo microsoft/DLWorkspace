@@ -2,11 +2,11 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
+  useState
 } from 'react'
 import {
   useLocation,
-  useHistory,
+  useHistory
 } from 'react-router'
 
 const useHashTab = (...hashes: readonly string[]) => {

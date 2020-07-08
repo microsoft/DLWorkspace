@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {
-  FunctionComponent,
+  FunctionComponent
 } from 'react'
 import {
   List,
@@ -14,7 +14,7 @@ import CopyableTextListItem from '../../../components/CopyableTextListItem'
 import { Job } from '../utils'
 
 interface Props {
-  job: Job;
+  job: Job
 }
 
 const DetailPanel: FunctionComponent<Props> = ({ job }) => {

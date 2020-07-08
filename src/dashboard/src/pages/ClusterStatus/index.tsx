@@ -8,7 +8,7 @@ import {
   useTheme,
   createStyles,
   makeStyles,
-  CircularProgress,
+  CircularProgress
 } from '@material-ui/core'
 import { DLTSTabPanel } from '../CommonComponents/DLTSTabPanel'
 import TeamContext from '../../contexts/Team'
@@ -70,7 +70,7 @@ const ClusterStatus: FC = () => {
   const fetchClusterStatus = (mount: boolean) => {
     if (clusters && mount) {
       const params = new URLSearchParams({
-        query: `count (task_gpu_percent{vc_name="${currentTeamId}"} == 0) by (username)`,
+        query: `count (task_gpu_percent{vc_name="${currentTeamId}"} == 0) by (username)`
       })
       const filterclusters = convertToArrayByKey(clusters, 'id')
       setSelectedValue(filterclusters[0])

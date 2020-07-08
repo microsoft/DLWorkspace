@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {
   useMemo,
-  useState,
+  useState
 } from 'react'
 import {
   TableSortLabel,
@@ -24,11 +24,11 @@ const useResourceColumns = (kinds: ResourceKind[], isPureCPU = false) => {
 
   const typeColor = useMemo(() => (isPureCPU ? {
     cpu: theme.palette.background.default,
-    memory: theme.palette.background.paper,
+    memory: theme.palette.background.paper
   } : {
     cpu: theme.palette.background.default,
     gpu: theme.palette.background.paper,
-    memory: theme.palette.background.default,
+    memory: theme.palette.background.default
   }), [isPureCPU, theme])
 
   const expandable = kinds.indexOf('used') > -1 && kinds.indexOf('total') > -1

@@ -5,7 +5,7 @@ import {
   Card,
   List,
   ListItem,
-  ListItemText, SvgIcon, TextField, Tooltip,
+  ListItemText, SvgIcon, TextField, Tooltip
 } from '@material-ui/core'
 import useFetch from 'use-http'
 
@@ -25,7 +25,7 @@ import {
 import { DLTSSnackbar } from '../../CommonComponents/DLTSSnackbar'
 
 interface BriefProps {
-  readonly?: boolean;
+  readonly?: boolean
 }
 
 const Brief: React.FC<BriefProps> = ({ readonly = false }) => {

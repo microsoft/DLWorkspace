@@ -1,6 +1,6 @@
 import {
   useEffect,
-  useMemo,
+  useMemo
 } from 'react'
 import useFetch from 'use-http-1'
 

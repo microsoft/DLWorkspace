@@ -14,7 +14,7 @@ import {
   LinearProgress,
   Typography,
   createStyles,
-  makeStyles,
+  makeStyles
 } from '@material-ui/core'
 
 import {
@@ -39,26 +39,26 @@ const CONTAINER_HOME_PATH = '/data'
 const useListStyles = makeStyles(() => createStyles({
   root: {
     height: LIST_ITEM_HEIGHT * 3,
-    overflow: 'auto',
-  },
+    overflow: 'auto'
+  }
 }))
 
 const useListSubheaderStyles = makeStyles(() => createStyles({
   root: {
     height: LIST_ITEM_HEIGHT,
-    textAlign: 'center',
+    textAlign: 'center'
   }
 }))
 
 const useListItemStyles = makeStyles((theme) => createStyles({
   root: {
-    height: LIST_ITEM_HEIGHT,
-  },
+    height: LIST_ITEM_HEIGHT
+  }
 }))
 
 const useLinearProgressStyles = makeStyles((theme) => createStyles({
   root: {
-    height: 10,
+    height: 10
   },
   bar: {
     backgroundColor: (ratio: number) => {
@@ -68,15 +68,15 @@ const useLinearProgressStyles = makeStyles((theme) => createStyles({
     }
   },
   colorPrimary: {
-    backgroundColor: theme.palette.grey[400],
-  },
+    backgroundColor: theme.palette.grey[400]
+  }
 }))
 
 interface StorageListItemProps {
-  containerPath: string;
-  sambaPath: string;
-  size?: number;
-  available?: number;
+  containerPath: string
+  sambaPath: string
+  size?: number
+  available?: number
 }
 
 const StorageListItem: FunctionComponent<StorageListItemProps> = ({ containerPath, size, available }) => {

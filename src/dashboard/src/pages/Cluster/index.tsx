@@ -17,7 +17,7 @@ import {
   Tab,
   Toolbar,
   Typography,
-  Paper,
+  Paper
 } from '@material-ui/core'
 import useFetch from 'use-http-1'
 import { useSnackbar } from 'notistack'
@@ -49,7 +49,7 @@ const Header: FunctionComponent = () => {
 }
 
 interface TabViewProps {
-  data: any;
+  data: any
 }
 
 const TabView: FunctionComponent<TabViewProps> = ({ data }) => {

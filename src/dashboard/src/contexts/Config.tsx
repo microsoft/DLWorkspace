@@ -1,10 +1,10 @@
 import * as React from 'react'
 
 interface Context {
-  addGroup?: string;
-  wiki?: string;
-  support?: string;
-  notifications?: { [team: string]: string };
+  addGroup?: string
+  wiki?: string
+  support?: string
+  notifications?: { [team: string]: string }
 }
 
 const Context = React.createContext<Context>({})

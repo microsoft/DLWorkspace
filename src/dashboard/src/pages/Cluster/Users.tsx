@@ -38,13 +38,13 @@ const humanHours = (seconds: number) => {
 }
 
 interface GpuMetrics {
-  idle?: number;
-  bookedLast31Days?: number;
-  idleLast31Days?: number;
+  idle?: number
+  bookedLast31Days?: number
+  idleLast31Days?: number
 }
 
 interface Props {
-  data: any;
+  data: any
 }
 
 const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
@@ -107,7 +107,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
         const {
           idle,
           bookedLast31Days,
-          idleLast31Days,
+          idleLast31Days
         } = gpuMetrics
         total.gpuMetrics.idle += idle || 0
         total.gpuMetrics.bookedLast31Days += bookedLast31Days || 0

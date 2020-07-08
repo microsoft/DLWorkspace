@@ -19,10 +19,10 @@ import { red } from '@material-ui/core/colors'
 import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable'
 
 interface TeamVC {
-  children?: React.ReactNode;
-  vcStatus: any;
-  selectedValue: string;
-  handleChange: any;
+  children?: React.ReactNode
+  vcStatus: any
+  selectedValue: string
+  handleChange: any
 }
 
 const tableTheme = createMuiTheme({
@@ -32,7 +32,7 @@ const tableTheme = createMuiTheme({
         paddingTop: 4,
         paddingBottom: 4,
         paddingLeft: 2,
-        paddingRight: 4,
+        paddingRight: 4
       }
     }
   }

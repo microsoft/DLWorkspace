@@ -15,7 +15,7 @@ import { get, isFinite } from 'lodash'
 import {
   Input,
   InputAdornment,
-  Typography,
+  Typography
 } from '@material-ui/core'
 import { Column } from 'material-table'
 import { useSnackbar } from 'notistack'
@@ -24,7 +24,7 @@ import ClusterContext from '../../ClusterContext'
 import { Job } from '../../utils'
 
 interface TimeoutFieldProps {
-  job: any;
+  job: any
 }
 
 const EDITABLE_STATUSES = new Set([

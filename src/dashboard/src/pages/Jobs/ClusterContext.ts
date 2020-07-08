@@ -1,7 +1,7 @@
 import { createContext } from 'react'
 
 interface ClusterContext {
-  cluster?: any;
+  cluster?: any
 }
 
 const ClusterContext = createContext<ClusterContext>({})

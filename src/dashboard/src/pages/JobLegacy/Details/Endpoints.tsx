@@ -11,7 +11,7 @@ import {
   FormControlLabel,
   InputAdornment,
   IconButton,
-  TextField, Tooltip, Link,
+  TextField, Tooltip, Link
 } from '@material-ui/core'
 import { Add, FileCopy } from '@material-ui/icons'
 
@@ -22,8 +22,8 @@ import copy from 'clipboard-copy'
 import { checkFinishedJob } from '../../../utlities/interactionUtlties'
 
 interface ListProps {
-  endpoints: any[];
-  setOpen: any;
+  endpoints: any[]
+  setOpen: any
 }
 
 const List: React.FC<ListProps> = ({ endpoints, setOpen }) => {
@@ -125,9 +125,9 @@ const List: React.FC<ListProps> = ({ endpoints, setOpen }) => {
 }
 
 interface ControllerProps {
-  endpoints: any[];
-  post(data: any): Promise<any>;
-  status: string;
+  endpoints: any[]
+  post(data: any): Promise<any>
+  status: string
 }
 
 const Controller: React.FC<ControllerProps> = ({ endpoints, post, status }) => {
@@ -211,15 +211,15 @@ const Controller: React.FC<ControllerProps> = ({ endpoints, post, status }) => {
                 <Add/>
               </IconButton>
             </InputAdornment>
-          ),
+          )
         }}
       />
     </CardContent>
   )
 }
 interface EndpointsProps {
-  setOpen: any;
-  status: string;
+  setOpen: any
+  status: string
 }
 const Endpoints: React.FC<EndpointsProps> = ({ setOpen, status }) => {
   const { clusterId, jobId } = useContext(Context)

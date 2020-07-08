@@ -11,15 +11,15 @@ import { TransitionProps } from '@material-ui/core/transitions'
 import Slide from '@material-ui/core/Slide'
 
 interface DialogProps {
-  children?: React.ReactNode;
-  open: boolean;
-  message: any;
-  handleClose: any;
-  handleConfirm: any;
-  confirmBtnTxt: any;
-  cancelBtnTxt: any;
-  title: string;
-  titleStyle: object;
+  children?: React.ReactNode
+  open: boolean
+  message: any
+  handleClose: any
+  handleConfirm: any
+  confirmBtnTxt: any
+  cancelBtnTxt: any
+  title: string
+  titleStyle: object
 }
 const Transition = React.forwardRef<unknown, TransitionProps & { children?: React.ReactElement }>(function Transition (props, ref) {
   return <Slide direction="down" ref={ref} {...props} />

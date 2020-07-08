@@ -2,7 +2,7 @@ import * as React from 'react'
 import {
   FunctionComponent,
   useContext,
-  useMemo,
+  useMemo
 } from 'react'
 
 import { get } from 'lodash'
@@ -14,7 +14,7 @@ import {
   Paper,
   Typography,
   createStyles,
-  makeStyles,
+  makeStyles
 } from '@material-ui/core'
 
 import { Info } from '@material-ui/icons'
@@ -26,8 +26,8 @@ const usePaperStyle = makeStyles(theme => createStyles({
   root: {
     display: 'flex',
     alignItems: 'center',
-    padding: theme.spacing(1),
-  },
+    padding: theme.spacing(1)
+  }
 }))
 
 const NotificationBox: FunctionComponent<BoxProps> = (props) => {

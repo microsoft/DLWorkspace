@@ -8,10 +8,10 @@ import { MTableToolbar } from 'material-table'
 import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable'
 
 interface TeamUsr {
-  userStatus: any;
-  showCurrentUser: boolean;
-  handleSwitch: any;
-  currentCluster: string;
+  userStatus: any
+  showCurrentUser: boolean
+  handleSwitch: any
+  currentCluster: string
 }
 
 export const TeamVCUserStatus = (props: TeamUsr) => {
@@ -25,7 +25,7 @@ export const TeamVCUserStatus = (props: TeamUsr) => {
             columns={[{ title: 'Username', field: 'userName' },
               { title: 'Currently Allocated GPU', field: 'usedGPU', type: 'numeric' },
               { title: 'Currently Allocated Preemptible GPU', field: 'preemptableGPU', type: 'numeric' },
-              { title: 'Currently Idle GPU', field: 'idleGPU', type: 'numeric' },
+              { title: 'Currently Idle GPU', field: 'idleGPU', type: 'numeric' }
             ]}
             data={showCurrentUser ? userStatus.filter((uc: any) => uc['usedGPU'] > 0 && uc['userName'] !== 'Total') : userStatus}
             options={{ filtering: false, paging: false, sorting: true }}
@@ -55,7 +55,7 @@ export const TeamVCUserStatus = (props: TeamUsr) => {
           title=""
           columns={[{ title: 'Username', field: 'userName' },
             { title: 'Currently Allocated GPU', field: 'usedGPU', type: 'numeric' },
-            { title: 'Currently Allocated Preemptible GPU', field: 'preemptableGPU', type: 'numeric', render: (rowData: any) => <span>{rowData['preemptableGPU'] ? rowData['preemptableGPU'] : '0'}</span> },
+            { title: 'Currently Allocated Preemptible GPU', field: 'preemptableGPU', type: 'numeric', render: (rowData: any) => <span>{rowData['preemptableGPU'] ? rowData['preemptableGPU'] : '0'}</span> }
           ]}
           data={showCurrentUser ? userStatus.filter((uc: any) => uc['usedGPU'] > 0 && uc['userName'] !== 'Total') : userStatus}
           options={{ filtering: false, paging: false, sorting: true }}

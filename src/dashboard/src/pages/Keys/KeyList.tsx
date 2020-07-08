@@ -4,7 +4,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
-  useMemo,
+  useMemo
 } from 'react'
 
 import {
@@ -18,11 +18,11 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   Tooltip,
-  Typography,
+  Typography
 } from '@material-ui/core'
 import {
   Delete,
-  VpnKey,
+  VpnKey
 } from '@material-ui/icons'
 
 import { useSnackbar } from 'notistack'
@@ -34,14 +34,14 @@ import useConfirm from '../../hooks/useConfirm'
 import { formatDateDistance } from '../../utils/formats'
 
 interface KeyList {
-  get(): Promise<any>;
+  get(): Promise<any>
 }
 
 interface KeyListProps {
-  title?: string;
-  empty?: string;
-  since?: Date;
-  onDelete?(id: number): void;
+  title?: string
+  empty?: string
+  since?: Date
+  onDelete?(id: number): void
 }
 
 const KeyList = forwardRef<KeyList, KeyListProps>(({

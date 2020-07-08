@@ -20,7 +20,7 @@ import { Job } from '../../utils'
 const DEFAULT_PRIORITY = 100
 
 interface PriorityFieldProps {
-  job: any;
+  job: any
 }
 
 const EDITABLE_STATUSES = new Set([

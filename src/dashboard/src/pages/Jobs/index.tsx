@@ -9,7 +9,7 @@ import {
 import {
   useHistory,
   useLocation,
-  useParams,
+  useParams
 } from 'react-router-dom'
 import {
   Container,
@@ -32,7 +32,7 @@ import MyJobs from './MyJobs'
 import AllJobs from './AllJobs'
 
 interface RouteParams {
-  clusterId: string;
+  clusterId: string
 }
 
 const TabView: FunctionComponent = () => {

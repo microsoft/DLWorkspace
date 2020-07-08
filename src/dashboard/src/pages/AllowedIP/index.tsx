@@ -9,7 +9,7 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
-  useRef,
+  useRef
 } from 'react'
 
 import {
@@ -27,12 +27,12 @@ import {
   ListItemText,
   TextField,
   Tooltip,
-  colors,
+  colors
 } from '@material-ui/core'
 import {
   Close,
   Error,
-  Warning,
+  Warning
 } from '@material-ui/icons'
 
 import { useForm, Controller } from 'react-hook-form'
@@ -41,11 +41,11 @@ import useFetch from 'use-http-1'
 import ClustersContext from '../../contexts/Clusters'
 
 interface ClusterListItem {
-  update(data: UpdateFormData): void;
+  update(data: UpdateFormData): void
 }
 
 interface ClusterListItemProps {
-  id: string;
+  id: string
 }
 
 const ClusterListItem = forwardRef<ClusterListItem, ClusterListItemProps>(({ id }, ref) => {
@@ -133,11 +133,11 @@ const ClusterListItem = forwardRef<ClusterListItem, ClusterListItemProps>(({ id 
 })
 
 interface UpdateFormData {
-  ip: string;
+  ip: string
 }
 
 interface UpdateFormProps {
-  onSubmit(data: UpdateFormData): void;
+  onSubmit(data: UpdateFormData): void
 }
 
 const IPV4_PATTERN = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/

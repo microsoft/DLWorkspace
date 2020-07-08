@@ -1,6 +1,6 @@
 import {
   createElement,
-  forwardRef,
+  forwardRef
 } from 'react'
 
 import MaterialTable, { MaterialTableProps } from 'material-table'
@@ -46,7 +46,7 @@ const icons: Icons = {
   ResetSearch: forwardIcon(Clear),
   Search: forwardIcon(Search),
   ThirdStateCheck: forwardIcon(Remove),
-  ViewColumn: forwardIcon(ViewColumn),
+  ViewColumn: forwardIcon(ViewColumn)
 }
 
 const SvgIconMaterialTable = function SvgIconMaterialTable<T extends object> (props: MaterialTableProps<T>) {

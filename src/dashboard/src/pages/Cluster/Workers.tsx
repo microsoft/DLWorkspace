@@ -14,7 +14,7 @@ import {
   filter,
   map,
   mapValues,
-  noop,
+  noop
 } from 'lodash'
 import {
   Card,
@@ -32,7 +32,7 @@ import {
   DoneOutline,
   ErrorOutline,
   Help,
-  More,
+  More
 } from '@material-ui/icons'
 import {
   Column,
@@ -49,8 +49,8 @@ import useResourceColumns, { ResourceKind } from '../Clusters/useResourceColumns
 import QueryContext from './QueryContext'
 
 interface WorkerStateProps {
-  state: string | undefined;
-  message: string | null | undefined;
+  state: string | undefined
+  message: string | null | undefined
 }
 
 const WorkerState: FunctionComponent<WorkerStateProps> = ({ state, message }) => {
@@ -84,7 +84,7 @@ const WorkerState: FunctionComponent<WorkerStateProps> = ({ state, message }) =>
 }
 
 interface Props {
-  data: any;
+  data: any
 }
 
 const useLinkStyles = makeStyles({

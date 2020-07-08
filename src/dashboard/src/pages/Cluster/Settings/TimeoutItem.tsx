@@ -6,7 +6,7 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
+  useState
 } from 'react'
 
 import { useParams } from 'react-router-dom'
@@ -21,7 +21,7 @@ import {
   Input,
   InputAdornment,
   Radio,
-  RadioGroup,
+  RadioGroup
 } from '@material-ui/core'
 import { Timer } from '@material-ui/icons'
 

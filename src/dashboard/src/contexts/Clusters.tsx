@@ -10,7 +10,7 @@ import { find } from 'lodash'
 
 import TeamContext from './Team'
 interface ClustersContext {
-  clusters: any[];
+  clusters: any[]
 }
 
 const ClustersContext = createContext<ClustersContext>({ clusters: [] })

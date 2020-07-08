@@ -7,7 +7,7 @@ import {
 import {
   Input,
   makeStyles,
-  createStyles,
+  createStyles
 } from '@material-ui/core'
 
 import { Provider as MonospacedThemeProvider } from '../contexts/MonospacedTheme'
@@ -15,11 +15,11 @@ import { Provider as MonospacedThemeProvider } from '../contexts/MonospacedTheme
 const useStyles = makeStyles((theme) => createStyles({
   root: {
     color: 'inherit',
-    fontSize: 'inherit',
+    fontSize: 'inherit'
   },
   input: {
     color: 'inherit',
-    fontSize: 'inherit',
+    fontSize: 'inherit'
   }
 }))
 
@@ -44,7 +44,7 @@ const CodeBlock: FunctionComponent<{ children: string }> = ({ children }) => {
         inputProps={{
           style: {
             whiteSpace: 'pre',
-            overflow: 'auto hidden',
+            overflow: 'auto hidden'
           }
         }}
       />

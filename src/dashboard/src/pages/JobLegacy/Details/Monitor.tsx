@@ -4,7 +4,7 @@ import { useContext } from 'react'
 import {
   Card,
   CardHeader,
-  CardMedia,
+  CardMedia
 } from '@material-ui/core'
 
 import Context from './Context'

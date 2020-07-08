@@ -4,7 +4,7 @@ import { FunctionComponent } from 'react'
 import { Box, CircularProgress, Typography } from '@material-ui/core'
 
 interface LoadingProps {
-  children?: string;
+  children?: string
 }
 
 const Loading: FunctionComponent<LoadingProps> = ({ children }) => (

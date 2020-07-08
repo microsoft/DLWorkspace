@@ -16,9 +16,9 @@ import {
 } from '@material-ui/core'
 
 interface ConfirmContext {
-  setMessage: (message: string) => void;
-  setOpen: (open: boolean) => void;
-  setResolve: (resolve: (value: boolean) => void) => void;
+  setMessage: (message: string) => void
+  setOpen: (open: boolean) => void
+  setResolve: (resolve: (value: boolean) => void) => void
 }
 
 const ConfirmContext = createContext<ConfirmContext>({

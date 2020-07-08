@@ -78,7 +78,7 @@ const EndpointListItem: FunctionComponent<{ endpoint: any }> = ({ endpoint }) =>
 }
 
 const EndpointsList: FunctionComponent<{
-  endpoints: any[];
+  endpoints: any[]
 }> = ({ endpoints }) => {
   const sortedEndpoints = useMemo(() => {
     const nameOrders = ['ssh', 'ipython', 'tensorboard', 'theia'].reverse()
@@ -106,9 +106,9 @@ const EndpointsList: FunctionComponent<{
 }
 
 interface EndpointSwitchProps {
-  label: string;
-  endpoint: string;
-  enabled: boolean;
+  label: string
+  endpoint: string
+  enabled: boolean
 }
 
 const EndpointSwitch: FunctionComponent<EndpointSwitchProps> = ({ label, endpoint, enabled }) => {

@@ -5,7 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useState,
+  useState
 } from 'react'
 
 import { useParams } from 'react-router-dom'
@@ -17,7 +17,7 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  Radio,
+  Radio
 } from '@material-ui/core'
 import { LowPriority } from '@material-ui/icons'
 

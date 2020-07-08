@@ -4,11 +4,11 @@ import { Container, Grid, Paper, Toolbar, useTheme } from '@material-ui/core'
 import useCheckIsDesktop from '../../utlities/layoutUtlities'
 
 interface TabPanelProps {
-  children?: React.ReactNode;
-  dir?: string;
-  index: any;
-  value: any;
-  title?: string;
+  children?: React.ReactNode
+  dir?: string
+  index: any
+  value: any
+  title?: string
 }
 
 export const DLTSTabPanel = (props: TabPanelProps) => {
@@ -26,7 +26,7 @@ export const DLTSTabPanel = (props: TabPanelProps) => {
       >
         <Grid container alignItems={'center'}>
           <Grid item xs={12}>
-            <Paper style={{ marginTop: '10px', }}>
+            <Paper style={{ marginTop: '10px' }}>
               <Toolbar>
                 <Typography component="h2" variant="h6">
                   {title}

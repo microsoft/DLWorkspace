@@ -13,14 +13,14 @@ import { useSnackbar } from 'notistack'
 import TeamContext from '../../../contexts/Team'
 
 interface ClusterContextValue {
-  id: string;
-  status?: { [key: string]: any };
+  id: string
+  status?: { [key: string]: any }
 }
 
 const ClusterContext = createContext<ClusterContextValue>({ id: '' })
 
 interface ClusterProviderProps {
-  id: string;
+  id: string
 }
 
 const ClusterProvider: FunctionComponent<ClusterProviderProps> = ({ id, children }) => {
@@ -58,5 +58,5 @@ const useCluster = () => useContext(ClusterContext)
 
 export {
   ClusterProvider,
-  useCluster,
+  useCluster
 }

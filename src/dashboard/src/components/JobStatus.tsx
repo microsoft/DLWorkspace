@@ -26,8 +26,8 @@ import {
 import useFetch from 'use-http-1'
 
 interface Props {
-  cluster: string;
-  job: any;
+  cluster: string
+  job: any
 }
 
 const JobStatus: FunctionComponent<Props> = ({ cluster, job }) => {

@@ -3,7 +3,7 @@ import {
   FunctionComponent,
   useCallback,
   useEffect,
-  useState,
+  useState
 } from 'react'
 
 import {
@@ -13,18 +13,18 @@ import {
   CardContent,
   CardActions,
   CircularProgress,
-  TextField,
+  TextField
 } from '@material-ui/core'
 
 import { useForm, Controller } from 'react-hook-form'
 
 export interface KeyAddFormData {
-  name: string;
-  key: string;
+  name: string
+  key: string
 }
 
 interface KeyAddFormProps {
-  onAdd(data: KeyAddFormData): Promise<void>;
+  onAdd(data: KeyAddFormData): Promise<void>
 }
 
 const KeyAddForm: FunctionComponent<KeyAddFormProps> = ({ onAdd }) => {
@@ -39,8 +39,8 @@ const KeyAddForm: FunctionComponent<KeyAddFormProps> = ({ onAdd }) => {
   } = useForm<KeyAddFormData>({
     defaultValues: {
       name: '',
-      key: '',
-    },
+      key: ''
+    }
   })
   const [busy, setBusy] = useState(false)
   const key = watch('key')

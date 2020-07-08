@@ -12,8 +12,8 @@ import { useSnackbar } from 'notistack'
 import copy from 'clipboard-copy'
 
 interface CopyableTextListItemProps {
-  primary: string;
-  secondary: string;
+  primary: string
+  secondary: string
 }
 
 const CopyableTextListItem: FunctionComponent<CopyableTextListItemProps> = ({ primary, secondary }) => {

@@ -17,5 +17,5 @@ export default (): Column<Job> => ({
   field: 'jobStatus',
   render (job) {
     return <JobStatusColumn job={job}/>
-  },
+  }
 })

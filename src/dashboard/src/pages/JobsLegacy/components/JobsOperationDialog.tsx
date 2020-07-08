@@ -2,17 +2,17 @@ import * as React from 'react'
 import { DLTSDialog } from '../../CommonComponents/DLTSDialog'
 
 interface DialogProps {
-  children?: React.ReactNode;
-  handleClose: any;
-  handleConfirm: any;
-  job: any;
-  openApprove: boolean;
-  openPause: boolean;
-  openResume: boolean;
-  openUpdatePriority: boolean;
-  open: boolean;
-  title: string;
-  titleStyle: object;
+  children?: React.ReactNode
+  handleClose: any
+  handleConfirm: any
+  job: any
+  openApprove: boolean
+  openPause: boolean
+  openResume: boolean
+  openUpdatePriority: boolean
+  open: boolean
+  title: string
+  titleStyle: object
 }
 export const JobsOperationDialog = (props: DialogProps) => {
   const { job, open, handleClose, handleConfirm, openApprove, openPause, openResume, openUpdatePriority, title, titleStyle } = props

@@ -30,7 +30,7 @@ import {
   submitted,
   finished,
 
-  useNameId,
+  useNameId
 } from './JobsTable/columns'
 import { groupByActiveStatus } from './utils'
 
@@ -50,7 +50,7 @@ const ActiveJobsTable: FunctionComponent<JobsTablePropsWithoutColumnsActions> = 
     preemptible(),
     priority(),
     cluster.admin ? timeout() : undefined,
-    submitted(),
+    submitted()
   ]), [nameId, cluster.admin])
 
   const actions = useMemo(() => {
@@ -88,7 +88,7 @@ const InactiveJobsTable: FunctionComponent<JobsTablePropsWithoutColumnsActions> 
     gpu(),
     preemptible(),
     priority(),
-    finished(),
+    finished()
   ], [nameId])
   const actions = useMemo(() => [support], [support])
   return (

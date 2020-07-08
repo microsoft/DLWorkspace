@@ -13,7 +13,7 @@ import {
 import TeamContext from '../../contexts/Team'
 
 interface Props {
-  data: any;
+  data: any
 }
 
 const Metrics: FunctionComponent<Props> = ({ data: { config } }) => {

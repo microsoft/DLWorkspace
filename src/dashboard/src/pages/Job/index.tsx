@@ -9,7 +9,7 @@ import { capitalize } from 'lodash'
 import { usePrevious } from 'react-use'
 import Helmet from 'react-helmet'
 import {
-  Container,
+  Container
 } from '@material-ui/core'
 import { useSnackbar } from 'notistack'
 import useFetch from 'use-http-1'

@@ -10,17 +10,17 @@ import {
 import { green } from '@material-ui/core/colors'
 
 interface SnackbarProps {
-  message: string;
-  open: boolean | false;
-  autoHideDuration?: number | 1000;
-  handleWarnClose?: any;
-  style?: CSSProperties;
+  message: string
+  open: boolean | false
+  autoHideDuration?: number | 1000
+  handleWarnClose?: any
+  style?: CSSProperties
 }
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     success: {
-      backgroundColor: green[600],
-    },
+      backgroundColor: green[600]
+    }
   })
 )
 export const DLTSSnackbar: React.FC<SnackbarProps> = (props: SnackbarProps) => {
@@ -36,7 +36,7 @@ export const DLTSSnackbar: React.FC<SnackbarProps> = (props: SnackbarProps) => {
           autoHideDuration={autoHideDuration}
           onClose={handleWarnClose}
           ContentProps={{
-            'aria-describedby': 'message-id',
+            'aria-describedby': 'message-id'
           }}
         >
           <SnackbarContent

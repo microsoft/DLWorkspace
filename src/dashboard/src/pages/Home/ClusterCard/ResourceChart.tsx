@@ -65,8 +65,8 @@ const ResourceChart: FunctionComponent = () => {
   const isPureCPU = get(status, ['config', 'isPureCPU'], false)
 
   const [active, setActive] = useState<{
-    pie: 'cpu' | 'gpu' | 'node';
-    index: number;
+    pie: 'cpu' | 'gpu' | 'node'
+    index: number
   }>()
 
   const { cpu, gpu, node } = useMemo(() => {
@@ -83,12 +83,12 @@ const ResourceChart: FunctionComponent = () => {
     }, {
       cpu: { available: 0, used: 0, unschedulable: 0 },
       gpu: { available: 0, used: 0, unschedulable: 0 },
-      node: { available: 0, used: 0, unschedulable: 0 },
+      node: { available: 0, used: 0, unschedulable: 0 }
     })
     return {
       cpu: map(cpu, (value, name) => ({ name, value })),
       gpu: map(gpu, (value, name) => ({ name, value })),
-      node: map(node, (value, name) => ({ name, value })),
+      node: map(node, (value, name) => ({ name, value }))
     }
   }, [status])
 

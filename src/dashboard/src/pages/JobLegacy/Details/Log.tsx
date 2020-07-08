@@ -6,7 +6,7 @@ import {
   Card,
   CardHeader,
   CardContent,
-  Typography,
+  Typography
 } from '@material-ui/core'
 
 import Context from './Context'

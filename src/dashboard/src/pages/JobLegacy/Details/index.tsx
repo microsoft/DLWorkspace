@@ -11,7 +11,7 @@ import {
   AppBar,
   Container,
   CircularProgress,
-  useMediaQuery, Snackbar, SnackbarContent,
+  useMediaQuery, Snackbar, SnackbarContent
 } from '@material-ui/core'
 import useFetch from 'use-http'
 
@@ -30,10 +30,10 @@ import ClusterContext from '../../../contexts/Clusters'
 import TeamContext from '../../../contexts/Team'
 import { useTimeoutFn } from 'react-use'
 interface Props {
-  team: string;
-  clusterId: string;
-  jobId: string;
-  job: any;
+  team: string
+  clusterId: string
+  jobId: string
+  job: any
 }
 
 const JobDetails: React.FC<Props> = ({ clusterId, jobId, job, team }) => {

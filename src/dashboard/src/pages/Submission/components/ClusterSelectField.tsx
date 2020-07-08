@@ -10,8 +10,8 @@ import * as _ from 'lodash'
 import { sumValues } from '../../../utlities/ObjUtlities'
 
 interface ClusterSelectFieldProps {
-  cluster: string | undefined;
-  onClusterChange(value: string): void;
+  cluster: string | undefined
+  onClusterChange(value: string): void
 }
 
 const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps> = (

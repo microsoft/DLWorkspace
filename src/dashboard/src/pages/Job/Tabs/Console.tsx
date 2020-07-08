@@ -8,7 +8,7 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
+  useState
 } from 'react'
 import {
   AppBar,
@@ -22,7 +22,7 @@ import {
   Toolbar,
   Typography,
   createMuiTheme,
-  useTheme,
+  useTheme
 } from '@material-ui/core'
 import { ThemeProvider } from '@material-ui/styles'
 import { useWindowSize } from 'react-use'

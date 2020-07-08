@@ -12,7 +12,7 @@ import { SnackbarProvider } from 'notistack'
 import {
   Provider as FetchProvider,
   IncomingOptions,
-  CachePolicies,
+  CachePolicies
 } from 'use-http-1'
 
 import ConfigContext, { Provider as ConfigProvider } from './contexts/Config'
@@ -31,8 +31,8 @@ const useHttpOptions: IncomingOptions = {
 }
 
 interface BootstrapProps {
-  config: ConfigContext;
-  user: UserContext;
+  config: ConfigContext
+  user: UserContext
 }
 
 const Contexts: FunctionComponent<BootstrapProps> = ({ config, user, children }) => {

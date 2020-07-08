@@ -6,7 +6,7 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
+  useState
 } from 'react'
 import { get, values } from 'lodash'
 
@@ -22,7 +22,7 @@ import {
   Input,
   InputAdornment,
   Radio,
-  RadioGroup,
+  RadioGroup
 } from '@material-ui/core'
 import { LastPage } from '@material-ui/icons'
 

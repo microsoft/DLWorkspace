@@ -9,7 +9,7 @@ import {
   Box,
   Tooltip,
   Typography,
-  Link as UILink,
+  Link as UILink
 } from '@material-ui/core'
 
 const Brand: FunctionComponent = () => (

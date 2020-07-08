@@ -8,12 +8,12 @@ import {
 } from 'react'
 
 interface Query {
-  readonly current: string;
+  readonly current: string
 }
 
 interface QueryContext {
-  query?: string;
-  setQuery(query: string): void;
+  query?: string
+  setQuery(query: string): void
 }
 
 const QueryContext = createContext<QueryContext>({
@@ -21,7 +21,7 @@ const QueryContext = createContext<QueryContext>({
 })
 
 interface QueryProviderProps {
-  onQueryChanged(query: string): void;
+  onQueryChanged(query: string): void
 }
 
 const QueryProvider: FunctionComponent<QueryProviderProps> = ({ onQueryChanged, children }) => {

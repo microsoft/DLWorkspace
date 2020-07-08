@@ -10,7 +10,7 @@ import {
 import AddIcon from '@material-ui/icons/Add'
 import RemoveIcon from '@material-ui/icons/Remove'
 interface ServicesProps {
-  services: string[];
+  services: string[]
 }
 const useStyles = makeStyles((theme: Theme) => {
   return createStyles({

@@ -32,7 +32,7 @@ import { formatBytes, formatPercent } from '../../utils/formats'
 import QueryContext from './QueryContext'
 
 interface Props {
-  data: any;
+  data: any
 }
 
 const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
@@ -47,7 +47,7 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
   const [filterCurrentUser, setFilterCurrentUser] = useState(false)
 
   const podsGPUMetrics = useMemo(() => {
-    type GPUMetrics = { utilization: number; idle: number }
+    type GPUMetrics = { utilization: number, idle: number }
     const podsGPUMetrics: { [podName: string]: GPUMetrics } = Object.create(null)
 
     if (gpuUtilizationMetrics) {
@@ -143,7 +143,7 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
   const options = useMemo<Options>(() => ({
     padding: 'dense',
     paging: false,
-    searchText: query,
+    searchText: query
   }), [query])
 
   return (

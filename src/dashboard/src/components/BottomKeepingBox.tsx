@@ -2,7 +2,7 @@ import * as React from 'react'
 import {
   FunctionComponent,
   useEffect,
-  useRef,
+  useRef
 } from 'react'
 
 import {

@@ -4,7 +4,7 @@ import { useState, useCallback, useContext } from 'react'
 import {
   IconButton,
   InputAdornment,
-  TextField,
+  TextField
 } from '@material-ui/core'
 import { DirectionsRun } from '@material-ui/icons'
 
@@ -40,7 +40,7 @@ const RunCommand: React.FC = () => {
               <DirectionsRun/>
             </IconButton>
           </InputAdornment>
-        ),
+        )
       }}
     />
   )

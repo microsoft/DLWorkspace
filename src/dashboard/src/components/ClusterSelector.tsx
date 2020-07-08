@@ -18,8 +18,8 @@ import { SelectProps } from '@material-ui/core/Select'
 import ClustersContext from '../contexts/Clusters'
 
 interface ClusterSelectorProps extends Omit<SelectProps, 'value' | 'onChange'> {
-  defaultId?: string;
-  onChange?: (cluster: { id: string }) => void;
+  defaultId?: string
+  onChange?: (cluster: { id: string }) => void
 }
 
 const ClusterSelector: FunctionComponent<ClusterSelectorProps> = ({ defaultId: defaultClusterId, onChange, ...props }) => {

@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {
   FunctionComponent,
-  useContext,
+  useContext
 } from 'react'
 
 import {
@@ -12,20 +12,20 @@ import {
   ListItem,
   ListItemIcon,
   ListItemSecondaryAction,
-  ListItemText,
+  ListItemText
 } from '@material-ui/core'
 import {
   SvgIconComponent,
-  Settings,
+  Settings
 } from '@material-ui/icons'
 
 import Context from './Context'
 
 interface SettingItemProps {
-  Icon: SvgIconComponent;
-  name: string;
-  text: string | undefined;
-  onConfigure(): void;
+  Icon: SvgIconComponent
+  name: string
+  text: string | undefined
+  onConfigure(): void
 }
 
 const SettingItem: FunctionComponent<SettingItemProps> = ({ Icon, name, text, onConfigure }) => {

@@ -13,14 +13,14 @@ import { find } from 'lodash'
 import UserContext from './User'
 
 interface TeamContext {
-  teams?: any[];
-  currentTeamId: string;
-  setCurrentTeamId(teamId: string): void;
+  teams?: any[]
+  currentTeamId: string
+  setCurrentTeamId(teamId: string): void
 }
 
 const TeamContext = createContext<TeamContext>({
   currentTeamId: '',
-  setCurrentTeamId (teamId: string) { return },
+  setCurrentTeamId (teamId: string) { return }
 })
 
 const Provider: FunctionComponent = ({ children }) => {

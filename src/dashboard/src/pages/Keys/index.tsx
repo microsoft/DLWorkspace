@@ -2,7 +2,7 @@ import * as React from 'react'
 import {
   FunctionComponent,
   useCallback,
-  useRef,
+  useRef
 } from 'react'
 
 import { Container, Grid } from '@material-ui/core'
@@ -25,7 +25,7 @@ const Keys: FunctionComponent = () => {
       if (response.ok) {
         enqueueSnackbar('Deleted key successfully', {
           variant: 'success',
-          persist: false,
+          persist: false
         })
         if (keyList.current) {
           keyList.current.get()
@@ -44,7 +44,7 @@ const Keys: FunctionComponent = () => {
       if (response.ok) {
         enqueueSnackbar('Deleted key successfully', {
           variant: 'success',
-          persist: false,
+          persist: false
         })
         if (keyList.current) {
           keyList.current.get()

@@ -53,8 +53,8 @@ import { DLTSSnackbar } from '../CommonComponents/DLTSSnackbar'
 import * as _ from 'lodash'
 
 interface EnvironmentVariable {
-  name: string;
-  value: string;
+  name: string
+  value: string
 }
 
 const useStyles = makeStyles(() =>
@@ -104,7 +104,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
 
   const {
     data: templates,
-    get: getTemplates,
+    get: getTemplates
   } = useFetch('/api')
   React.useEffect(() => {
     getTemplates(`/teams/${currentTeamId}/templates`)
@@ -358,7 +358,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   )
   const {
     put: saveTemplate,
-    delete: deleteTemplate,
+    delete: deleteTemplate
   } = useFetch('/api')
   const [gpus, setGpus] = React.useState(0)
   const submittable = React.useMemo(() => {
@@ -454,7 +454,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         ssh,
         ipython,
         tensorboard,
-        plugins,
+        plugins
       }
       const url = `/teams/${currentTeamId}/templates/${saveTemplateName}?database=${saveTemplateDatabase}`
       await deleteTemplate(url)
@@ -559,13 +559,13 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     data: postJobData,
     loading: postJobLoading,
     error: postJobError,
-    post: postJob,
+    post: postJob
   } = useFetch('/api')
   const {
     data: postEndpointsData,
     loading: postEndpointsLoading,
     error: postEndpointsError,
-    post: postEndpoints,
+    post: postEndpoints
   } = useFetch('/api')
 
   const [enableSubmit, setEnableSubmit] = React.useState(submittable)
@@ -623,7 +623,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       hostNetwork: type === 'PSDistJob',
       isPrivileged: type === 'PSDistJob',
       plugins: plugins,
-      'max_retry_count': String(maxRetryCount),
+      'max_retry_count': String(maxRetryCount)
     }
     let totalGpus = gpus
     if (type === 'PSDistJob') {

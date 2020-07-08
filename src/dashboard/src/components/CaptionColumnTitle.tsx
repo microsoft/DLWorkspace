@@ -9,7 +9,7 @@ import {
 } from '@material-ui/core'
 
 interface Props {
-  caption?: string;
+  caption?: string
 }
 
 const ColumnTitle: FunctionComponent<Props> = ({ caption, children }) => (

@@ -3,12 +3,12 @@ import { AppBar, Container, Tabs, Tab } from '@material-ui/core'
 import useCheckIsDesktop from '../../utlities/layoutUtlities'
 import { handleChangeTab } from '../../utlities/interactionUtlties'
 interface TabsProps {
-  children?: React.ReactNode;
-  value: any;
-  setShowIframe?: any;
-  setValue: any;
-  titles: string[];
-  setRefresh?: any;
+  children?: React.ReactNode
+  value: any
+  setShowIframe?: any
+  setValue: any
+  titles: string[]
+  setRefresh?: any
 }
 
 export const DLTSTabs = (props: TabsProps) => {

@@ -4,7 +4,7 @@ import {
   useCallback,
   useEffect,
   useRef,
-  useState,
+  useState
 } from 'react'
 import { Options, MaterialTableProps } from 'material-table'
 import { zipWith } from 'lodash'
@@ -19,10 +19,10 @@ interface JobsTableProps extends Omit<
 MaterialTableProps<Job>,
 'data' | 'options' | 'onChangeRowsPerPage' | 'onChangePage' | 'onRowClick'
 > {
-  jobs: Array<Job>;
-  defaultPageSize?: number;
-  selection?: boolean;
-  onLastPage?(pageSize: number): void;
+  jobs: Array<Job>
+  defaultPageSize?: number
+  selection?: boolean
+  onLastPage?(pageSize: number): void
 }
 
 const JobsTable: FunctionComponent<JobsTableProps> = ({
@@ -81,7 +81,7 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({
         },
         pagination: {
           labelRowsSelect: 'jobs',
-          labelRowsPerPage: 'Jobs per page',
+          labelRowsPerPage: 'Jobs per page'
         },
         toolbar: {
           nRowsSelected: '{0} job(s) selected:'

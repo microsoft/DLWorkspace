@@ -8,7 +8,7 @@ const ACTIVE_STATUSES: { [status: string]: string } = {
   scheduling: 'Pending',
   running: 'Running',
   pausing: 'Paused',
-  paused: 'Paused',
+  paused: 'Paused'
 }
 
 export const groupByActiveStatus = (jobs: Array<Job>) => {

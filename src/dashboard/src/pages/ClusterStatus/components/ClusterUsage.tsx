@@ -7,8 +7,8 @@ import {
 import Iframe from 'react-iframe'
 
 interface ClusterUsageType {
-  showIframe: boolean;
-  iframeUrl: string;
+  showIframe: boolean
+  iframeUrl: string
 }
 
 export const ClusterUsage = (props: ClusterUsageType) => {

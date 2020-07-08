@@ -18,7 +18,7 @@ import {
   Typography,
   createStyles,
   colors,
-  makeStyles,
+  makeStyles
 } from '@material-ui/core'
 
 import {
@@ -51,14 +51,14 @@ const getPieColor = (ratio: number) => colors.red[
 
 interface StoragesContentProps {
   data: {
-    mountpoint: string;
+    mountpoint: string
     data: {
-      user: string;
-      bytes: number;
-      ratio: number;
-    }[];
-  }[];
-  snapshot: Date;
+      user: string
+      bytes: number
+      ratio: number
+    }[]
+  }[]
+  snapshot: Date
 }
 
 const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data, snapshot }) => {
@@ -71,8 +71,8 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data, snapsh
 
   const tableData = useTableData(mountpoint)
   const columns = useRef<Column<{
-    user: string;
-    bytes: number;
+    user: string
+    bytes: number
   }>[]>([{
     field: 'user',
     title: 'User'
@@ -87,7 +87,7 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data, snapsh
     paging: false,
     draggable: false,
     exportButton: true,
-    exportFileName: `Storage@${snapshot.toISOString()}`,
+    exportFileName: `Storage@${snapshot.toISOString()}`
   }), [snapshot])
 
   const labelStyle = useLabelStyle()
@@ -149,7 +149,7 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data, snapsh
 }
 
 interface Props {
-  data: any;
+  data: any
 }
 
 const Storages: FunctionComponent<Props> = ({ data: { config } }) => {

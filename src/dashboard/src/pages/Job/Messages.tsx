@@ -5,7 +5,7 @@ import {
   useCallback,
   useContext,
   useMemo,
-  useState,
+  useState
 } from 'react'
 
 import { get, map } from 'lodash'
@@ -18,13 +18,13 @@ import {
   Typography,
   createStyles,
   makeStyles,
-  useTheme,
+  useTheme
 } from '@material-ui/core'
 import {
   Cancel,
   Error,
   Info,
-  Warning,
+  Warning
 } from '@material-ui/icons'
 
 import useActions from '../../hooks/useActions'
@@ -47,8 +47,8 @@ const useMessagePaperStyle = makeStyles(theme => createStyles({
     flexDirection: (expanded: boolean) => expanded ? 'column' : 'row',
     alignItems: (expanded: boolean) => expanded ? 'stretch' : 'center',
     marginBottom: theme.spacing(1),
-    padding: theme.spacing(1),
-  },
+    padding: theme.spacing(1)
+  }
 }))
 
 const LevelIcon: FunctionComponent<{ children: string }> = memo(({ children }) => {
@@ -90,10 +90,10 @@ const ActionButton: FunctionComponent<{ children: string }> = ({ children }) => 
 }
 
 interface CollapsedMessageProps {
-  level: string;
-  count: number;
-  onExpand(): void;
-  children: string;
+  level: string
+  count: number
+  onExpand(): void
+  children: string
 }
 
 const CollapsedMessage: FunctionComponent<CollapsedMessageProps> = ({ level, count, onExpand, children }) => {
@@ -124,10 +124,10 @@ const CollapsedMessage: FunctionComponent<CollapsedMessageProps> = ({ level, cou
 }
 
 interface MessageProps {
-  date: Date;
-  level: string;
-  action: string;
-  children: string;
+  date: Date
+  level: string
+  action: string
+  children: string
 }
 
 const Message: FunctionComponent<MessageProps> = ({ date, level, action, children }) => {

@@ -5,7 +5,7 @@ import {
   CircularProgress,
   TextField,
   SvgIcon,
-  Tooltip, createMuiTheme, MuiThemeProvider,
+  Tooltip, createMuiTheme, MuiThemeProvider
 } from '@material-ui/core'
 import CheckCircleIcon from '@material-ui/icons/CheckCircle'
 import { makeStyles, Theme, createStyles } from '@material-ui/core/styles'
@@ -40,13 +40,13 @@ import { checkFinishedJob } from '../../utlities/interactionUtlties'
 import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable'
 
 const variantIcon = {
-  success: CheckCircleIcon,
+  success: CheckCircleIcon
 }
 interface Props {
-  className?: string;
-  message?: string;
-  onClose?: () => void;
-  variant: keyof typeof variantIcon;
+  className?: string
+  message?: string
+  onClose?: () => void
+  variant: keyof typeof variantIcon
 }
 
 const { DateTime } = require('luxon')
@@ -71,12 +71,12 @@ const useStyles = makeStyles((theme: Theme) =>
     },
     formControl: {
       margin: theme.spacing(1),
-      minWidth: 160,
+      minWidth: 160
 
     },
     selectContainer: {
       backgroundColor: theme.palette.background.paper,
-      minWidth: 160,
+      minWidth: 160
     },
     allow: {
       color: green[500]
@@ -86,11 +86,11 @@ const useStyles = makeStyles((theme: Theme) =>
     },
     linkStyle: {
       textDecoration: 'none',
-      color: blue[500],
+      color: blue[500]
     },
     inputField: {
-      fontSize: '12px',
-    },
+      fontSize: '12px'
+    }
   })
 )
 const Jobs: React.FC = (props: any) => {
@@ -312,9 +312,9 @@ const Jobs: React.FC = (props: any) => {
           margin="dense"
           InputProps={{
             classes: {
-              input: classes.inputField,
+              input: classes.inputField
 
-            },
+            }
           }}
         />
       </>
@@ -487,7 +487,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '3',
+                  padding: '3'
                 },
                 render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>
               },
@@ -497,7 +497,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '5',
+                  padding: '5'
                 }
               },
               {
@@ -507,7 +507,7 @@ const Jobs: React.FC = (props: any) => {
                   textAlign: 'justify',
                   flexDirection: 'row',
                   whiteSpace: 'nowrap',
-                  padding: '5',
+                  padding: '5'
                 },
                 render: (rowData: any) => renderJobStatus(rowData)
               },
@@ -517,7 +517,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'center',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 },
                 render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
                 type: 'numeric',
@@ -531,7 +531,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 }
               },
               {
@@ -540,7 +540,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'center',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 },
                 type: 'date',
                 customSort: (a, b) => sortByJobTime(a, b, 'jobTime'),
@@ -552,7 +552,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'center',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 },
                 type: 'boolean'
               },
@@ -564,7 +564,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '3',
+                  padding: '3'
                 },
                 customSort: (a, b) => sortByJobTime(a, b, 'startAt'),
                 render: (rowData: any) => renderDateTime(rowData, 'startedAt')
@@ -582,8 +582,8 @@ const Jobs: React.FC = (props: any) => {
                 color: '#fff',
                 whiteSpace: 'nowrap',
                 textAlign: 'left',
-                padding: '5',
-              },
+                padding: '5'
+              }
 
             }}
             actions={[
@@ -608,7 +608,7 @@ const Jobs: React.FC = (props: any) => {
             components={{
               Action: (props: any) =>
                 renderActions(props)
-              ,
+
             }}
           /> : null}
           {filterQueuedJobs(jobs).length > 0 ? <SvgIconsMaterialTable
@@ -620,7 +620,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '3',
+                  padding: '3'
                 },
                 render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>
               },
@@ -630,7 +630,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 }
               },
               {
@@ -640,7 +640,7 @@ const Jobs: React.FC = (props: any) => {
                   textAlign: 'justify',
                   flexDirection: 'row',
                   whiteSpace: 'nowrap',
-                  padding: '0',
+                  padding: '0'
                 },
                 render: (rowData: any) => renderJobStatus(rowData)
               },
@@ -650,7 +650,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'center',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 },
                 render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
                 type: 'numeric',
@@ -664,7 +664,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '5',
+                  padding: '5'
                 }
               },
               {
@@ -673,7 +673,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 },
                 type: 'date',
                 customSort: (a, b) => sortByJobTime(a, b, 'jobTime'),
@@ -685,10 +685,10 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'center',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 },
                 type: 'boolean'
-              },
+              }
             ]}
             data={filterQueuedJobs(jobs)}
             options={{
@@ -703,7 +703,7 @@ const Jobs: React.FC = (props: any) => {
                 whiteSpace: 'nowrap',
                 textAlign: 'left',
                 padding: '5'
-              },
+              }
             }}
             actions={[
               {
@@ -725,7 +725,7 @@ const Jobs: React.FC = (props: any) => {
               }
             ]}
             components={{
-              Action: (props: any) => renderActions(props),
+              Action: (props: any) => renderActions(props)
 
             }}
           /> : null}
@@ -738,7 +738,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'center',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 },
                 render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>
               },
@@ -748,8 +748,8 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'center',
                   flexDirection: 'row',
-                  padding: '0',
-                },
+                  padding: '0'
+                }
               },
               {
                 title: 'Status',
@@ -758,7 +758,7 @@ const Jobs: React.FC = (props: any) => {
                   textAlign: 'justify',
                   flexDirection: 'row',
                   padding: '0',
-                  whiteSpace: 'nowrap',
+                  whiteSpace: 'nowrap'
                 },
                 render: (rowData: any) => renderJobStatus(rowData)
               },
@@ -768,7 +768,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'center',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 },
                 render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
                 type: 'numeric',
@@ -782,7 +782,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'center',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 }
               },
               {
@@ -790,7 +790,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'center',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 },
                 field: 'jobTime',
                 customSort: (a, b) => sortByJobTime(a, b, 'jobTime'),
@@ -804,7 +804,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'center',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 }
               }
             ]}
@@ -823,7 +823,7 @@ const Jobs: React.FC = (props: any) => {
                 padding: '5'
               },
               rowStyle: {
-                width: '200',
+                width: '200'
               }
             }}
             actions={[
@@ -846,7 +846,7 @@ const Jobs: React.FC = (props: any) => {
               }
             ]}
             components={{
-              Action: (props: any) => renderActions(props),
+              Action: (props: any) => renderActions(props)
 
             }}
           /> : null}
@@ -859,7 +859,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '3',
+                  padding: '3'
                 },
                 render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>
               },
@@ -868,7 +868,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '5',
+                  padding: '5'
                 },
                 field: 'jobName'
               },
@@ -888,7 +888,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 },
                 field: 'jobParams.resourcegpu',
                 render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
@@ -902,7 +902,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 },
                 field: 'priority'
               },
@@ -911,7 +911,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '3',
+                  padding: '3'
                 },
                 field: 'jobTime',
                 type: 'date',
@@ -923,7 +923,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'center',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 },
                 field: 'jobParams.preemptionAllowed',
                 type: 'boolean'
@@ -933,7 +933,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '2',
+                  padding: '2'
                 },
                 field: 'jobStatusDetail[0].finishedAt',
                 type: 'date',
@@ -973,11 +973,11 @@ const Jobs: React.FC = (props: any) => {
                 icon: 'Pause',
                 onClick: (event, rowData: any) => {
                   console.log(rowData)
-                },
+                }
               }
             ]}
             components={{
-              Action: (props: any) => renderActions(props),
+              Action: (props: any) => renderActions(props)
 
             }}
           /> : null}
@@ -1009,7 +1009,7 @@ const Jobs: React.FC = (props: any) => {
                   textAlign: 'justify',
                   whiteSpace: 'nowrap',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 },
                 headerStyle: { padding: '0', textAlign: 'center' },
                 field: 'jobStatus',
@@ -1020,7 +1020,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'center',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 },
                 field: 'jobParams.resourcegpu',
                 render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
@@ -1034,7 +1034,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '0',
+                  padding: '0'
                 },
                 field: 'jobTime',
                 type: 'date',
@@ -1046,7 +1046,7 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'center',
                   flexDirection: 'row',
-                  padding: '3',
+                  padding: '3'
                 },
                 field: 'jobParams.preemptionAllowed',
                 type: 'boolean'
@@ -1070,14 +1070,14 @@ const Jobs: React.FC = (props: any) => {
                 cellStyle: {
                   textAlign: 'left',
                   flexDirection: 'row',
-                  padding: '2',
+                  padding: '2'
                 },
                 field: 'jobStatusDetail[0].finishedAt',
                 type: 'date',
                 emptyValue: 'unknown',
                 customSort: (a, b) => sortByJobTime(a, b, 'finishedAt'),
-                render: (rowData: any) => renderDateTime(rowData, 'finishedAt'),
-              },
+                render: (rowData: any) => renderDateTime(rowData, 'finishedAt')
+              }
             ]}
             data={filterFinishedJobs(jobs)}
             options={{
@@ -1092,7 +1092,7 @@ const Jobs: React.FC = (props: any) => {
                 whiteSpace: 'nowrap',
                 textAlign: 'center',
                 padding: '3'
-              },
+              }
             }}
           /> : null}
         </DLTSTabPanel>
@@ -1108,7 +1108,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '3',
+                        padding: '3'
                       },
                       field: 'jobId',
                       render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>
@@ -1118,7 +1118,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'jobName'
                     },
@@ -1128,7 +1128,7 @@ const Jobs: React.FC = (props: any) => {
                         textAlign: 'justify',
                         whiteSpace: 'nowrap',
                         flexDirection: 'row',
-                        padding: '2',
+                        padding: '2'
                       },
                       field: 'jobStatus',
                       render: (rowData: any) => renderJobStatus(rowData)
@@ -1139,7 +1139,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
                       type: 'numeric',
@@ -1152,7 +1152,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'userName',
                       render: renderUserName
@@ -1162,7 +1162,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'priority',
                       render: renderPrioritySet
@@ -1172,12 +1172,12 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'jobTime',
                       type: 'date',
-                      customSort: (a, b) => sortByJobTime(a, b, 'jobTime')
-                      , render: (rowData: any) => renderDateTime(rowData, 'jobTime')
+                      customSort: (a, b) => sortByJobTime(a, b, 'jobTime'),
+                      render: (rowData: any) => renderDateTime(rowData, 'jobTime')
                     },
                     {
                       title: 'Preemptible',
@@ -1186,8 +1186,8 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '0',
-                      },
+                        padding: '0'
+                      }
 
                     },
                     {
@@ -1197,7 +1197,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       emptyValue: 'unknown',
                       customSort: (a, b) => sortByJobTime(a, b, 'startedAt'),
@@ -1238,7 +1238,7 @@ const Jobs: React.FC = (props: any) => {
                     }
                   ]}
                   components={{
-                    Action: (props: any) => isAdmin ? renderActions(props) : null,
+                    Action: (props: any) => isAdmin ? renderActions(props) : null
                   }}
                 /> : null}
                 {filterQueuedJobs(allJobs).length > 0 ? <SvgIconsMaterialTable
@@ -1250,7 +1250,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '3',
+                        padding: '3'
                       },
                       render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>
                     },
@@ -1259,7 +1259,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'jobName'
                     },
@@ -1269,7 +1269,7 @@ const Jobs: React.FC = (props: any) => {
                         textAlign: 'justify',
                         whiteSpace: 'nowrap',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'jobStatus',
                       render: (rowData: any) => renderJobStatus(rowData)
@@ -1279,7 +1279,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'jobParams.resourcegpu',
                       render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
@@ -1293,7 +1293,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'userName',
                       render: renderUserName
@@ -1303,7 +1303,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'priority',
                       render: renderPrioritySet
@@ -1313,19 +1313,19 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'jobTime',
                       type: 'date',
-                      customSort: (a, b) => sortByJobTime(a, b, 'jobTime')
-                      , render: (rowData: any) => renderDateTime(rowData, 'jobTime')
+                      customSort: (a, b) => sortByJobTime(a, b, 'jobTime'),
+                      render: (rowData: any) => renderDateTime(rowData, 'jobTime')
                     },
                     {
-                      title: 'Preemptible'
-                      , cellStyle: {
+                      title: 'Preemptible',
+                      cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'jobParams.preemptionAllowed',
                       type: 'boolean'
@@ -1377,7 +1377,7 @@ const Jobs: React.FC = (props: any) => {
                     }
                   ]}
                   components={{
-                    Action: (props: any) => isAdmin ? renderActions(props) : null,
+                    Action: (props: any) => isAdmin ? renderActions(props) : null
 
                   }}
                 /> : null}
@@ -1390,7 +1390,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '3',
+                        padding: '3'
                       },
                       render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}/${currentTeamId}`}>{rowData.jobId}</Link>
                     },
@@ -1399,7 +1399,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'jobName'
                     },
@@ -1409,7 +1409,7 @@ const Jobs: React.FC = (props: any) => {
                         textAlign: 'justify',
                         whiteSpace: 'nowrap',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'jobStatus',
                       render: (rowData: any) => renderJobStatus(rowData)
@@ -1419,7 +1419,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '2',
+                        padding: '2'
                       },
                       field: 'jobParams.resourcegpu',
                       render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
@@ -1433,7 +1433,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'userName',
                       render: renderUserName
@@ -1443,7 +1443,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'priority',
                       render: renderPrioritySet
@@ -1453,7 +1453,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'jobTime',
                       type: 'date',
@@ -1465,7 +1465,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'jobParams.preemptionAllowed',
                       type: 'boolean'
@@ -1517,7 +1517,7 @@ const Jobs: React.FC = (props: any) => {
                     }
                   ]}
                   components={{
-                    Action: (props: any) => isAdmin ? renderActions(props) : null,
+                    Action: (props: any) => isAdmin ? renderActions(props) : null
 
                   }}
                 /> : null}
@@ -1529,7 +1529,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '3',
+                        padding: '3'
                       },
                       field: 'jobId',
                       render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}/${currentTeamId}`}>{rowData.jobId}</Link>
@@ -1539,7 +1539,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'jobName'
                     },
@@ -1559,7 +1559,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'right',
                         flexDirection: 'row',
-                        padding: '2',
+                        padding: '2'
                       },
                       field: 'jobParams.resourcegpu',
                       render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
@@ -1573,7 +1573,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '2',
+                        padding: '2'
                       },
                       field: 'userName',
                       render: renderUserName
@@ -1583,7 +1583,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '2',
+                        padding: '2'
                       },
                       field: 'priority'
                     },
@@ -1592,7 +1592,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '2',
+                        padding: '2'
                       },
                       field: 'jobTime',
                       type: 'date',
@@ -1604,7 +1604,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '2',
+                        padding: '2'
                       },
                       field: 'jobParams.preemptionAllowed',
                       type: 'boolean'
@@ -1614,14 +1614,14 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '2',
+                        padding: '2'
                       },
                       field: 'jobStatusDetail[0].finishedAt',
                       type: 'date',
                       emptyValue: 'unknown',
                       customSort: (a, b) => sortByJobTime(a, b, 'finishedAt'),
                       render: (rowData: any) => renderDateTime(rowData, 'finishedAt')
-                    },
+                    }
                   ]}
                   data={filterPauseJobs(allJobs)}
                   options={{
@@ -1653,11 +1653,11 @@ const Jobs: React.FC = (props: any) => {
                     {
                       icon: 'Pause',
                       onClick: (event, rowData: any) => {
-                      },
+                      }
                     }
                   ]}
                   components={{
-                    Action: (props: any) => isAdmin ? renderActions(props) : null,
+                    Action: (props: any) => isAdmin ? renderActions(props) : null
 
                   }}
                 /> : null}
@@ -1689,7 +1689,7 @@ const Jobs: React.FC = (props: any) => {
                         textAlign: 'justify',
                         whiteSpace: 'nowrap',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       headerStyle: { padding: '0', textAlign: 'center' },
                       field: 'jobStatus',
@@ -1700,7 +1700,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'jobParams.resourcegpu',
                       render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
@@ -1714,7 +1714,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '0',
+                        padding: '0'
                       },
                       field: 'jobTime',
                       type: 'date',
@@ -1726,7 +1726,7 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
-                        padding: '3',
+                        padding: '3'
                       },
                       field: 'jobParams.preemptionAllowed',
                       type: 'boolean'
@@ -1750,14 +1750,14 @@ const Jobs: React.FC = (props: any) => {
                       cellStyle: {
                         textAlign: 'left',
                         flexDirection: 'row',
-                        padding: '2',
+                        padding: '2'
                       },
                       field: 'jobStatusDetail[0].finishedAt',
                       type: 'date',
                       emptyValue: 'unknown',
                       customSort: (a, b) => sortByJobTime(a, b, 'finishedAt'),
-                      render: (rowData: any) => renderDateTime(rowData, 'finishedAt'),
-                    },
+                      render: (rowData: any) => renderDateTime(rowData, 'finishedAt')
+                    }
                   ]}
                   data={filterFinishedJobs(allJobs)}
                   options={{
@@ -1772,7 +1772,7 @@ const Jobs: React.FC = (props: any) => {
                       whiteSpace: 'nowrap',
                       textAlign: 'center',
                       padding: '3'
-                    },
+                    }
                   }}
                 /> : null}
               </DLTSTabPanel> : <CircularProgress/>

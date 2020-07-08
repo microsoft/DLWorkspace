@@ -17,9 +17,9 @@ import useJob from './useJob'
 type Job = any
 
 interface Params {
-  clusterId: string;
-  jobId: string;
-  team: string;
+  clusterId: string
+  jobId: string
+  team: string
 }
 
 const ErrorDialog = withRouter(({ match, history }) => {

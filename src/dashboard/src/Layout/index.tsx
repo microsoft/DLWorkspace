@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {
   FunctionComponent,
-  useContext,
+  useContext
 } from 'react'
 
 import { Box, CircularProgress } from '@material-ui/core'

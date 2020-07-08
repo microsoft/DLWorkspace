@@ -11,7 +11,7 @@ import ClusterCardActions from './ClusterCardActions'
 import DirectoryContent from './DirectoryContent'
 
 interface Props {
-  clusterId: string;
+  clusterId: string
 }
 
 const ClusterCard: FunctionComponent<Props> = ({ clusterId }) => (

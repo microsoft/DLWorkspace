@@ -8,8 +8,8 @@ import {
 } from 'react'
 
 interface LayoutContext {
-  drawerOpen: boolean;
-  setDrawerOpen: Dispatch<SetStateAction<boolean>>;
+  drawerOpen: boolean
+  setDrawerOpen: Dispatch<SetStateAction<boolean>>
 }
 
 const LayoutContext = createContext<LayoutContext>({

@@ -4,7 +4,7 @@ import {
   useCallback,
   useContext,
   useMemo,
-  useRef,
+  useRef
 } from 'react'
 
 import {
@@ -12,10 +12,10 @@ import {
   IconButton,
   InputAdornment,
   TextField,
-  Tooltip,
+  Tooltip
 } from '@material-ui/core'
 import {
-  FileCopyRounded,
+  FileCopyRounded
 } from '@material-ui/icons'
 
 import copy from 'clipboard-copy'
@@ -25,8 +25,8 @@ import UserContext from '../../../contexts/User'
 import { useCluster } from './Context'
 
 interface CopyableTextFieldProps {
-  label: string;
-  value: string;
+  label: string
+  value: string
 }
 
 const CopyableTextField: FunctionComponent<CopyableTextFieldProps> = ({ label, value }) => {

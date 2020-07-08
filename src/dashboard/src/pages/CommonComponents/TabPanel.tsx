@@ -2,10 +2,10 @@ import * as React from 'react'
 import Typography from '@material-ui/core/Typography'
 import Box from '@material-ui/core/Box'
 interface TabPanelProps {
-  children?: React.ReactNode;
-  dir?: string;
-  index: any;
-  value: any;
+  children?: React.ReactNode
+  dir?: string
+  index: any
+  value: any
 }
 
 export const TabPanel = (props: TabPanelProps) => {

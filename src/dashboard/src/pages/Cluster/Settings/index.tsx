@@ -3,7 +3,7 @@ import {
   FunctionComponent,
   useContext,
   useEffect,
-  useMemo,
+  useMemo
 } from 'react'
 import { find, get } from 'lodash'
 
@@ -24,7 +24,7 @@ import InteractiveGpuItem from './InteractiveGpuItem'
 import SchedulingPolicyItem from './SchedulingPolicyItem'
 
 interface Props {
-  data: any;
+  data: any
 }
 
 const Settings: FunctionComponent<Props> = ({ data }) => {
