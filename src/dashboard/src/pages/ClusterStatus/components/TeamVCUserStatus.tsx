@@ -42,8 +42,8 @@ export const TeamVCUserStatus = (props: TeamUsr) => {
                 </div>
               )
             }}
-          /> :
-            <CircularProgress/>
+          />
+            : <CircularProgress/>
         }
       </>
     )
@@ -72,8 +72,8 @@ export const TeamVCUserStatus = (props: TeamUsr) => {
               </div>
             )
           }}
-        /> :
-          <CircularProgress/>
+        />
+          : <CircularProgress/>
       }
     </>
   )

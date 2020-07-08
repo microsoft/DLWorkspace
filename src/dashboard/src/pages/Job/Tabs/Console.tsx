@@ -90,12 +90,12 @@ const useLogText = () => {
     if (error == null) {
       const status = job['jobStatus']
       if (
-        status === 'finished'
-        || status === 'failed'
-        || status === 'killed'
-        || status === 'paused'
-        || status === 'queued'
-        || status === 'scheduling'
+        status === 'finished' ||
+        status === 'failed' ||
+        status === 'killed' ||
+        status === 'paused' ||
+        status === 'queued' ||
+        status === 'scheduling'
       ) return
     }
     const delay = error || cursor == null ? 3000 : 0

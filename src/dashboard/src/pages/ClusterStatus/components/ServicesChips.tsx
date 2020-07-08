@@ -5,7 +5,8 @@ import {
   Chip,
   Theme,
   createStyles,
-  makeStyles } from '@material-ui/core'
+  makeStyles
+} from '@material-ui/core'
 import AddIcon from '@material-ui/icons/Add'
 import RemoveIcon from '@material-ui/icons/Remove'
 interface ServicesProps {

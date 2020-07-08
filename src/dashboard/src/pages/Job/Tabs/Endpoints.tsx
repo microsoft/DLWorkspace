@@ -155,7 +155,6 @@ const EndpointSwitch: FunctionComponent<EndpointSwitchProps> = ({ label, endpoin
   )
 }
 
-
 const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoints }) => {
   const { clusterId, jobId } = useRouteParams()
   const { enqueueSnackbar } = useSnackbar()

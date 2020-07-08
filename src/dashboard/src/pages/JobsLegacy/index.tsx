@@ -225,7 +225,6 @@ const Jobs: React.FC = (props: any) => {
     // };
   }
 
-
   const handleConfirm = () => {
     if (openApprove) {
       approveJob().then((res) => {
@@ -376,8 +375,6 @@ const Jobs: React.FC = (props: any) => {
     }
   }
 
-
-
   const onClusterChange = (event: React.ChangeEvent<{ value: unknown }>) => {
     setCurrentCluster(event.target.value as string)
     let checkAdmin = false
@@ -389,14 +386,14 @@ const Jobs: React.FC = (props: any) => {
 
   const sortByJobTime = (a: any, b: any, time?: string) => {
     if (time === 'jobTime') {
-      return isNaN(Date.parse(a['jobTime'])) && isNaN(Date.parse(b['jobTime'])) ? a['jobTime'].trim().localeCompare(b['jobTime'].trim()) :
-        Date.parse(a['jobTime']) - Date.parse(b['jobTime'])
+      return isNaN(Date.parse(a['jobTime'])) && isNaN(Date.parse(b['jobTime'])) ? a['jobTime'].trim().localeCompare(b['jobTime'].trim())
+        : Date.parse(a['jobTime']) - Date.parse(b['jobTime'])
     } else if (time === 'startedAt') {
-      return isNaN(Date.parse(a['jobStatusDetail'][0]['startedAt'])) && isNaN(Date.parse(b['jobStatusDetail'][0]['startedAt'])) ? a['jobStatusDetail'][0]['startedAt'].trim().localeCompare(b['jobStatusDetail'][0]['startedAt'].trim()) :
-        Date.parse(a['jobStatusDetail'][0]['startedAt']) - Date.parse(b['jobStatusDetail'][0]['startedAt'])
+      return isNaN(Date.parse(a['jobStatusDetail'][0]['startedAt'])) && isNaN(Date.parse(b['jobStatusDetail'][0]['startedAt'])) ? a['jobStatusDetail'][0]['startedAt'].trim().localeCompare(b['jobStatusDetail'][0]['startedAt'].trim())
+        : Date.parse(a['jobStatusDetail'][0]['startedAt']) - Date.parse(b['jobStatusDetail'][0]['startedAt'])
     } else if (time === 'finishedAt') {
-      return isNaN(Date.parse(a['jobStatusDetail'][0]['finishedAt'])) && isNaN(Date.parse(b['jobStatusDetail'][0]['finishedAt'])) ? a['jobStatusDetail'][0]['finishedAt'].trim().localeCompare(b['jobStatusDetail'][0]['finishedAt'].trim()) :
-        Date.parse(a['jobStatusDetail'][0]['finishedAt']) - Date.parse(b['jobStatusDetail'][0]['finishedAt'])
+      return isNaN(Date.parse(a['jobStatusDetail'][0]['finishedAt'])) && isNaN(Date.parse(b['jobStatusDetail'][0]['finishedAt'])) ? a['jobStatusDetail'][0]['finishedAt'].trim().localeCompare(b['jobStatusDetail'][0]['finishedAt'].trim())
+        : Date.parse(a['jobStatusDetail'][0]['finishedAt']) - Date.parse(b['jobStatusDetail'][0]['finishedAt'])
     }
     // return isNaN(Date.parse(a)) && isNaN(Date.parse(b)) ? a.trim().localeCompare(b.trim()) : Date.parse(val1) - Date.parse(val2)
     // return Date.parse(a['jobTime']) - Date.parse(b['jobTime'])
@@ -412,7 +409,6 @@ const Jobs: React.FC = (props: any) => {
       }
     }
   })
-
 
   const renderJobStatus = (rowData: any) => {
     let message = 'unknown'
@@ -445,11 +441,11 @@ const Jobs: React.FC = (props: any) => {
     return (
       <React.Fragment>
         <MuiThemeProvider theme={theme}>
-          <Tooltip interactive = {true} title={rowData['jobStatus'] != 'scheduling' ? `${message}` :
-            <React.Fragment>
+          <Tooltip interactive = {true} title={rowData['jobStatus'] != 'scheduling' ? `${message}`
+            : <React.Fragment>
               {
-                typeof schedulingMessage === 'string' ? <span>{schedulingMessage}</span> :
-                  <ReactJson src={schedulingMessage} theme={'tomorrow'} displayObjectSize={false}/>
+                typeof schedulingMessage === 'string' ? <span>{schedulingMessage}</span>
+                  : <ReactJson src={schedulingMessage} theme={'tomorrow'} displayObjectSize={false}/>
               }
             </React.Fragment>
           } placement="top">
@@ -485,40 +481,70 @@ const Jobs: React.FC = (props: any) => {
           {filterRunningJobs(jobs).length > 0 ? <SvgIconsMaterialTable
             title="Running Jobs"
             columns={[
-              { title: 'JobId', field: 'jobId', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '3',
-              }, render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
-              { title: 'Job Name', field: 'jobName', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '5',
-              } },
-              { title: 'Status', field: 'jobStatus', cellStyle: {
-                textAlign: 'justify',
-                flexDirection: 'row',
-                whiteSpace: 'nowrap',
-                padding: '5',
-              }, render: (rowData: any) => renderJobStatus(rowData) },
-              { title: 'GPU', field: 'jobParams.resourcegpu', cellStyle: {
-                textAlign: 'center',
-                flexDirection: 'row',
-                padding: '0',
-              }, render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-              } },
-              { title: 'Priority', field: 'priority', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '0',
-              } },
-              { title: 'Submitted Time', field: 'jobTime', cellStyle: {
-                textAlign: 'center',
-                flexDirection: 'row',
-                padding: '0',
-              }, type: 'date', customSort: (a, b) => sortByJobTime(a, b, 'jobTime'),
-              render: (rowData: any) => renderDateTime(rowData, 'jobTime')
+              {
+                title: 'JobId',
+                field: 'jobId',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '3',
+                },
+                render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>
+              },
+              {
+                title: 'Job Name',
+                field: 'jobName',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '5',
+                }
+              },
+              {
+                title: 'Status',
+                field: 'jobStatus',
+                cellStyle: {
+                  textAlign: 'justify',
+                  flexDirection: 'row',
+                  whiteSpace: 'nowrap',
+                  padding: '5',
+                },
+                render: (rowData: any) => renderJobStatus(rowData)
+              },
+              {
+                title: 'GPU',
+                field: 'jobParams.resourcegpu',
+                cellStyle: {
+                  textAlign: 'center',
+                  flexDirection: 'row',
+                  padding: '0',
+                },
+                render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                type: 'numeric',
+                customSort: (a: any, b: any) => {
+                  return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                }
+              },
+              {
+                title: 'Priority',
+                field: 'priority',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '0',
+                }
+              },
+              {
+                title: 'Submitted Time',
+                field: 'jobTime',
+                cellStyle: {
+                  textAlign: 'center',
+                  flexDirection: 'row',
+                  padding: '0',
+                },
+                type: 'date',
+                customSort: (a, b) => sortByJobTime(a, b, 'jobTime'),
+                render: (rowData: any) => renderDateTime(rowData, 'jobTime')
               },
               {
                 title: 'Preemptible',
@@ -588,39 +614,71 @@ const Jobs: React.FC = (props: any) => {
           {filterQueuedJobs(jobs).length > 0 ? <SvgIconsMaterialTable
             title="Queued  Jobs"
             columns={[
-              { title: 'JobId', field: 'jobId', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '3',
-              }, render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
-              { title: 'Job Name', field: 'jobName', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '0',
-              } },
-              { title: 'Status', field: 'jobStatus', cellStyle: {
-                textAlign: 'justify',
-                flexDirection: 'row',
-                whiteSpace: 'nowrap',
-                padding: '0',
-              }, render: (rowData: any) => renderJobStatus(rowData) },
-              { title: 'GPU', field: 'jobParams.resourcegpu', cellStyle: {
-                textAlign: 'center',
-                flexDirection: 'row',
-                padding: '0',
-              }, render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-              } },
-              { title: 'Priority', field: 'priority', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '5',
-              } },
-              { title: 'Submitted Time', field: 'jobTime', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '0',
-              }, type: 'date', customSort: (a, b) => sortByJobTime(a, b, 'jobTime'), render: (rowData: any) => renderDateTime(rowData, 'jobTime') },
+              {
+                title: 'JobId',
+                field: 'jobId',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '3',
+                },
+                render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>
+              },
+              {
+                title: 'Job Name',
+                field: 'jobName',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '0',
+                }
+              },
+              {
+                title: 'Status',
+                field: 'jobStatus',
+                cellStyle: {
+                  textAlign: 'justify',
+                  flexDirection: 'row',
+                  whiteSpace: 'nowrap',
+                  padding: '0',
+                },
+                render: (rowData: any) => renderJobStatus(rowData)
+              },
+              {
+                title: 'GPU',
+                field: 'jobParams.resourcegpu',
+                cellStyle: {
+                  textAlign: 'center',
+                  flexDirection: 'row',
+                  padding: '0',
+                },
+                render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                type: 'numeric',
+                customSort: (a: any, b: any) => {
+                  return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                }
+              },
+              {
+                title: 'Priority',
+                field: 'priority',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '5',
+                }
+              },
+              {
+                title: 'Submitted Time',
+                field: 'jobTime',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '0',
+                },
+                type: 'date',
+                customSort: (a, b) => sortByJobTime(a, b, 'jobTime'),
+                render: (rowData: any) => renderDateTime(rowData, 'jobTime')
+              },
               {
                 title: 'Preemptible',
                 field: 'jobParams.preemptionAllowed',
@@ -674,39 +732,71 @@ const Jobs: React.FC = (props: any) => {
           {filterUnApprovedJobs(jobs).length > 0 ? <SvgIconsMaterialTable
             title="Unapproved  Jobs"
             columns={[
-              { title: 'JobId', field: 'jobId', cellStyle: {
-                textAlign: 'center',
-                flexDirection: 'row',
-                padding: '0',
-              }, render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
-              { title: 'Job Name', field: 'jobName', cellStyle: {
-                textAlign: 'center',
-                flexDirection: 'row',
-                padding: '0',
-              }, },
-              { title: 'Status', field: 'jobStatus', cellStyle: {
-                textAlign: 'justify',
-                flexDirection: 'row',
-                padding: '0',
-                whiteSpace: 'nowrap',
-              }, render: (rowData: any) => renderJobStatus(rowData) },
-              { title: 'GPU', field: 'jobParams.resourcegpu', cellStyle: {
-                textAlign: 'center',
-                flexDirection: 'row',
-                padding: '0',
-              }, render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-              } },
-              { title: 'Priority', field: 'priority', cellStyle: {
-                textAlign: 'center',
-                flexDirection: 'row',
-                padding: '0',
-              } },
-              { title: 'Submitted Time', cellStyle: {
-                textAlign: 'center',
-                flexDirection: 'row',
-                padding: '0',
-              }, field: 'jobTime', customSort: (a, b) => sortByJobTime(a, b, 'jobTime'), type: 'date', render: (rowData: any) => renderDateTime(rowData, 'jobTime') },
+              {
+                title: 'JobId',
+                field: 'jobId',
+                cellStyle: {
+                  textAlign: 'center',
+                  flexDirection: 'row',
+                  padding: '0',
+                },
+                render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>
+              },
+              {
+                title: 'Job Name',
+                field: 'jobName',
+                cellStyle: {
+                  textAlign: 'center',
+                  flexDirection: 'row',
+                  padding: '0',
+                },
+              },
+              {
+                title: 'Status',
+                field: 'jobStatus',
+                cellStyle: {
+                  textAlign: 'justify',
+                  flexDirection: 'row',
+                  padding: '0',
+                  whiteSpace: 'nowrap',
+                },
+                render: (rowData: any) => renderJobStatus(rowData)
+              },
+              {
+                title: 'GPU',
+                field: 'jobParams.resourcegpu',
+                cellStyle: {
+                  textAlign: 'center',
+                  flexDirection: 'row',
+                  padding: '0',
+                },
+                render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                type: 'numeric',
+                customSort: (a: any, b: any) => {
+                  return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                }
+              },
+              {
+                title: 'Priority',
+                field: 'priority',
+                cellStyle: {
+                  textAlign: 'center',
+                  flexDirection: 'row',
+                  padding: '0',
+                }
+              },
+              {
+                title: 'Submitted Time',
+                cellStyle: {
+                  textAlign: 'center',
+                  flexDirection: 'row',
+                  padding: '0',
+                },
+                field: 'jobTime',
+                customSort: (a, b) => sortByJobTime(a, b, 'jobTime'),
+                type: 'date',
+                render: (rowData: any) => renderDateTime(rowData, 'jobTime')
+              },
               {
                 title: 'Preemptible',
                 field: 'jobParams.preemptionAllowed',
@@ -763,50 +853,94 @@ const Jobs: React.FC = (props: any) => {
           {filterPauseJobs(jobs).length > 0 ? <SvgIconsMaterialTable
             title="Paused Jobs"
             columns={[
-              { title: 'JobId', field: 'jobId', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '3',
-              }, render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
-              { title: 'Job Name', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '5',
-              }, field: 'jobName' },
-              { title: 'Status', field: 'jobStatus', cellStyle: {
-                textAlign: 'justify',
-                flexDirection: 'row',
-                padding: '5',
-                whiteSpace: 'nowrap'
-              }, render: (rowData: any) => renderJobStatus(rowData) },
-              { title: 'GPU', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '0',
-              }, field: 'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-              } },
-              { title: 'Priority', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '0',
-              }, field: 'priority' },
-              { title: 'Submitted Time', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '3',
-              }, field: 'jobTime', type: 'date', customSort: (a, b) => sortByJobTime(a, b, 'jobTime'), render: (rowData: any) => renderDateTime(rowData, 'jobTime') },
-              { title: 'Preemptible', cellStyle: {
-                textAlign: 'center',
-                flexDirection: 'row',
-                padding: '0',
-              }, field: 'jobParams.preemptionAllowed', type: 'boolean' },
-              { title: 'Finished Time', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '2',
-              }, field: 'jobStatusDetail[0].finishedAt', type: 'date', emptyValue: 'unknown', customSort: (a, b) => sortByJobTime(a, b, 'finishedAt'),
-              render: (rowData: any) => renderDateTime(rowData, 'finishedAt') }
+              {
+                title: 'JobId',
+                field: 'jobId',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '3',
+                },
+                render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>
+              },
+              {
+                title: 'Job Name',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '5',
+                },
+                field: 'jobName'
+              },
+              {
+                title: 'Status',
+                field: 'jobStatus',
+                cellStyle: {
+                  textAlign: 'justify',
+                  flexDirection: 'row',
+                  padding: '5',
+                  whiteSpace: 'nowrap'
+                },
+                render: (rowData: any) => renderJobStatus(rowData)
+              },
+              {
+                title: 'GPU',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '0',
+                },
+                field: 'jobParams.resourcegpu',
+                render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                type: 'numeric',
+                customSort: (a: any, b: any) => {
+                  return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                }
+              },
+              {
+                title: 'Priority',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '0',
+                },
+                field: 'priority'
+              },
+              {
+                title: 'Submitted Time',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '3',
+                },
+                field: 'jobTime',
+                type: 'date',
+                customSort: (a, b) => sortByJobTime(a, b, 'jobTime'),
+                render: (rowData: any) => renderDateTime(rowData, 'jobTime')
+              },
+              {
+                title: 'Preemptible',
+                cellStyle: {
+                  textAlign: 'center',
+                  flexDirection: 'row',
+                  padding: '0',
+                },
+                field: 'jobParams.preemptionAllowed',
+                type: 'boolean'
+              },
+              {
+                title: 'Finished Time',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '2',
+                },
+                field: 'jobStatusDetail[0].finishedAt',
+                type: 'date',
+                emptyValue: 'unknown',
+                customSort: (a, b) => sortByJobTime(a, b, 'finishedAt'),
+                render: (rowData: any) => renderDateTime(rowData, 'finishedAt')
+              }
             ]}
             data={filterPauseJobs(jobs)}
             options={{
@@ -850,39 +984,73 @@ const Jobs: React.FC = (props: any) => {
           {filterFinishedJobs(jobs).length > 0 ? <SvgIconsMaterialTable
             title="Finished Jobs"
             columns={[
-              { title: 'JobId', field: 'jobId', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '3'
-              }, render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
-              { title: 'Job Name', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '5'
-              }, field: 'jobName' },
-              { title: 'Status', cellStyle: {
-                textAlign: 'justify',
-                whiteSpace: 'nowrap',
-                flexDirection: 'row',
-                padding: '0',
-              }, headerStyle: { padding: '0', textAlign: 'center' }, field: 'jobStatus', render: (rowData: any) => renderJobStatus(rowData) },
-              { title: 'GPU', cellStyle: {
-                textAlign: 'center',
-                flexDirection: 'row',
-                padding: '0',
-              }, field: 'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-              } },
-              { title: 'Submitted Time', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '0',
-              }, field: 'jobTime', type: 'date', customSort: (a, b) => sortByJobTime(a, b, 'jobTime'), render: (rowData: any) => renderDateTime(rowData, 'jobTime') },
-              { title: 'Preemptible', cellStyle: {
-                textAlign: 'center',
-                flexDirection: 'row',
-                padding: '3',
-              }, field: 'jobParams.preemptionAllowed', type: 'boolean' },
+              {
+                title: 'JobId',
+                field: 'jobId',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '3'
+                },
+                render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>
+              },
+              {
+                title: 'Job Name',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '5'
+                },
+                field: 'jobName'
+              },
+              {
+                title: 'Status',
+                cellStyle: {
+                  textAlign: 'justify',
+                  whiteSpace: 'nowrap',
+                  flexDirection: 'row',
+                  padding: '0',
+                },
+                headerStyle: { padding: '0', textAlign: 'center' },
+                field: 'jobStatus',
+                render: (rowData: any) => renderJobStatus(rowData)
+              },
+              {
+                title: 'GPU',
+                cellStyle: {
+                  textAlign: 'center',
+                  flexDirection: 'row',
+                  padding: '0',
+                },
+                field: 'jobParams.resourcegpu',
+                render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                type: 'numeric',
+                customSort: (a: any, b: any) => {
+                  return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                }
+              },
+              {
+                title: 'Submitted Time',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '0',
+                },
+                field: 'jobTime',
+                type: 'date',
+                customSort: (a, b) => sortByJobTime(a, b, 'jobTime'),
+                render: (rowData: any) => renderDateTime(rowData, 'jobTime')
+              },
+              {
+                title: 'Preemptible',
+                cellStyle: {
+                  textAlign: 'center',
+                  flexDirection: 'row',
+                  padding: '3',
+                },
+                field: 'jobParams.preemptionAllowed',
+                type: 'boolean'
+              },
               {
                 title: 'Started Time',
                 field: 'jobStatusDetail[0].startedAt',
@@ -897,13 +1065,18 @@ const Jobs: React.FC = (props: any) => {
                 customSort: (a, b) => sortByJobTime(a, b, 'startedAt'),
                 render: (rowData: any) => renderDateTime(rowData, 'startedAt')
               },
-              { title: 'Finished Time', cellStyle: {
-                textAlign: 'left',
-                flexDirection: 'row',
-                padding: '2',
-              }, field: 'jobStatusDetail[0].finishedAt', type: 'date', emptyValue: 'unknown',
-              customSort: (a, b) => sortByJobTime(a, b, 'finishedAt'),
-              render: (rowData: any) => renderDateTime(rowData, 'finishedAt'),
+              {
+                title: 'Finished Time',
+                cellStyle: {
+                  textAlign: 'left',
+                  flexDirection: 'row',
+                  padding: '2',
+                },
+                field: 'jobStatusDetail[0].finishedAt',
+                type: 'date',
+                emptyValue: 'unknown',
+                customSort: (a, b) => sortByJobTime(a, b, 'finishedAt'),
+                render: (rowData: any) => renderDateTime(rowData, 'finishedAt'),
               },
             ]}
             data={filterFinishedJobs(jobs)}
@@ -930,52 +1103,87 @@ const Jobs: React.FC = (props: any) => {
                 {filterRunningJobs(allJobs).length > 0 ? <SvgIconsMaterialTable
                   title="Running Jobs"
                   columns={[
-                    { title: 'JobId', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '3',
-                    }, field: 'jobId', render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
-                    { title: 'Job Name', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'jobName' },
-                    { title: 'Status', cellStyle: {
-                      textAlign: 'justify',
-                      whiteSpace: 'nowrap',
-                      flexDirection: 'row',
-                      padding: '2',
-                    }, field: 'jobStatus', render: (rowData: any) => renderJobStatus(rowData) },
-                    { title: 'GPU', field: 'jobParams.resourcegpu', cellStyle: {
-                      textAlign: 'center',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>, type: 'numeric',
-                    customSort: (a: any, b: any) => {
-                      return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-                    }
+                    {
+                      title: 'JobId',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '3',
+                      },
+                      field: 'jobId',
+                      render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>
                     },
-                    { title: 'Username', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'userName', render: renderUserName },
-                    { title: 'Priority(1-1000)', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'priority', render: renderPrioritySet },
-                    { title: 'Submitted Time', cellStyle: {
-                      textAlign: 'center',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'jobTime', type: 'date',
-                    customSort: (a, b) => sortByJobTime(a, b, 'jobTime')
-                    , render: (rowData: any) => renderDateTime(rowData, 'jobTime') },
+                    {
+                      title: 'Job Name',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'jobName'
+                    },
+                    {
+                      title: 'Status',
+                      cellStyle: {
+                        textAlign: 'justify',
+                        whiteSpace: 'nowrap',
+                        flexDirection: 'row',
+                        padding: '2',
+                      },
+                      field: 'jobStatus',
+                      render: (rowData: any) => renderJobStatus(rowData)
+                    },
+                    {
+                      title: 'GPU',
+                      field: 'jobParams.resourcegpu',
+                      cellStyle: {
+                        textAlign: 'center',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                      type: 'numeric',
+                      customSort: (a: any, b: any) => {
+                        return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                      }
+                    },
+                    {
+                      title: 'Username',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'userName',
+                      render: renderUserName
+                    },
+                    {
+                      title: 'Priority(1-1000)',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'priority',
+                      render: renderPrioritySet
+                    },
+                    {
+                      title: 'Submitted Time',
+                      cellStyle: {
+                        textAlign: 'center',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'jobTime',
+                      type: 'date',
+                      customSort: (a, b) => sortByJobTime(a, b, 'jobTime')
+                      , render: (rowData: any) => renderDateTime(rowData, 'jobTime')
+                    },
                     {
                       title: 'Preemptible',
                       field: 'jobParams.preemptionAllowed',
-                      type: 'boolean', cellStyle: {
+                      type: 'boolean',
+                      cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
                         padding: '0',
@@ -985,7 +1193,8 @@ const Jobs: React.FC = (props: any) => {
                     {
                       title: 'Started Time',
                       field: 'jobStatusDetail[0].startedAt',
-                      type: 'date', cellStyle: {
+                      type: 'date',
+                      cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
                         padding: '0',
@@ -1035,47 +1244,82 @@ const Jobs: React.FC = (props: any) => {
                 {filterQueuedJobs(allJobs).length > 0 ? <SvgIconsMaterialTable
                   title="Queued  Jobs"
                   columns={[
-                    { title: 'JobId', field: 'jobId', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '3',
-                    }, render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
-                    { title: 'Job Name', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'jobName' },
-                    { title: 'Status', cellStyle: {
-                      textAlign: 'justify',
-                      whiteSpace: 'nowrap',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'jobStatus', render: (rowData: any) => renderJobStatus(rowData) },
-                    { title: 'GPU', cellStyle: {
-                      textAlign: 'center',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>, type: 'numeric',
-                    customSort: (a: any, b: any) => {
-                      return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-                    }
+                    {
+                      title: 'JobId',
+                      field: 'jobId',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '3',
+                      },
+                      render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>
                     },
-                    { title: 'Username', cellStyle: {
-                      textAlign: 'center',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'userName', render: renderUserName },
-                    { title: 'Priority(1-1000)', cellStyle: {
-                      textAlign: 'center',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'priority', render: renderPrioritySet },
-                    { title: 'Submitted Time', cellStyle: {
-                      textAlign: 'center',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'jobTime', type: 'date', customSort: (a, b) => sortByJobTime(a, b, 'jobTime')
-                    , render: (rowData: any) => renderDateTime(rowData, 'jobTime') },
+                    {
+                      title: 'Job Name',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'jobName'
+                    },
+                    {
+                      title: 'Status',
+                      cellStyle: {
+                        textAlign: 'justify',
+                        whiteSpace: 'nowrap',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'jobStatus',
+                      render: (rowData: any) => renderJobStatus(rowData)
+                    },
+                    {
+                      title: 'GPU',
+                      cellStyle: {
+                        textAlign: 'center',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'jobParams.resourcegpu',
+                      render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                      type: 'numeric',
+                      customSort: (a: any, b: any) => {
+                        return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                      }
+                    },
+                    {
+                      title: 'Username',
+                      cellStyle: {
+                        textAlign: 'center',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'userName',
+                      render: renderUserName
+                    },
+                    {
+                      title: 'Priority(1-1000)',
+                      cellStyle: {
+                        textAlign: 'center',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'priority',
+                      render: renderPrioritySet
+                    },
+                    {
+                      title: 'Submitted Time',
+                      cellStyle: {
+                        textAlign: 'center',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'jobTime',
+                      type: 'date',
+                      customSort: (a, b) => sortByJobTime(a, b, 'jobTime')
+                      , render: (rowData: any) => renderDateTime(rowData, 'jobTime')
+                    },
                     {
                       title: 'Preemptible'
                       , cellStyle: {
@@ -1140,46 +1384,85 @@ const Jobs: React.FC = (props: any) => {
                 {filterUnApprovedJobs(allJobs).length > 0 ? <SvgIconsMaterialTable
                   title="Unapproved  Jobs"
                   columns={[
-                    { title: 'JobId', field: 'jobId', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '3',
-                    }, render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}/${currentTeamId}`}>{rowData.jobId}</Link> },
-                    { title: 'Job Name', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'jobName' },
-                    { title: 'Status', cellStyle: {
-                      textAlign: 'justify',
-                      whiteSpace: 'nowrap',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'jobStatus', render: (rowData: any) => renderJobStatus(rowData) },
-                    { title: 'GPU', cellStyle: {
-                      textAlign: 'center',
-                      flexDirection: 'row',
-                      padding: '2',
-                    }, field: 'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                      return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-                    } },
-                    { title: 'Username', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'userName', render: renderUserName },
-                    { title: 'Priority(1-1000)', cellStyle: {
-                      textAlign: 'center',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'priority', render: renderPrioritySet },
-                    { title: 'Submitted Time', cellStyle: {
-                      textAlign: 'center',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'jobTime', type: 'date', customSort: (a, b) => sortByJobTime(a, b, 'jobTime'), render: (rowData: any) => renderDateTime(rowData, 'jobTime') },
                     {
-                      title: 'Preemptible', cellStyle: {
+                      title: 'JobId',
+                      field: 'jobId',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '3',
+                      },
+                      render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}/${currentTeamId}`}>{rowData.jobId}</Link>
+                    },
+                    {
+                      title: 'Job Name',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'jobName'
+                    },
+                    {
+                      title: 'Status',
+                      cellStyle: {
+                        textAlign: 'justify',
+                        whiteSpace: 'nowrap',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'jobStatus',
+                      render: (rowData: any) => renderJobStatus(rowData)
+                    },
+                    {
+                      title: 'GPU',
+                      cellStyle: {
+                        textAlign: 'center',
+                        flexDirection: 'row',
+                        padding: '2',
+                      },
+                      field: 'jobParams.resourcegpu',
+                      render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                      type: 'numeric',
+                      customSort: (a: any, b: any) => {
+                        return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                      }
+                    },
+                    {
+                      title: 'Username',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'userName',
+                      render: renderUserName
+                    },
+                    {
+                      title: 'Priority(1-1000)',
+                      cellStyle: {
+                        textAlign: 'center',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'priority',
+                      render: renderPrioritySet
+                    },
+                    {
+                      title: 'Submitted Time',
+                      cellStyle: {
+                        textAlign: 'center',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'jobTime',
+                      type: 'date',
+                      customSort: (a, b) => sortByJobTime(a, b, 'jobTime'),
+                      render: (rowData: any) => renderDateTime(rowData, 'jobTime')
+                    },
+                    {
+                      title: 'Preemptible',
+                      cellStyle: {
                         textAlign: 'center',
                         flexDirection: 'row',
                         padding: '0',
@@ -1241,56 +1524,104 @@ const Jobs: React.FC = (props: any) => {
                 {filterPauseJobs(allJobs).length > 0 ? <SvgIconsMaterialTable
                   title="Paused Jobs"
                   columns={[
-                    { title: 'JobId', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '3',
-                    }, field: 'jobId', render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}/${currentTeamId}`}>{rowData.jobId}</Link> },
-                    { title: 'Job Name', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'jobName' },
-                    { title: 'Status', cellStyle: {
-                      textAlign: 'justify',
-                      whiteSpace: 'nowrap',
-                      flexDirection: 'row',
-                      padding: '2'
-                    }, field: 'jobStatus', render: (rowData: any) => renderJobStatus(rowData) },
-                    { title: 'GPU', cellStyle: {
-                      textAlign: 'right',
-                      flexDirection: 'row',
-                      padding: '2',
-                    }, field: 'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                      return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-                    } },
-                    { title: 'Username', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '2',
-                    }, field: 'userName', render: renderUserName },
-                    { title: 'Priority(1-1000)', cellStyle: {
-                      textAlign: 'center',
-                      flexDirection: 'row',
-                      padding: '2',
-                    }, field: 'priority' },
-                    { title: 'Submitted Time', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '2',
-                    }, field: 'jobTime', type: 'date', customSort: (a, b) => sortByJobTime(a, b, 'jobTime'), render: (rowData: any) => renderDateTime(rowData, 'jobTime') },
-                    { title: 'Preemptible', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '2',
-                    }, field: 'jobParams.preemptionAllowed', type: 'boolean' },
-                    { title: 'Finished Time', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '2',
-                    }, field: 'jobStatusDetail[0].finishedAt', type: 'date', emptyValue: 'unknown',
-                    customSort: (a, b) => sortByJobTime(a, b, 'finishedAt'),
-                    render: (rowData: any) => renderDateTime(rowData, 'finishedAt') },
+                    {
+                      title: 'JobId',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '3',
+                      },
+                      field: 'jobId',
+                      render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}/${currentTeamId}`}>{rowData.jobId}</Link>
+                    },
+                    {
+                      title: 'Job Name',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'jobName'
+                    },
+                    {
+                      title: 'Status',
+                      cellStyle: {
+                        textAlign: 'justify',
+                        whiteSpace: 'nowrap',
+                        flexDirection: 'row',
+                        padding: '2'
+                      },
+                      field: 'jobStatus',
+                      render: (rowData: any) => renderJobStatus(rowData)
+                    },
+                    {
+                      title: 'GPU',
+                      cellStyle: {
+                        textAlign: 'right',
+                        flexDirection: 'row',
+                        padding: '2',
+                      },
+                      field: 'jobParams.resourcegpu',
+                      render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                      type: 'numeric',
+                      customSort: (a: any, b: any) => {
+                        return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                      }
+                    },
+                    {
+                      title: 'Username',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '2',
+                      },
+                      field: 'userName',
+                      render: renderUserName
+                    },
+                    {
+                      title: 'Priority(1-1000)',
+                      cellStyle: {
+                        textAlign: 'center',
+                        flexDirection: 'row',
+                        padding: '2',
+                      },
+                      field: 'priority'
+                    },
+                    {
+                      title: 'Submitted Time',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '2',
+                      },
+                      field: 'jobTime',
+                      type: 'date',
+                      customSort: (a, b) => sortByJobTime(a, b, 'jobTime'),
+                      render: (rowData: any) => renderDateTime(rowData, 'jobTime')
+                    },
+                    {
+                      title: 'Preemptible',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '2',
+                      },
+                      field: 'jobParams.preemptionAllowed',
+                      type: 'boolean'
+                    },
+                    {
+                      title: 'Finished Time',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '2',
+                      },
+                      field: 'jobStatusDetail[0].finishedAt',
+                      type: 'date',
+                      emptyValue: 'unknown',
+                      customSort: (a, b) => sortByJobTime(a, b, 'finishedAt'),
+                      render: (rowData: any) => renderDateTime(rowData, 'finishedAt')
+                    },
                   ]}
                   data={filterPauseJobs(allJobs)}
                   options={{
@@ -1333,39 +1664,73 @@ const Jobs: React.FC = (props: any) => {
                 {filterFinishedJobs(allJobs).length > 0 ? <SvgIconsMaterialTable
                   title="Finished Jobs"
                   columns={[
-                    { title: 'JobId', field: 'jobId', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '3'
-                    }, render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
-                    { title: 'Job Name', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '5'
-                    }, field: 'jobName' },
-                    { title: 'Status', cellStyle: {
-                      textAlign: 'justify',
-                      whiteSpace: 'nowrap',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, headerStyle: { padding: '0', textAlign: 'center' }, field: 'jobStatus', render: (rowData: any) => renderJobStatus(rowData) },
-                    { title: 'GPU', cellStyle: {
-                      textAlign: 'center',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                      return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-                    } },
-                    { title: 'Submitted Time', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '0',
-                    }, field: 'jobTime', type: 'date', customSort: (a, b) => sortByJobTime(a, b, 'jobTime'), render: (rowData: any) => renderDateTime(rowData, 'jobTime') },
-                    { title: 'Preemptible', cellStyle: {
-                      textAlign: 'center',
-                      flexDirection: 'row',
-                      padding: '3',
-                    }, field: 'jobParams.preemptionAllowed', type: 'boolean' },
+                    {
+                      title: 'JobId',
+                      field: 'jobId',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '3'
+                      },
+                      render: rowData => <Link className={classes.linkStyle} to={`/job-legacy/${currentTeamId}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>
+                    },
+                    {
+                      title: 'Job Name',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '5'
+                      },
+                      field: 'jobName'
+                    },
+                    {
+                      title: 'Status',
+                      cellStyle: {
+                        textAlign: 'justify',
+                        whiteSpace: 'nowrap',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      headerStyle: { padding: '0', textAlign: 'center' },
+                      field: 'jobStatus',
+                      render: (rowData: any) => renderJobStatus(rowData)
+                    },
+                    {
+                      title: 'GPU',
+                      cellStyle: {
+                        textAlign: 'center',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'jobParams.resourcegpu',
+                      render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                      type: 'numeric',
+                      customSort: (a: any, b: any) => {
+                        return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                      }
+                    },
+                    {
+                      title: 'Submitted Time',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '0',
+                      },
+                      field: 'jobTime',
+                      type: 'date',
+                      customSort: (a, b) => sortByJobTime(a, b, 'jobTime'),
+                      render: (rowData: any) => renderDateTime(rowData, 'jobTime')
+                    },
+                    {
+                      title: 'Preemptible',
+                      cellStyle: {
+                        textAlign: 'center',
+                        flexDirection: 'row',
+                        padding: '3',
+                      },
+                      field: 'jobParams.preemptionAllowed',
+                      type: 'boolean'
+                    },
                     {
                       title: 'Started Time',
                       field: 'jobStatusDetail[0].startedAt',
@@ -1380,13 +1745,18 @@ const Jobs: React.FC = (props: any) => {
                       customSort: (a, b) => sortByJobTime(a, b, 'startedAt'),
                       render: (rowData: any) => renderDateTime(rowData, 'startedAt')
                     },
-                    { title: 'Finished Time', cellStyle: {
-                      textAlign: 'left',
-                      flexDirection: 'row',
-                      padding: '2',
-                    }, field: 'jobStatusDetail[0].finishedAt', type: 'date', emptyValue: 'unknown',
-                    customSort: (a, b) => sortByJobTime(a, b, 'finishedAt'),
-                    render: (rowData: any) => renderDateTime(rowData, 'finishedAt'),
+                    {
+                      title: 'Finished Time',
+                      cellStyle: {
+                        textAlign: 'left',
+                        flexDirection: 'row',
+                        padding: '2',
+                      },
+                      field: 'jobStatusDetail[0].finishedAt',
+                      type: 'date',
+                      emptyValue: 'unknown',
+                      customSort: (a, b) => sortByJobTime(a, b, 'finishedAt'),
+                      render: (rowData: any) => renderDateTime(rowData, 'finishedAt'),
                     },
                   ]}
                   data={filterFinishedJobs(allJobs)}

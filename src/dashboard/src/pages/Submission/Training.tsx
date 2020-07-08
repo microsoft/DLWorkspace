@@ -126,8 +126,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     [setPreemptible]
   )
 
-
-
   const [workers, setWorkers] = React.useState(0)
   const onWorkersChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -342,7 +340,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const onTemplateClick = () => {
     setDatabase(!database)
   }
-
 
   const [saveTemplateName, setSaveTemplateName] = React.useState('')
   const onSaveTemplateNameChange = React.useCallback(
@@ -571,8 +568,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     post: postEndpoints,
   } = useFetch('/api')
 
-
-
   const [enableSubmit, setEnableSubmit] = React.useState(submittable)
 
   const onGpusChange = React.useCallback(
@@ -710,7 +705,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       setTimeout(() => {
         history.push(`/job/${currentTeamId}/${selectedCluster}/${jobId.current}`)
       }, 2000)
-
     }
   }, [history, postEndpointsData, selectedCluster, currentTeamId])
 
@@ -725,7 +719,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       alert('Enable endpoints failed')
     }
   }, [postEndpointsError])
-
 
   const handleClickOpen = () => {
     setShowGPUFragmentation(true)

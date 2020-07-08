@@ -35,8 +35,3 @@ export const toLocalTime = (data: any) => {
   }
   return DateTime.fromJSDate(new Date(Date.parse(data))).toFormat('yyyy/LL/dd HH:mm:ss')
 }
-
-
-
-
-

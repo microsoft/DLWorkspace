@@ -23,7 +23,6 @@ const useJob = (clusterId: string, jobId: string): UseJob => {
     return () => {
       cancel()
     }
-
   }, [data])
 
   if (job !== undefined) {

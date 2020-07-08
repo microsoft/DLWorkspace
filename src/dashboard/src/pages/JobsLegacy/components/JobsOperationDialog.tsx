@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { DLTSDialog } from '../../CommonComponents/DLTSDialog'
 
-
 interface DialogProps {
   children?: React.ReactNode;
   handleClose: any;

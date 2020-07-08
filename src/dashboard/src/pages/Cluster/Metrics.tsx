@@ -10,7 +10,6 @@ import {
   CardHeader
 } from '@material-ui/core'
 
-
 import TeamContext from '../../contexts/Team'
 
 interface Props {

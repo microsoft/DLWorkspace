@@ -34,8 +34,8 @@ const useStyles = makeStyles(() => createStyles({
 const UserButton: FunctionComponent = () => {
   const { email, password, givenName, familyName } = useContext(UserContext)
   const { currentTeamId } = useContext(TeamContext)
-  const api = window.location.origin + `/api/teams/${currentTeamId}/jobs`
-    + `?email=${encodeURIComponent(email || '')}&password=${encodeURIComponent(password || '')}`
+  const api = window.location.origin + `/api/teams/${currentTeamId}/jobs` +
+    `?email=${encodeURIComponent(email || '')}&password=${encodeURIComponent(password || '')}`
   const [open, setOpen] = useState(false)
   const handleClick = useCallback(() => {
     setOpen(true)

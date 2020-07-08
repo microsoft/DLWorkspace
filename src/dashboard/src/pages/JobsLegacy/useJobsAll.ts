@@ -38,7 +38,6 @@ const useJobsAll = (openKillWarn?: boolean, openApproveWan?: boolean): useJobsAl
     }
   }, [currentTeamId])
 
-
   if (jobsAll !== undefined) {
     return [jobsAll, undefined]
   }

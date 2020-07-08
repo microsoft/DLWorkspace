@@ -189,7 +189,6 @@ const ClusterStatus: FC = () => {
           finalUserStatus.push(totalRow)
 
           setUserStatus(finalUserStatus)
-
         })
 
         setIframeUrl(userfetchs['GranaUrl'])
@@ -264,7 +263,6 @@ const ClusterStatus: FC = () => {
       </Box>
     )
   }
-
 }
 
 export default ClusterStatus

@@ -93,7 +93,6 @@ const DataJob: React.FC = (props: any) => {
     } else {
       setSubmittable(true)
     }
-
   }
 
   const convertURI = (type: string, folder: string) => {

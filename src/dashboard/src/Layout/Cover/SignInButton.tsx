@@ -14,9 +14,9 @@ const SignInButton: FunctionComponent = () => {
   const [busy, setBusy] = useState(false)
 
   const getHref = useCallback(() => {
-    const to = window.location.pathname
-      + window.location.search
-      + window.location.hash
+    const to = window.location.pathname +
+      window.location.search +
+      window.location.hash
 
     if (to === '/') {
       return '/api/authenticate'

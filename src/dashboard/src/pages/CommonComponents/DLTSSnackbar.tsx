@@ -9,7 +9,6 @@ import {
 } from '@material-ui/core'
 import { green } from '@material-ui/core/colors'
 
-
 interface SnackbarProps {
   message: string;
   open: boolean | false;

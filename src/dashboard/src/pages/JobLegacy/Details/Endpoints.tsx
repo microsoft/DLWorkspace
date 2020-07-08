@@ -158,10 +158,12 @@ const Controller: React.FC<ControllerProps> = ({ endpoints, post, status }) => {
     setInteractivePort(event.target.valueAsNumber)
   }, [])
   const submitInteractivePort = useCallback(() => {
-    post({ endpoints: [{
-      name: `port-${interactivePort}`,
-      podPort: interactivePort
-    }] })
+    post({
+      endpoints: [{
+        name: `port-${interactivePort}`,
+        podPort: interactivePort
+      }]
+    })
   }, [post, interactivePort])
 
   useEffect(() => {

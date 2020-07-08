@@ -42,8 +42,8 @@ const renderData = (data: any) => {
   return (
     <span>
       {
-        !data ? 0 :
-          checkObjIsEmpty(Object.values(data)) ? 0 : (Number)(sumValues(data))
+        !data ? 0
+          : checkObjIsEmpty(Object.values(data)) ? 0 : (Number)(sumValues(data))
       }
     </span>
   )
@@ -58,11 +58,16 @@ export const TeamVirtualClusterStatus = (props: TeamVC) => {
         vcStatus.length > 0 ? <SvgIconsMaterialTable
           title=""
           columns={[
-            { title: 'Name', field: 'ClusterName', render: (rowData: any) => <div><Radio
-              checked={selectedValue === rowData['ClusterName']}
-              onChange={handleChange}
-              value={rowData['ClusterName']}
-              name={rowData['ClusterName']}/>{rowData['ClusterName']}</div>, customSort: (a, b) => a['ClusterName'].localeCompare(b['ClusterName']) },
+            {
+              title: 'Name',
+              field: 'ClusterName',
+              render: (rowData: any) => <div><Radio
+                checked={selectedValue === rowData['ClusterName']}
+                onChange={handleChange}
+                value={rowData['ClusterName']}
+                name={rowData['ClusterName']}/>{rowData['ClusterName']}</div>,
+              customSort: (a, b) => a['ClusterName'].localeCompare(b['ClusterName'])
+            },
             { title: 'Total GPU', field: '', render: (rowData: any) => renderData(rowData['gpu_capacity']), customSort: (a, b) => sumValues(a['gpu_capacity']) - sumValues(b['gpu_capacity']) },
             { title: 'Unschedulable GPU', field: '', render: (rowData: any) => renderData(rowData['gpu_unschedulable']), customSort: (a, b) => sumValues(a['gpu_unschedulable']) - sumValues(b['gpu_unschedulable']) },
             { title: 'Used GPU', field: '', render: (rowData: any) => renderData(rowData['gpu_used']), customSort: (a, b) => sumValues(a['gpu_used']) - sumValues(b['gpu_used']) },
@@ -72,8 +77,8 @@ export const TeamVirtualClusterStatus = (props: TeamVC) => {
           ]}
           data={vcStatus}
           options={{ filtering: false, paging: true, pageSize: vcStatus.length < 10 ? vcStatus.length : 10, pageSizeOptions: [10], sorting: true }}
-        /> :
-          <CircularProgress/>
+        />
+          : <CircularProgress/>
       }
     </MuiThemeProvider>
 
