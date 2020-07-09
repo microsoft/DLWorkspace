@@ -1,4 +1,4 @@
-import { createElement, useCallback, useContext } from 'react'
+import { createElement, useCallback, useContext, useMemo } from 'react'
 import { useSnackbar } from 'notistack'
 import { Check, Clear, ContactSupport, Pause, PlayArrow } from '@material-ui/icons'
 import { Action } from 'material-table'
@@ -125,7 +125,7 @@ ${givenName} ${familyName}
     })
   }, [confirm, enqueueSnackbar, updateStatus])
 
-  const support = useCallback(Object.assign((job: any): Action<any> => {
+  const support = useMemo(() => Object.assign((job: any): Action<any> => {
     return {
       icon: () => createElement(ContactSupport),
       tooltip: 'Support',
@@ -133,7 +133,7 @@ ${givenName} ${familyName}
     }
   }, { position: 'row' }), [onSupport])
 
-  const approve = useCallback(Object.assign((job: any): Action<any> => {
+  const approve = useMemo(() => Object.assign((job: any): Action<any> => {
     const hidden = APPROVABLE_STATUSES.indexOf(job['jobStatus']) === -1
     return {
       hidden,
@@ -143,7 +143,7 @@ ${givenName} ${familyName}
     }
   }, { position: 'row' }), [onApprove])
 
-  const pause = useCallback(Object.assign((job: any): Action<any> => {
+  const pause = useMemo(() => Object.assign((job: any): Action<any> => {
     const hidden = PAUSABLE_STATUSES.indexOf(job['jobStatus']) === -1
     return {
       hidden,
@@ -153,7 +153,7 @@ ${givenName} ${familyName}
     }
   }, { position: 'row' }), [onPause])
 
-  const resume = useCallback(Object.assign((job: any): Action<any> => {
+  const resume = useMemo(() => Object.assign((job: any): Action<any> => {
     const hidden = RESUMABLE_STATUSES.indexOf(job['jobStatus']) === -1
     return {
       hidden,
@@ -163,7 +163,7 @@ ${givenName} ${familyName}
     }
   }, { position: 'row' }), [onResume])
 
-  const kill = useCallback(Object.assign((job: any): Action<any> => {
+  const kill = useMemo(() => Object.assign((job: any): Action<any> => {
     const hidden = KILLABLE_STATUSES.indexOf(job['jobStatus']) === -1
     return {
       hidden,

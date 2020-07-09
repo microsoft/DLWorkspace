@@ -1,4 +1,4 @@
-import { useCallback, createElement } from 'react'
+import { createElement, useCallback, useMemo } from 'react'
 import { useSnackbar } from 'notistack'
 import { Action } from 'material-table'
 
@@ -128,7 +128,7 @@ const useBatchActions = (clusterId: string) => {
     })
   }, [confirm, enqueueSnackbar, batchUpdateStatus])
 
-  const batchApprove = useCallback(Object.assign((jobs: any[]): Action<any> => {
+  const batchApprove = useMemo(() => Object.assign((jobs: any[]): Action<any> => {
     const hidden = !Array.isArray(jobs) || jobs.some(job => APPROVABLE_STATUSES.indexOf(job['jobStatus']) === -1)
     return {
       hidden,
@@ -138,7 +138,7 @@ const useBatchActions = (clusterId: string) => {
     }
   }, { position: 'toolbarOnSelect' }), [onBatchApprove])
 
-  const batchPause = useCallback(Object.assign((jobs: any[]): Action<any> => {
+  const batchPause = useMemo(() => Object.assign((jobs: any[]): Action<any> => {
     const hidden = !Array.isArray(jobs) || jobs.some(job => PAUSABLE_STATUSES.indexOf(job['jobStatus']) === -1)
     return {
       hidden,
@@ -148,7 +148,7 @@ const useBatchActions = (clusterId: string) => {
     }
   }, { position: 'toolbarOnSelect' }), [onBatchPause])
 
-  const batchResume = useCallback(Object.assign((jobs: any[]): Action<any> => {
+  const batchResume = useMemo(() => Object.assign((jobs: any[]): Action<any> => {
     const hidden = !Array.isArray(jobs) || jobs.some(job => RESUMABLE_STATUSES.indexOf(job['jobStatus']) === -1)
     return {
       hidden,
@@ -158,7 +158,7 @@ const useBatchActions = (clusterId: string) => {
     }
   }, { position: 'toolbarOnSelect' }), [onBatchResume])
 
-  const batchKill = useCallback(Object.assign((jobs: any[]): Action<any> => {
+  const batchKill = useMemo(() => Object.assign((jobs: any[]): Action<any> => {
     const hidden = !Array.isArray(jobs) || jobs.some(job => KILLABLE_STATUSES.indexOf(job['jobStatus']) === -1)
     return {
       hidden,
