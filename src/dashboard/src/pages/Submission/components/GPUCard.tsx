@@ -290,7 +290,7 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
       let storageRes: any = []
       const tmpStorage: any = []
       Promise.all(fetchStorage).then((responses) => {
-        responses.forEach(async (response: any) => {
+        const processPromise = async (response: any) => {
           const res = await response.json()
           if (res['data']) {
             for (const item of res['data']['result']) {
@@ -346,6 +346,9 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
             }
             return store['mountpointName'].indexOf(currentTeamId) !== -1 || store['mountpointName'].indexOf('dlws/nfs') !== -1
           }))
+        }
+        responses.forEach((response) => {
+          processPromise(response)
         })
       })
     })

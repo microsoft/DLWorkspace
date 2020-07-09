@@ -257,12 +257,12 @@ const Jobs: React.FC = (props: any) => {
       setOpenUpdatePriority(false)
       const body = { 'priority': currentJob.priority }
       const response = setPriority(`/clusters/${currentJob.cluster}/jobs/${currentJob.jobId}/priority`, body)
-      if (response) {
+      response.then(() => {
         setUpdatePriorityWarn(true)
         setMessage(SUCCESSFULLYUPDATEDPRIORITY)
-      } else {
+      }, () => {
         alert('Priority set failed')
-      }
+      })
     } else {
       killJob().then((res) => {
         if (res) {

@@ -80,9 +80,7 @@ const ClusterStatus: FC = () => {
       }
       const fetchs: any = []
       filterclusters.forEach((cluster) => {
-        if (fetchVC(cluster)) {
-          fetchs.push(fetchVC(cluster))
-        }
+        fetchs.push(fetchVC(cluster))
       })
       if (fetchs.some((fc: any) => typeof fc === 'undefined' || !fc)) {
         return
