@@ -1,21 +1,13 @@
 import * as React from 'react'
 import {
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
   Radio,
   createMuiTheme,
   MuiThemeProvider,
-  SvgIcon, Typography, CircularProgress, useTheme
+  CircularProgress,
+  useTheme
 } from '@material-ui/core'
 import { checkObjIsEmpty, sumValues } from '../../../utlities/ObjUtlities'
-import { TeamVCTitles } from '../../../Constants/TabsContants'
 import useCheckIsDesktop from '../../../utlities/layoutUtlities'
-import Tooltip from '@material-ui/core/Tooltip'
-import IconButton from '@material-ui/core/IconButton'
-import { red } from '@material-ui/core/colors'
 import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable'
 
 interface TeamVC {
@@ -49,7 +41,7 @@ const renderData = (data: any) => {
   )
 }
 export const TeamVirtualClusterStatus = (props: TeamVC) => {
-  const { vcStatus, selectedValue, handleChange, children } = props
+  const { vcStatus, selectedValue, handleChange } = props
   const theme = useTheme()
   const checkIsDesktop = useCheckIsDesktop()
   return (

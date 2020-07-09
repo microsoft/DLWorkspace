@@ -1,11 +1,10 @@
 import * as React from 'react'
-import { Fragment, useCallback, useContext, useState } from 'react'
+import { useCallback, useContext, useState } from 'react'
 import {
-  Button,
   Card,
   List,
   ListItem,
-  ListItemText, SvgIcon, TextField, Tooltip
+  ListItemText, SvgIcon, Tooltip
 } from '@material-ui/core'
 import useFetch from 'use-http'
 
@@ -72,7 +71,7 @@ const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
   const [openResumeWarn, setOpenResumeWarn] = React.useState(false)
   const [openPause, setOpenPause] = React.useState(false)
   const [openResume, setOpenResume] = React.useState(false)
-  const [openUpdatePriority, setOpenUpdatePriority] = React.useState(false)
+  const [openUpdatePriority] = React.useState(false)
   const [openApproveWarn, setOpenApproveWarn] = React.useState(false)
   const [openPauseWarn, setOpenPauseWarn] = React.useState(false)
   const [message, setMessage] = useState('')

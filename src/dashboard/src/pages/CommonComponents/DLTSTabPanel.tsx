@@ -1,6 +1,6 @@
 import * as React from 'react'
 import Typography from '@material-ui/core/Typography'
-import { Container, Grid, Paper, Toolbar, useTheme } from '@material-ui/core'
+import { Container, Grid, Paper, Toolbar } from '@material-ui/core'
 import useCheckIsDesktop from '../../utlities/layoutUtlities'
 
 interface TabPanelProps {

@@ -33,9 +33,8 @@ import {
 } from '../../Constants/WarnConstants'
 import { JobsSelectByCluster } from './components/JobsSelectByCluster'
 import TeamContext from '../../contexts/Team'
-import { checkObjIsEmpty, toLocalTime } from '../../utlities/ObjUtlities'
+import { toLocalTime } from '../../utlities/ObjUtlities'
 import ReactJson from 'react-json-view'
-import TablePagination from '@material-ui/core/TablePagination'
 import { checkFinishedJob } from '../../utlities/interactionUtlties'
 import SvgIconsMaterialTable from '../../components/SvgIconsMaterialTable'
 
@@ -112,7 +111,6 @@ const Jobs: React.FC = (props: any) => {
   const deleteUrl = '/api/clusters/'
   const requestDelete = useFetch(deleteUrl)
   useEffect(() => {
-    let mount = true
     let timeout: any
     if (window.navigator.userAgent.indexOf('Edge') !== -1) {
       timeout = setTimeout(() => {
@@ -120,7 +118,6 @@ const Jobs: React.FC = (props: any) => {
       }, 1000)
     }
     return () => {
-      mount = false
       clearTimeout(timeout)
     }
   }, [])
@@ -146,8 +143,8 @@ const Jobs: React.FC = (props: any) => {
   }
   const { put: setPriority } = useFetch('/api')
   const [currentCluster, setCurrentCluster] = useState(props.match.params.cluster ? props.match.params.cluster : Array.isArray(_.map(clusters, 'id')) ? _.map(clusters, 'id')[0] : '')
-  const [jobs, error] = useJobs()
-  const [allJobs, err] = useJobsAll()
+  const [jobs] = useJobs()
+  const [allJobs] = useJobsAll()
 
   const [isAdmin, setIsAdmin] = useState(clusters.filter((cluster) => cluster.id === currentCluster)[0].admin)
   const filterJobsByCluster = (jobs: any, clusterName: string) => {
@@ -415,7 +412,7 @@ const Jobs: React.FC = (props: any) => {
     let schedulingMessage = {}
     if (rowData.jobStatusDetail && rowData.jobStatusDetail.length > 0 && rowData.jobStatusDetail[0].message) {
       const tmp = rowData.jobStatusDetail[0].message
-      const dateType = /(\d{4})([\/-])/
+      const dateType = /(\d{4})([/-])/
       let date = ''
       let text = ''
       if (dateType.test(tmp)) {

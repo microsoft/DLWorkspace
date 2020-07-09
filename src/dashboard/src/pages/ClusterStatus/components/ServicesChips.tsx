@@ -2,25 +2,15 @@ import * as React from 'react'
 import { useState } from 'react'
 
 import {
-  Chip,
-  Theme,
-  createStyles,
-  makeStyles
+  Chip
 } from '@material-ui/core'
 import AddIcon from '@material-ui/icons/Add'
 import RemoveIcon from '@material-ui/icons/Remove'
 interface ServicesProps {
   services: string[]
 }
-const useStyles = makeStyles((theme: Theme) => {
-  return createStyles({
-    ChipsColor: {
-      color: 'secondary'
-    }
-  })
-})
+
 const ServicesChips: React.FC<ServicesProps> = ({ services }) => {
-  const styles = useStyles()
   const [showMoreDetails, setShowMoreDetails] = useState(false)
   const [details, setDetails] = useState('...')
   const handleShowMoreDetails = () => {

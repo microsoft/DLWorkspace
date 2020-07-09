@@ -26,7 +26,6 @@ import {
   SvgIcon, useMediaQuery
 } from '@material-ui/core'
 import Tooltip from '@material-ui/core/Tooltip'
-import { makeStyles, createStyles } from '@material-ui/core/styles'
 import { Info, Delete, Add } from '@material-ui/icons'
 import { withRouter } from 'react-router-dom'
 import IconButton from '@material-ui/core/IconButton'
@@ -39,10 +38,6 @@ import ClustersContext from '../../contexts/Clusters'
 import TeamContext from '../../contexts/Team'
 import theme, { Provider as MonospacedThemeProvider } from '../../contexts/MonospacedTheme'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts'
-import Paper, { PaperProps } from '@material-ui/core/Paper'
-import Draggable from 'react-draggable'
-import { TransitionProps } from '@material-ui/core/transitions'
-import Slide from '@material-ui/core/Slide'
 import { green, grey, red } from '@material-ui/core/colors'
 import { DLTSDialog } from '../CommonComponents/DLTSDialog'
 import {
@@ -50,23 +45,11 @@ import {
   SUCCESSFULTEMPLATEDELETE, SUCCESSFULTEMPLATEDSAVE
 } from '../../Constants/WarnConstants'
 import { DLTSSnackbar } from '../CommonComponents/DLTSSnackbar'
-import * as _ from 'lodash'
 
 interface EnvironmentVariable {
   name: string
   value: string
 }
-
-const useStyles = makeStyles(() =>
-  createStyles({
-    container: {
-      margin: 'auto'
-    },
-    submitButton: {
-      marginLeft: 'auto'
-    }
-  })
-)
 
 const sanitizePath = (path: string) => {
   path = join('/', path)
@@ -437,25 +420,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       imagePullObj['username'] = dockerUsername
       imagePullObj['password'] = dockerPassword
       plugins['imagePull'].push(imagePullObj)
-      const template = {
-        name,
-        type,
-        gpus,
-        workers,
-        image,
-        command,
-        workPath,
-        enableWorkPath,
-        dataPath,
-        enableDataPath,
-        jobPath,
-        enableJobPath,
-        environmentVariables,
-        ssh,
-        ipython,
-        tensorboard,
-        plugins
-      }
       const url = `/teams/${currentTeamId}/templates/${saveTemplateName}?database=${saveTemplateDatabase}`
       await deleteTemplate(url)
       setShowDeleteTemplate(true)
@@ -625,12 +589,10 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       plugins: plugins,
       'max_retry_count': String(maxRetryCount)
     }
-    let totalGpus = gpus
     if (type === 'PSDistJob') {
       job.numps = 1
       job.resourcegpu = gpusPerNode
       job.numpsworker = workers
-      totalGpus = gpusPerNode * workers
     } else {
       job.resourcegpu = gpus
     }
@@ -758,7 +720,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     return message
   }
   const renderCustomizedLabel = (props: any) => {
-    const { x, y, width, height, value } = props
+    const { x, y, width, value } = props
     const radius = 10
 
     return (

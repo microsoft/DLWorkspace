@@ -1,17 +1,10 @@
 import * as React from 'react'
-import { Fragment, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
-  Theme,
   useTheme,
-  Box,
-  Tab,
-  Tabs,
-  makeStyles,
-  createStyles,
-  AppBar,
   Container,
   CircularProgress,
-  useMediaQuery, Snackbar, SnackbarContent
+  useMediaQuery
 } from '@material-ui/core'
 import useFetch from 'use-http'
 
@@ -27,7 +20,6 @@ import { DLTSTabs } from '../../CommonComponents/DLTSTabs'
 import { JobDetailTitles, readOnlyJobDetailTitles } from '../../../Constants/TabsContants'
 import { DLTSSnackbar } from '../../CommonComponents/DLTSSnackbar'
 import ClusterContext from '../../../contexts/Clusters'
-import TeamContext from '../../../contexts/Team'
 import { useTimeoutFn } from 'react-use'
 interface Props {
   team: string

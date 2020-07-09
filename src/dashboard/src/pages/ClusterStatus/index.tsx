@@ -4,10 +4,7 @@ import SwipeableViews from 'react-swipeable-views'
 import {
   Typography,
   Box,
-  Theme,
   useTheme,
-  createStyles,
-  makeStyles,
   CircularProgress
 } from '@material-ui/core'
 import { DLTSTabPanel } from '../CommonComponents/DLTSTabPanel'
