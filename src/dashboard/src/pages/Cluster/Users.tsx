@@ -221,7 +221,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
       if (booked === 0) return <>{humanHours(idle)}</>
 
       const ratio = idle / booked
-      if (ratio > .5) {
+      if (ratio > 0.5) {
         return (
           <>
             {humanHours(idle)}

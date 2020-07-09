@@ -46,7 +46,7 @@ const useLabelStyle = makeStyles((theme) => createStyles({
 }))
 
 const getPieColor = (ratio: number) => colors.red[
-  clamp(Math.floor(ratio * 10), .5, 9) * 100 as keyof typeof colors.red
+  clamp(Math.floor(ratio * 10), 0.5, 9) * 100 as keyof typeof colors.red
 ]
 
 interface StoragesContentProps {

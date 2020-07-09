@@ -62,8 +62,8 @@ const useLinearProgressStyles = makeStyles((theme) => createStyles({
   },
   bar: {
     backgroundColor: (ratio: number) => {
-      if (ratio <= .8) return theme.palette.success.main
-      if (ratio <= .9) return theme.palette.warning.main
+      if (ratio <= 0.8) return theme.palette.success.main
+      if (ratio <= 0.9) return theme.palette.warning.main
       return theme.palette.error.main
     }
   },
