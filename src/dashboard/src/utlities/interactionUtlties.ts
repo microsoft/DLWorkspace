@@ -2,7 +2,7 @@ import * as React from 'react'
 
 export const handleChangeTab = (event: React.ChangeEvent<{}>, newValue: number, setValue: any, setShowIframe?: any, setRefresh?: any) => {
   if (setShowIframe) { setShowIframe(false) }
-  if (window.navigator.userAgent.indexOf('Edge') != -1) {
+  if (window.navigator.userAgent.indexOf('Edge') !== -1) {
     if (setRefresh) {
       setRefresh(false)
       setTimeout(() => {

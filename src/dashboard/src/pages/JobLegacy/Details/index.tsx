@@ -42,10 +42,10 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job, team }) => {
   const [value, setValue] = React.useState(0)
   const theme = useTheme()
   const [showIframe, setShowIframe] = useState(false)
-  const [refresh, setRefresh] = React.useState(window.navigator.userAgent.indexOf('Edge') == -1)
+  const [refresh, setRefresh] = React.useState(window.navigator.userAgent.indexOf('Edge') === -1)
   const handleChangeIndex = (index: number) => {
     setShowIframe(false)
-    if (window.navigator.userAgent.indexOf('Edge') != -1) {
+    if (window.navigator.userAgent.indexOf('Edge') !== -1) {
       setTimeout(() => {
         setShowIframe(true)
         setRefresh(true)

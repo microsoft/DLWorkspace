@@ -34,7 +34,7 @@ const Log: React.FC = () => {
   useEffect(() => {
     if (data != null) {
       const { log: nextLog, cursor } = data
-      if (typeof nextLog == 'string') {
+      if (typeof nextLog === 'string') {
         setLog(nextLog)
         setCursor(cursor)
         return
@@ -49,7 +49,7 @@ const Log: React.FC = () => {
   }, [data])
 
   const logText = useMemo(() => {
-    if (typeof log == 'string') {
+    if (typeof log === 'string') {
       return log
     }
     const logText: string[] = []

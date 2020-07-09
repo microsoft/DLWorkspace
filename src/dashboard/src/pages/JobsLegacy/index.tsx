@@ -96,7 +96,7 @@ const useStyles = makeStyles((theme: Theme) =>
 const Jobs: React.FC = (props: any) => {
   const classes = useStyles()
   const [value, setValue] = React.useState(0)
-  const [refresh, setRefresh] = React.useState(window.navigator.userAgent.indexOf('Edge') == -1)
+  const [refresh, setRefresh] = React.useState(window.navigator.userAgent.indexOf('Edge') === -1)
   const [open, setOpen] = React.useState(false)
   const [openApprove, setOpenApprove] = React.useState(false)
   const [openPause, setOpenPause] = React.useState(false)
@@ -114,7 +114,7 @@ const Jobs: React.FC = (props: any) => {
   useEffect(() => {
     let mount = true
     let timeout: any
-    if (window.navigator.userAgent.indexOf('Edge') != -1) {
+    if (window.navigator.userAgent.indexOf('Edge') !== -1) {
       timeout = setTimeout(() => {
         setRefresh(true)
       }, 1000)
@@ -151,7 +151,7 @@ const Jobs: React.FC = (props: any) => {
 
   const [isAdmin, setIsAdmin] = useState(clusters.filter((cluster) => cluster.id === currentCluster)[0].admin)
   const filterJobsByCluster = (jobs: any, clusterName: string) => {
-    if (clusterName == '-1' || clusterName === '') {
+    if (clusterName === '-1' || clusterName === '') {
       return Jobs
     } else {
       return jobs.filter((job: any) => job['cluster'] === clusterName)
@@ -299,7 +299,7 @@ const Jobs: React.FC = (props: any) => {
     return (
       <>
         <TextField
-          error={warn && (currId == rowData.tableData.id)}
+          error={warn && (currId === rowData.tableData.id)}
           disabled={!isAdmin}
           key={rowData['jobId']}
           type="number"
@@ -441,7 +441,7 @@ const Jobs: React.FC = (props: any) => {
     return (
       <React.Fragment>
         <MuiThemeProvider theme={theme}>
-          <Tooltip interactive = {true} title={rowData['jobStatus'] != 'scheduling' ? `${message}`
+          <Tooltip interactive = {true} title={rowData['jobStatus'] !== 'scheduling' ? `${message}`
             : <React.Fragment>
               {
                 typeof schedulingMessage === 'string' ? <span>{schedulingMessage}</span>
