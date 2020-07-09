@@ -14,7 +14,7 @@ const valueOf = (job: Job): number => {
   if (type === 'PSDistJob') {
     gpu *= get(job, 'jobParams.numpsworker', 0)
   }
-  return job[CACHE_KEY] = gpu
+  return (job[CACHE_KEY] = gpu)
 }
 
 export default (): Column<Job> => ({

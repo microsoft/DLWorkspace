@@ -14,7 +14,7 @@ interface LayoutContext {
 
 const LayoutContext = createContext<LayoutContext>({
   drawerOpen: false,
-  setDrawerOpen () { return }
+  setDrawerOpen () { }
 })
 
 const LayoutProvider: FunctionComponent = ({ children }) => {

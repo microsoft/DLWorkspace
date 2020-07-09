@@ -100,7 +100,7 @@ const ClusterStatus: FC = () => {
         }
         const newuserStatusPreemptable: any = []
         if (userfetchs['user_status_preemptable']) {
-          userfetchs['user_status_preemptable'].map((item: any) => {
+          userfetchs['user_status_preemptable'].forEach((item: any) => {
             newuserStatusPreemptable.push(
               _.mapKeys(item, (value, key) => {
                 let newKey = key

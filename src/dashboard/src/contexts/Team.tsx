@@ -20,7 +20,7 @@ interface TeamContext {
 
 const TeamContext = createContext<TeamContext>({
   currentTeamId: '',
-  setCurrentTeamId (teamId: string) { return }
+  setCurrentTeamId (teamId: string) { }
 })
 
 const Provider: FunctionComponent = ({ children }) => {

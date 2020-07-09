@@ -10,7 +10,7 @@ const valueOf = (job: Job): Date => {
   if (CACHE_KEY in job) return job[CACHE_KEY]
 
   const date = new Date(job['jobTime'])
-  return job[CACHE_KEY] = date
+  return (job[CACHE_KEY] = date)
 }
 
 export default (): Column<Job> => ({

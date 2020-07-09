@@ -22,9 +22,9 @@ interface ConfirmContext {
 }
 
 const ConfirmContext = createContext<ConfirmContext>({
-  setMessage () { return },
-  setOpen () { return },
-  setResolve () { return }
+  setMessage () { },
+  setOpen () { },
+  setResolve () { }
 })
 
 const ConfirmProvider: FunctionComponent = ({ children }) => {
