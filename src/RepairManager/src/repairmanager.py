@@ -205,7 +205,7 @@ class RepairManager(object):
             impacted_job_count[sku] = 0
 
         for job in self.jobs:
-            job_sku = [node.sku for _, node in job.unhealthy_nodes.items()]
+            job_sku = set([node.sku for _, node in job.unhealthy_nodes.items()])
             for sku in job_sku:
                 impacted_job_count[sku] += 1
 
