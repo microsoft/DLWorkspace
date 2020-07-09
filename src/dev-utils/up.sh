@@ -115,8 +115,8 @@ dashboard
 job-insighter
 logging
 repairmanager
-repairmanageragent
 storagemanager
+allowlist-manager
 EOF
 ) | grep -v '#' `
 
