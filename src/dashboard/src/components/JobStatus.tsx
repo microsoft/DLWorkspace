@@ -66,7 +66,7 @@ const JobStatus: FunctionComponent<Props> = ({ cluster, job }) => {
   const { data: statusData, get, abort } = useFetch(
     `/api/clusters/${cluster}/jobs/${id}/status`)
 
-  const detail = useMemo<Array<any>>(() => job['jobStatusDetail'], [job])
+  const detail = useMemo<any[]>(() => job['jobStatusDetail'], [job])
   const title = useMemo(() => {
     if (statusData && statusData.message) return statusData.message
     if (!Array.isArray(detail)) return null

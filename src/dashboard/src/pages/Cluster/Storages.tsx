@@ -50,14 +50,14 @@ const getPieColor = (ratio: number) => colors.red[
 ]
 
 interface StoragesContentProps {
-  data: {
+  data: Array<{
     mountpoint: string
-    data: {
+    data: Array<{
       user: string
       bytes: number
       ratio: number
-    }[]
-  }[]
+    }>
+  }>
   snapshot: Date
 }
 
@@ -70,10 +70,10 @@ const StoragesContent: FunctionComponent<StoragesContentProps> = ({ data, snapsh
   }, [])
 
   const tableData = useTableData(mountpoint)
-  const columns = useRef<Column<{
+  const columns = useRef<Array<Column<{
     user: string
     bytes: number
-  }>[]>([{
+  }>>>([{
     field: 'user',
     title: 'User'
   }, {

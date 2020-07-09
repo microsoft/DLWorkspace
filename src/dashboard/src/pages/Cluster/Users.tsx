@@ -137,7 +137,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
     setQuery(userName)
   }, [setQuery])
 
-  const columns = useRef<Column<any>[]>(compact([{
+  const columns = useRef<Array<Column<any>>>(compact([{
     field: 'id',
     render: (row) =>
       row.id === undefined

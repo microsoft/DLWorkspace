@@ -142,7 +142,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } })
   ).current
   const resourceColumns = useResourceColumns(resourceKinds, config['isPureCPU'])
   const columns = useMemo(() => {
-    const columns: Column<any>[] = [{
+    const columns: Array<Column<any>> = [{
       field: 'id',
       render: ({ id, ip, state, message }) => (
         <>
@@ -190,7 +190,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } })
     setFilterType(event.target.value as string)
   }, [])
 
-  const detailPanel = useMemo<DetailPanel<any>[]>(() => {
+  const detailPanel = useMemo<Array<DetailPanel<any>>>(() => {
     return [{
       tooltip: 'View Metrics',
       render: ({ ip }) => (

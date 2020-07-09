@@ -19,7 +19,7 @@ interface JobsTableProps extends Omit<
 MaterialTableProps<Job>,
 'data' | 'options' | 'onChangeRowsPerPage' | 'onChangePage' | 'onRowClick'
 > {
-  jobs: Array<Job>
+  jobs: Job[]
   defaultPageSize?: number
   selection?: boolean
   onLastPage?(pageSize: number): void

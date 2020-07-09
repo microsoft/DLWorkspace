@@ -87,7 +87,7 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
     setFilterCurrentUser((filterCurrentTeam) => !filterCurrentTeam)
   }, [])
 
-  const columns = useRef<Column<any>[]>(compact([{
+  const columns = useRef<Array<Column<any>>>(compact([{
     field: 'id',
     render: ({ id, jobId }) => (
       <Tooltip title={`See Job ${jobId}`}>

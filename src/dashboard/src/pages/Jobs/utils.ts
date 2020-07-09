@@ -11,7 +11,7 @@ const ACTIVE_STATUSES: { [status: string]: string } = {
   paused: 'Paused'
 }
 
-export const groupByActiveStatus = (jobs: Array<Job>) => {
+export const groupByActiveStatus = (jobs: Job[]) => {
   return groupBy(jobs, (job) => {
     return ACTIVE_STATUSES[job['jobStatus']] || 'Inactive'
   })

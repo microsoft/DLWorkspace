@@ -34,7 +34,7 @@ const useResourceColumns = (kinds: ResourceKind[], isPureCPU = false) => {
   const expandable = kinds.indexOf('used') > -1 && kinds.indexOf('total') > -1
 
   return useMemo(() => {
-    const columns: Column<any>[] = []
+    const columns: Array<Column<any>> = []
 
     for (const title of isPureCPU ? ['CPU', 'Memory'] : ['CPU', 'GPU', 'Memory']) {
       const type = title.toLowerCase() as ResourceType
