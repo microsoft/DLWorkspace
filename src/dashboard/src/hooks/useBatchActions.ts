@@ -55,7 +55,7 @@ const useBatchActions = (clusterId: string) => {
   const onBatchApprove = useCallback((event: any, jobs: any[]) => {
     const title = `${jobs.length} job(s)`
     return confirm(`Approve ${title}?`).then((answer) => {
-      if (answer === false) return
+      if (!answer) return
 
       const jobIds = jobs.map((job) => job['jobId'])
 
@@ -74,7 +74,7 @@ const useBatchActions = (clusterId: string) => {
   const onBatchPause = useCallback((event: any, jobs: any[]) => {
     const title = `${jobs.length} job(s)`
     return confirm(`Pause ${title}?`).then((answer) => {
-      if (answer === false) return
+      if (!answer) return
 
       const jobIds = jobs.map((job) => job['jobId'])
 
@@ -93,7 +93,7 @@ const useBatchActions = (clusterId: string) => {
   const onBatchResume = useCallback((event: any, jobs: any[]) => {
     const title = `${jobs.length} job(s)`
     return confirm(`Resume ${title}?`).then((answer) => {
-      if (answer === false) return
+      if (!answer) return
 
       const jobIds = jobs.map((job) => job['jobId'])
 
@@ -112,7 +112,7 @@ const useBatchActions = (clusterId: string) => {
   const onBatchKill = useCallback((event: any, jobs: any[]) => {
     const title = `${jobs.length} job(s)`
     return confirm(`Kill ${title}?`).then((answer) => {
-      if (answer === false) return
+      if (!answer) return
 
       const jobIds = jobs.map((job) => job['jobId'])
 

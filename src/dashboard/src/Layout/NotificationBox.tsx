@@ -44,7 +44,7 @@ const NotificationBox: FunctionComponent<BoxProps> = (props) => {
 
   const paperStyle = usePaperStyle()
 
-  if (Boolean(notification) === false) return null
+  if (notification == null || notification === '') return null
 
   return (
     <Box {...props}>

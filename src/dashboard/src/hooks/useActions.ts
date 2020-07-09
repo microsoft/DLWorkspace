@@ -64,7 +64,7 @@ ${givenName} ${familyName}
   const onApprove = useCallback((event: any, job: any) => {
     const title = `${job.jobName}(${job.jobId})`
     return confirm(`Approve job ${title} ?`).then((answer) => {
-      if (answer === false) return
+      if (!answer) return
 
       enqueueSnackbar(`${title} is being approved.`)
       return updateStatus(job.jobId, 'approved').then((response) => {
@@ -80,7 +80,7 @@ ${givenName} ${familyName}
   const onPause = useCallback((event: any, job: any) => {
     const title = `${job.jobName}(${job.jobId})`
     return confirm(`Pause job ${title} ?`).then((answer) => {
-      if (answer === false) return
+      if (!answer) return
 
       enqueueSnackbar(`${title} is being paused.`)
       return updateStatus(job.jobId, 'pausing').then((response) => {
@@ -96,7 +96,7 @@ ${givenName} ${familyName}
   const onResume = useCallback((event: any, job: any) => {
     const title = `${job.jobName}(${job.jobId})`
     return confirm(`Resume job ${title} ?`).then((answer) => {
-      if (answer === false) return
+      if (!answer) return
 
       enqueueSnackbar(`${title} is being resumed.`)
       return updateStatus(job.jobId, 'queued').then((response) => {
@@ -112,7 +112,7 @@ ${givenName} ${familyName}
   const onKill = useCallback((event: any, job: any) => {
     const title = `${job.jobName}(${job.jobId})`
     return confirm(`Kill job ${title} ?`).then((answer) => {
-      if (answer === false) return
+      if (!answer) return
 
       enqueueSnackbar(`${title} is being killed.`)
       return updateStatus(job.jobId, 'killing').then((response) => {

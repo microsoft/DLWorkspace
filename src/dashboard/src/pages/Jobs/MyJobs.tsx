@@ -119,7 +119,7 @@ const MyJobs: FunctionComponent = () => {
   }, [data, activeStatusesJobs, cluster])
 
   useEffect(() => {
-    if (loading === false) {
+    if (!loading) {
       const timeout = setTimeout(get, 3000)
       return () => {
         clearTimeout(timeout)

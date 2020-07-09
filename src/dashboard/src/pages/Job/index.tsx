@@ -54,7 +54,7 @@ const JobContent: FunctionComponent = () => {
 
   const manageable = useMemo(() => {
     if (job === undefined) return false
-    if (admin === true) return true
+    if (admin) return true
     if (job['userName'] === email) return true
     return false
   }, [job, admin, email])
