@@ -20,7 +20,9 @@ def override(func):
 def exec_cmd(command, timeout=None):
     """Execute one command"""
     if timeout is None:
-        timeout = 60  # default to 60
+        # default to a large 15 min.
+        # E.g. kubelet sometimes takes a long time to restart
+        timeout = 900
     command = CHROOT_HOST_FS + command
     logger.info("executing: %s", command)
     try:
