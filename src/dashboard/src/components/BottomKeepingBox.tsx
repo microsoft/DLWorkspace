@@ -33,7 +33,7 @@ const BottomKeepingBox: FunctionComponent<BoxProps> = (props) => {
       overflow="auto"
       {...props}
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore: https://github.com/mui-org/material-ui/issues/17010
+      // @ts-expect-error: https://github.com/mui-org/material-ui/issues/17010
       ref={box}
     />
   )
