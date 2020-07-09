@@ -318,8 +318,8 @@ const ClusterCard: React.FC<{ clusterId: string }> = ({ clusterId }) => {
           let finalStorageRes: any = []
           if (storageRes && storageRes.length > 0) {
             finalStorageRes = _.chain(storageRes).groupBy('mountpointName').map((value, key) => {
-              const tmpTotal: any = value.filter((item: any) => item.hasOwnProperty('total'))
-              const tmpAvail: any = value.filter((item: any) => item.hasOwnProperty('Avail'))
+              const tmpTotal: any = value.filter((item: any) => 'total' in item)
+              const tmpAvail: any = value.filter((item: any) => 'Avail' in item)
               let total = 0
               let used = 0
               if (typeof tmpTotal[0] !== 'undefined' && typeof tmpAvail[0] !== 'undefined') {

@@ -36,7 +36,7 @@ const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps>
   const isEmpty = (obj: object) => {
     if (obj === undefined) return true
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) { return false }
+      if (key in obj) { return false }
     }
     return true
   }

@@ -154,19 +154,19 @@ const ClusterStatus: FC = () => {
           }
           const tmpMerged = _.values(mergeTwoObjsByKey(fetchIdes, fetchUsrs, 'userName'))
           _.values(tmpMerged).forEach((mu: any) => {
-            if (!mu.hasOwnProperty('usedGPU')) {
+            if (!('usedGPU' in mu)) {
               mu['usedGPU'] = '0'
             }
-            if (!mu.hasOwnProperty('idleGPU')) {
+            if (!('idleGPU' in mu)) {
               mu['idleGPU'] = '0'
             }
-            if (!mu.hasOwnProperty('booked')) {
+            if (!('booked' in mu)) {
               mu['booked'] = '0'
             }
-            if (!mu.hasOwnProperty('idle')) {
+            if (!('idle' in mu)) {
               mu['idle'] = '0'
             }
-            if (!mu.hasOwnProperty('preemptableGPU')) {
+            if (!('preemptableGPU' in mu)) {
               mu['preemptableGPU'] = '0'
             }
           })

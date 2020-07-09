@@ -534,7 +534,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           setDockerPassword('')
         }
         if (plugins !== undefined) {
-          if (plugins.hasOwnProperty('blobfuse') && Array.isArray(plugins['blobfuse'])) {
+          if ('blobfuse' in plugins && Array.isArray(plugins['blobfuse'])) {
             const blobfuseObj = plugins['blobfuse'][0]
             setAccountName(blobfuseObj['accountName'])
             setAccountKey(blobfuseObj['accountKey'])
@@ -543,7 +543,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
             setMountOptions(blobfuseObj['mountOptions'])
           }
 
-          if (plugins.hasOwnProperty('imagePull') && Array.isArray(plugins['imagePull'])) {
+          if ('imagePull' in plugins && Array.isArray(plugins['imagePull'])) {
             const imagePullObj = plugins['imagePull'][0]
             setDockerRegistry(imagePullObj['registry'])
             setDockerUsername(imagePullObj['username'])

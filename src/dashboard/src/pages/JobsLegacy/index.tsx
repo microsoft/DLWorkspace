@@ -433,7 +433,7 @@ const Jobs: React.FC = (props: any) => {
     }
     if (rowData['jobStatus'] === 'scheduling' && rowData.jobStatusDetail && rowData.jobStatusDetail.length > 0) {
       for (const item of rowData.jobStatusDetail) {
-        if (item.hasOwnProperty('message')) {
+        if ('message' in item) {
           schedulingMessage = item['message']
         }
       }
@@ -519,7 +519,7 @@ const Jobs: React.FC = (props: any) => {
                   flexDirection: 'row',
                   padding: '0'
                 },
-                render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !('jobtrainingtype' in rowData['jobParams']) ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
                 type: 'numeric',
                 customSort: (a: any, b: any) => {
                   return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
@@ -652,7 +652,7 @@ const Jobs: React.FC = (props: any) => {
                   flexDirection: 'row',
                   padding: '0'
                 },
-                render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !('jobtrainingtype' in rowData['jobParams']) ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
                 type: 'numeric',
                 customSort: (a: any, b: any) => {
                   return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
@@ -770,7 +770,7 @@ const Jobs: React.FC = (props: any) => {
                   flexDirection: 'row',
                   padding: '0'
                 },
-                render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !('jobtrainingtype' in rowData['jobParams']) ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
                 type: 'numeric',
                 customSort: (a: any, b: any) => {
                   return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
@@ -891,7 +891,7 @@ const Jobs: React.FC = (props: any) => {
                   padding: '0'
                 },
                 field: 'jobParams.resourcegpu',
-                render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !('jobtrainingtype' in rowData['jobParams']) ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
                 type: 'numeric',
                 customSort: (a: any, b: any) => {
                   return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
@@ -1023,7 +1023,7 @@ const Jobs: React.FC = (props: any) => {
                   padding: '0'
                 },
                 field: 'jobParams.resourcegpu',
-                render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !('jobtrainingtype' in rowData['jobParams']) ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
                 type: 'numeric',
                 customSort: (a: any, b: any) => {
                   return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
@@ -1141,7 +1141,7 @@ const Jobs: React.FC = (props: any) => {
                         flexDirection: 'row',
                         padding: '0'
                       },
-                      render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                      render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !('jobtrainingtype' in rowData['jobParams']) ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
                       type: 'numeric',
                       customSort: (a: any, b: any) => {
                         return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
@@ -1282,7 +1282,7 @@ const Jobs: React.FC = (props: any) => {
                         padding: '0'
                       },
                       field: 'jobParams.resourcegpu',
-                      render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                      render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !('jobtrainingtype' in rowData['jobParams']) ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
                       type: 'numeric',
                       customSort: (a: any, b: any) => {
                         return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
@@ -1422,7 +1422,7 @@ const Jobs: React.FC = (props: any) => {
                         padding: '2'
                       },
                       field: 'jobParams.resourcegpu',
-                      render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                      render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !('jobtrainingtype' in rowData['jobParams']) ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
                       type: 'numeric',
                       customSort: (a: any, b: any) => {
                         return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
@@ -1562,7 +1562,7 @@ const Jobs: React.FC = (props: any) => {
                         padding: '2'
                       },
                       field: 'jobParams.resourcegpu',
-                      render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                      render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !('jobtrainingtype' in rowData['jobParams']) ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
                       type: 'numeric',
                       customSort: (a: any, b: any) => {
                         return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
@@ -1703,7 +1703,7 @@ const Jobs: React.FC = (props: any) => {
                         padding: '0'
                       },
                       field: 'jobParams.resourcegpu',
-                      render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype') ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
+                      render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || rowData['jobParams']['jobtrainingtype'] === 'InferenceJob' || !('jobtrainingtype' in rowData['jobParams']) ? (Number)(rowData.jobParams.resourcegpu) : (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker) }</span>,
                       type: 'numeric',
                       customSort: (a: any, b: any) => {
                         return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
