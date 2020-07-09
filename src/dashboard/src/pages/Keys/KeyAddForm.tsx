@@ -24,7 +24,7 @@ export interface KeyAddFormData {
 }
 
 interface KeyAddFormProps {
-  onAdd(data: KeyAddFormData): Promise<void>
+  onAdd: (data: KeyAddFormData) => Promise<void>
 }
 
 const KeyAddForm: FunctionComponent<KeyAddFormProps> = ({ onAdd }) => {

@@ -15,7 +15,7 @@ import UserContext from './User'
 interface TeamContext {
   teams?: any[]
   currentTeamId: string
-  setCurrentTeamId(teamId: string): void
+  setCurrentTeamId: (teamId: string) => void
 }
 
 const TeamContext = createContext<TeamContext>({

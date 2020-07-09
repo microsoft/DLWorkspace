@@ -11,7 +11,7 @@ import { sumValues } from '../../../utlities/ObjUtlities'
 
 interface ClusterSelectFieldProps {
   cluster: string | undefined
-  onClusterChange(value: string): void
+  onClusterChange: (value: string) => void
 }
 
 const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps> = (

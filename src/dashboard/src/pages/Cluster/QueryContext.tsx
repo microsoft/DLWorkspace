@@ -13,7 +13,7 @@ interface Query {
 
 interface QueryContext {
   query?: string
-  setQuery(query: string): void
+  setQuery: (query: string) => void
 }
 
 const QueryContext = createContext<QueryContext>({
@@ -21,7 +21,7 @@ const QueryContext = createContext<QueryContext>({
 })
 
 interface QueryProviderProps {
-  onQueryChanged(query: string): void
+  onQueryChanged: (query: string) => void
 }
 
 const QueryProvider: FunctionComponent<QueryProviderProps> = ({ onQueryChanged, children }) => {

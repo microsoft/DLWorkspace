@@ -25,7 +25,7 @@ interface SettingItemProps {
   Icon: SvgIconComponent
   name: string
   text: string | undefined
-  onConfigure(): void
+  onConfigure: () => void
 }
 
 const SettingItem: FunctionComponent<SettingItemProps> = ({ Icon, name, text, onConfigure }) => {

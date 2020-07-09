@@ -126,7 +126,7 @@ const List: React.FC<ListProps> = ({ endpoints, setOpen }) => {
 
 interface ControllerProps {
   endpoints: any[]
-  post(data: any): Promise<any>
+  post: (data: any) => Promise<any>
   status: string
 }
 

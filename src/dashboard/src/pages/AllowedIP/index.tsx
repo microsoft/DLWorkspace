@@ -41,7 +41,7 @@ import useFetch from 'use-http-1'
 import ClustersContext from '../../contexts/Clusters'
 
 interface ClusterListItem {
-  update(data: UpdateFormData): void
+  update: (data: UpdateFormData) => void
 }
 
 interface ClusterListItemProps {
@@ -137,7 +137,7 @@ interface UpdateFormData {
 }
 
 interface UpdateFormProps {
-  onSubmit(data: UpdateFormData): void
+  onSubmit: (data: UpdateFormData) => void
 }
 
 const IPV4_PATTERN = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/

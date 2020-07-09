@@ -22,7 +22,7 @@ MaterialTableProps<Job>,
   jobs: Job[]
   defaultPageSize?: number
   selection?: boolean
-  onLastPage?(pageSize: number): void
+  onLastPage?: (pageSize: number) => void
 }
 
 const JobsTable: FunctionComponent<JobsTableProps> = ({

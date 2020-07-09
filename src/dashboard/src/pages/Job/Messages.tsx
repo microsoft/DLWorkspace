@@ -92,7 +92,7 @@ const ActionButton: FunctionComponent<{ children: string }> = ({ children }) => 
 interface CollapsedMessageProps {
   level: string
   count: number
-  onExpand(): void
+  onExpand: () => void
   children: string
 }
 

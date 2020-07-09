@@ -34,14 +34,14 @@ import useConfirm from '../../hooks/useConfirm'
 import { formatDateDistance } from '../../utils/formats'
 
 interface KeyList {
-  get(): Promise<any>
+  get: () => Promise<any>
 }
 
 interface KeyListProps {
   title?: string
   empty?: string
   since?: Date
-  onDelete?(id: number): void
+  onDelete?: (id: number) => void
 }
 
 const KeyList = forwardRef<KeyList, KeyListProps>(({
