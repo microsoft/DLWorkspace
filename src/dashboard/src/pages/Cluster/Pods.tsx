@@ -47,7 +47,10 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
   const [filterCurrentUser, setFilterCurrentUser] = useState(false)
 
   const podsGPUMetrics = useMemo(() => {
-    type GPUMetrics = { utilization: number, idle: number }
+    interface GPUMetrics {
+      utilization: number
+      idle: number
+    }
     const podsGPUMetrics: { [podName: string]: GPUMetrics } = Object.create(null)
 
     if (gpuUtilizationMetrics) {

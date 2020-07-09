@@ -3,7 +3,7 @@ import {
   forwardRef
 } from 'react'
 
-import MaterialTable, { MaterialTableProps } from 'material-table'
+import MaterialTable, { Icons, MaterialTableProps } from 'material-table'
 import {
   AddBox,
   ArrowDownward,
@@ -22,8 +22,6 @@ import {
   SvgIconComponent,
   ViewColumn
 } from '@material-ui/icons'
-
-import { Icons } from 'material-table'
 
 const forwardIcon = (Icon: SvgIconComponent) => forwardRef<SVGSVGElement>(function (props, ref) {
   return createElement(Icon, { fontSize: 'small', ref, ...props })

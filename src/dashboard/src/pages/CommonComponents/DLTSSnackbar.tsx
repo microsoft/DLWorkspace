@@ -41,7 +41,7 @@ export const DLTSSnackbar: React.FC<SnackbarProps> = (props: SnackbarProps) => {
         >
           <SnackbarContent
             className={classes.success}
-            style={style ? style : ogStyle}
+            style={style || ogStyle}
             aria-describedby="client-snackbar"
             message={<span id="message-id" >{message}</span>}
           />

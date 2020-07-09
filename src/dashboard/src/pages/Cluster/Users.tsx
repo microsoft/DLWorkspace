@@ -97,7 +97,7 @@ const Users: FunctionComponent<Props> = ({ data: { config, users } }) => {
     data.push(total)
 
     const userNames = filterCurrent ? keys(users) : union(keys(users), keys(usersGPUMetrics))
-    userNames.sort()
+    userNames.sort((a, b) => a.localeCompare(b))
 
     for (const userName of userNames) {
       const userStatus = Object.create(null)

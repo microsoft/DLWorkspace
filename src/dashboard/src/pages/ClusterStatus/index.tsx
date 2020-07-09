@@ -32,7 +32,7 @@ const ClusterStatus: FC = () => {
   const { currentTeamId } = React.useContext(TeamContext)
   const [selectedValue, setSelectedValue] = useState('')
   const [vcStatus, setVcStatus] = useState([])
-  const [userStatus, setUserStatus] = useState(Array())
+  const [userStatus, setUserStatus] = useState([])
   const [nodeStatus, setNodeStatus] = useState([])
   const [showIframe, setShowIframe] = useState(true)
   const [iframeUrl, setIframeUrl] = React.useState('')

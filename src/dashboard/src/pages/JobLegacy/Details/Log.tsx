@@ -53,7 +53,7 @@ const Log: React.FC = () => {
       return log
     }
     const logText: string[] = []
-    const podNames = Object.keys(log).sort()
+    const podNames = Object.keys(log).sort((a, b) => a.localeCompare(b))
     for (const podName of podNames) {
       logText.push(`
 =========================================================

@@ -226,10 +226,10 @@ const Endpoints: React.FC<EndpointsProps> = ({ setOpen, status }) => {
   const { data, get, post } = useFetch(`/api/clusters/${clusterId}/jobs/${jobId}/endpoints`, { onMount: true })
 
   const refreshTimeout = useRef<number | null>(null)
-  const refreshFunction: TimerHandler = useCallback(async () => {
+  const refreshFunction = useCallback(async () => {
     refreshTimeout.current = null
     await get()
-    refreshTimeout.current = setTimeout(refreshFunction, 5000)
+    refreshTimeout.current = window.setTimeout(refreshFunction, 5000)
   }, [])
 
   useEffect(() => {

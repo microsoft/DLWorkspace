@@ -15,6 +15,7 @@ import { Link } from 'react-router-dom'
 import useFetch from 'use-http'
 import useJobs from './useJobs'
 import * as _ from 'lodash'
+import { DateTime } from 'luxon'
 import ClusterContext from '../../contexts/Clusters'
 import useJobsAll from './useJobsAll'
 import IconButton from '@material-ui/core/IconButton'
@@ -48,7 +49,6 @@ interface Props {
   variant: keyof typeof variantIcon
 }
 
-const { DateTime } = require('luxon')
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     root: {

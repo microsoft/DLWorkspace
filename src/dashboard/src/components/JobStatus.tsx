@@ -90,7 +90,7 @@ const JobStatus: FunctionComponent<Props> = ({ cluster, job }) => {
     }
   }, [id, status, get, abort])
 
-  let deleteIcon: ReactElement | undefined = undefined
+  let deleteIcon: ReactElement | undefined
   if (title) {
     deleteIcon = (
       <Tooltip title={title} placement="right" interactive>
