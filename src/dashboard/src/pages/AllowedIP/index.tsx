@@ -128,7 +128,10 @@ const UpdateForm: FunctionComponent<UpdateFormProps> = ({ onSubmit }) => {
 
   return (
     <Card component="form" onSubmit={handleSubmit(onSubmit)}>
-      <CardHeader title="Update Allowed IP"/>
+      <CardHeader
+        title="Update Allowed IP"
+        subheader="For Non-Lab clusters. It would take up to 5 minutes to make it available."
+      />
       <CardContent>
         <Controller
           as={TextField}
