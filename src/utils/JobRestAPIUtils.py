@@ -1231,6 +1231,7 @@ def patch_resource_quota(username, payload):
                         r_quota["memory"][sku] = int(nodes * memory_per_node)
 
                         # Keep consistent for legacy quota
+                        # TODO: This is unambiguous in GPU homogeneous cluster
                         quota[gpu_type] = count
 
                     req_cpu_quota = walk_json(req_quota, "cpu", default={})
@@ -1262,7 +1263,8 @@ def patch_resource_quota(username, payload):
                         r_quota["memory"][sku] = int(nodes * memory_per_node)
 
                         # Keep consistent for legacy quota
-                        quota["None"] = count
+                        # TODO: This is unambiguous in CPU homogeneous cluster
+                        quota["None"] = 0
 
                     success = data_handler.update_vc_resource_quota(
                         vc_name, json.dumps(r_quota), json.dumps(quota))
