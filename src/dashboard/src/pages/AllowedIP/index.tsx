@@ -155,10 +155,10 @@ const UpdateForm: FunctionComponent<UpdateFormProps> = ({ onSubmit }) => {
 
 const AllowedIP: FunctionComponent = () => {
   const { clusters } = useContext(ClustersContext);
-  const itemsRef = useRef<{ [id: string]: RefObject<ClusterListItem> }>({});
+  const itemsRef = useRef<Map<string, RefObject<ClusterListItem>>>(new Map());
   const handleUpdateFormSubmit = useCallback((data) => {
     for (const { id } of clusters) {
-      const itemRef = itemsRef.current[id]
+      const itemRef = itemsRef.current.get(id)
       if (itemRef && itemRef.current) {
         itemRef.current.update(data);
       }
@@ -168,7 +168,7 @@ const AllowedIP: FunctionComponent = () => {
   useEffect(() => {
     for (const itemId of Object.keys(itemsRef.current)) {
       if (clusters.every(({ id }) => id !== itemId)) {
-        delete itemsRef.current[itemId];
+        itemsRef.current.delete(itemId)
       }
     }
   }, [clusters]);
@@ -182,13 +182,13 @@ const AllowedIP: FunctionComponent = () => {
             <List disablePadding dense>
               {
                 clusters.map(({ id }) => {
-                  if (itemsRef.current[id] === undefined) {
-                    itemsRef.current[id] = createRef();
+                  if (!itemsRef.current.has(id)) {
+                    itemsRef.current.set(id, createRef());
                   }
                   return (
                     <ClusterListItem
                       key={id}
-                      ref={itemsRef.current[id]}
+                      ref={itemsRef.current.get(id)}
                       id={id}
                     />
                   );
