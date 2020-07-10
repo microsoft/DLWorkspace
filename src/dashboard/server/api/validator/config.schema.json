@@ -63,7 +63,7 @@
               "type": "boolean"
             },
             "supportAllowedIp": {
-              "title": "Whether it supports allowed ip manager",
+              "title": "Whether it supports allowed IP",
               "description": "Set to true if it could be listed in allowed ip page",
               "type": "boolean"
             }

@@ -147,7 +147,7 @@ const UpdateForm: FunctionComponent<UpdateFormProps> = ({ onSubmit }) => {
     <Card component="form" onSubmit={handleSubmit(onSubmit)}>
       <CardHeader
         title="Update Allowed IP"
-        subheader="For Non-Lab clusters. It would take up to 5 minutes to make it available."
+        subheader="It takes several minutes to take effect for Azure clusters. Non-Azure clusters do not have IP allow list."
       />
       <CardContent>
         <Controller
