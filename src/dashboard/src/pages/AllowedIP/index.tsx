@@ -30,6 +30,7 @@ import {
   colors,
 } from '@material-ui/core';
 import {
+  Close,
   Error,
   Warning,
 } from '@material-ui/icons';
@@ -48,8 +49,13 @@ interface ClusterListItemProps {
 }
 
 const ClusterListItem = forwardRef<ClusterListItem, ClusterListItemProps>(({ id }, ref) => {
+  const { data: config } = useFetch(`/api/clusters/${id}`, [id]);
   const { data, loading, error, get, put } = useFetch(`/api/clusters/${id}/allowed-ip`, [id]);
 
+  const supportAllowedIp = useMemo(() => {
+    if (config === undefined) return undefined;
+    return Boolean(config.supportAllowedIp);
+  }, [config]);
   const ip = useMemo(() => {
     if (data == null) return undefined;
     if (data.ip == null) return undefined;
@@ -63,11 +69,12 @@ const ClusterListItem = forwardRef<ClusterListItem, ClusterListItemProps>(({ id 
 
   useImperativeHandle(ref, () => ({
     update(data) {
+      if (supportAllowedIp !== true) return;
       put(data).then(() => get(), (error) => {
         console.error(error);
       })
     }
-  }), [put, get]);
+  }), [supportAllowedIp, put, get]);
 
   return (
     <ListItem>
@@ -76,7 +83,17 @@ const ClusterListItem = forwardRef<ClusterListItem, ClusterListItemProps>(({ id 
         secondary={ip && expired ? `${ip} until ${expired.toLocaleString()}` : undefined}
       />
       {
-        loading ? (
+        supportAllowedIp === undefined ? (
+          <ListItemSecondaryAction>
+            <CircularProgress size={24}/>
+          </ListItemSecondaryAction>
+        ) : supportAllowedIp === false ? (
+          <ListItemSecondaryAction>
+            <Tooltip title="Not available in this cluster">
+              <Close color="error"/>
+            </Tooltip>
+          </ListItemSecondaryAction>
+        ) : loading ? (
           <ListItemSecondaryAction>
             <CircularProgress size={24}/>
           </ListItemSecondaryAction>
