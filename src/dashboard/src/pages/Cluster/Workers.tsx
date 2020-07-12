@@ -54,7 +54,7 @@ interface WorkerStateProps {
 }
 
 const WorkerState: FunctionComponent<WorkerStateProps> = ({ state, message }) => {
-  if (state === undefined) state = 'IN_SERVICE';
+  if (state === undefined) state = 'IN_SERVICE'
   const icon = useMemo(() =>
     state === 'IN_SERVICE' ? <DoneOutline/>
       : state === 'OUT_OF_POOL' ? <ErrorOutline/>

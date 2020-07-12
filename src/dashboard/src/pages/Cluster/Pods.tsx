@@ -68,9 +68,9 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
   }, [gpuUtilizationMetrics, gpuIdleMetrics])
 
   const username = useMemo(() => {
-    if (email === undefined) return '';
-    return email.split('@', 1)[0];
-  }, [email]);
+    if (email === undefined) return ''
+    return email.split('@', 1)[0]
+  }, [email])
 
   const pods = useMemo(() => {
     const pods = flatMap(workers, ({ pods }, workerName) =>

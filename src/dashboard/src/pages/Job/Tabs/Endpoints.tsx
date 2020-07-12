@@ -68,7 +68,7 @@ const EndpointListItem: FunctionComponent<{ endpoint: any }> = ({ endpoint }) =>
       <ListItem button component="a" href={url} target="_blank">
         <ListItemText primary="Visual Studio Code in DLTS (alpha)" secondary={url}/>
       </ListItem>
-    );
+    )
   }
   return (
     <ListItem button component="a" href={url} target="_blank">
