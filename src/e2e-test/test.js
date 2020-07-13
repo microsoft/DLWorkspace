@@ -144,8 +144,11 @@ describe('Deep Learning Training Service', function () {
         await page.waitForSelector('.MuiTabs-root .MuiTab-root:nth-child(4)')
       ).click()
       await (
-        await page.waitForSelector('textarea:nth-child(1)')
-      ).evaluate(node => node.textContent)
+        await page.waitForFunction(() => {
+          const $pre = window.document.querySelector('div[data-swipeable]:nth-child(4) pre')
+          return $pre && $pre.textContent
+        }, { polling: 'mutation' })
+      ).evaluate(string => string)
         .should.eventually.containEql(MESSAGE)
     })
 
