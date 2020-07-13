@@ -86,7 +86,12 @@ def load_az_params_as_default(config):
 
 
 def on_premise_params(config):
-    print("Warning: remember to set parameters:\ngpu_count_per_node, gpu_type, worker_node_num\n when using on premise machine!")
+    if not "sku_mapping" in config:
+        from onprem_params import default_onprem_parameters
+        default_cfg = {k: v for k, v in default_onprem_parameters.items()}
+        if "sku_mapping" in default_cfg:
+            config["sku_mapping"] = default_cfg["sku_mapping"]
+    return config
 
 
 def load_platform_type(config):
@@ -110,10 +115,11 @@ def gen_platform_wise_config(config):
 
 def get_stat_of_sku(config):
     cntr = {}
+    sku_ky = "vm_size" if "azure_cluster" in config else "sku"
     for mc in config["worker_node"]:
         mn = mc.split('.')[0]
-        vm_sz = config["machines"][mn]["vm_size"]
-        cntr[vm_sz] = cntr.get(vm_sz, 0) + 1
+        sku = config["machines"][mn][sku_ky]
+        cntr[sku] = cntr.get(sku, 0) + 1
     config["worker_sku_cnt"] = cntr
     return config
 
@@ -297,6 +303,8 @@ def load_config(args):
         print("Args = {0}".format(args))
     # deploy new cluster or load info of an existing cluster? specify the yaml file to specify explicitly
     config = add_configs_in_order(args.config, config)
+    # TODO should move gen_platform_wise_config before add_configs_in_order, 
+    # e.g. integrate to init_config
     config = gen_platform_wise_config(config)
     # risky to load allroles here, e.g., mysql_node might be misfilled
     load_node_list_by_role_from_config(config,
@@ -592,7 +600,7 @@ def render_nfs_node_specific(config, args):
 
 def render_lustre_node_specific(config, args):
     assert config["priority"] in ["regular", "low"]
-    if len(config["lustre_node"]) == 0:
+    if "lustre_node" not in config or len(config["lustre_node"]) == 0:
         return
     config = escaped_etcd_end_point_and_k8s_api_server(config)
     config["file_modules_2_copy"] = [
@@ -1063,7 +1071,8 @@ def run_command(args, command, parser):
             if os.path.exists(STATUS_YAML):
                 args.config.append(STATUS_YAML)
             # in case action tries to update status
-            args.config.append(ACTION_YAML)
+            if os.path.exists(ACTION_YAML):
+                args.config.append(ACTION_YAML)
         config = load_config(args)
     if command == "dumpconfig":
         with open("todeploy.yaml", "w") as wf:
