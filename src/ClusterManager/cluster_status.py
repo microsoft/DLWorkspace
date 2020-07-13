@@ -623,12 +623,6 @@ class ClusterStatusFactory(object):
             if username is not None:
                 pod_name += " : " + username
 
-            gpu_usage = self.__job_gpu_usage(name)
-            if gpu_usage is not None:
-                pod_name += " (gpu usage:%s%%)" % gpu_usage
-                if gpu_usage <= 25:
-                    pod_name += "!!!!!!"
-
             is_interactive = self.__is_job_interactive(jobs_by_id.get(job_id))
 
             gpu = Gpu()
@@ -692,7 +686,7 @@ class ClusterStatusFactory(object):
                 "memory": memory,
                 "preemptable_memory": preemptable_memory,
                 "gpuType": gpu_type,
-                "gpu_usage": gpu_usage,
+                "gpu_usage": None,  # Keep the field for backward compatibility
                 "is_interactive": is_interactive,
             }
             self.pod_statuses[name] = pod_status
@@ -724,20 +718,3 @@ class ClusterStatusFactory(object):
             # Only append a list pods in default namespace
             if namespace == "default":
                 node_status["pods"].append(pod_name)
-
-    def __job_gpu_usage(self, job_id):
-        try:
-            hostaddress = self.prometheus_node
-
-            url = """http://"""+hostaddress+""":9091/prometheus/api/v1/query?query=avg%28avg_over_time%28task_gpu_percent%7Bpod_name%3D%22""" + \
-                  job_id + """%22%7D%5B4h%5D%29%29+by+%28pod_name%2C+instance%2C+username%29"""
-
-            resp = requests.get(url)
-            result = json.loads(resp.text)
-            gpu_usage = int(float(result["data"]["result"][0]["value"][1]))
-
-        except Exception:
-            logger.debug("Failed to get gpu usage for job id %s", job_id)
-            gpu_usage = None
-
-        return gpu_usage
