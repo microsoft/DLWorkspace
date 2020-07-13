@@ -39,6 +39,7 @@ const NotificationBox: FunctionComponent<BoxProps> = (props) => {
     if (notification === undefined) {
       return get(notifications, ['.default']);
     }
+    return notification
   }, [notifications, currentTeamId]);
 
   const paperStyle = usePaperStyle();

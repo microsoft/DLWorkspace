@@ -91,7 +91,7 @@ const ResourceChart: FunctionComponent = () => {
       node: map(node, (value, name) => ({ name, value })),
     }
   }, [status]);
-  console.log(node)
+
   const cpuTotal = useMemo(() => sumBy(cpu, 'value'), [cpu]);
   const gpuTotal = useMemo(() => sumBy(gpu, 'value'), [gpu]);
   const nodeTotal = useMemo(() => sumBy(node, 'value'), [node]);
