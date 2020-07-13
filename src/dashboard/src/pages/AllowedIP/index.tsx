@@ -50,7 +50,7 @@ interface ClusterListItemProps {
 
 const ClusterListItem = forwardRef<ClusterListItem, ClusterListItemProps>(({ id }, ref) => {
   const { data: config } = useFetch(`/api/clusters/${id}`, [id]);
-  const { data, loading, error, get, put } = useFetch(`/api/clusters/${id}/allowed-ip`, [id]);
+  const { data, loading, error, get, put } = useFetch(`/api/clusters/${id}/allowed-ip`);
 
   const supportAllowedIp = useMemo(() => {
     if (config === undefined) return undefined;
@@ -66,6 +66,12 @@ const ClusterListItem = forwardRef<ClusterListItem, ClusterListItemProps>(({ id 
     if (data['valid_until'] == null) return undefined;
     return new Date(Date.parse(data['valid_until']));
   }, [data]);
+
+  useEffect(() => {
+    if (supportAllowedIp) {
+      get();
+    }
+  }, [supportAllowedIp, get]);
 
   useImperativeHandle(ref, () => ({
     update(data) {
@@ -89,7 +95,7 @@ const ClusterListItem = forwardRef<ClusterListItem, ClusterListItemProps>(({ id 
           </ListItemSecondaryAction>
         ) : supportAllowedIp === false ? (
           <ListItemSecondaryAction>
-            <Tooltip title="Not available in this cluster">
+            <Tooltip title="Corp only/Not available in this cluster">
               <Close color="error"/>
             </Tooltip>
           </ListItemSecondaryAction>
