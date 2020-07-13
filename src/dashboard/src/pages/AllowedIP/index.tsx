@@ -82,41 +82,52 @@ const ClusterListItem = forwardRef<ClusterListItem, ClusterListItemProps>(({ id 
     }
   }), [supportAllowedIp, put, get]);
 
+  const secondary = useMemo(() => {
+    if (ip && expired) {
+      return `${ip} until ${expired.toLocaleString()}`
+    }
+    if (error && error.name === '404') {
+      return 'Not configured'
+    }
+  }, [ip, expired, error])
+
+  const icon = useMemo(() => {
+    if (supportAllowedIp === undefined || loading) {
+      return <CircularProgress size={24}/>
+    }
+    if (!supportAllowedIp) {
+      return (
+        <Tooltip title="Corp only/Not available in this cluster">
+          <Close color="error"/>
+        </Tooltip>
+      )
+    }
+    if (error && error.name !== '404') {
+      return (
+        <Tooltip title={`Failed to fetch the record: ${error.message}`}>
+          <Error color="error"/>
+        </Tooltip>
+      )
+    }
+    if (expired && expired.valueOf() - Date.now() <= 7 * 24 * 60 * 60 * 1000) {
+      return (
+        <Tooltip title="Expire soon">
+          <Warning htmlColor={colors.yellow[800]}/>
+        </Tooltip>
+      )
+    }
+    return null
+  }, [supportAllowedIp, loading, error, expired])
+
   return (
     <ListItem>
       <ListItemText
         primary={id}
-        secondary={ip && expired ? `${ip} until ${expired.toLocaleString()}` : undefined}
+        secondary={secondary}
       />
-      {
-        supportAllowedIp === undefined ? (
-          <ListItemSecondaryAction>
-            <CircularProgress size={24}/>
-          </ListItemSecondaryAction>
-        ) : supportAllowedIp === false ? (
-          <ListItemSecondaryAction>
-            <Tooltip title="Corp only/Not available in this cluster">
-              <Close color="error"/>
-            </Tooltip>
-          </ListItemSecondaryAction>
-        ) : loading ? (
-          <ListItemSecondaryAction>
-            <CircularProgress size={24}/>
-          </ListItemSecondaryAction>
-        ) : error ? (
-          <ListItemSecondaryAction>
-            <Tooltip title={`Failed to fetch the record: ${error.message}`}>
-              <Error color="error"/>
-            </Tooltip>
-          </ListItemSecondaryAction>
-        ) : expired && expired.valueOf() - Date.now() <= 7 * 24 * 60 * 60 * 1000 ? (
-          <ListItemSecondaryAction>
-            <Tooltip title="Expire soon">
-              <Warning htmlColor={colors.yellow[800]}/>
-            </Tooltip>
-          </ListItemSecondaryAction>
-        ) : null
-      }
+      { icon !== null && (
+        <ListItemSecondaryAction children={icon}/>
+      ) }
     </ListItem>
   );
 });
