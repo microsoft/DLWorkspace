@@ -171,10 +171,6 @@ class Rule(object):
             None
         """
         # By default, reboot the node
-        if exec_cmd(["sync"]) is False:
-            logger.error("sync failed")
-            return False
-
         if exec_cmd(["reboot", "-f"]) is False:
             logger.error("reboot -f failed")
             return False
