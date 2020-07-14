@@ -146,6 +146,7 @@ class Rule(object):
         # By default, always return True.
         return True
 
+    @override
     def prepare(self, node):
         """Wait for all jobs to finish if necessary.
 
@@ -441,6 +442,35 @@ class NVSMRule(Rule):
             return False
 
         return True
+
+
+@Rule.register_subclass("NFSClientHangingRule")
+class NFSClientHangingRule(Rule):
+    """Rule for NFS client hanging on the node."""
+    def __init__(self):
+        super(NFSClientHangingRule, self).__init__(
+            ["zombie_process_count{command=~'\\\\[.*-m\\\\]'}"],
+            stat="min", desc="NFS client hanging")
+
+    def get_values(self, node, metric, stat):
+        values = []
+        for item in self.data[stat].get(metric, []):
+            instance = item.get("metric", {}).get("instance")
+            instance_ip = instance.split(":")[0]
+            if node.ip == instance_ip:
+                values.append(item)
+        return values
+
+    def check_health_impl(self, node, stat):
+        try:
+            values = self.get_values(
+                node, "zombie_process_count{command=~'\\\\[.*-m\\\\]'}",
+                stat)
+            if len(values) == 0:
+                return True
+        except:
+            logger.exception("check health failed")
+        return False
 
 
 def instantiate_rules():

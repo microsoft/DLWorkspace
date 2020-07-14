@@ -10,7 +10,7 @@ sys.path.append(os.path.abspath("../src/"))
 from util import State, Node, Job
 from rule import Rule, UnschedulableRule, K8sGpuRule, \
     DcgmEccDBERule, InfinibandRule, IPoIBRule, NvPeerMemRule, NVSMRule, \
-    instantiate_rules
+    NFSClientHangingRule, instantiate_rules
 
 logger = logging.getLogger(__name__)
 
@@ -256,6 +256,24 @@ class TestNVSMRule(TestRule):
         self.node.nvsm = None
         self.assertTrue(self.rule.check_health(self.node))
         self.assertTrue(self.rule.check_health(self.node, stat="current"))
+
+
+class TestNFSClientHangingRule(TestRule):
+    def create_rule(self):
+        self.rule = NFSClientHangingRule()
+
+    def test_check_health(self):
+        # NFS client is good
+        nfs_client_hanging = {'status': 'success', 'data': {'resultType': 'vector', 'result': []}}
+        self.update_data_and_validate([nfs_client_hanging, nfs_client_hanging])
+        self.assertTrue(self.rule.check_health(self.node))
+        self.assertTrue(self.rule.check_health(self.node, stat="current"))
+
+        # NFS client is hanging
+        nfs_client_hanging = {'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'command': '[192.168.0.110-m]', 'exporter_name': 'job-exporter', 'instance': '192.168.0.1:9102', 'job': 'serivce_exporter', 'scraped_from': 'job-exporter-zslkh'}, 'value': [1594685061.545, '1']}]}}
+        self.update_data_and_validate([nfs_client_hanging, nfs_client_hanging])
+        self.assertFalse(self.rule.check_health(self.node))
+        self.assertFalse(self.rule.check_health(self.node, stat="current"))
 
 
 if __name__ == '__main__':
