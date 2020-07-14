@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {
   FunctionComponent,
-  ChangeEvent,
+  ComponentType,
   useCallback,
   useMemo
 } from 'react'
@@ -18,17 +18,24 @@ import Brief from './Brief'
 import Endpoints from './Endpoints'
 import Metrics from './Metrics'
 import Console from './Console'
+import Apps from './Apps'
+
+const getComponentName = (Component: ComponentType) => {
+  if (Component.displayName !== undefined) {
+    return Component.displayName
+  }
+  return Component.name
+}
 
 const JobTabs: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
   const components = useMemo(() => manageable
-    ? [Brief, Endpoints, Metrics, Console]
+    ? [Brief, Endpoints, Metrics, Console, Apps]
     : [Brief, Metrics, Console]
   , [manageable])
   const [index, setIndex] = useHashTab(
     ...components.map(
-      Component =>
-        String(Component.displayName || Component.name).toLowerCase()))
-  const onChange = useCallback((event: ChangeEvent<{}>, value: any) => {
+      Component => getComponentName(Component).toLowerCase()))
+  const onChange = useCallback((event: unknown, value: any) => {
     setIndex(value as number)
   }, [setIndex])
   const onChangeIndex = useCallback((index: number, prevIndex: number) => {
@@ -45,7 +52,7 @@ const JobTabs: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => 
       >
         {
           components.map((Component, key) => (
-            <Tab key={key} label={Component.displayName || Component.name}/>
+            <Tab key={key} label={getComponentName(Component)}/>
           ))
         }
       </Tabs>
