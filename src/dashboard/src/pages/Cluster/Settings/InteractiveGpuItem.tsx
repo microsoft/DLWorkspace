@@ -70,7 +70,7 @@ const InteractiveGpuItem: FunctionComponent<{ value: number | null | undefined }
     setDialogValue(value);
   }, [setDialogOpen, value]);
   const handleDialogSave = useCallback(() => {
-    if (!(dialogValue === null || (typeof dialogValue === 'number' && dialogValue > 0))) {
+    if (!(dialogValue === null || (typeof dialogValue === 'number' && dialogValue >= 0))) {
       enqueueSnackbar('Invalid interactive gpu value.', { variant: 'error' });
     }
     setDialogSaveDisabled(true);
