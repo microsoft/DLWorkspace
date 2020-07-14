@@ -3,8 +3,11 @@ import {
   FunctionComponent,
   useCallback,
   useEffect,
-  useMemo
+  useMemo,
+  useRef
 } from 'react'
+
+import { includes } from 'lodash'
 
 import { usePreviousDistinct } from 'react-use'
 import { useFetch } from 'use-http-1'
@@ -26,10 +29,13 @@ import { useSnackbar } from 'notistack'
 
 import useRouteParams from '../../useRouteParams'
 
+import ExposePortDialog from './ExposePortDialog'
 import ipythonIcon from './ipython.svg'
 import tensorboardIcon from './tensorboard.svg'
 import theiaIcon from './theia.svg'
 import portIcon from './port.svg'
+
+const BUILTIN_APPS = ['ipython', 'tensorboard', 'theia'] as const
 
 const useCardMediaStyles = makeStyles(() => createStyles({
   root: {
@@ -55,6 +61,9 @@ const App: FunctionComponent<AppProps> = ({ name, endpoint }) => {
   const { clusterId, jobId } = useRouteParams()
   const { response, post } = useFetch(`/api/clusters/${clusterId}/jobs/${jobId}/endpoints`)
   const { enqueueSnackbar } = useSnackbar()
+  const exposePortDialog = useRef<ExposePortDialog>(null)
+
+  const isBuiltIn = useMemo(() => includes(BUILTIN_APPS, name), [name])
 
   const icon = useMemo(() => {
     if (name === 'ipython') return ipythonIcon
@@ -67,7 +76,7 @@ const App: FunctionComponent<AppProps> = ({ name, endpoint }) => {
     if (name === 'tensorboard') return 'TensorBoard'
     if (name === 'theia') return 'VSCode in DLTS'
     if (endpoint === undefined) return 'Expose a Port'
-    return String(endpoint['name'])
+    return `Port ${String(endpoint['podPort'])}`
   }, [name, endpoint])
   const status = useMemo(() => {
     if (endpoint === undefined) return 'not-installed' as const
@@ -81,7 +90,7 @@ const App: FunctionComponent<AppProps> = ({ name, endpoint }) => {
 
   const handleInstall = useCallback(() => {
     if (status !== 'not-installed') return
-    if (name === 'ipython' || name === 'tensorboard' || name === 'theia') {
+    if (isBuiltIn) {
       post({ endpoints: [name] }).then(() => {
         if (response.ok) {
           enqueueSnackbar(`Installing ${title}`, { variant: 'success' })
@@ -94,8 +103,33 @@ const App: FunctionComponent<AppProps> = ({ name, endpoint }) => {
           : `Failed to enable ${title}`
         enqueueSnackbar(message, { variant: 'error' })
       })
+    } else {
+      if (exposePortDialog.current !== null) {
+        exposePortDialog.current.open()
+      }
     }
-  }, [name, response, post, enqueueSnackbar, title, status])
+  }, [isBuiltIn, name, response, post, enqueueSnackbar, title, status])
+  const handleExpose = useCallback((port: number) => {
+    if (status !== 'not-installed') return
+    if (isBuiltIn) return
+    post({
+      endpoints: [{
+        name: `port-${port}`,
+        podPort: port
+      }]
+    }).then(() => {
+      if (response.ok) {
+        enqueueSnackbar(`Exposing ${port}`, { variant: 'success' })
+      } else {
+        return response.text().then(text => Promise.reject(Error(text)))
+      }
+    }).catch((error) => {
+      const message = error != null && error.message != null
+        ? `Failed to expose ${port}: ${String(error.message)}`
+        : `Failed to expose ${port}`
+      enqueueSnackbar(message, { variant: 'error' })
+    })
+  }, [status, isBuiltIn, post, response, enqueueSnackbar])
 
   const prevStatus = usePreviousDistinct(status)
   useEffect(() => {
@@ -135,12 +169,17 @@ const App: FunctionComponent<AppProps> = ({ name, endpoint }) => {
             title={title}
             classes={cardMediaStyles}
           />
-          <Backdrop open invisible={status === 'installed'} classes={backdropStyles}>
+          <Backdrop open={status !== 'installed'} classes={backdropStyles}>
             { status === 'installing' ? <CircularProgress color="inherit"/> : null }
           </Backdrop>
         </CardActionArea>
       </Card>
       <Typography variant="caption" align="center" component="div">{title}</Typography>
+      {
+        includes(BUILTIN_APPS, name)
+          ? <ExposePortDialog ref={exposePortDialog} onExpose={handleExpose}/>
+          : null
+      }
     </Grid>
   )
 }

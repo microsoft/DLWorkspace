@@ -67,25 +67,25 @@ const Apps: FunctionComponent = () => {
       <Grid container spacing={3}>
         {
           ipython !== undefined
-            ? ipython.map(endpoint => <App key={endpoint['id']} name="ipython" endpoint={endpoint}/>)
-            : <App key="new-ipython" name="ipython"/>
+            ? ipython.map((endpoint, index) => <App key={`ipython-${index}`} name="ipython" endpoint={endpoint}/>)
+            : <App key="ipython-0" name="ipython"/>
         }
         {
           tensorboard !== undefined
-            ? tensorboard.map(endpoint => <App key={endpoint['id']} name="tensorboard" endpoint={endpoint}/>)
-            : <App key="new-tensorboard" name="tensorboard"/>
+            ? tensorboard.map((endpoint, index) => <App key={`tensorboard-${index}`} name="tensorboard" endpoint={endpoint}/>)
+            : <App key="tensorboard-0" name="tensorboard"/>
         }
         {
           theia !== undefined
-            ? theia.map(endpoint => <App key={endpoint['id']} name="theia" endpoint={endpoint}/>)
-            : <App key="new-theia" name="theia"/>
+            ? theia.map((endpoint, index) => <App key={`theia-${index}`} name="theia" endpoint={endpoint}/>)
+            : <App key="theia-0" name="theia"/>
         }
         {
           port !== undefined
-            ? port.map(endpoint => <App key={endpoint['id']} endpoint={endpoint}/>)
+            ? port.map(endpoint => <App key={`port-${endpoint['id'] as string}`} endpoint={endpoint}/>)
             : null
         }
-        <App key="new-port"/>
+        <App key="port-new"/>
       </Grid>
     </Box>
   )
