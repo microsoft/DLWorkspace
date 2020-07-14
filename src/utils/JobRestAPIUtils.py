@@ -540,7 +540,7 @@ def scale_inference_job(username, job_id, mingpu, maxgpu):
     dataHandler = DataHandler()
     try:
         job = dataHandler.GetJobTextFields(job_id,
-                                           ["userName", "vcName", "jobParams"])
+                                           ["userName", "vcName", "jobStatus", "jobParams"])
 
         if job is None:
             msg = "Job %s cannot be found in database" % job_id
@@ -559,6 +559,12 @@ def scale_inference_job(username, job_id, mingpu, maxgpu):
         if job_type != "InferenceJob":
             msg = "Only inference job could be scaled, current job %s is %s" % (
                 job_id, job_type)
+            logger.error(msg)
+            return msg, 403
+
+        if (job["jobStatus"] != 'queued' and job_params["mingpu"] != mingpu):
+            msg = "Inference job %s has been scheduled, only maxgpu can be changed. \
+                Please pause the job first, change mingpu, then resume the job" % (job_id)
             logger.error(msg)
             return msg, 403
 

@@ -3,6 +3,8 @@ import sys
 import os
 import copy
 import logging
+from common import base64decode, base64encode
+import json
 
 import unittest
 
@@ -17,8 +19,8 @@ from job_manager import discount_cluster_resource, \
     mark_schedulable_non_preemptable_jobs, \
     mark_schedulable_inference_jobs_non_preemptable_part, \
     mark_schedulable_inference_jobs_preemptable_part, \
-    is_version_satisified
-
+    is_version_satisified, \
+    adjust_job_resource
 
 def get_cluster_schedulable_from_unschedulable(cluster_status):
     # Compute cluster schedulable resource
@@ -111,10 +113,16 @@ class TestJobManager(unittest.TestCase):
         self.vc_schedulables = {"platform": vc_schedulable}
 
     def gen_job_info(self, jobId, job_resource, job_training_type="RegularJob", job_preemptable_resource=None):
+        param = {
+            "resourcegpu": 0,
+            "jobId": jobId
+        }
+        jobParams = base64encode(json.dumps(param))
         return {
             "job": {
                 "vcName": "platform",
                 "jobId": jobId,
+                "jobParams": jobParams
             },
             "preemptionAllowed": False,
             "jobId": jobId,
@@ -194,6 +202,23 @@ class TestJobManager(unittest.TestCase):
         self.assertTrue(jobs_info_list[1]["allowed"])
         self.assertTrue(jobs_info_list[2]["allowed"])
 
+    def test_adjust_job_resource(self):
+        job_resource = self.gen_job_resource(1)
+        job_preemptable_resource = self.gen_job_resource(2)
+        job_info = self.gen_job_info("job1", job_resource, "InferenceJob", job_preemptable_resource)
+
+        jobs_info = [job_info]
+
+        c_schedulable = discount_cluster_resource(self.cluster_capacity -
+                                                  self.cluster_unschedulable)
+        mark_schedulable_inference_jobs_non_preemptable_part(jobs_info, c_schedulable,
+                                                             self.vc_schedulables)
+        mark_schedulable_inference_jobs_preemptable_part(jobs_info, c_schedulable)
+
+        job = adjust_job_resource(None, job_info)
+        jobParams = json.loads(base64decode(job["jobParams"]))
+        self.assertEqual(jobParams["resourcegpu"], 3)
+
     def test_mark_inference_jobs(self):
         # vc gpu: 12, cluster gpu: 8
         # job1: mingpu:1, maxgpu:1. use 1 vc gpu
@@ -245,6 +270,7 @@ class TestJobManager(unittest.TestCase):
         job4_allowed_resource = self.gen_job_resource(1, 0.25)
         self.assertTrue(job4_info["allowed_resource"], job4_allowed_resource)
         self.assertEqual(list(c_schedulable.gpu.to_dict().values())[0], 0)
+        self.assertEqual(list(self.vc_schedulables["platform"].gpu.to_dict().values())[0], 7.0)
 
     def test_version_satisified(self):
         self.assertTrue(is_version_satisified("1.15.1", "1.15"))

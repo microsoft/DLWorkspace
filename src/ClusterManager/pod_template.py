@@ -14,7 +14,6 @@ sys.path.append(
 
 from mountpoint import make_mountpoint
 
-
 class JobTemplate(object):
     def __init__(self, template, secret_templates=None):
         self.template = template
@@ -105,7 +104,6 @@ class JobTemplate(object):
         # Must be after job.get_plugins
         # TODO: Make mountpoints independent of job.get_plugins
         params["mountpoints"] = [mp.to_dict() for mp in job.mountpoints]
-
         return params, None
 
     def generate_secrets(self, job):

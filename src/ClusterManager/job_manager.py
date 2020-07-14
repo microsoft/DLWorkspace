@@ -556,6 +556,7 @@ def get_jobs_info(jobs, cluster_schedulable, vc_schedulables):
         if job_status in ["queued", "scheduling", "running"]:
             allowed = False
             allowed_resource = None
+
             job_params = json.loads(base64decode(job["jobParams"]))
             preemption_allowed = job_params.get("preemptionAllowed", False)
             job_id = job_params["jobId"]
@@ -589,12 +590,16 @@ def get_jobs_info(jobs, cluster_schedulable, vc_schedulables):
 
             # Job lists will be sorted based on and in the order of below
             # 1. non-preemptible precedes preemptible
-            # 2. running precedes scheduling, precedes queued
-            # 3. larger priority value precedes lower priority value
-            # 4. early job time precedes later job time
+            # 2. training job precedes inference job (to minimize GPU fragmentation when submitting job)
+            # 3. running precedes scheduling, precedes queued
+            # 4. larger priority value precedes lower priority value
+            # 5. early job time precedes later job time
 
             # Non-Preemptible jobs first
             preemptible = 1 if preemption_allowed else 0
+
+            # job type
+            inference = 1 if job_training_type == "InferenceJob" else 0
 
             # Job status
             job_status_key = 0
@@ -610,7 +615,7 @@ def get_jobs_info(jobs, cluster_schedulable, vc_schedulables):
             # Job time
             queue_time = int(datetime.datetime.timestamp(job["lastUpdated"]))
 
-            sort_key = "{}_{}_{:06d}_{}".format(preemptible, job_status_key,
+            sort_key = "{}_{}_{}_{:06d}_{}".format(preemptible, inference, job_status_key,
                                                 priority, queue_time)
 
             single_job_info = {
@@ -758,7 +763,7 @@ def mark_schedulable_inference_jobs_non_preemptable_part(jobs_info, cluster_sche
             job_info["allowed"] = True
             job_info["allowed_resource"] = copy.deepcopy(job_resource)
             logger.info(
-                "Allow inferece job %s non-preemptable part from %s to run, job resouce %s",
+                "Allow inference job %s non-preemptable part from %s to run, job resource %s",
                 job_id, vc_name, job_resource)
         else:
             logger.info(
@@ -769,7 +774,6 @@ def mark_schedulable_inference_jobs_non_preemptable_part(jobs_info, cluster_sche
 
 # schedule preempt part of running/scheduling/queued inference jobs
 def mark_schedulable_inference_jobs_preemptable_part(jobs_info, cluster_schedulable):
-    empty_resource = ClusterResource()
     for job_info in jobs_info:
         # skip training job, or
         # inference job which non-preemptable part is not allowed or has no preemptable part
@@ -781,30 +785,38 @@ def mark_schedulable_inference_jobs_preemptable_part(jobs_info, cluster_schedula
         job_preemptable_resource = job_info["job_preemptable_resource"]
         job_id = job_info["jobId"]
 
-        if cluster_schedulable != empty_resource:
-            schedulable_resource = None
-            if cluster_schedulable >= job_preemptable_resource:
-                schedulable_resource = job_preemptable_resource
-            else:
-                # If cluster resource is insufficient, allocate remaining resource to job in proportion
-                # Assume remaining GPU is less than CPU, memory.
-                job_gpu_key = list(job_preemptable_resource.gpu.to_dict())[0]
-                job_gpu_request = list(job_preemptable_resource.gpu.to_dict().values())[0]
-                job_cpu_request = job_preemptable_resource.cpu.to_dict()[job_gpu_key]
-                job_memory_request = job_preemptable_resource.memory.to_dict()[job_gpu_key]
-                cluster_gpu_count = cluster_schedulable.gpu.to_dict()[job_gpu_key]
+        schedulable_resource = None
+        if cluster_schedulable >= job_preemptable_resource:
+            schedulable_resource = job_preemptable_resource
+        else:
+            # If cluster resource is insufficient, allocate remaining resource to job in proportion
+            # Assume remaining GPU is less than CPU, memory.
+            job_gpu_key = list(job_preemptable_resource.gpu.to_dict())[0]
+            job_gpu_request = list(job_preemptable_resource.gpu.to_dict().values())[0]
+            job_cpu_request = job_preemptable_resource.cpu.to_dict()[job_gpu_key]
+            job_memory_request = job_preemptable_resource.memory.to_dict()[job_gpu_key]
+            cluster_gpu_count = cluster_schedulable.gpu.to_dict()[job_gpu_key]
 
-                schedulable_gpu = min(job_gpu_request, cluster_gpu_count)
-                schedulable_cpu = schedulable_gpu * job_cpu_request / job_gpu_request
-                schedulable_memory = schedulable_gpu * job_memory_request / job_gpu_request
+            schedulable_gpu = min(job_gpu_request, cluster_gpu_count)
+            schedulable_cpu = schedulable_gpu * job_cpu_request / job_gpu_request
+            schedulable_memory = schedulable_gpu * job_memory_request / job_gpu_request
 
-                schedulable_resource = ClusterResource(
-                    params={
-                        "cpu": {job_gpu_key: schedulable_cpu},
-                        "memory": {job_gpu_key: schedulable_memory},
-                        "gpu": {job_gpu_key: schedulable_gpu}
-                    }
-                )
+            schedulable_resource = ClusterResource(
+                params={
+                    "cpu": {job_gpu_key: schedulable_cpu},
+                    "memory": {job_gpu_key: schedulable_memory},
+                    "gpu": {job_gpu_key: schedulable_gpu}
+                }
+            )
+
+        if schedulable_resource.has_empty_gpu_or_cpu():
+            logger.info(
+                "Disallow inference job %s preemptable part to run, "
+                "cluster schedulable %s. "
+                "job preemptable resource %s. "
+                "schedulable resource %s.", job_id, cluster_schedulable,
+                job_preemptable_resource, schedulable_resource)
+        else:
             logger.info(
                 "Allow inference job %s preemptable part to run. "
                 "cluster schedulable %s. "
@@ -815,19 +827,20 @@ def mark_schedulable_inference_jobs_preemptable_part(jobs_info, cluster_schedula
             job_info["allowed"] = True
             cluster_schedulable -= schedulable_resource
             job_info["allowed_resource"] += schedulable_resource
-        else:
-            logger.info(
-                "Disallow inference job %s preemptable part to run, "
-                "insufficient cluster resource: "
-                "cluster schedulable %s, "
-                "job preemptable resource %s.", job_id, cluster_schedulable,
-                job_preemptable_resource)
 
-def adjust_job_resource(job, job_resource):
-    if job_resource is not None:
-        job["resourcegpu"] = list(job_resource.gpu.to_dict().values())[0]
-        job["cpurequest"] = list(job_resource.cpu.to_dict().values())[0]
-        job["memoryrequest"] = list(job_resource.memory.to_dict().values())[0]
+
+def adjust_job_resource(data_handler, job_info):
+    job = job_info["job"]
+    if job_info["allowed_resource"] is not None:
+        params = json.loads(base64decode(job["jobParams"]))
+        params["resourcegpu"] = list(job_info["allowed_resource"].gpu.to_dict().values())[0]
+        job["jobParams"] = base64encode(json.dumps(params))
+        if data_handler is not None:
+            data_handler.UpdateJobTextFields(
+                {"jobId": job_info["jobId"]},
+                {"jobParams": job["jobParams"]})
+        logger.info("inference job %s gpu count after adjust is %d", job_info["jobId"], params["resourcegpu"])
+
     return job
 
 def schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
@@ -842,17 +855,16 @@ def schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
             job_status = job["jobStatus"]
             preemption_allowed = job_info.get("preemptionAllowed", False)
             allowed = job_info["allowed"]
-            allowed_resource = job_info["allowed_resource"]
             sort_key = job_info["sort_key"]
 
             if job_training_type == "InferenceJob":
-                job = adjust_job_resource(job, allowed_resource)
+                job = adjust_job_resource(data_handler, job_info)
 
             if job_status == "queued" and allowed:
                 launcher.submit_job(job)
                 update_job_state_latency(redis_conn, job_id, "scheduling")
                 logger.info("Submitting job %s : %s", job_id, sort_key)
-            elif preemption_allowed and \
+            elif preemption_allowed and job_training_type != "InferenceJob" \
                     (job_status in ["scheduling", "running"]) and (not allowed):
                 launcher.kill_job(job_id, "queued", update_queue_time=False)
                 logger.info("Preempting job %s : %s", job_id, sort_key)
@@ -870,8 +882,8 @@ def schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
                     {"jobStatusDetail": base64encode(json.dumps(detail))})
             elif job_training_type == "InferenceJob" and (job_status in ["scheduling, running"]):
                 launcher.scale_job(job)
-        except:
-            logger.error("Process job failed: %s", job_info, exc_info=True)
+        except Exception as e:
+            logger.error("Process job failed: %s, %s", job_info, e, exc_info=True)
 
 
 @record

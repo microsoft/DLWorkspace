@@ -45,6 +45,16 @@ class ClusterResource(object):
     def to_dict(self):
         return dictionarize(copy.deepcopy(self.__dict__))
 
+    def has_empty_gpu_or_cpu(self):
+        for r_type in self.__dict__:
+            if r_type == "gpu" or r_type == "cpu":
+                param = self.__dict__[r_type]
+                for k, v in param.res.items():
+                    if v == 0:
+                        return True
+
+        return False
+
     @property
     def floor(self):
         params = {
