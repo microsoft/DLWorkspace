@@ -100,25 +100,35 @@ class Rule(object):
         path = self.config["path"]
         alias = self.config["alias"]
 
-        header = "atime,mtime,time,size_in_bytes,readable_size,owner,path\n"
+        header = "subtree_atime,subtree_mtime,subtree_ctime,subtree_time,subtree_size_in_bytes,subtree_readable_size,owner,path\n"
 
         preview_len = min(preview_len, len(nodes))
         preview = header
         for node in nodes[0:preview_len]:
-            preview += "%s,%s,%s,%s,%s,%s,%s\n" % (
-                node.subtree_atime, node.subtree_mtime, node.subtree_time,
-                node.subtree_size, bytes2human_readable(node.subtree_size),
-                node.owner, node.path.replace(path, alias, 1))
+            preview += "%s,%s,%s,%s,%s,%s,%s,%s\n" % (
+                node.subtree_atime,
+                node.subtree_mtime,
+                node.subtree_ctime,
+                node.subtree_time,
+                node.subtree_size,
+                bytes2human_readable(node.subtree_size),
+                node.owner,
+                node.path.replace(path, alias, 1))
         if preview_len < len(nodes):
             preview += "...\n"
 
         data = header
         max_len = min(MAX_NODES_IN_REPORT, len(nodes))
         for node in nodes[0:max_len]:
-            cur_node = "%s,%s,%s,%s,%s,%s,%s\n" % (
-                node.subtree_atime, node.subtree_mtime, node.subtree_time,
-                node.subtree_size, bytes2human_readable(node.subtree_size),
-                node.owner, node.path.replace(path, alias, 1))
+            cur_node = "%s,%s,%s,%s,%s,%s,%s,%s\n" % (
+                node.subtree_atime,
+                node.subtree_mtime,
+                node.subtree_ctime,
+                node.subtree_time,
+                node.subtree_size,
+                bytes2human_readable(node.subtree_size),
+                node.owner,
+                node.path.replace(path, alias, 1))
             data += cur_node
 
         report = {
