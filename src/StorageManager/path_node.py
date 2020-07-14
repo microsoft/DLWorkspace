@@ -51,10 +51,11 @@ class PathNode(object):
         self.subtree_ctime = datetime.fromtimestamp(stat.st_ctime)
         if self.isdir:
             self.time = self.mtime
-            self.subtree_time = self.subtree_mtime
+            self.subtree_time = max(self.subtree_mtime, self.subtree_ctime)
         else:
             self.time = max(self.atime, self.mtime)
             self.subtree_time = max(self.subtree_atime, self.subtree_mtime)
+            self.subtree_time = max(self.subtree_time, self.subtree_ctime)
         self.uid = stat.st_uid
         self.gid = stat.st_gid
 
