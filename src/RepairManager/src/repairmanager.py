@@ -308,8 +308,7 @@ class RepairManager(object):
     def clean_up_terminating_timeout_pods(self):
         try:
             prometheus_util = PrometheusUtil()
-            metric = "k8s_pod_count{type='job',phase='terminating-timeout'}"
-            query = "min_over_time(%s[10m])" % metric
+            query = "k8s_pod_count{type='job',phase='terminating-timeout'}"
             resp = prometheus_util.query(query)
             result = walk_json(resp, "data", "result")
             for item in result:
