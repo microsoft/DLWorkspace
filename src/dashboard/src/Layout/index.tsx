@@ -52,11 +52,11 @@ const LayoutContent: FunctionComponent = ({ children }) => {
       <Drawer>
         <NavigationList/>
       </Drawer>
-      <ErrorBoundary>
-        <Content key={currentTeamId}>
+      <Content key={currentTeamId}>
+        <ErrorBoundary>
           {children}
-        </Content>
-      </ErrorBoundary>
+        </ErrorBoundary>
+      </Content>
     </LayoutProvider>
   )
 }

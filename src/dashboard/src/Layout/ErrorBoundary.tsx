@@ -1,10 +1,9 @@
 import * as React from 'react'
 import {
   Component,
-  ComponentType,
   ErrorInfo,
   FunctionComponent,
-  ReactElement,
+  ReactNode,
   useCallback,
   useContext,
   useMemo
@@ -12,11 +11,12 @@ import {
 
 import {
   Box,
+  Container,
   Typography,
   Link
 } from '@material-ui/core'
 import {
-  Error
+  MoodBad
 } from '@material-ui/icons'
 
 import ConfigContext from '../contexts/Config'
@@ -42,28 +42,45 @@ I found a DLTS dashboard crash on ${window.location.href} . Below is what I did:
   }, [])
 
   return (
-    <Box alignItems="center">
-      <Error fontSize="large" color="error"/>
-      <Typography variant="h3" component="h1">
-        DLTS Cannot Show What You Want
-        <span role="img" aria-label="(sad)">☹️</span>
-      </Typography>
-      <Typography variant="body1">
-        Try the following steps:
-        <ol>
-          <li><Link onClick={handleRefresh}>Refresh</Link> the page.</li>
-          <li><Link href="/api/authenticate/logout">Sign out</Link> and sign in.</li>
-          <li><Link href={contactHref}>Contact</Link> the support team.</li>
-        </ol>
-      </Typography>
-    </Box>
+    <Container>
+      <Box display="flex" flexDirection="column" alignItems="center">
+        <Typography variant="h1" component="div">
+          <MoodBad fontSize="inherit"/>
+        </Typography>
+        <Typography variant="h4" component="h1">
+          Cannot show the page...
+        </Typography>
+        <Box marginTop={5}>
+          <Typography>
+            <strong>Try:</strong>
+            <Box component="ul" marginTop={0}>
+              <li>
+                <Link variant="body1" underline="always" component="button" onClick={handleRefresh}>
+                  Full Refresh
+                </Link>
+              </li>
+              <li>
+                <Link href="/api/authenticate/logout" variant="body1" underline="always">
+                  Sign out and sign in
+                </Link>
+              </li>
+              <li>
+                <Link href={contactHref} variant="body1" underline="always">
+                  Contact the support team
+                </Link>
+              </li>
+            </Box>
+          </Typography>
+        </Box>
+      </Box>
+    </Container>
   )
 }
 
-interface Props { children: ReactElement }
+interface Props { children: ReactNode }
 interface State { isError: boolean }
 
-class ProductionErrorBoundary extends Component<Props, State> {
+class ErrorBoundary extends Component<Props, State> {
   constructor (props: Props) {
     super(props)
     this.state = { isError: false }
@@ -79,9 +96,6 @@ class ProductionErrorBoundary extends Component<Props, State> {
     queries.push(`message=${encodeURIComponent(error.message)}`)
     queries.push(`source=${encodeURIComponent(errorInfo.componentStack)}`)
     image.src = `/api/error.gif?${queries.join('&')}`
-
-    console.error(error)
-    console.error(errorInfo)
   }
 
   render () {
@@ -93,14 +107,5 @@ class ProductionErrorBoundary extends Component<Props, State> {
     return children
   }
 }
-
-const DevelopmentErrorBoundary: FunctionComponent<Props> = ({ children }) => {
-  return children
-}
-
-const ErrorBoundary: ComponentType<Props> =
-  process.env.NODE_ENV === 'production'
-    ? ProductionErrorBoundary
-    : DevelopmentErrorBoundary
 
 export default ErrorBoundary
