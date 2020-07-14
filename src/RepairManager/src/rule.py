@@ -145,7 +145,7 @@ class Rule(object):
         """
         # By default, always return True.
         return True
-    
+
     def prepare(self, node):
         """Wait for all jobs to finish if necessary.
 
