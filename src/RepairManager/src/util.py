@@ -116,6 +116,17 @@ class K8sUtil(object):
                 "annotations: %s", node, unschedulable, labels, annotations)
         return False
 
+    def delete_pod(self, name, namespace="default", grace_period_seconds=0):
+        try:
+            self.k8s_core_api.delete_namespaced_pod(
+                pretty=self.pretty, name=name, namespace=namespace,
+                grace_period_seconds=grace_period_seconds)
+            return True
+        except ApiException:
+            logger.exception("delete_namespaced_pod failed for pod: %s, "
+                             "namespace: %s", pod, namespace)
+        return False
+
 
 class RestUtil(object):
     def __init__(self):
