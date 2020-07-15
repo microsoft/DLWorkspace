@@ -586,7 +586,7 @@ def get_jobs_info(jobs, cluster_schedulable, vc_schedulables):
                     continue
                 else:
                     allowed = True
-                    allowed_resource = copy.deepcopy(job_resouce)
+                    allowed_resource = copy.deepcopy(job_resource)
 
             # Job lists will be sorted based on and in the order of below
             # 1. non-preemptible precedes preemptible
@@ -833,7 +833,8 @@ def adjust_job_resource(data_handler, job_info):
     job = job_info["job"]
     if job_info["allowed_resource"] is not None:
         params = json.loads(base64decode(job["jobParams"]))
-        params["resourcegpu"] = list(job_info["allowed_resource"].gpu.to_dict().values())[0]
+        gpu_list = list(job_info["allowed_resource"].gpu.to_dict().values())
+        params["resourcegpu"] = int(gpu_list[0]) if len(gpu_list) > 0 else 0
         job["jobParams"] = base64encode(json.dumps(params))
         if data_handler is not None:
             data_handler.UpdateJobTextFields(
@@ -864,7 +865,7 @@ def schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
                 launcher.submit_job(job)
                 update_job_state_latency(redis_conn, job_id, "scheduling")
                 logger.info("Submitting job %s : %s", job_id, sort_key)
-            elif preemption_allowed and job_training_type != "InferenceJob" \
+            elif preemption_allowed and job_training_type != "InferenceJob" and \
                     (job_status in ["scheduling", "running"]) and (not allowed):
                 launcher.kill_job(job_id, "queued", update_queue_time=False)
                 logger.info("Preempting job %s : %s", job_id, sort_key)
@@ -880,7 +881,7 @@ def schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
                 data_handler.UpdateJobTextFields(
                     {"jobId": job_id},
                     {"jobStatusDetail": base64encode(json.dumps(detail))})
-            elif job_training_type == "InferenceJob" and (job_status in ["scheduling, running"]):
+            elif job_training_type == "InferenceJob" and (job_status in ["scheduling", "running"]):
                 launcher.scale_job(job)
         except Exception as e:
             logger.error("Process job failed: %s, %s", job_info, e, exc_info=True)

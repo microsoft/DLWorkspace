@@ -363,7 +363,10 @@ def gen_default_job_description(
         args["jobtrainingtype"] = "InferenceJob"
         args["hostNetwork"] = False
         args["isPrivileged"] = False
-        args["resourcegpu"] = 1 # num of worker
+        args["resourcegpu"] = 0
+        args["mingpu"] = 1
+        args["maxgpu"] = 4
+        args["preemptionAllowed"] = True
     else:
         logger.error("unknown job_type %s, wrong test case", job_type)
         raise RuntimeError("unknown job_type %s" % (job_type))
