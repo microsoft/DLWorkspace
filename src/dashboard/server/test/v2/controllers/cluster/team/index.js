@@ -172,6 +172,6 @@ describe('GET /clusters/:clusterId/teams/:teamId', function () {
     response.data.should.have.propertyByPath('types', TYPE_NAME, 'node', 'total').equal(2)
     response.data.should.have.propertyByPath('types', TYPE_NAME, 'node', 'unschedulable').equal(1)
     response.data.should.have.propertyByPath('types', TYPE_NAME, 'node', 'used').equal(1)
-    response.data.should.have.propertyByPath('types', TYPE_NAME, 'node', 'available').equal(1)
+    response.data.should.not.have.propertyByPath('types', TYPE_NAME, 'node', 'available')
   })
 })

@@ -167,8 +167,7 @@ module.exports = async context => {
     _increaseBody(['types', type, 'node', 'total'])
     if (!healthy) {
       _increaseBody(['types', type, 'node', 'unschedulable'])
-    }
-    if (_.keys(pods).length > 0) {
+    } else if (_.keys(pods).length > 0) {
       _increaseBody(['types', type, 'node', 'used'])
     } else {
       _increaseBody(['types', type, 'node', 'available'])
