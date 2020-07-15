@@ -20,8 +20,9 @@ from requests.exceptions import ConnectionError
 from constant import REPAIR_STATE, REPAIR_CYCLE, REPAIR_MESSAGE, \
     REPAIR_STATE_LAST_UPDATE_TIME, REPAIR_STATE_LAST_EMAIL_TIME, \
     REPAIR_UNHEALTHY_RULES
-from util import State, AtomicRef, K8sUtil, RestUtil, \
-    register_stack_trace_dump, get_logging_level, parse_for_jobs_and_nodes
+from util import State, AtomicRef, K8sUtil, RestUtil, PrometheusUtil, \
+    register_stack_trace_dump, get_logging_level, parse_for_jobs_and_nodes, \
+    walk_json
 from rule import instantiate_rules, UnschedulableRule
 from email_handler import EmailHandler
 
@@ -130,6 +131,9 @@ class RepairManager(object):
 
                 # Send emails to users whose jobs are affected
                 self.send_emails()
+
+                # Clean up terminating-timeout pods if any
+                self.clean_up_terminating_timeout_pods()
             except:
                 logger.exception("failed to run")
             time.sleep(self.interval)
@@ -300,6 +304,21 @@ class RepairManager(object):
 
             # Update the last email time of the node to current
             self.update_last_email_time(node)
+
+    def clean_up_terminating_timeout_pods(self):
+        try:
+            prometheus_util = PrometheusUtil()
+            query = "k8s_pod_count{type='job',phase='terminating-timeout'}"
+            resp = prometheus_util.query(query)
+            result = walk_json(resp, "data", "result")
+            for item in result:
+                pod_name = item.get("metric", {}).get("name")
+                if pod_name is not None:
+                    logger.info("deleting terminating-timeout pod %s", pod_name)
+                    self.k8s_util.delete_pod(pod_name)
+        except:
+            logger.exception("error occured when cleaning up terminating "
+                             "timeout pods")
 
     def validate(self, node):
         """Validate (and correct if needed) the node status. Returns True if
