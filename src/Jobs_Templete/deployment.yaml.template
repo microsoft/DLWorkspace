@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ job["jobId"] }}-deployment
+  name: {{ job["jobId"] }}-{{ job["preemptable"] }}-deployment
   labels:
     run: {{ job["jobId"] }}
     jobId: {{ job["jobId"] }}
@@ -20,6 +20,7 @@ spec:
         userName: {{ job["user"] }}
         vcName: {{ job["vcName"] }}
         type: job
+        preemptionAllowed: "{{ job["preemptionAllowed"] }}"
       {% if "gpuType" in job %}
         {% if job["gpuType"]|length > 0 %}
         gpuType: {{ job["gpuType"] }}
