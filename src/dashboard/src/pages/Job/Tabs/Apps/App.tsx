@@ -20,6 +20,7 @@ import {
   CardMedia,
   CircularProgress,
   Grid,
+  Tooltip,
   Typography,
   createStyles,
   makeStyles
@@ -156,30 +157,32 @@ const App: FunctionComponent<AppProps> = ({ name, endpoint }) => {
   return (
     <Grid item>
       <Card variant="outlined">
-        <CardActionArea
-          component={href !== undefined ? 'a' : 'button'}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          disabled={status === 'installing'}
-          onClick={handleInstall}
+        <Tooltip
+          title={status === 'not-installed' ? 'Click to Install' : ''}
+          arrow
+          placement="top"
         >
-          <CardMedia
-            image={icon}
-            title={title}
-            classes={cardMediaStyles}
-          />
-          <Backdrop open={status !== 'installed'} classes={backdropStyles}>
-            { status === 'installing' ? <CircularProgress color="inherit"/> : null }
-          </Backdrop>
-        </CardActionArea>
+          <CardActionArea
+            component={href !== undefined ? 'a' : 'button'}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            disabled={status === 'installing'}
+            onClick={handleInstall}
+          >
+            <CardMedia
+              image={icon}
+              title={href}
+              classes={cardMediaStyles}
+            />
+            <Backdrop open={status !== 'installed'} classes={backdropStyles}>
+              { status === 'installing' && <CircularProgress color="inherit"/> }
+            </Backdrop>
+          </CardActionArea>
+        </Tooltip>
       </Card>
       <Typography variant="caption" align="center" component="div">{title}</Typography>
-      {
-        includes(BUILTIN_APPS, name)
-          ? <ExposePortDialog ref={exposePortDialog} onExpose={handleExpose}/>
-          : null
-      }
+      { !isBuiltIn && <ExposePortDialog ref={exposePortDialog} onExpose={handleExpose}/> }
     </Grid>
   )
 }
