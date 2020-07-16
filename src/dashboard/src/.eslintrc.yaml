@@ -26,4 +26,4 @@ rules:
   # FIXME: too complex to fix
   '@typescript-eslint/restrict-plus-operands': warn
   '@typescript-eslint/restrict-template-expressions': warn
-  '@typescript-eslint/strict-boolean-expressions': warn
+  '@typescript-eslint/strict-boolean-expressions': [warn, { ignoreRhs: true }]
