@@ -182,10 +182,7 @@ const App: FunctionComponent<AppProps> = ({ name, endpoint }) => {
         </Tooltip>
       </Card>
       <Typography variant="caption" align="center" component="div">{title}</Typography>
-      {
-        !includes(BUILTIN_APPS, name)
-          && <ExposePortDialog ref={exposePortDialog} onExpose={handleExpose}/>
-      }
+      { !isBuiltIn && <ExposePortDialog ref={exposePortDialog} onExpose={handleExpose}/> }
     </Grid>
   )
 }
