@@ -344,6 +344,8 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     delete: deleteTemplate
   } = useFetch('/api')
   const [gpus, setGpus] = React.useState(0)
+  const [mingpu, setMingpu] = React.useState(0)
+  const [maxgpu, setMaxgpu] = React.useState(0)
   const submittable = React.useMemo(() => {
     if (!gpuModel) return false
     if (!currentTeamId) return false
@@ -547,6 +549,22 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     },
     [gpusPerNode, type]
   )
+  const onMingpuChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      let value = event.target.valueAsNumber
+      if (isNaN(value) || value < 0) value = 0
+      setMingpu(value)
+    },
+    [setMingpu]
+  )
+  const onMaxgpuChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      let value = event.target.valueAsNumber
+      if (isNaN(value) || value < 0) value = 0
+      setMaxgpu(value)
+    },
+    [setMaxgpu]
+  )
   const [open, setOpen] = React.useState(false)
   const onSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -593,6 +611,9 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       job.numps = 1
       job.resourcegpu = gpusPerNode
       job.numpsworker = workers
+    } else if (type === 'InferenceJob') {
+      job.mingpu = mingpu
+      job.maxgpu = maxgpu
     } else {
       job.resourcegpu = gpus
     }
@@ -606,7 +627,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     if (type === 'PSDistJob') {
       // Check GPU fragmentation
       let workersNeeded = workers
-      console.log(gpuFragmentation)
       for (const { metric, value } of gpuFragmentation) {
         if (Number(metric['gpu_available']) >= gpusPerNode) {
           workersNeeded -= (Number(value[1]) || 0)
@@ -833,11 +853,11 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   <MenuItem value="true">YES</MenuItem>
                 </TextField>
               </Grid>
-              { (type === 'RegularJob' || type === 'InferenceJob') && (
+              { type === 'RegularJob' && (
                 <Grid item xs={12}>
                   <TextField
                     type="number"
-                    error={gpus > (type === 'InferenceJob' ? Number.MAX_VALUE : gpusPerNode)}
+                    error={gpus > gpusPerNode}
                     label="Number of GPUs"
                     fullWidth
                     variant="filled"
@@ -867,6 +887,30 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                     value = {workers * gpusPerNode}
                     fullWidth
                     variant="filled"
+                  />
+                </Grid>
+              )}
+              { type === 'InferenceJob' && (
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    type="number"
+                    label="Minimum GPUs"
+                    fullWidth
+                    variant="filled"
+                    value={mingpu}
+                    onChange={onMingpuChange}
+                  />
+                </Grid>
+              )}
+              { type === 'InferenceJob' && (
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    type="number"
+                    label="Maximum GPUs"
+                    fullWidth
+                    variant="filled"
+                    value={maxgpu}
+                    onChange={onMaxgpuChange}
                   />
                 </Grid>
               )}
