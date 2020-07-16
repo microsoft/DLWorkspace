@@ -914,6 +914,26 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   />
                 </Grid>
               )}
+              { type === 'CPUInferenceJob' && (
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    type="number"
+                    label="Number of Workers"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+              )}
+              { type === 'CPUInferenceJob' && (
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    type="number"
+                    label="Number of CPUs per Worker"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+              )}
               <Grid item xs={12}>
                 <TextField
                   label="Docker Image"
