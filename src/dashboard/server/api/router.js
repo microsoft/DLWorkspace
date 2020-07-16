@@ -75,6 +75,11 @@ router.post('/clusters/:clusterId/jobs/:jobId/endpoints',
   require('./middlewares/body')('endpoints'),
   require('./controllers/cluster/job/endpoints.post'))
 
+router.post('/clusters/:clusterId/jobs/:jobId/gpus',
+  require('./middlewares/user')(),
+  require('./middlewares/body')('gpus'),
+  require('./controllers/cluster/job/gpus.post'))
+
 router.get('/user',
   require('./middlewares/user')(),
   require('./controllers/user'))
