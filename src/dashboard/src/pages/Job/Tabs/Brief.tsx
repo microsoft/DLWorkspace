@@ -102,6 +102,7 @@ const InferenceGPUsListItem: FunctionComponent = () => {
           secondaryTypographyProps={{ component: 'form', onSubmit: handleGpusSubmit }}
           secondary={(
             <>
+              {'Min: '}
               <OutlinedInput
                 type="number"
                 name="min"
@@ -111,7 +112,7 @@ const InferenceGPUsListItem: FunctionComponent = () => {
                 error={errors.min !== undefined}
                 inputRef={register({ required: true, min: 0 })}
               />
-              {' - '}
+              {' Max: '}
               <OutlinedInput
                 type="number"
                 name="max"
@@ -140,7 +141,7 @@ const InferenceGPUsListItem: FunctionComponent = () => {
           primary="GPUs to Use"
           secondary={(
             <>
-              {`${job['jobParams']['mingpu']} - ${job['jobParams']['maxgpu']} `}
+              {`Min: ${job['jobParams']['mingpu']} Max: ${job['jobParams']['maxgpu']} `}
               <Link component="button" onClick={handleEditClick}>edit</Link>
             </>
           )}
