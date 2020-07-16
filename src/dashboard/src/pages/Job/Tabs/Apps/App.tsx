@@ -158,9 +158,8 @@ const App: FunctionComponent<AppProps> = ({ name, endpoint }) => {
     <Grid item>
       <Card variant="outlined">
         <Tooltip
-          title={status === 'not-installed' ? 'Install' : href !== undefined ? href : ''}
+          title={status === 'not-installed' ? 'Click to Install' : ''}
           arrow
-          interactive={href !== undefined}
           placement="top"
         >
           <CardActionArea
@@ -173,7 +172,7 @@ const App: FunctionComponent<AppProps> = ({ name, endpoint }) => {
           >
             <CardMedia
               image={icon}
-              title={title}
+              title={href}
               classes={cardMediaStyles}
             />
             <Backdrop open={status !== 'installed'} classes={backdropStyles}>
