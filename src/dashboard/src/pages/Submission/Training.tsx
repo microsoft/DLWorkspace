@@ -816,7 +816,8 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                 >
                   <MenuItem value="RegularJob">Regular Job</MenuItem>
                   <MenuItem value="PSDistJob">Distributed Job</MenuItem>
-                  <MenuItem value="InferenceJob">Inference Job</MenuItem>
+                  <MenuItem value="InferenceJob">GPU Inference Job</MenuItem>
+                  <MenuItem value="CPUInferenceJob">CPU Inference Job</MenuItem>
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={6}>
