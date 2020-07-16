@@ -16,11 +16,27 @@ kill_template = """
       expr: avg(task_gpu_percent{vc_name="%s"}) by (user_email, job_name, vc_name) == 0
       labels:
         type: kill_idle_job_email
+        version: v1
+    - alert: kill-idle-jobs-email-%s-v2
+      for: %dh
+      expr: avg(avg_over_time(task_gpu_percent{vc_name="%s"}[5m])) by (user_email, job_name, vc_name) == 0
+      labels:
+        type: kill_idle_job_email
+        version: v2
     - alert: kill-idle-jobs-%s
       for: %dh
       expr: avg(task_gpu_percent{vc_name="%s"}) by (user_email, job_name, vc_name) == 0
       labels:
         type: reaper
+        version: v1
+      annotations:
+        idle_hour: %dh
+    - alert: kill-idle-jobs-%s-v2
+      for: %dh
+      expr: avg(avg_over_time(task_gpu_percent{vc_name="%s"}[5m])) by (user_email, job_name, vc_name) == 0
+      labels:
+        type: reaper
+        version: v2
       annotations:
         idle_hour: %dh
 """
@@ -29,7 +45,10 @@ kill_template = """
 def config_kill_rule(m):
     for vc_name, hour in m.items():
         print(kill_template %
-              (vc_name, hour, vc_name, vc_name, hour, vc_name, hour))
+              (vc_name, hour, vc_name,
+                  vc_name, hour, vc_name,
+                  vc_name, hour, vc_name, hour,
+                  vc_name, hour, vc_name, hour))
 
 
 def extract_relevant_config(config_map):
