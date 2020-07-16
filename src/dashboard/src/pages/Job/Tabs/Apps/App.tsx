@@ -176,7 +176,7 @@ const App: FunctionComponent<AppProps> = ({ name, endpoint }) => {
               classes={cardMediaStyles}
             />
             <Backdrop open={status !== 'installed'} classes={backdropStyles}>
-              { status === 'installing' ? <CircularProgress color="inherit"/> : null }
+              { status === 'installing' && <CircularProgress color="inherit"/> }
             </Backdrop>
           </CardActionArea>
         </Tooltip>
@@ -184,8 +184,7 @@ const App: FunctionComponent<AppProps> = ({ name, endpoint }) => {
       <Typography variant="caption" align="center" component="div">{title}</Typography>
       {
         !includes(BUILTIN_APPS, name)
-          ? <ExposePortDialog ref={exposePortDialog} onExpose={handleExpose}/>
-          : null
+          && <ExposePortDialog ref={exposePortDialog} onExpose={handleExpose}/>
       }
     </Grid>
   )
