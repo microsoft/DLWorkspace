@@ -103,6 +103,26 @@ const Brief: FunctionComponent = () => {
           </ListItem>
         )
       }
+      {
+        job['jobParams']['jobtrainingtype'] === 'InferenceJob' && (
+          <ListItem>
+            <ListItemText
+              primary="Minimum GPUS"
+              secondary={job['jobParams']['mingpu']}
+            />
+          </ListItem>
+        )
+      }
+      {
+        job['jobParams']['jobtrainingtype'] === 'InferenceJob' && (
+          <ListItem>
+            <ListItemText
+              primary="Maximum GPUS"
+              secondary={job['jobParams']['maxgpu']}
+            />
+          </ListItem>
+        )
+      }
       <ListItem>
         <ListItemText
           primary="Preemptible"
