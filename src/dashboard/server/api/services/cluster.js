@@ -525,6 +525,24 @@ class Cluster extends Service {
     return text
   }
 
+  async updateGpus (jobId, min, max) {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      userName: user.email,
+      jobId,
+      mingpu: min,
+      maxgpu: max
+    })
+    const response = await this.fetch('/ScaleJob?' + params, {
+      method: 'POST'
+    })
+    if (!response.ok) {
+      this.context.status = response.status
+    }
+    const text = await response.json()
+    return text
+  }
+
   /**
    * @private
    * @param {string} path

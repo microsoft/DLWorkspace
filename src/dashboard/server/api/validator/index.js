@@ -13,5 +13,6 @@ validator.addSchema(require('./meta.schema'), 'meta')
 validator.addSchema(require('./key.schema'), 'key')
 validator.addSchema(require('./allowed-ip.schema'), 'allowed-ip')
 validator.addSchema(require('./quota.schema'), 'quota')
+validator.addSchema(require('./gpus.schema'), 'gpus')
 
 module.exports = validator

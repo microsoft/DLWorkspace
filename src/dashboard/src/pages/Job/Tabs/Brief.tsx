@@ -1,21 +1,37 @@
 import * as React from 'react'
 import {
   FunctionComponent,
-  useContext
+  useCallback,
+  useContext,
+  useState
 } from 'react'
+
+import useFetch from 'use-http-1'
+import { useForm } from 'react-hook-form'
+
 import {
   Box,
+  CircularProgress,
   Divider,
+  IconButton,
+  Link,
   List,
   ListItem,
-  ListItemText
+  ListItemText,
+  OutlinedInput,
+  createStyles,
+  makeStyles
 } from '@material-ui/core'
 import {
   AccountBox,
   Check,
+  Close,
   Group,
   Remove
 } from '@material-ui/icons'
+
+import { useSnackbar } from 'notistack'
+
 import { get } from 'lodash'
 
 import CodeBlock from '../../../components/CodeBlock'
@@ -23,6 +39,117 @@ import CopyableTextListItem from '../../../components/CopyableTextListItem'
 
 import useRouteParams from '../useRouteParams'
 import Context from '../Context'
+
+const useInputStyles = makeStyles(() => createStyles({
+  input: {
+    width: '3em'
+  }
+}))
+
+const InferenceGPUsListItem: FunctionComponent = () => {
+  const { clusterId, jobId } = useRouteParams()
+  const { enqueueSnackbar } = useSnackbar()
+  const { job } = useContext(Context)
+
+  const { response, post, abort } = useFetch(`/api/clusters/${clusterId}/jobs/${jobId}/gpus`)
+
+  const { register, errors, handleSubmit } = useForm({
+    defaultValues: {
+      min: String(job['jobParams']['mingpu']),
+      max: String(job['jobParams']['maxgpu'])
+    }
+  })
+
+  const [editing, setEditing] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const handleGpusSubmit = handleSubmit(({ min, max }) => {
+    setBusy(true)
+    post({ min: Number(min), max: Number(max) }).then(() => {
+      if (!response.ok) {
+        return response.text().then(text => Promise.reject(Error(text)))
+      }
+      setBusy(false)
+      setEditing(false)
+      enqueueSnackbar('Scaled job successfully', { variant: 'success' })
+    }).catch((error) => {
+      if (error != null && typeof error.message === 'string') {
+        enqueueSnackbar(`Failed to scale job: ${error.message}`, { variant: 'error' })
+      } else {
+        enqueueSnackbar('Failed to scale job', { variant: 'error' })
+      }
+      setBusy(false)
+    })
+  })
+
+  const handleEditClick = useCallback(() => {
+    setBusy(false)
+    setEditing(true)
+  }, [setEditing])
+  const handleCancelClick = useCallback(() => {
+    abort()
+    setBusy(false)
+    setEditing(false)
+  }, [abort, setEditing])
+
+  const inputStyles = useInputStyles()
+
+  if (editing) {
+    return (
+      <ListItem>
+        <ListItemText
+          primary="GPUs to Use"
+          secondaryTypographyProps={{ component: 'form', onSubmit: handleGpusSubmit }}
+          secondary={(
+            <>
+              {'Min: '}
+              <OutlinedInput
+                type="number"
+                name="min"
+                disabled={busy}
+                margin="dense"
+                classes={inputStyles}
+                error={errors.min !== undefined}
+                inputRef={register({ required: true, min: 0 })}
+              />
+              {' Max: '}
+              <OutlinedInput
+                type="number"
+                name="max"
+                disabled={busy}
+                margin="dense"
+                classes={inputStyles}
+                error={errors.max !== undefined}
+                inputRef={register({ required: true, min: 0 })}
+              />
+              {' '}
+              <IconButton type="submit" disabled={busy}>
+                { !busy && <Check/> }
+                { busy && <CircularProgress size={24}/> }
+              </IconButton>
+              {' '}
+              <IconButton onClick={handleCancelClick}><Close/></IconButton>
+            </>
+          )}
+        />
+      </ListItem>
+    )
+  } else {
+    return (
+      <ListItem>
+        <ListItemText
+          primary="GPUs to Use"
+          secondary={(
+            <>
+              {`Min: ${job['jobParams']['mingpu']} Max: ${job['jobParams']['maxgpu']} `}
+              <Link component="button" onClick={handleEditClick}>edit</Link>
+            </>
+          )}
+        />
+      </ListItem>
+    )
+  }
+}
 
 const Brief: FunctionComponent = () => {
   const { clusterId, jobId } = useRouteParams()
@@ -94,13 +221,21 @@ const Brief: FunctionComponent = () => {
         )
       }
       {
-        job['jobParams']['jobtrainingtype'] === 'RegularJob' && (
+        (
+          job['jobParams']['jobtrainingtype'] === 'RegularJob' ||
+          job['jobParams']['jobtrainingtype'] === 'InferenceJob'
+        ) && (
           <ListItem>
             <ListItemText
               primary="Number of GPUS"
               secondary={job['jobParams']['resourcegpu']}
             />
           </ListItem>
+        )
+      }
+      {
+        job['jobParams']['jobtrainingtype'] === 'InferenceJob' && (
+          <InferenceGPUsListItem/>
         )
       }
       <ListItem>
