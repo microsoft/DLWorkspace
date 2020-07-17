@@ -1081,7 +1081,7 @@ class PythonLauncher(Launcher):
             conditionFields = {"jobId": job_object.job_id}
             dataHandler.UpdateJobTextFields(conditionFields, dataFields)
         except Exception as e:
-            logger.error("Submit job failed: %s, %s" % (job, str(e)), exc_info=True)
+            logger.exception("Submit job failed: %s" % job, exc_info=True)
             ret["error"] = str(e)
             retries = dataHandler.AddandGetJobRetries(job["jobId"])
             if retries >= 5:
@@ -1158,7 +1158,7 @@ class PythonLauncher(Launcher):
         name = job_object.job_id + "-1-deployment"
         deployment = self._get_deployment(name=name)
         replicas = deployment.spec.replicas
-        new_replicas = int(job_object.params["resourcegpu"] - job_object.params["mingpu"])
+        new_replicas = int(job_object.params["resourcegpu"]) - int(job_object.params["mingpu"])
         if replicas == new_replicas:
             return
 

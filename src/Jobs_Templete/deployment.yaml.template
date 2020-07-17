@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ job["jobId"] }}-{{ job["preemptable"] }}-deployment
+  name: {{ job["jobId"] }}-{{ job["deploymentIndex"] }}-deployment
   labels:
     run: {{ job["jobId"] }}
     jobId: {{ job["jobId"] }}
