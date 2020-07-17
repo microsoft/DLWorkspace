@@ -423,3 +423,34 @@ class TestClusterResource(TestCase):
                 },
             })
         self.assertEqual(expected, v)
+
+    def test_has_empty_gpu_or_cpu(self):
+        v = ClusterResource(
+            params={
+                "cpu": {
+                    "r1": "1.5",
+                },
+                "memory": {
+                    "r1": "100.2",
+                },
+                "gpu": {
+                    "r1": "0",
+                }
+            })
+        self.assertTrue(v.has_empty_gpu_or_cpu())
+        v = ClusterResource(
+            params={
+                "cpu": {
+                    "r1": "1.5",
+                },
+                "memory": {
+                    "r1": "100.2",
+                },
+                "gpu": {
+                    "r1": "1.0",
+                },
+                "gpu_memory": {
+                    "r1": "0"
+                }
+            })
+        self.assertFalse(v.has_empty_gpu_or_cpu())

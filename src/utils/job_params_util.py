@@ -11,14 +11,19 @@ logger = logging.getLogger(__name__)
 def override(func):
     return func
 
+def get_mingpu(params):
+    return params.get("mingpu", None)
+
+def get_maxgpu(params):
+    return params.get("maxgpu", get_mingpu(params))
 
 def get_resourcegpu(params):
     return max(0, int(params.get("resourcegpu", 0)))
 
 
 def get_gpu_limit(params):
-    return int(params.get("gpu_limit", get_resourcegpu(params)))
-
+    gpu_limit = get_mingpu(params)
+    return gpu_limit if gpu_limit is not None else int(params.get("gpu_limit", get_resourcegpu(params)))
 
 def get_resource_params_from_job_params(params):
     cpu = make_resource("cpu")
@@ -39,6 +44,7 @@ def get_resource_params_from_job_params(params):
         logger.warning("Parsing resourcegpu in %s failed. Set to 0.", params)
         resource_gpu = 0
 
+    preemptable_resource = None
     if job_type == "RegularJob":
         cpu = make_resource("cpu", {sku: cpu_request})
         memory = make_resource("memory", {sku: mem_request})
@@ -66,15 +72,40 @@ def get_resource_params_from_job_params(params):
             cpu += make_resource("cpu", {sku: cpu_request})
             memory += make_resource("memory", {sku: mem_request})
             gpu += make_resource("gpu", {sku: 1})
+
+        # Inference preemptable workers
+        max_gpu = get_maxgpu(params)
+        if max_gpu is not None and max_gpu > resource_gpu:
+
+            preemptable_cpu = make_resource("cpu")
+            preemptable_memory = make_resource("memory")
+            preemptable_gpu = make_resource("gpu")
+            preemptable_gpu_memory = make_resource("gpu_memory")
+
+            for i in range(resource_gpu, max_gpu):
+                preemptable_cpu += make_resource("cpu", {sku: cpu_request})
+                preemptable_memory += make_resource("memory", {sku: mem_request})
+                preemptable_gpu += make_resource("gpu", {sku: 1})
+
+            preemptable_resource = {
+                "cpu": preemptable_cpu.to_dict(),
+                "memory": preemptable_memory.to_dict(),
+                "gpu": preemptable_gpu.to_dict(),
+                "gpu_memory": preemptable_gpu_memory.to_dict(),
+            }
     else:
         logger.warning("Unrecognized job type %s", job_type)
 
-    return {
-        "cpu": cpu.to_dict(),
-        "memory": memory.to_dict(),
-        "gpu": gpu.to_dict(),
-        "gpu_memory": gpu_memory.to_dict(),
-    }
+    result = {"cpu": cpu.to_dict(),
+            "memory": memory.to_dict(),
+            "gpu": gpu.to_dict(),
+            "gpu_memory": gpu_memory.to_dict(),
+        }
+
+    if preemptable_resource is not None:
+        result["preemptable_resource"] = preemptable_resource
+
+    return result
 
 
 class JobParams(object):
@@ -301,6 +332,8 @@ class InferenceJobParams(JobParams):
     NOTE: The behavior of a CPU inference job is undefined.
     """
     def __init__(self, params, quota, metadata, config, is_admin=False):
+        self.min_gpu = None
+        self.max_gpu = None
         super(InferenceJobParams, self).__init__(params, quota, metadata,
                                                  config, is_admin)
 
@@ -312,6 +345,17 @@ class InferenceJobParams(JobParams):
             self.quota,
             self.metadata)
 
+    def gen_gpu(self):
+        self.min_gpu = self.params.get("mingpu", None)
+        self.max_gpu = self.params.get("maxgpu", self.min_gpu)
+        if self.min_gpu is None:
+            super(InferenceJobParams, self).gen_gpu()
+            self.min_gpu = self.gpu_limit
+            self.max_gpu = self.gpu_limit
+        else:
+            self.min_gpu = max(0, self.min_gpu)
+            self.max_gpu = max(self.min_gpu, self.max_gpu)
+            self.gpu_limit = self.min_gpu
 
 JOB_PARAMS_MAPPING = {
     "RegularJob": RegularJobParams,

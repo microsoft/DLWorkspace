@@ -169,10 +169,14 @@ def populate_job_resource(params):
             if job_params.gpu_type:
                 params["gpuType"] = job_params.gpu_type
             params["resourcegpu"] = job_params.gpu_limit
+            if params.get("jobtrainingtype") == "InferenceJob":
+                params["mingpu"] = job_params.min_gpu
+                params["maxgpu"] = job_params.max_gpu
             params["cpurequest"] = job_params.cpu_request
             params["cpulimit"] = job_params.cpu_limit
             params["memoryrequest"] = job_params.memory_request
             params["memorylimit"] = job_params.memory_limit
+
         else:
             logger.warning("job_params %s is invalid. Not populating.",
                            job_params)
@@ -210,6 +214,9 @@ def SubmitJob(jobParamsJsonStr):
         jobParams["preemptionAllowed"] = False
     else:
         jobParams["preemptionAllowed"] = ToBool(jobParams["preemptionAllowed"])
+
+    if jobParams.get("jobtrainingtype") == "InferenceJob":
+        jobParams["preemptionAllowed"] = True
 
     uniqId = str(uuid.uuid4())
     if "jobId" not in jobParams or jobParams["jobId"] == "":
@@ -529,11 +536,11 @@ def approve_job(username, job_id):
     return op_job(username, job_id, ApproveOp())
 
 
-def scale_inference_job(username, job_id, resourcegpu):
+def scale_inference_job(username, job_id, mingpu, maxgpu):
     dataHandler = DataHandler()
     try:
         job = dataHandler.GetJobTextFields(job_id,
-                                           ["userName", "vcName", "jobParams"])
+                                           ["userName", "vcName", "jobStatus", "jobParams"])
 
         if job is None:
             msg = "Job %s cannot be found in database" % job_id
@@ -555,7 +562,14 @@ def scale_inference_job(username, job_id, resourcegpu):
             logger.error(msg)
             return msg, 403
 
-        job_params["resourcegpu"] = resourcegpu
+        if ((job["jobStatus"] == 'scheduling' or job["jobStatus"] == 'running') and job_params["mingpu"] != mingpu):
+            msg = "Inference job %s has been scheduled, only maxgpu can be changed. " % (job_id) + \
+                  "Please pause the job first, change mingpu, then resume the job."
+            logger.error(msg)
+            return msg, 403
+
+        job_params["mingpu"] = mingpu
+        job_params["maxgpu"] = maxgpu
         dataHandler.UpdateJobTextFields(
             {"jobId": job_id},
             {"jobParams": base64encode(json.dumps(job_params))})
