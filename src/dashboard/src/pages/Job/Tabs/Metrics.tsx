@@ -1,21 +1,21 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useContext,
   useMemo
-} from 'react';
+} from 'react'
 import {
   Card,
   CardMedia
-} from '@material-ui/core';
+} from '@material-ui/core'
 
-import Context from '../Context';
+import Context from '../Context'
 
 const Metrics: FunctionComponent = () => {
-  const { cluster, job } = useContext(Context);
+  const { cluster, job } = useContext(Context)
   const url = useMemo(() => {
-    return `${cluster['grafana']}/dashboard/db/job-status?var-job_name=${encodeURIComponent(job['jobId'])}`;
-  }, [cluster, job]);
+    return `${cluster['grafana']}/dashboard/db/job-status?var-job_name=${encodeURIComponent(job['jobId'])}`
+  }, [cluster, job])
 
   return (
     <Card elevation={0}>
@@ -31,4 +31,4 @@ const Metrics: FunctionComponent = () => {
 
 Metrics.displayName = 'Metrics'
 
-export default Metrics;
+export default Metrics

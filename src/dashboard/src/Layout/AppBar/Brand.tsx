@@ -1,16 +1,16 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent
-} from 'react';
+} from 'react'
 
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom'
 
 import {
   Box,
   Tooltip,
   Typography,
-  Link as UILink,
-} from '@material-ui/core';
+  Link as UILink
+} from '@material-ui/core'
 
 const Brand: FunctionComponent = () => (
   <Box p={1}>
@@ -22,6 +22,6 @@ const Brand: FunctionComponent = () => (
       </Tooltip>
     </Typography>
   </Box>
-);
+)
 
-export default Brand;
+export default Brand

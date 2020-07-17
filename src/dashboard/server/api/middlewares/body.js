@@ -9,8 +9,8 @@ module.exports = schema => {
     /** @type {import('koa').Middleware} */
     (context, next) => {
       var valid = validator.validate(schema, context.request.body)
-      if (schema === 'job' && (!context.request.body.hasOwnProperty('team') || !context.request.body['team'])) {
-        if (context.request.body.hasOwnProperty('vcName') && context.request.body['vcName']) {
+      if (schema === 'job' && (!('team' in context.request.body) || !context.request.body['team'])) {
+        if ('vcName' in context.request.body && context.request.body['vcName']) {
           context.request.body.team = context.request.body['vcName']
           valid = validator.validate(schema, context.request.body)
         }

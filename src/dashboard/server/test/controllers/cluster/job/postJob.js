@@ -29,68 +29,70 @@ const testEndpoints = {
   }]
 }
 
-describe('POST /clusters/:clusterId/jobs/:jobId/commands', function () {
-  it('should return 201 when command is added successfully', async function () {
-    nock('http://universe')
-      .get('/AddCommand?' + addCommandParams)
-      .reply(200, {
-        message: 'command adding succeeded'
-      })
+describe('/clusters/:clusterId/jobs/:jobId', function () {
+  describe('POST /clusters/:clusterId/jobs/:jobId/commands', function () {
+    it('should return 201 when command is added successfully', async function () {
+      nock('http://universe')
+        .get('/AddCommand?' + addCommandParams)
+        .reply(200, {
+          message: 'command adding succeeded'
+        })
 
-    const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/commands',
-      { command: 'testcommand' }, { params: userParams })
+      const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/commands',
+        { command: 'testcommand' }, { params: userParams })
 
-    response.status.should.equal(201)
-    response.data.should.have.property('message', 'command adding succeeded')
+      response.status.should.equal(201)
+      response.data.should.have.property('message', 'command adding succeeded')
+    })
+
+    it('should return 502 Bad Gateway Error if command adding failed', async function () {
+      nock('http://universe')
+        .get('/AddCommand?' + addCommandParams)
+        .reply(500)
+
+      const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/commands',
+        { command: 'testcommand' }, { params: userParams })
+
+      response.status.should.equal(502)
+    })
   })
 
-  it('should return 502 Bad Gateway Error if command adding failed', async function () {
-    nock('http://universe')
-      .get('/AddCommand?' + addCommandParams)
-      .reply(500)
+  describe('POST /clusters/:clusterId/jobs/:jobId/endpoints', function () {
+    it('should return 200 when endpoints are added successfully', async function () {
+      nock('http://universe')
+        .post('/endpoints?' + addEndpointsParams)
+        .reply(200, {
+          message: 'endpoints adding succeeded'
+        })
 
-    const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/commands',
-      { command: 'testcommand' }, { params: userParams })
+      const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/endpoints',
+        testEndpoints, { params: userParams })
 
-    response.status.should.equal(502)
-  })
-})
+      response.status.should.equal(200)
+      response.data.should.have.property('message', 'endpoints adding succeeded')
+    })
 
-describe('POST /clusters/:clusterId/jobs/:jobId/endpoints', function () {
-  it('should return 200 when endpoints are added successfully', async function () {
-    nock('http://universe')
-      .post('/endpoints?' + addEndpointsParams)
-      .reply(200, {
-        message: 'endpoints adding succeeded'
-      })
+    it('should return 403 with messages when endpoints are added failed with 403', async function () {
+      nock('http://universe')
+        .post('/endpoints?' + addEndpointsParams)
+        .reply(403, 'endpoints adding failed')
 
-    const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/endpoints',
-      testEndpoints, { params: userParams })
+      const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/endpoints',
+        testEndpoints, { params: userParams })
 
-    response.status.should.equal(200)
-    response.data.should.have.property('message', 'endpoints adding succeeded')
-  })
+      response.status.should.equal(403)
+      response.data.should.equal('endpoints adding failed')
+    })
 
-  it('should return 403 with messages when endpoints are added failed with 403', async function () {
-    nock('http://universe')
-      .post('/endpoints?' + addEndpointsParams)
-      .reply(403, 'endpoints adding failed')
+    it('should return 502 Bad Gateway Error if endpoints adding failed', async function () {
+      nock('http://universe')
+        .post('/endpoints?' + addEndpointsParams)
+        .reply(500)
 
-    const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/endpoints',
-      testEndpoints, { params: userParams })
+      const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/endpoints',
+        testEndpoints, { params: userParams })
 
-    response.status.should.equal(403)
-    response.data.should.equal('endpoints adding failed')
-  })
-
-  it('should return 502 Bad Gateway Error if endpoints adding failed', async function () {
-    nock('http://universe')
-      .post('/endpoints?' + addEndpointsParams)
-      .reply(500)
-
-    const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/endpoints',
-      testEndpoints, { params: userParams })
-
-    response.status.should.equal(502)
+      response.status.should.equal(502)
+    })
   })
 })

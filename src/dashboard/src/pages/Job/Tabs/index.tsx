@@ -1,39 +1,39 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   ChangeEvent,
   useCallback,
   useMemo
-} from 'react';
+} from 'react'
 import {
   Paper,
   Tabs,
   Tab
-} from '@material-ui/core';
-import SwipeableViews from 'react-swipeable-views';
+} from '@material-ui/core'
+import SwipeableViews from 'react-swipeable-views'
 
-import useHashTab from '../../../hooks/useHashTab';
+import useHashTab from '../../../hooks/useHashTab'
 
-import Brief from './Brief';
-import Endpoints from './Endpoints';
-import Metrics from './Metrics';
-import Console from './Console';
+import Brief from './Brief'
+import Endpoints from './Endpoints'
+import Metrics from './Metrics'
+import Console from './Console'
 
 const JobTabs: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
   const components = useMemo(() => manageable
     ? [Brief, Endpoints, Metrics, Console]
     : [Brief, Metrics, Console]
-  , [manageable]);
+  , [manageable])
   const [index, setIndex] = useHashTab(
     ...components.map(
       Component =>
-        String(Component.displayName || Component.name).toLowerCase()));
+        String(Component.displayName || Component.name).toLowerCase()))
   const onChange = useCallback((event: ChangeEvent<{}>, value: any) => {
-    setIndex(value as number);
-  }, [setIndex]);
+    setIndex(value as number)
+  }, [setIndex])
   const onChangeIndex = useCallback((index: number, prevIndex: number) => {
-    setIndex(index);
-  }, [setIndex]);
+    setIndex(index)
+  }, [setIndex])
   return (
     <Paper elevation={2}>
       <Tabs
@@ -62,7 +62,7 @@ const JobTabs: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => 
         }
       </SwipeableViews>
     </Paper>
-  );
+  )
 }
 
-export default JobTabs;
+export default JobTabs

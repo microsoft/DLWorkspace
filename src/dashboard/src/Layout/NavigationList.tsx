@@ -1,50 +1,50 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   forwardRef,
   useContext
-} from 'react';
+} from 'react'
 
 import {
   Link,
   LinkProps,
   matchPath,
   useLocation
-} from 'react-router-dom';
+} from 'react-router-dom'
 
 import {
   Divider,
   List,
   ListItem,
   ListItemText
-} from '@material-ui/core';
+} from '@material-ui/core'
 
-import ConfigContext from '../contexts/Config';
+import ConfigContext from '../contexts/Config'
 
 const ForwardedRefLink = forwardRef<Link, LinkProps>(
   (props, ref) => <Link ref={ref} {...props}/>
-);
+)
 
 const ListItemLink: FunctionComponent<LinkProps> = (props) => {
-  const { to } = props;
-  const location = useLocation();
+  const { to } = props
+  const location = useLocation()
 
-  const locationPathname = location.pathname;
-  const toPathname = typeof to === "string"
+  const locationPathname = location.pathname
+  const toPathname = typeof to === 'string'
     ? to
-    : typeof to === "object"
+    : typeof to === 'object'
       ? to.pathname
-      : undefined;
+      : undefined
 
-  const selected = typeof toPathname === "string"
+  const selected = typeof toPathname === 'string'
     ? matchPath(locationPathname, toPathname) !== null
-    : true;
+    : true
 
-  return <ListItem button selected={selected} component={ForwardedRefLink} {...props}/>;
-};
+  return <ListItem button selected={selected} component={ForwardedRefLink} {...props}/>
+}
 
 const NavigationList: FunctionComponent = () => {
-  const { wiki } = useContext(ConfigContext);
+  const { wiki } = useContext(ConfigContext)
   return (
     <List component="nav" disablePadding>
       <ListItemLink to="/submission/training">
@@ -77,7 +77,7 @@ const NavigationList: FunctionComponent = () => {
         <ListItemText>DLTS Wiki</ListItemText>
       </ListItem>
     </List>
-  );
-};
+  )
+}
 
-export default NavigationList;
+export default NavigationList

@@ -1,10 +1,10 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useCallback,
   useContext,
   useEffect
-} from 'react';
+} from 'react'
 
 import {
   Drawer as UIDrawer,
@@ -14,27 +14,27 @@ import {
   useMediaQuery,
   useTheme,
   Toolbar
-} from '@material-ui/core';
+} from '@material-ui/core'
 
-import LayoutContext from './Context';
+import LayoutContext from './Context'
 
 const useStyles = makeStyles((theme: Theme) => createStyles({
   paper: {
     width: theme.spacing(30)
   }
-}));
+}))
 
 const Drawer: FunctionComponent = ({ children }) => {
-  const { drawerOpen, setDrawerOpen } = useContext(LayoutContext);
-  const onClose = useCallback(() => setDrawerOpen(false), [setDrawerOpen]);
-  const theme = useTheme();
-  const styles = useStyles();
-  const isDesktop = useMediaQuery(theme.breakpoints.up("sm"));
-  const variant = isDesktop ? "persistent" : "temporary";
+  const { drawerOpen, setDrawerOpen } = useContext(LayoutContext)
+  const onClose = useCallback(() => setDrawerOpen(false), [setDrawerOpen])
+  const theme = useTheme()
+  const styles = useStyles()
+  const isDesktop = useMediaQuery(theme.breakpoints.up('sm'))
+  const variant = isDesktop ? 'persistent' : 'temporary'
 
   useEffect(() => {
-    if (isDesktop) { setDrawerOpen(true); }
-  }, [isDesktop, setDrawerOpen]);
+    if (isDesktop) { setDrawerOpen(true) }
+  }, [isDesktop, setDrawerOpen])
 
   return (
     <UIDrawer
@@ -46,7 +46,7 @@ const Drawer: FunctionComponent = ({ children }) => {
       <Toolbar disableGutters/>
       {children}
     </UIDrawer>
-  );
-};
+  )
+}
 
-export default Drawer;
+export default Drawer

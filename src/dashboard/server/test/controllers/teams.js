@@ -13,8 +13,8 @@ posTeamData['Universe'] = {
   result: [{
     vcName: 'Universe',
     admin: 'AdminUniverse',
-    metadata: `{"testmodel": {"num_gpu_per_node": "5"}, "user_quota": "3"}`,
-    quota: `{"testmodel": "2"}`
+    metadata: '{"testmodel": {"num_gpu_per_node": "5"}, "user_quota": "3"}',
+    quota: '{"testmodel": "2"}'
   }]
 }
 
@@ -22,8 +22,8 @@ posTeamData['Targaryen'] = {
   result: [{
     vcName: 'Targaryen',
     admin: 'AdminTargaryen',
-    metadata: `{"testmodel": {"num_gpu_per_node": "3"}, "user_quota": "1"}`,
-    quota: `{"nottestmodel": "0"}`
+    metadata: '{"testmodel": {"num_gpu_per_node": "3"}, "user_quota": "1"}',
+    quota: '{"nottestmodel": "0"}'
   }]
 }
 
@@ -38,7 +38,7 @@ const fetchParams = new URLSearchParams({
 
 describe('GET /teams', function () {
   it('[P-01] should return the teams info of cluster', async function () {
-    for (let key in clusterConfig) {
+    for (const key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .get('/ListVCs?' + fetchParams)
         .reply(200, posTeamData[key])
@@ -55,7 +55,7 @@ describe('GET /teams', function () {
   })
 
   it('[N-01] should return empty gpus info with incorrect metadata or quota format', async function () {
-    for (let key in clusterConfig) {
+    for (const key in clusterConfig) {
       // team data for the wrong format negative case
       const negTeamData = {
         result: [{
@@ -82,7 +82,7 @@ describe('GET /teams', function () {
   })
 
   it('[N-02] response data should be empty when there is a server error', async function () {
-    for (let key in clusterConfig) {
+    for (const key in clusterConfig) {
       // team data for the empty data case
       const negTeamData = {
         result: {}

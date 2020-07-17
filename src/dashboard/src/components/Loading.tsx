@@ -1,10 +1,10 @@
-import * as React from 'react';
-import { FunctionComponent } from 'react';
+import * as React from 'react'
+import { FunctionComponent } from 'react'
 
-import { Box, CircularProgress, Typography } from '@material-ui/core';
+import { Box, CircularProgress, Typography } from '@material-ui/core'
 
 interface LoadingProps {
-  children?: string;
+  children?: string
 }
 
 const Loading: FunctionComponent<LoadingProps> = ({ children }) => (
@@ -16,6 +16,6 @@ const Loading: FunctionComponent<LoadingProps> = ({ children }) => (
     <CircularProgress/>
     {children && <Typography variant="caption" children={children}/>}
   </Box>
-);
+)
 
-export default Loading;
+export default Loading

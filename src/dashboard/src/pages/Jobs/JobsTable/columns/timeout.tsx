@@ -1,4 +1,4 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   FocusEvent,
@@ -8,23 +8,23 @@ import {
   useMemo,
   useState,
   useRef
-} from 'react';
+} from 'react'
 
-import { get, isFinite } from 'lodash';
+import { get, isFinite } from 'lodash'
 
 import {
   Input,
   InputAdornment,
-  Typography,
-} from '@material-ui/core';
-import { Column } from 'material-table';
-import { useSnackbar } from 'notistack';
+  Typography
+} from '@material-ui/core'
+import { Column } from 'material-table'
+import { useSnackbar } from 'notistack'
 
-import ClusterContext from '../../ClusterContext';
-import { Job } from '../../utils';
+import ClusterContext from '../../ClusterContext'
+import { Job } from '../../utils'
 
 interface TimeoutFieldProps {
-  job: any;
+  job: any
 }
 
 const EDITABLE_STATUSES = new Set([
@@ -37,21 +37,21 @@ const EDITABLE_STATUSES = new Set([
 ])
 
 const TimeoutField: FunctionComponent<TimeoutFieldProps> = ({ job }) => {
-  const { enqueueSnackbar } = useSnackbar();
-  const { cluster } = useContext(ClusterContext);
-  const [busy, setBusy] = useState(false);
-  const input = useRef<HTMLInputElement>();
+  const { enqueueSnackbar } = useSnackbar()
+  const { cluster } = useContext(ClusterContext)
+  const [busy, setBusy] = useState(false)
+  const input = useRef<HTMLInputElement>()
   const editable = useMemo(() => {
     return EDITABLE_STATUSES.has(job['jobStatus'])
   }, [job])
   const defaultHours = useMemo<number>(() => {
-    return get(job, ['jobParams', 'maxTimeSec'], NaN) / 60 / 60;
-  }, [job]);
+    return get(job, ['jobParams', 'maxTimeSec'], NaN) / 60 / 60
+  }, [job])
   const setHours = useCallback((hours: number) => {
-    if (isNaN(hours)) return;
-    if (hours === defaultHours) return;
-    enqueueSnackbar('Timeout is being set...');
-    setBusy(true);
+    if (isNaN(hours)) return
+    if (hours === defaultHours) return
+    enqueueSnackbar('Timeout is being set...')
+    setBusy(true)
 
     fetch(`/api/clusters/${cluster.id}/jobs/${job['jobId']}/timeout`, {
       method: 'PUT',
@@ -59,29 +59,29 @@ const TimeoutField: FunctionComponent<TimeoutFieldProps> = ({ job }) => {
       headers: { 'Content-Type': 'application/json' }
     }).then((response) => {
       if (response.ok) {
-        enqueueSnackbar('Timeout is set successfully', { variant: 'success' });
+        enqueueSnackbar('Timeout is set successfully', { variant: 'success' })
       } else {
-        throw Error();
+        throw Error()
       }
     }).catch(() => {
-      enqueueSnackbar('Failed to set timeout', { variant: 'error' });
+      enqueueSnackbar('Failed to set timeout', { variant: 'error' })
     }).then(() => {
-      setBusy(false);
-    });
-  }, [defaultHours, enqueueSnackbar, job, cluster.id]);
+      setBusy(false)
+    })
+  }, [defaultHours, enqueueSnackbar, job, cluster.id])
   const onBlur = useCallback((event: FocusEvent<HTMLInputElement>) => {
-    if (input.current === undefined) return;
-    setHours(input.current.valueAsNumber);
-  }, [setHours]);
+    if (input.current === undefined) return
+    setHours(input.current.valueAsNumber)
+  }, [setHours])
   const onKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    if (input.current === undefined) return;
+    if (input.current === undefined) return
     if (event.key === 'Enter') {
-      setHours(input.current.valueAsNumber);
+      setHours(input.current.valueAsNumber)
     }
     if (event.key === 'Escape') {
-      input.current.valueAsNumber = defaultHours;
+      input.current.valueAsNumber = defaultHours
     }
-  }, [setHours, defaultHours]);
+  }, [setHours, defaultHours])
 
   if (editable) {
     return (
@@ -104,27 +104,27 @@ const TimeoutField: FunctionComponent<TimeoutFieldProps> = ({ job }) => {
         }}
         onKeyDown={onKeyDown}
       />
-    );
+    )
   } else {
     if (isFinite(defaultHours)) {
-      return <>{defaultHours} h</>;
+      return <>{defaultHours} h</>
     } else {
-      return <Typography variant="inherit" color="textSecondary">N/A</Typography>;
+      return <Typography variant="inherit" color="textSecondary">N/A</Typography>
     }
   }
-};
+}
 
 const valueOf = (job: Job): number => {
-  return get(job, ['jobParams', 'maxTimeSec'], NaN);
-};
+  return get(job, ['jobParams', 'maxTimeSec'], NaN)
+}
 
 export default (): Column<Job> => ({
   title: 'Timeout',
   type: 'numeric',
-  render(job) {
-    return <TimeoutField job={job}/>;
+  render (job) {
+    return <TimeoutField job={job}/>
   },
-  customSort(job1, job2) {
+  customSort (job1, job2) {
     return valueOf(job1) - valueOf(job2)
   }
-});
+})

@@ -1,9 +1,9 @@
-import { createContext } from 'react';
+import { createContext } from 'react'
 
 interface ClusterContext {
-  cluster?: any;
+  cluster?: any
 }
 
-const ClusterContext = createContext<ClusterContext>({});
+const ClusterContext = createContext<ClusterContext>({})
 
-export default ClusterContext;
+export default ClusterContext

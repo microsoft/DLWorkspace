@@ -1,15 +1,15 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent
-} from 'react';
+} from 'react'
 
 import {
   Box,
   Typography
-} from '@material-ui/core';
+} from '@material-ui/core'
 
 interface Props {
-  caption?: string;
+  caption?: string
 }
 
 const ColumnTitle: FunctionComponent<Props> = ({ caption, children }) => (
@@ -19,4 +19,4 @@ const ColumnTitle: FunctionComponent<Props> = ({ caption, children }) => (
   </Box>
 )
 
-export default ColumnTitle;
+export default ColumnTitle

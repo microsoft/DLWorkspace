@@ -1,4 +1,4 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useCallback,
@@ -6,10 +6,10 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
-} from 'react';
+  useState
+} from 'react'
 
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom'
 
 import {
   Button,
@@ -21,35 +21,35 @@ import {
   Input,
   InputAdornment,
   Radio,
-  RadioGroup,
-} from '@material-ui/core';
-import { Timer } from '@material-ui/icons';
+  RadioGroup
+} from '@material-ui/core'
+import { Timer } from '@material-ui/icons'
 
-import { useSnackbar } from 'notistack';
+import { useSnackbar } from 'notistack'
 
-import useFetch from 'use-http-1';
+import useFetch from 'use-http-1'
 
-import TeamContext from '../../../contexts/Team';
+import TeamContext from '../../../contexts/Team'
 
-import SettingItem from './SettingItem';
-import Context from './Context';
+import SettingItem from './SettingItem'
+import Context from './Context'
 
 const TimeoutItem: FunctionComponent<{ value: number | null | undefined }> = ({ value }) => {
-  const { clusterId } = useParams();
-  const { enqueueSnackbar } = useSnackbar();
-  const { getMeta } = useContext(Context);
-  const { currentTeamId } = useContext(TeamContext);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogSaveDisabled, setDialogSaveDisabled] = useState(false);
-  const [dialogValue, setDialogValue] = useState<number | null>();
-  const inputRef = useRef<HTMLInputElement>();
+  const { clusterId } = useParams()
+  const { enqueueSnackbar } = useSnackbar()
+  const { getMeta } = useContext(Context)
+  const { currentTeamId } = useContext(TeamContext)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogSaveDisabled, setDialogSaveDisabled] = useState(false)
+  const [dialogValue, setDialogValue] = useState<number | null>()
+  const inputRef = useRef<HTMLInputElement>()
 
   const text = useMemo(() => {
-    if (value === undefined) return undefined;
-    if (value === null) return 'Disabled';
-    const valueAsHours = value / 60 / 60;
-    return `${valueAsHours} ${valueAsHours > 1 ? 'hours' : 'hour'}`;
-  }, [value]);
+    if (value === undefined) return undefined
+    if (value === null) return 'Disabled'
+    const valueAsHours = value / 60 / 60
+    return `${valueAsHours} ${valueAsHours > 1 ? 'hours' : 'hour'}`
+  }, [value])
 
   const { response, error, patch, abort } = useFetch(`/api/v2/clusters/${clusterId}/teams/${currentTeamId}/meta`, {
     headers: {
@@ -58,49 +58,49 @@ const TimeoutItem: FunctionComponent<{ value: number | null | undefined }> = ({ 
   })
 
   const handleItemConfigure = useCallback(() => {
-    setDialogOpen(true);
-    setDialogValue(value);
-  }, [setDialogOpen, value]);
+    setDialogOpen(true)
+    setDialogValue(value)
+  }, [setDialogOpen, value])
   const handleDialogSave = useCallback(() => {
     if (!(dialogValue === null || (typeof dialogValue === 'number' && dialogValue > 0))) {
-      enqueueSnackbar('Invalid timeout value.', { variant: 'error' });
+      enqueueSnackbar('Invalid timeout value.', { variant: 'error' })
     }
-    setDialogSaveDisabled(true);
+    setDialogSaveDisabled(true)
     patch({
       timeout: dialogValue
     }).then(() => {
       if (response.ok) {
-        setDialogOpen(false);
-        getMeta();
+        setDialogOpen(false)
+        getMeta()
       }
-      setDialogSaveDisabled(false);
+      setDialogSaveDisabled(false)
     }, () => {
-      setDialogSaveDisabled(false);
-    });
-  }, [dialogValue, enqueueSnackbar, getMeta, patch, response]);
+      setDialogSaveDisabled(false)
+    })
+  }, [dialogValue, enqueueSnackbar, getMeta, patch, response])
   const handleDialogCancel = useCallback(() => {
-    abort();
-    setDialogOpen(false);
-  }, [abort, setDialogOpen]);
+    abort()
+    setDialogOpen(false)
+  }, [abort, setDialogOpen])
   const handleRadioChange = useCallback((event: unknown, value: string) => {
-    setDialogValue(value === 'true' ? 3600 : null);
-  }, []);
+    setDialogValue(value === 'true' ? 3600 : null)
+  }, [])
   const handleTextFieldChange = useCallback(() => {
     if (inputRef.current && Number.isFinite(inputRef.current.valueAsNumber)) {
-      setDialogValue(inputRef.current.valueAsNumber * 3600);
+      setDialogValue(inputRef.current.valueAsNumber * 3600)
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
     if (dialogValue !== null && inputRef.current) {
-      inputRef.current.focus();
+      inputRef.current.focus()
     }
-  }, [dialogValue]);
+  }, [dialogValue])
   useEffect(() => {
     if (error) {
-      enqueueSnackbar(`Failed to set timeout: ${error.message}`, { variant: 'error' });
+      enqueueSnackbar(`Failed to set timeout: ${error.message}`, { variant: 'error' })
     }
-  }, [error, enqueueSnackbar]);
+  }, [error, enqueueSnackbar])
 
   return (
     <>
@@ -142,7 +142,7 @@ const TimeoutItem: FunctionComponent<{ value: number | null | undefined }> = ({ 
         </DialogActions>
       </Dialog>
     </>
-  );
-};
+  )
+}
 
-export default TimeoutItem;
+export default TimeoutItem

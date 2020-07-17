@@ -5,24 +5,24 @@ import {
   createContext,
   createElement,
   useState
-} from 'react';
+} from 'react'
 
 interface LayoutContext {
-  drawerOpen: boolean;
-  setDrawerOpen: Dispatch<SetStateAction<boolean>>;
+  drawerOpen: boolean
+  setDrawerOpen: Dispatch<SetStateAction<boolean>>
 }
 
 const LayoutContext = createContext<LayoutContext>({
   drawerOpen: false,
-  setDrawerOpen () { return; }
-});
+  setDrawerOpen () { }
+})
 
 const LayoutProvider: FunctionComponent = ({ children }) => {
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const value = { drawerOpen, setDrawerOpen };
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const value = { drawerOpen, setDrawerOpen }
 
-  return createElement(LayoutContext.Provider, { value }, children);
-};
+  return createElement(LayoutContext.Provider, { value }, children)
+}
 
-export default LayoutContext;
-export { LayoutProvider };
+export default LayoutContext
+export { LayoutProvider }

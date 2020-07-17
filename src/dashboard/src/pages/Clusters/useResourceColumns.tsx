@@ -1,45 +1,45 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   useMemo,
-  useState,
-} from 'react';
+  useState
+} from 'react'
 import {
   TableSortLabel,
   useTheme
-} from '@material-ui/core';
-import { More } from '@material-ui/icons';
-import { Column } from 'material-table';
-import { capitalize, get } from 'lodash';
+} from '@material-ui/core'
+import { More } from '@material-ui/icons'
+import { Column } from 'material-table'
+import { capitalize, get } from 'lodash'
 
-import CaptionColumnTitle from '../../components/CaptionColumnTitle';
-import { formatBytes, formatFloat } from '../../utils/formats';
+import CaptionColumnTitle from '../../components/CaptionColumnTitle'
+import { formatBytes, formatFloat } from '../../utils/formats'
 
-export type ResourceType = 'cpu' | 'gpu' | 'memory';
-export type ResourceKind = 'total' | 'unschedulable' | 'used' | 'preemptable' | 'available';
+export type ResourceType = 'cpu' | 'gpu' | 'memory'
+export type ResourceKind = 'total' | 'unschedulable' | 'used' | 'preemptable' | 'available'
 
 const useResourceColumns = (kinds: ResourceKind[], isPureCPU = false) => {
-  const theme = useTheme();
+  const theme = useTheme()
 
-  const [expandedResourceType, setExpandedResourceType] = useState<ResourceType>(isPureCPU ? 'cpu' : 'gpu');
+  const [expandedResourceType, setExpandedResourceType] = useState<ResourceType>(isPureCPU ? 'cpu' : 'gpu')
 
   const typeColor = useMemo(() => (isPureCPU ? {
     cpu: theme.palette.background.default,
-    memory: theme.palette.background.paper,
+    memory: theme.palette.background.paper
   } : {
     cpu: theme.palette.background.default,
     gpu: theme.palette.background.paper,
-    memory: theme.palette.background.default,
-  }), [isPureCPU, theme]);
+    memory: theme.palette.background.default
+  }), [isPureCPU, theme])
 
-  const expandable = kinds.indexOf('used') > -1 && kinds.indexOf('total') > -1;
+  const expandable = kinds.indexOf('used') > -1 && kinds.indexOf('total') > -1
 
   return useMemo(() => {
-    const columns: Column<any>[] = [];
+    const columns: Array<Column<any>> = []
 
     for (const title of isPureCPU ? ['CPU', 'Memory'] : ['CPU', 'GPU', 'Memory']) {
-      const type = title.toLowerCase() as ResourceType;
-      const process = type === 'memory' ? formatBytes : formatFloat;
-      const style = { backgroundColor: typeColor[type] };
+      const type = title.toLowerCase() as ResourceType
+      const process = type === 'memory' ? formatBytes : formatFloat
+      const style = { backgroundColor: typeColor[type] }
       columns.push({
         title: (
           <TableSortLabel
@@ -66,7 +66,7 @@ const useResourceColumns = (kinds: ResourceKind[], isPureCPU = false) => {
         sorting: false,
         searchable: false,
         width: 'auto'
-      });
+      })
       for (const kind of kinds) {
         columns.push({
           title: (
@@ -83,11 +83,11 @@ const useResourceColumns = (kinds: ResourceKind[], isPureCPU = false) => {
           headerStyle: style,
           cellStyle: style,
           width: 'auto'
-        });
+        })
       }
     }
-    return columns;
-  }, [isPureCPU, kinds, expandable, expandedResourceType, typeColor]);
-};
+    return columns
+  }, [isPureCPU, kinds, expandable, expandedResourceType, typeColor])
+}
 
-export default useResourceColumns;
+export default useResourceColumns

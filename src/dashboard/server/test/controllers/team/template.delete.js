@@ -22,7 +22,7 @@ const deleteTemplateParams = new URLSearchParams({
 
 describe('DELETE /teams/:teamId/templates/:templateName', function () {
   it('should return 204 if template deleted successfully', async function () {
-    for (let key in clusterConfig) {
+    for (const key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .delete('/templates?' + deleteTemplateParams)
         .reply(200, {
@@ -38,7 +38,7 @@ describe('DELETE /teams/:teamId/templates/:templateName', function () {
   })
 
   it('should return 502 if template deleting failed', async function () {
-    for (let key in clusterConfig) {
+    for (const key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .delete('/templates?' + deleteTemplateParams)
         .reply(500)

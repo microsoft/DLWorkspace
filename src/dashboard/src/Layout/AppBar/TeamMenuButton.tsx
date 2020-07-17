@@ -1,11 +1,11 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useCallback,
   useContext,
   useRef,
   useState
-} from 'react';
+} from 'react'
 
 import {
   Button,
@@ -15,13 +15,13 @@ import {
   createStyles,
   makeStyles,
   ListItemIcon
-} from '@material-ui/core';
+} from '@material-ui/core'
 import {
   Check,
   Group
-} from '@material-ui/icons';
+} from '@material-ui/icons'
 
-import TeamContext from '../../contexts/Team';
+import TeamContext from '../../contexts/Team'
 
 const useButtonStyles = makeStyles(() => createStyles({
   root: {
@@ -30,23 +30,23 @@ const useButtonStyles = makeStyles(() => createStyles({
 }))
 
 const TeamMenuButton: FunctionComponent = () => {
-  const { teams, setCurrentTeamId, currentTeamId } = useContext(TeamContext);
+  const { teams, setCurrentTeamId, currentTeamId } = useContext(TeamContext)
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false)
 
-  const button = useRef<any>(null);
+  const button = useRef<any>(null)
 
-  const buttonStyles = useButtonStyles();
+  const buttonStyles = useButtonStyles()
 
-  const handleButtonClick = useCallback(() => setOpen(true), [setOpen]);
-  const handleMenuClose = useCallback(() => setOpen(false), [setOpen]);
+  const handleButtonClick = useCallback(() => setOpen(true), [setOpen])
+  const handleMenuClose = useCallback(() => setOpen(false), [setOpen])
   const handleMenuItemClick = useCallback((teamId: string) => () => {
-    setCurrentTeamId(teamId);
-    setOpen(false);
-  }, [setCurrentTeamId, setOpen]);
+    setCurrentTeamId(teamId)
+    setOpen(false)
+  }, [setCurrentTeamId, setOpen])
 
-  if (teams == null) return null;
-  if (teams.length === 0) return null;
+  if (teams == null) return null
+  if (teams.length === 0) return null
 
   return (
     <>
@@ -75,7 +75,7 @@ const TeamMenuButton: FunctionComponent = () => {
         ))}
       </Menu>
     </>
-  );
-};
+  )
+}
 
-export default TeamMenuButton;
+export default TeamMenuButton

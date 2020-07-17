@@ -1,9 +1,9 @@
 import {
   createElement,
-  forwardRef,
-} from 'react';
+  forwardRef
+} from 'react'
 
-import MaterialTable, { MaterialTableProps } from 'material-table';
+import MaterialTable, { Icons, MaterialTableProps } from 'material-table'
 import {
   AddBox,
   ArrowDownward,
@@ -21,13 +21,11 @@ import {
   Search,
   SvgIconComponent,
   ViewColumn
-} from '@material-ui/icons';
-
-import { Icons } from 'material-table';
+} from '@material-ui/icons'
 
 const forwardIcon = (Icon: SvgIconComponent) => forwardRef<SVGSVGElement>(function (props, ref) {
-  return createElement(Icon, { fontSize: "small", ref, ...props })
-});
+  return createElement(Icon, { fontSize: 'small', ref, ...props })
+})
 
 const icons: Icons = {
   Add: forwardIcon(AddBox),
@@ -46,11 +44,11 @@ const icons: Icons = {
   ResetSearch: forwardIcon(Clear),
   Search: forwardIcon(Search),
   ThirdStateCheck: forwardIcon(Remove),
-  ViewColumn: forwardIcon(ViewColumn),
+  ViewColumn: forwardIcon(ViewColumn)
 }
 
-const SvgIconMaterialTable = function SvgIconMaterialTable<T extends object>(props: MaterialTableProps<T>) {
-  return createElement<MaterialTableProps<T>>(MaterialTable, { icons, ...props });
-};
+const SvgIconMaterialTable = function SvgIconMaterialTable<T extends object> (props: MaterialTableProps<T>) {
+  return createElement<MaterialTableProps<T>>(MaterialTable, { icons, ...props })
+}
 
-export default SvgIconMaterialTable;
+export default SvgIconMaterialTable

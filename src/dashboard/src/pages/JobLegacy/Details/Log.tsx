@@ -1,59 +1,59 @@
-import * as React from 'react';
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import useFetch from 'use-http';
+import * as React from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import useFetch from 'use-http'
 
 import {
   Card,
   CardHeader,
   CardContent,
-  Typography,
-} from '@material-ui/core';
+  Typography
+} from '@material-ui/core'
 
-import Context from './Context';
+import Context from './Context'
 
 const Log: React.FC = () => {
-  const { clusterId, jobId } = useContext(Context);
+  const { clusterId, jobId } = useContext(Context)
 
-  const [log, setLog] = useState<{ [podName: string]: string } | string>({});
-  const [cursor, setCursor] = useState<string | null>(null);
+  const [log, setLog] = useState<{ [podName: string]: string } | string>({})
+  const [cursor, setCursor] = useState<string | null>(null)
   useEffect(() => {
-    setLog({});
-    setCursor(null);
+    setLog({})
+    setCursor(null)
   }, [clusterId, jobId])
 
-  const { data, error, get } = useFetch('/api');
+  const { data, error, get } = useFetch('/api')
   const getMore = useCallback(() => {
-    let url = `/clusters/${clusterId}/jobs/${jobId}/log`;
+    let url = `/clusters/${clusterId}/jobs/${jobId}/log`
     if (cursor != null) {
-      url += `?cursor=${cursor}`;
+      url += `?cursor=${cursor}`
     }
-    get(url);
-  }, [clusterId, jobId, cursor]);
-  useEffect(() => { getMore(); }, [getMore]);
+    get(url)
+  }, [clusterId, jobId, cursor])
+  useEffect(() => { getMore() }, [getMore])
 
   useEffect(() => {
     if (data != null) {
-      const { log: nextLog, cursor } = data;
-      if (typeof nextLog == 'string') {
-        setLog(nextLog);
-        setCursor(cursor);
-        return;
+      const { log: nextLog, cursor } = data
+      if (typeof nextLog === 'string') {
+        setLog(nextLog)
+        setCursor(cursor)
+        return
       }
       const newLog = Object.assign(Object.create(null), log)
       for (const podName of Object.keys(nextLog)) {
-        newLog[podName] = (newLog[podName] || "") + nextLog[podName]
+        newLog[podName] = (newLog[podName] || '') + nextLog[podName]
       }
-      setLog(newLog);
-      setCursor(cursor);
+      setLog(newLog)
+      setCursor(cursor)
     }
   }, [data])
 
   const logText = useMemo(() => {
-    if (typeof log == 'string') {
-      return log;
+    if (typeof log === 'string') {
+      return log
     }
-    const logText: string[] = [];
-    const podNames = Object.keys(log).sort()
+    const logText: string[] = []
+    const podNames = Object.keys(log).sort((a, b) => a.localeCompare(b))
     for (const podName of podNames) {
       logText.push(`
 =========================================================
@@ -69,37 +69,37 @@ ${log[podName]}
 =========================================================
 
 
-`);
+`)
     }
-    return logText.join("");
-  }, [log]);
+    return logText.join('')
+  }, [log])
 
-  const timeout = useRef<ReturnType<typeof setTimeout>>();
+  const timeout = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => {
     if (error != null) {
       if (timeout.current != null) {
-        console.warn('timeout.current is still set');
-        clearTimeout(timeout.current);
+        console.warn('timeout.current is still set')
+        clearTimeout(timeout.current)
       }
-      timeout.current = setTimeout(getMore, 1000);
+      timeout.current = setTimeout(getMore, 1000)
     }
 
     return () => {
       if (timeout.current != null) {
-        clearTimeout(timeout.current);
-        timeout.current = undefined;
+        clearTimeout(timeout.current)
+        timeout.current = undefined
       }
-    };
-  }, [error, getMore]);
+    }
+  }, [error, getMore])
 
   return (
     <Card>
       <CardHeader title="Console Output"/>
       <CardContent>
-        <Typography component='pre' style={{overflow:'auto'}}>{logText}</Typography>
+        <Typography component='pre' style={{ overflow: 'auto' }}>{logText}</Typography>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default Log;
+export default Log

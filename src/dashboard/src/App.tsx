@@ -1,38 +1,38 @@
-import * as React from 'react';
-import { FunctionComponent } from 'react';
+import * as React from 'react'
+import { FunctionComponent } from 'react'
 
-import 'typeface-roboto';
-import 'typeface-roboto-mono';
+import 'typeface-roboto'
+import 'typeface-roboto-mono'
 
-import { BrowserRouter } from 'react-router-dom';
-import Helmet from 'react-helmet';
-import { CssBaseline, createMuiTheme } from '@material-ui/core';
-import { ThemeProvider } from "@material-ui/styles";
-import { SnackbarProvider } from "notistack";
+import { BrowserRouter } from 'react-router-dom'
+import Helmet from 'react-helmet'
+import { CssBaseline, createMuiTheme } from '@material-ui/core'
+import { ThemeProvider } from '@material-ui/styles'
+import { SnackbarProvider } from 'notistack'
 import {
   Provider as FetchProvider,
   IncomingOptions,
-  CachePolicies,
-} from "use-http-1";
+  CachePolicies
+} from 'use-http-1'
 
-import ConfigContext, { Provider as ConfigProvider } from "./contexts/Config";
-import UserContext, { Provider as UserProvider } from "./contexts/User";
-import { Provider as ClustersProvider } from "./contexts/Clusters";
-import { Provider as TeamProvider } from './contexts/Team';
+import ConfigContext, { Provider as ConfigProvider } from './contexts/Config'
+import UserContext, { Provider as UserProvider } from './contexts/User'
+import { Provider as ClustersProvider } from './contexts/Clusters'
+import { Provider as TeamProvider } from './contexts/Team'
 
-import { ConfirmProvider } from './hooks/useConfirm';
+import { ConfirmProvider } from './hooks/useConfirm'
 
-import Layout from "./Layout";
-import Routes from "./Routes";
+import Layout from './Layout'
+import Routes from './Routes'
 
-const theme = createMuiTheme();
+const theme = createMuiTheme()
 const useHttpOptions: IncomingOptions = {
   cachePolicy: CachePolicies.NO_CACHE
-};
+}
 
 interface BootstrapProps {
-  config: ConfigContext;
-  user: UserContext;
+  config: ConfigContext
+  user: UserContext
 }
 
 const Contexts: FunctionComponent<BootstrapProps> = ({ config, user, children }) => {
@@ -60,7 +60,7 @@ const Contexts: FunctionComponent<BootstrapProps> = ({ config, user, children })
 
       </BrowserRouter>
     </FetchProvider>
-  );
+  )
 }
 
 const App: React.FC<BootstrapProps> = (props) => (
@@ -74,6 +74,6 @@ const App: React.FC<BootstrapProps> = (props) => (
       <Routes/>
     </Layout>
   </Contexts>
-);
+)
 
-export default App;
+export default App

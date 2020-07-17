@@ -1,2 +1,1 @@
-export const teamVCStatusConstants = [""];
-
+export const teamVCStatusConstants = ['']

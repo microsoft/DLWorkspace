@@ -1,9 +1,9 @@
-import { createContext } from 'react';
+import { createContext } from 'react'
 
 const Context = createContext({
   admin: false,
   data: {},
-  getMeta() { return },
+  getMeta () { }
 })
 
-export default Context;
+export default Context

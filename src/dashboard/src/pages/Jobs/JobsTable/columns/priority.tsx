@@ -1,4 +1,4 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   FocusEvent,
@@ -8,19 +8,19 @@ import {
   useMemo,
   useState,
   useRef
-} from 'react';
+} from 'react'
 
-import { Input } from '@material-ui/core';
-import { Column } from 'material-table';
-import { useSnackbar } from 'notistack';
+import { Input } from '@material-ui/core'
+import { Column } from 'material-table'
+import { useSnackbar } from 'notistack'
 
-import ClusterContext from '../../ClusterContext';
-import { Job } from '../../utils';
+import ClusterContext from '../../ClusterContext'
+import { Job } from '../../utils'
 
-const DEFAULT_PRIORITY = 100;
+const DEFAULT_PRIORITY = 100
 
 interface PriorityFieldProps {
-  job: any;
+  job: any
 }
 
 const EDITABLE_STATUSES = new Set([
@@ -33,23 +33,23 @@ const EDITABLE_STATUSES = new Set([
 ])
 
 const PriorityField: FunctionComponent<PriorityFieldProps> = ({ job }) => {
-  const { enqueueSnackbar } = useSnackbar();
-  const { cluster } = useContext(ClusterContext);
-  const [busy, setBusy] = useState(false);
-  const input = useRef<HTMLInputElement>();
+  const { enqueueSnackbar } = useSnackbar()
+  const { cluster } = useContext(ClusterContext)
+  const [busy, setBusy] = useState(false)
+  const input = useRef<HTMLInputElement>()
   const editable = useMemo(() => {
     return EDITABLE_STATUSES.has(job['jobStatus'])
   }, [job])
   const priority = useMemo(() => {
     if (job['priority'] == null) {
-      return DEFAULT_PRIORITY;
+      return DEFAULT_PRIORITY
     }
-    return job['priority'];
+    return job['priority']
   }, [job])
   const setPriority = useCallback((priority: number) => {
-    if (priority === job['priority']) return;
-    enqueueSnackbar('Priority is being set...');
-    setBusy(true);
+    if (priority === job['priority']) return
+    enqueueSnackbar('Priority is being set...')
+    setBusy(true)
 
     fetch(`/api/clusters/${cluster.id}/jobs/${job['jobId']}/priority`, {
       method: 'PUT',
@@ -57,30 +57,30 @@ const PriorityField: FunctionComponent<PriorityFieldProps> = ({ job }) => {
       headers: { 'Content-Type': 'application/json' }
     }).then((response) => {
       if (response.ok) {
-        enqueueSnackbar('Priority is set successfully', { variant: 'success' });
+        enqueueSnackbar('Priority is set successfully', { variant: 'success' })
       } else {
-        throw Error();
+        throw Error()
       }
     }).catch(() => {
-      enqueueSnackbar('Failed to set priority', { variant: 'error' });
+      enqueueSnackbar('Failed to set priority', { variant: 'error' })
     }).then(() => {
-      setBusy(false);
-    });
-  }, [enqueueSnackbar, job, cluster.id]);
+      setBusy(false)
+    })
+  }, [enqueueSnackbar, job, cluster.id])
   const onBlur = useCallback((event: FocusEvent<HTMLInputElement>) => {
     if (input.current) {
-      setPriority(input.current.valueAsNumber);
+      setPriority(input.current.valueAsNumber)
     }
-  }, [setPriority]);
+  }, [setPriority])
   const onKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    if (input.current === undefined) return;
+    if (input.current === undefined) return
     if (event.key === 'Enter') {
-      setPriority(input.current.valueAsNumber);
+      setPriority(input.current.valueAsNumber)
     }
     if (event.key === 'Escape') {
-      input.current.value = priority;
+      input.current.value = priority
     }
-  }, [setPriority, priority]);
+  }, [setPriority, priority])
 
   if (editable) {
     return (
@@ -101,23 +101,23 @@ const PriorityField: FunctionComponent<PriorityFieldProps> = ({ job }) => {
         }}
         onKeyDown={onKeyDown}
       />
-    );
+    )
   } else {
     return <>{priority}</>
   }
-};
+}
 
 const valueOf = (job: Job): number => {
-  return job['priority'] != null ? job['priority'] : DEFAULT_PRIORITY;
-};
+  return job['priority'] != null ? job['priority'] : DEFAULT_PRIORITY
+}
 
 export default (): Column<Job> => ({
   title: 'Priority',
   type: 'numeric',
-  render(job) {
-    return <PriorityField job={job}/>;
+  render (job) {
+    return <PriorityField job={job}/>
   },
-  customSort(job1, job2) {
+  customSort (job1, job2) {
     return valueOf(job1) - valueOf(job2)
   }
-});
+})

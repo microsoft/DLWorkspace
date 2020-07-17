@@ -1,10 +1,10 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useCallback,
   useContext,
   useMemo
-} from 'react';
+} from 'react'
 import {
   Box,
   List,
@@ -14,8 +14,8 @@ import {
   LinearProgress,
   Typography,
   createStyles,
-  makeStyles,
-} from '@material-ui/core';
+  makeStyles
+} from '@material-ui/core'
 
 import {
   each,
@@ -25,68 +25,68 @@ import {
   map,
   set,
   sortBy
-} from 'lodash';
+} from 'lodash'
 
-import usePrometheus from '../../../hooks/usePrometheus';
-import TeamContext from '../../../contexts/Team';
-import UserContext from '../../../contexts/User';
-import { formatBytes, formatPercent } from '../../../utils/formats';
-import { useCluster } from './Context';
+import usePrometheus from '../../../hooks/usePrometheus'
+import TeamContext from '../../../contexts/Team'
+import UserContext from '../../../contexts/User'
+import { formatBytes, formatPercent } from '../../../utils/formats'
+import { useCluster } from './Context'
 
-const LIST_ITEM_HEIGHT = 48;
+const LIST_ITEM_HEIGHT = 48
 const CONTAINER_HOME_PATH = '/data'
 
 const useListStyles = makeStyles(() => createStyles({
   root: {
     height: LIST_ITEM_HEIGHT * 3,
-    overflow: 'auto',
-  },
-}));
+    overflow: 'auto'
+  }
+}))
 
 const useListSubheaderStyles = makeStyles(() => createStyles({
   root: {
     height: LIST_ITEM_HEIGHT,
-    textAlign: 'center',
+    textAlign: 'center'
   }
-}));
+}))
 
 const useListItemStyles = makeStyles((theme) => createStyles({
   root: {
-    height: LIST_ITEM_HEIGHT,
-  },
+    height: LIST_ITEM_HEIGHT
+  }
 }))
 
 const useLinearProgressStyles = makeStyles((theme) => createStyles({
   root: {
-    height: 10,
+    height: 10
   },
   bar: {
     backgroundColor: (ratio: number) => {
-      if (ratio <= .8) return theme.palette.success.main;
-      if (ratio <= .9) return theme.palette.warning.main;
-      return theme.palette.error.main;
+      if (ratio <= 0.8) return theme.palette.success.main
+      if (ratio <= 0.9) return theme.palette.warning.main
+      return theme.palette.error.main
     }
   },
   colorPrimary: {
-    backgroundColor: theme.palette.grey[400],
-  },
-}));
+    backgroundColor: theme.palette.grey[400]
+  }
+}))
 
 interface StorageListItemProps {
-  containerPath: string;
-  sambaPath: string;
-  size?: number;
-  available?: number;
+  containerPath: string
+  sambaPath: string
+  size?: number
+  available?: number
 }
 
 const StorageListItem: FunctionComponent<StorageListItemProps> = ({ containerPath, size, available }) => {
   const ratio = useMemo(() => {
-    if (size === undefined) return 0;
-    if (available === undefined) return 0;
-    return 1 - available / size;
-  }, [size, available]);
-  const listItemStyles = useListItemStyles();
-  const linearProgressStyles = useLinearProgressStyles(ratio);
+    if (size === undefined) return 0
+    if (available === undefined) return 0
+    return 1 - available / size
+  }, [size, available])
+  const listItemStyles = useListItemStyles()
+  const linearProgressStyles = useLinearProgressStyles(ratio)
 
   const primary = (
     <LinearProgress
@@ -94,7 +94,7 @@ const StorageListItem: FunctionComponent<StorageListItemProps> = ({ containerPat
       value={ratio * 100}
       classes={linearProgressStyles}
     />
-  );
+  )
   const secondary = (
     <Box display="flex" justifyContent="space-between">
       <Typography variant="caption" color="inherit">{containerPath}</Typography>
@@ -106,7 +106,7 @@ const StorageListItem: FunctionComponent<StorageListItemProps> = ({ containerPat
         }
       </Typography>
     </Box>
-  );
+  )
 
   return (
     <ListItem classes={listItemStyles}>
@@ -116,66 +116,66 @@ const StorageListItem: FunctionComponent<StorageListItemProps> = ({ containerPat
         disableTypography
       />
     </ListItem>
-  );
+  )
 }
 
 const joinPath = (...paths: string[]) => paths
   .filter(Boolean).map(path => path.replace(/^\/|\/$/g, '')).join('/')
 
 const StorageList: FunctionComponent = () => {
-  const { email } = useContext(UserContext);
-  const { currentTeamId } = useContext(TeamContext);
-  const { status } = useCluster();
+  const { email } = useContext(UserContext)
+  const { currentTeamId } = useContext(TeamContext)
+  const { status } = useCluster()
 
   const grafana = useMemo(() => {
-    if (status == null) return;
-    if (status.config == null) return;
-    return status.config['grafana'];
-  }, [status]);
-  const size = usePrometheus(grafana, 'node_filesystem_size_bytes{fstype="nfs4"}');
-  const available = usePrometheus(grafana, 'node_filesystem_avail_bytes{fstype="nfs4"}');
+    if (status == null) return
+    if (status.config == null) return
+    return status.config['grafana']
+  }, [status])
+  const size = usePrometheus(grafana, 'node_filesystem_size_bytes{fstype="nfs4"}')
+  const available = usePrometheus(grafana, 'node_filesystem_avail_bytes{fstype="nfs4"}')
 
   const getContainerPath = useCallback((mountpoint: string) => {
-    if (!mountpoint) return;
-    if (includes(mountpoint, '/mntdlws/nfs')) return CONTAINER_HOME_PATH;
-    const directories = mountpoint.split('/');
+    if (!mountpoint) return
+    if (includes(mountpoint, '/mntdlws/nfs')) return CONTAINER_HOME_PATH
+    const directories = mountpoint.split('/')
     if (includes(directories, currentTeamId)) {
-      return '/' + last(directories);
+      return '/' + last(directories)
     }
-  }, [currentTeamId]);
+  }, [currentTeamId])
 
   const workStorage = useMemo(() => {
-    if (status == null) return;
-    if (status.config == null) return;
-    return status.config['workStorage'];
-  }, [status]);
+    if (status == null) return
+    if (status.config == null) return
+    return status.config['workStorage']
+  }, [status])
   const userName = useMemo(() => {
-    if (email == null) return '';
+    if (email == null) return ''
     return email.split('@', 1)[0]
-  }, [email]);
+  }, [email])
   const getMountpointUrl = useCallback((containerPath: string) => {
-    if (!containerPath) return joinPath(workStorage);
-    if (containerPath === CONTAINER_HOME_PATH) return joinPath(workStorage, userName);
-    return joinPath(workStorage, currentTeamId, containerPath);
-  }, [workStorage, userName, currentTeamId]);
+    if (!containerPath) return joinPath(workStorage)
+    if (containerPath === CONTAINER_HOME_PATH) return joinPath(workStorage, userName)
+    return joinPath(workStorage, currentTeamId, containerPath)
+  }, [workStorage, userName, currentTeamId])
 
   const mountpoints = useMemo(() => {
-    const mountpointMap = Object.create(null);
+    const mountpointMap = Object.create(null)
     each(get(size, 'result'), ({ metric, value }) => {
-      const { mountpoint } = metric;
-      const [, size] = value;
+      const { mountpoint } = metric
+      const [, size] = value
       if (mountpoint != null) {
-        const containerPath = getContainerPath(mountpoint);
+        const containerPath = getContainerPath(mountpoint)
         if (containerPath != null) {
           set(mountpointMap, [containerPath, 'size'], Number(size))
         }
       }
     })
     each(get(available, 'result'), ({ metric, value }) => {
-      const { mountpoint } = metric;
-      const [, available] = value;
+      const { mountpoint } = metric
+      const [, available] = value
       if (mountpoint != null) {
-        const containerMountpoint = getContainerPath(mountpoint);
+        const containerMountpoint = getContainerPath(mountpoint)
         if (containerMountpoint != null) {
           set(mountpointMap, [containerMountpoint, 'available'], Number(available))
         }
@@ -183,11 +183,11 @@ const StorageList: FunctionComponent = () => {
     })
     return sortBy(map(mountpointMap,
       ({ size, available }, containerPath) => ({ containerPath, size, available })
-    ), ({ containerPath }) => containerPath !== CONTAINER_HOME_PATH ? containerPath : '~');
-  }, [size, available, getContainerPath]);
+    ), ({ containerPath }) => containerPath !== CONTAINER_HOME_PATH ? containerPath : '~')
+  }, [size, available, getContainerPath])
 
-  const listStyles = useListStyles();
-  const listHeaderStyles = useListSubheaderStyles();
+  const listStyles = useListStyles()
+  const listHeaderStyles = useListSubheaderStyles()
 
   const subheader = (
     <ListSubheader
@@ -199,7 +199,7 @@ const StorageList: FunctionComponent = () => {
         {mountpoints.length > 0 ? 'Storages' : 'Loading Storages...'}
       </Typography>
     </ListSubheader>
-  );
+  )
 
   return (
     <List
@@ -209,7 +209,7 @@ const StorageList: FunctionComponent = () => {
       classes={listStyles}
     >
       { mountpoints.map(({ containerPath, size, available }) => {
-        const sambaPath = getMountpointUrl(containerPath);
+        const sambaPath = getMountpointUrl(containerPath)
         return (
           <StorageListItem
             key={containerPath}
@@ -218,10 +218,10 @@ const StorageList: FunctionComponent = () => {
             size={size}
             available={available}
           />
-        );
+        )
       }) }
     </List>
-  );
-};
+  )
+}
 
-export default StorageList;
+export default StorageList

@@ -1,30 +1,30 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   Suspense,
   lazy
-} from 'react';
+} from 'react'
 
 import {
   Redirect,
   Route,
   Switch
-} from 'react-router-dom';
+} from 'react-router-dom'
 
-import Loading from './components/Loading';
+import Loading from './components/Loading'
 
-const Home = lazy(() => import('./pages/Home'));
-const Submission = lazy(() => import('./pages/Submission'));
-const Jobs = lazy(() => import('./pages/Jobs'));
-const JobsLegacy = lazy(() => import('./pages/JobsLegacy'));
-const Job = lazy(() => import('./pages/Job'));
-const JobLegacy = lazy(() => import('./pages/JobLegacy'));
-const ClusterStatus = lazy( () => import('./pages/ClusterStatus'));
-const Clusters = lazy(() => import('./pages/Clusters'));
-const Cluster = lazy(() => import('./pages/Cluster'));
-const Quota = lazy(() => import('./pages/Quota'));
-const Keys = lazy(() => import('./pages/Keys'));
-const AllowedIP = lazy(() => import('./pages/AllowedIP'));
+const Home = lazy(() => import('./pages/Home'))
+const Submission = lazy(() => import('./pages/Submission'))
+const Jobs = lazy(() => import('./pages/Jobs'))
+const JobsLegacy = lazy(() => import('./pages/JobsLegacy'))
+const Job = lazy(() => import('./pages/Job'))
+const JobLegacy = lazy(() => import('./pages/JobLegacy'))
+const ClusterStatus = lazy(() => import('./pages/ClusterStatus'))
+const Clusters = lazy(() => import('./pages/Clusters'))
+const Cluster = lazy(() => import('./pages/Cluster'))
+const Quota = lazy(() => import('./pages/Quota'))
+const Keys = lazy(() => import('./pages/Keys'))
+const AllowedIP = lazy(() => import('./pages/AllowedIP'))
 
 const Routes: FunctionComponent = () => (
   <Suspense fallback={<Loading>Loading Your Page...</Loading>}>
@@ -64,6 +64,6 @@ const Routes: FunctionComponent = () => (
       <Redirect to="/"/>
     </Switch>
   </Suspense>
-);
+)
 
-export default Routes;
+export default Routes

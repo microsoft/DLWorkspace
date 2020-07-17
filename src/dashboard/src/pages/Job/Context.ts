@@ -1,10 +1,10 @@
-import { createContext } from 'react';
+import { createContext } from 'react'
 
 interface Context {
-  cluster: any;
-  accessible: boolean;
-  admin: boolean;
-  job: any;
+  cluster: any
+  accessible: boolean
+  admin: boolean
+  job: any
 }
 
 export default createContext<Context>({
@@ -12,4 +12,4 @@ export default createContext<Context>({
   accessible: false,
   admin: false,
   job: undefined
-});
+})

@@ -1,4 +1,4 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useCallback,
@@ -6,11 +6,11 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
-} from 'react';
-import { get, values } from 'lodash';
+  useState
+} from 'react'
+import { get, values } from 'lodash'
 
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom'
 
 import {
   Button,
@@ -22,42 +22,42 @@ import {
   Input,
   InputAdornment,
   Radio,
-  RadioGroup,
-} from '@material-ui/core';
-import { LastPage } from '@material-ui/icons';
+  RadioGroup
+} from '@material-ui/core'
+import { LastPage } from '@material-ui/icons'
 
-import { useSnackbar } from 'notistack';
+import { useSnackbar } from 'notistack'
 
-import useFetch from 'use-http-1';
+import useFetch from 'use-http-1'
 
-import TeamContext from '../../../contexts/Team';
+import TeamContext from '../../../contexts/Team'
 
-import SettingItem from './SettingItem';
-import Context from './Context';
+import SettingItem from './SettingItem'
+import Context from './Context'
 
 const InteractiveGpuItem: FunctionComponent<{ value: number | null | undefined }> = ({ value }) => {
-  const { clusterId } = useParams();
-  const { enqueueSnackbar } = useSnackbar();
-  const { data, getMeta } = useContext(Context);
-  const { currentTeamId } = useContext(TeamContext);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogSaveDisabled, setDialogSaveDisabled] = useState(false);
-  const [dialogValue, setDialogValue] = useState<number | null>();
-  const inputRef = useRef<HTMLInputElement>();
+  const { clusterId } = useParams()
+  const { enqueueSnackbar } = useSnackbar()
+  const { data, getMeta } = useContext(Context)
+  const { currentTeamId } = useContext(TeamContext)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogSaveDisabled, setDialogSaveDisabled] = useState(false)
+  const [dialogValue, setDialogValue] = useState<number | null>()
+  const inputRef = useRef<HTMLInputElement>()
 
   const totalGpus = useMemo(() => {
-    let totalGpus = 0;
+    let totalGpus = 0
     for (const { gpu } of values(get(data, ['types']))) {
-      totalGpus += get(gpu, 'total', 0);
+      totalGpus += get(gpu, 'total', 0)
     }
-    return totalGpus;
-  }, [data]);
+    return totalGpus
+  }, [data])
 
   const text = useMemo(() => {
-    if (value === undefined) return undefined;
-    if (value === null) return 'Disabled';
-    return `${value} of ${totalGpus} GPU${value > 1 ? 's are' : ' is'} able to be used in interactive (SSH / iPython) jobs.`;
-  }, [value, totalGpus]);
+    if (value === undefined) return undefined
+    if (value === null) return 'Disabled'
+    return `${value} of ${totalGpus} GPU${value > 1 ? 's are' : ' is'} able to be used in interactive (SSH / iPython) jobs.`
+  }, [value, totalGpus])
 
   const { response, error, patch, abort } = useFetch(`/api/v2/clusters/${clusterId}/teams/${currentTeamId}/meta`, {
     headers: {
@@ -66,49 +66,49 @@ const InteractiveGpuItem: FunctionComponent<{ value: number | null | undefined }
   })
 
   const handleItemConfigure = useCallback(() => {
-    setDialogOpen(true);
-    setDialogValue(value);
-  }, [setDialogOpen, value]);
+    setDialogOpen(true)
+    setDialogValue(value)
+  }, [setDialogOpen, value])
   const handleDialogSave = useCallback(() => {
     if (!(dialogValue === null || (typeof dialogValue === 'number' && dialogValue >= 0))) {
-      enqueueSnackbar('Invalid interactive gpu value.', { variant: 'error' });
+      enqueueSnackbar('Invalid interactive gpu value.', { variant: 'error' })
     }
-    setDialogSaveDisabled(true);
+    setDialogSaveDisabled(true)
     patch({
       interactiveGpu: dialogValue
     }).then(() => {
       if (response.ok) {
-        setDialogOpen(false);
-        getMeta();
+        setDialogOpen(false)
+        getMeta()
       }
-      setDialogSaveDisabled(false);
+      setDialogSaveDisabled(false)
     }, () => {
-      setDialogSaveDisabled(false);
-    });
-  }, [dialogValue, enqueueSnackbar, getMeta, patch, response]);
+      setDialogSaveDisabled(false)
+    })
+  }, [dialogValue, enqueueSnackbar, getMeta, patch, response])
   const handleDialogCancel = useCallback(() => {
-    abort();
-    setDialogOpen(false);
-  }, [abort, setDialogOpen]);
+    abort()
+    setDialogOpen(false)
+  }, [abort, setDialogOpen])
   const handleRadioChange = useCallback((event: unknown, value: string) => {
-    setDialogValue(value === 'true' ? totalGpus : null);
-  }, [totalGpus]);
+    setDialogValue(value === 'true' ? totalGpus : null)
+  }, [totalGpus])
   const handleTextFieldChange = useCallback(() => {
     if (inputRef.current && Number.isFinite(inputRef.current.valueAsNumber)) {
-      setDialogValue(inputRef.current.valueAsNumber);
+      setDialogValue(inputRef.current.valueAsNumber)
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
     if (dialogValue !== null && inputRef.current) {
-      inputRef.current.focus();
+      inputRef.current.focus()
     }
-  }, [dialogValue]);
+  }, [dialogValue])
   useEffect(() => {
     if (error) {
-      enqueueSnackbar(`Failed to set interactive GPU: ${error.message}`, { variant: 'error' });
+      enqueueSnackbar(`Failed to set interactive GPU: ${error.message}`, { variant: 'error' })
     }
-  }, [error, enqueueSnackbar]);
+  }, [error, enqueueSnackbar])
 
   return (
     <>
@@ -146,6 +146,6 @@ const InteractiveGpuItem: FunctionComponent<{ value: number | null | undefined }
       </Dialog>
     </>
   )
-};
+}
 
-export default InteractiveGpuItem;
+export default InteractiveGpuItem

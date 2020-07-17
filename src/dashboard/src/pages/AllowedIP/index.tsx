@@ -1,4 +1,4 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   RefObject,
@@ -9,8 +9,8 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
-  useRef,
-} from 'react';
+  useRef
+} from 'react'
 
 import {
   Button,
@@ -27,60 +27,60 @@ import {
   ListItemText,
   TextField,
   Tooltip,
-  colors,
-} from '@material-ui/core';
+  colors
+} from '@material-ui/core'
 import {
   Close,
   Error,
-  Warning,
-} from '@material-ui/icons';
+  Warning
+} from '@material-ui/icons'
 
-import { useForm, Controller } from 'react-hook-form';
-import useFetch from 'use-http-1';
+import { useForm, Controller } from 'react-hook-form'
+import useFetch from 'use-http-1'
 
-import ClustersContext from '../../contexts/Clusters';
+import ClustersContext from '../../contexts/Clusters'
 
 interface ClusterListItem {
-  update(data: UpdateFormData): void;
+  update: (data: UpdateFormData) => void
 }
 
 interface ClusterListItemProps {
-  id: string;
+  id: string
 }
 
 const ClusterListItem = forwardRef<ClusterListItem, ClusterListItemProps>(({ id }, ref) => {
-  const { data: config } = useFetch(`/api/clusters/${id}`, [id]);
-  const { data, loading, error, get, put } = useFetch(`/api/clusters/${id}/allowed-ip`);
+  const { data: config } = useFetch(`/api/clusters/${id}`, [id])
+  const { data, loading, error, get, put } = useFetch(`/api/clusters/${id}/allowed-ip`)
 
   const supportAllowedIp = useMemo(() => {
-    if (config === undefined) return undefined;
-    return Boolean(config.supportAllowedIp);
-  }, [config]);
+    if (config === undefined) return undefined
+    return Boolean(config.supportAllowedIp)
+  }, [config])
   const ip = useMemo(() => {
-    if (data == null) return undefined;
-    if (data.ip == null) return undefined;
-    return String(data.ip);
-  }, [data]);
+    if (data == null) return undefined
+    if (data.ip == null) return undefined
+    return String(data.ip)
+  }, [data])
   const expired = useMemo(() => {
-    if (data == null) return undefined;
-    if (data['valid_until'] == null) return undefined;
-    return new Date(Date.parse(data['valid_until']));
-  }, [data]);
+    if (data == null) return undefined
+    if (data['valid_until'] == null) return undefined
+    return new Date(Date.parse(data['valid_until']))
+  }, [data])
 
   useEffect(() => {
     if (supportAllowedIp) {
-      get();
+      get()
     }
-  }, [supportAllowedIp, get]);
+  }, [supportAllowedIp, get])
 
   useImperativeHandle(ref, () => ({
-    update(data) {
-      if (supportAllowedIp !== true) return;
+    update (data) {
+      if (supportAllowedIp !== true) return
       put(data).then(() => get(), (error) => {
-        console.error(error);
+        console.error(error)
       })
     }
-  }), [supportAllowedIp, put, get]);
+  }), [supportAllowedIp, put, get])
 
   const secondary = useMemo(() => {
     if (ip && expired) {
@@ -129,15 +129,15 @@ const ClusterListItem = forwardRef<ClusterListItem, ClusterListItemProps>(({ id 
         <ListItemSecondaryAction children={icon}/>
       ) }
     </ListItem>
-  );
-});
+  )
+})
 
 interface UpdateFormData {
-  ip: string;
+  ip: string
 }
 
 interface UpdateFormProps {
-  onSubmit(data: UpdateFormData): void;
+  onSubmit: (data: UpdateFormData) => void
 }
 
 const IPV4_PATTERN = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
@@ -148,17 +148,17 @@ const UpdateForm: FunctionComponent<UpdateFormProps> = ({ onSubmit }) => {
     reset,
     control,
     errors
-  } = useForm<UpdateFormData>({ defaultValues: { ip: '' } });
+  } = useForm<UpdateFormData>({ defaultValues: { ip: '' } })
 
-  const { data } = useFetch('https://httpbin.org/ip', []);
+  const { data } = useFetch('https://httpbin.org/ip', [])
 
-  const handleResetClick = useCallback(() => reset(), [reset]);
+  const handleResetClick = useCallback(() => reset(), [reset])
 
   useEffect(() => {
     if (typeof data === 'object' && typeof data.origin === 'string') {
-      reset({ ip: data.origin });
+      reset({ ip: data.origin })
     }
-  }, [data, reset]);
+  }, [data, reset])
 
   return (
     <Card component="form" onSubmit={handleSubmit(onSubmit)}>
@@ -187,20 +187,20 @@ const UpdateForm: FunctionComponent<UpdateFormProps> = ({ onSubmit }) => {
         <Button type="submit" color="primary">Update</Button>
       </CardActions>
     </Card>
-  );
-};
+  )
+}
 
 const AllowedIP: FunctionComponent = () => {
-  const { clusters } = useContext(ClustersContext);
-  const itemsRef = useRef<Map<string, RefObject<ClusterListItem>>>(new Map());
+  const { clusters } = useContext(ClustersContext)
+  const itemsRef = useRef<Map<string, RefObject<ClusterListItem>>>(new Map())
   const handleUpdateFormSubmit = useCallback((data) => {
     for (const { id } of clusters) {
       const itemRef = itemsRef.current.get(id)
       if (itemRef && itemRef.current) {
-        itemRef.current.update(data);
+        itemRef.current.update(data)
       }
     }
-  }, [clusters]);
+  }, [clusters])
 
   useEffect(() => {
     for (const itemId of Object.keys(itemsRef.current)) {
@@ -208,7 +208,7 @@ const AllowedIP: FunctionComponent = () => {
         itemsRef.current.delete(itemId)
       }
     }
-  }, [clusters]);
+  }, [clusters])
 
   return (
     <Container maxWidth="lg">
@@ -220,7 +220,7 @@ const AllowedIP: FunctionComponent = () => {
               {
                 clusters.map(({ id }) => {
                   if (!itemsRef.current.has(id)) {
-                    itemsRef.current.set(id, createRef());
+                    itemsRef.current.set(id, createRef())
                   }
                   return (
                     <ClusterListItem
@@ -228,7 +228,7 @@ const AllowedIP: FunctionComponent = () => {
                       ref={itemsRef.current.get(id)}
                       id={id}
                     />
-                  );
+                  )
                 })
               }
             </List>
@@ -239,7 +239,7 @@ const AllowedIP: FunctionComponent = () => {
         </Grid>
       </Grid>
     </Container>
-  );
-};
+  )
+}
 
-export default AllowedIP;
+export default AllowedIP

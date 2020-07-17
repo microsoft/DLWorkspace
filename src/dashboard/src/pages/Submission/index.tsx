@@ -1,9 +1,9 @@
-import * as React from 'react';
+import * as React from 'react'
 
-import { Redirect, Route, Switch, withRouter } from "react-router-dom";
+import { Redirect, Route, Switch, withRouter } from 'react-router-dom'
 
-import Training from "./Training";
-import DataJob  from "./DataJob";
+import Training from './Training'
+import DataJob from './DataJob'
 
 const Submit = withRouter(({ match }) => {
   return (
@@ -13,7 +13,7 @@ const Submit = withRouter(({ match }) => {
       <Route exact path={`${match.path}/data`} component={DataJob}/>
       <Redirect to="/"/>
     </Switch>
-  );
-});
+  )
+})
 
-export default Submit;
+export default Submit

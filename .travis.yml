@@ -5,8 +5,8 @@ matrix:
     before_install: cd src/dashboard
     install: yarn --frozen-lockfile
     script:
+    - npm run lint
     - npm run check:frontend
-    - npm run lint:backend
     - npm run coverage:backend
     after_success: npx nyc --nycrc-path server/.nycrc.js report --reporter=text-lcov | COVERALLS_PARALLEL=true npx coveralls ../../
   - language: python

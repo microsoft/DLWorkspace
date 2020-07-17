@@ -1,7 +1,29 @@
 root: true
 extends:
-- plugin:@typescript-eslint/recommended
+- standard-with-typescript
 - react-app
+parser: '@typescript-eslint/parser'
+parserOptions:
+  project: ./tsconfig.json
 rules:
+  'dot-notation': off
+  'quote-props': off
+  '@typescript-eslint/dot-notation': off
+
+  # Prefer return type inference
   '@typescript-eslint/explicit-function-return-type': off
-  '@typescript-eslint/no-explicit-any': off
+
+  # Prefer treditional syntax for less transpilation
+  '@typescript-eslint/prefer-includes': off
+  '@typescript-eslint/prefer-nullish-coalescing': off
+  '@typescript-eslint/prefer-optional-chain': off
+  '@typescript-eslint/promise-function-async': off
+
+  # Not suitable with use-http
+  '@typescript-eslint/no-floating-promises': warn
+  '@typescript-eslint/no-misused-promises': warn
+
+  # FIXME: too complex to fix
+  '@typescript-eslint/restrict-plus-operands': warn
+  '@typescript-eslint/restrict-template-expressions': warn
+  '@typescript-eslint/strict-boolean-expressions': [warn, { ignoreRhs: true }]

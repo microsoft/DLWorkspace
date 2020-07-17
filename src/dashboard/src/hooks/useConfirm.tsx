@@ -1,11 +1,11 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   createContext,
   useCallback,
   useContext,
   useState
-} from 'react';
+} from 'react'
 import {
   Button,
   Dialog,
@@ -13,34 +13,34 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions
-} from '@material-ui/core';
+} from '@material-ui/core'
 
 interface ConfirmContext {
-  setMessage: (message: string) => void;
-  setOpen: (open: boolean) => void;
-  setResolve: (resolve: (value: boolean) => void) => void;
+  setMessage: (message: string) => void
+  setOpen: (open: boolean) => void
+  setResolve: (resolve: (value: boolean) => void) => void
 }
 
 const ConfirmContext = createContext<ConfirmContext>({
-  setMessage () { return; },
-  setOpen () { return; },
-  setResolve () { return; }
-});
+  setMessage () { },
+  setOpen () { },
+  setResolve () { }
+})
 
 const ConfirmProvider: FunctionComponent = ({ children }) => {
-  const [message, setMessage] = useState<string>();
-  const [open, setOpen] = useState(false);
-  const [resolve, setResolve] = useState<(value: boolean) => void>();
+  const [message, setMessage] = useState<string>()
+  const [open, setOpen] = useState(false)
+  const [resolve, setResolve] = useState<(value: boolean) => void>()
 
   const onNoClick = useCallback(() => {
-    setOpen(false);
-    if (resolve) resolve(false);
-  }, [resolve]);
-  const onClose = onNoClick;
+    setOpen(false)
+    if (resolve) resolve(false)
+  }, [resolve])
+  const onClose = onNoClick
   const onYesClick = useCallback(() => {
-    setOpen(false);
-    if (resolve) resolve(true);
-  }, [resolve]);
+    setOpen(false)
+    if (resolve) resolve(true)
+  }, [resolve])
 
   return (
     <ConfirmContext.Provider value={{ setMessage, setOpen, setResolve }}>
@@ -58,20 +58,20 @@ const ConfirmProvider: FunctionComponent = ({ children }) => {
         </Dialog>
       </>
     </ConfirmContext.Provider>
-  );
-};
-
-const useConfirm = () => {
-  const { setMessage, setOpen, setResolve } = useContext(ConfirmContext);
-  const confirm = useCallback((message: string) => {
-    setMessage(message);
-    setOpen(true);
-    return new Promise<boolean>((resolve) => {
-      setResolve(() => resolve); // To avoid callbackify set-action
-    });
-  }, [setMessage, setOpen, setResolve])
-  return confirm;
+  )
 }
 
-export { ConfirmProvider };
-export default useConfirm;
+const useConfirm = () => {
+  const { setMessage, setOpen, setResolve } = useContext(ConfirmContext)
+  const confirm = useCallback((message: string) => {
+    setMessage(message)
+    setOpen(true)
+    return new Promise<boolean>((resolve) => {
+      setResolve(() => resolve) // To avoid callbackify set-action
+    })
+  }, [setMessage, setOpen, setResolve])
+  return confirm
+}
+
+export { ConfirmProvider }
+export default useConfirm

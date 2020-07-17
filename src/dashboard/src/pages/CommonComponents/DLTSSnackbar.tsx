@@ -1,33 +1,32 @@
-import * as React from 'react';
-import {CSSProperties} from "react";
+import * as React from 'react'
+import { CSSProperties } from 'react'
 import {
   createStyles,
   makeStyles,
   Snackbar,
   SnackbarContent,
   Theme
-} from "@material-ui/core";
-import {green} from "@material-ui/core/colors";
-
+} from '@material-ui/core'
+import { green } from '@material-ui/core/colors'
 
 interface SnackbarProps {
-  message: string;
-  open: boolean | false;
-  autoHideDuration?: number | 1000;
-  handleWarnClose?: any;
-  style?: CSSProperties;
+  message: string
+  open: boolean | false
+  autoHideDuration?: number | 1000
+  handleWarnClose?: any
+  style?: CSSProperties
 }
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     success: {
-      backgroundColor: green[600],
-    },
+      backgroundColor: green[600]
+    }
   })
-);
+)
 export const DLTSSnackbar: React.FC<SnackbarProps> = (props: SnackbarProps) => {
-  const classes = useStyles();
-  let { handleWarnClose, autoHideDuration, message, open, style } = props;
-  const ogStyle = {};
+  const classes = useStyles()
+  const { handleWarnClose, autoHideDuration, message, open, style } = props
+  const ogStyle = {}
   return (
     <>
       {
@@ -37,12 +36,12 @@ export const DLTSSnackbar: React.FC<SnackbarProps> = (props: SnackbarProps) => {
           autoHideDuration={autoHideDuration}
           onClose={handleWarnClose}
           ContentProps={{
-            'aria-describedby': 'message-id',
+            'aria-describedby': 'message-id'
           }}
         >
           <SnackbarContent
             className={classes.success}
-            style={style ? style : ogStyle}
+            style={style || ogStyle}
             aria-describedby="client-snackbar"
             message={<span id="message-id" >{message}</span>}
           />

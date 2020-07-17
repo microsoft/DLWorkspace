@@ -1,8 +1,8 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   FunctionComponent,
   useContext
-} from 'react';
+} from 'react'
 
 import {
   Button,
@@ -11,12 +11,12 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle
-} from '@material-ui/core';
+} from '@material-ui/core'
 
-import ConfigContext from '../../contexts/Config';
+import ConfigContext from '../../contexts/Config'
 
 const UnauthorizedDialog: FunctionComponent = () => {
-  const { addGroup } = useContext(ConfigContext);
+  const { addGroup } = useContext(ConfigContext)
   return (
     <Dialog open>
       <DialogTitle>Unauthorized User</DialogTitle>
@@ -32,7 +32,7 @@ const UnauthorizedDialog: FunctionComponent = () => {
         <Button href="/api/authenticate/logout" color="secondary">Sign Out</Button>
       </DialogActions>
     </Dialog>
-  );
-};
+  )
+}
 
-export default UnauthorizedDialog;
+export default UnauthorizedDialog

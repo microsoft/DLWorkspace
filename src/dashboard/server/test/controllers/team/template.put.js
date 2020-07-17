@@ -22,7 +22,7 @@ const updateTemplateParams = new URLSearchParams({
 
 describe('PUT /teams/:teamId/templates/:templateName', function () {
   it('should return 204 if template updated successfully', async function () {
-    for (let key in clusterConfig) {
+    for (const key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .post('/templates?' + updateTemplateParams)
         .reply(200, {
@@ -39,7 +39,7 @@ describe('PUT /teams/:teamId/templates/:templateName', function () {
   })
 
   it('should return 502 if template updating failed', async function () {
-    for (let key in clusterConfig) {
+    for (const key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .post('/templates?' + updateTemplateParams)
         .reply(500)

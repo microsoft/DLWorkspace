@@ -1,26 +1,26 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
-  FunctionComponent,
-} from 'react';
+  FunctionComponent
+} from 'react'
 import {
   List,
   ListItem,
   ListItemText
-} from '@material-ui/core';
-import { get } from 'lodash';
+} from '@material-ui/core'
+import { get } from 'lodash'
 
-import CopyableTextListItem from '../../../components/CopyableTextListItem';
+import CopyableTextListItem from '../../../components/CopyableTextListItem'
 
-import { Job } from '../utils';
+import { Job } from '../utils'
 
 interface Props {
-  job: Job;
+  job: Job
 }
 
 const DetailPanel: FunctionComponent<Props> = ({ job }) => {
-  const submitted = new Date(get(job, 'jobTime'));
-  const started = new Date(get(job, 'jobStatusDetail.0.startedAt'));
-  const finished = new Date(get(job, 'jobStatusDetail.0.finishedAt'));
+  const submitted = new Date(get(job, 'jobTime'))
+  const started = new Date(get(job, 'jobStatusDetail.0.startedAt'))
+  const finished = new Date(get(job, 'jobStatusDetail.0.finishedAt'))
 
   return (
     <List dense disablePadding>
@@ -57,7 +57,7 @@ const DetailPanel: FunctionComponent<Props> = ({ job }) => {
         </ListItem>
       ) }
     </List>
-  );
+  )
 }
 
-export default DetailPanel;
+export default DetailPanel

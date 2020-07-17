@@ -1,11 +1,11 @@
-import * as React from 'react';
+import * as React from 'react'
 import {
   forwardRef,
   useCallback,
   useEffect,
   useImperativeHandle,
-  useMemo,
-} from 'react';
+  useMemo
+} from 'react'
 
 import {
   Avatar,
@@ -18,30 +18,30 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   Tooltip,
-  Typography,
-} from '@material-ui/core';
+  Typography
+} from '@material-ui/core'
 import {
   Delete,
-  VpnKey,
-} from '@material-ui/icons';
+  VpnKey
+} from '@material-ui/icons'
 
-import { useSnackbar } from 'notistack';
+import { useSnackbar } from 'notistack'
 
-import useFetch from 'use-http-1';
+import useFetch from 'use-http-1'
 
-import Loading from '../../components/Loading';
-import useConfirm from '../../hooks/useConfirm';
-import { formatDateDistance } from '../../utils/formats';
+import Loading from '../../components/Loading'
+import useConfirm from '../../hooks/useConfirm'
+import { formatDateDistance } from '../../utils/formats'
 
 interface KeyList {
-  get(): Promise<any>;
+  get: () => Promise<any>
 }
 
 interface KeyListProps {
-  title?: string;
-  empty?: string;
-  since?: Date;
-  onDelete?(id: number): void;
+  title?: string
+  empty?: string
+  since?: Date
+  onDelete?: (id: number) => void
 }
 
 const KeyList = forwardRef<KeyList, KeyListProps>(({
@@ -50,39 +50,39 @@ const KeyList = forwardRef<KeyList, KeyListProps>(({
   since,
   onDelete
 }, ref) => {
-  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const confirm = useConfirm();
-  const { data, error, get } = useFetch('/api/keys', []);
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar()
+  const confirm = useConfirm()
+  const { data, error, get } = useFetch('/api/keys', [])
 
   const keys = useMemo(() => {
-    if (data === undefined) return undefined;
-    if (!Array.isArray(data)) return undefined;
-    if (since === undefined) return data;
-    return data.filter(({ added }) => Date.parse(added) >= since.valueOf());
-  }, [since, data]);
+    if (data === undefined) return undefined
+    if (!Array.isArray(data)) return undefined
+    if (since === undefined) return data
+    return data.filter(({ added }) => Date.parse(added) >= since.valueOf())
+  }, [since, data])
 
   const handleDeleteClick = useCallback((id: number, name: string) => () => {
     if (onDelete !== undefined) {
       confirm(`Do you want to delete the SSH key ${name}?`).then((answer) => {
         if (answer) {
-          onDelete(id);
+          onDelete(id)
         }
       })
     }
-  }, [confirm, onDelete]);
+  }, [confirm, onDelete])
 
-  useImperativeHandle(ref, () => ({ get }), [get]);
+  useImperativeHandle(ref, () => ({ get }), [get])
 
   useEffect(() => {
     if (error != null) {
       const key = enqueueSnackbar(`Failed to fetch keys: ${error.message}`, {
         variant: 'error'
-      });
+      })
       if (key != null) {
-        return () => { closeSnackbar(key); };
+        return () => { closeSnackbar(key) }
       }
     }
-  }, [error, enqueueSnackbar, closeSnackbar]);
+  }, [error, enqueueSnackbar, closeSnackbar])
 
   return (
     <Card>
@@ -120,7 +120,7 @@ const KeyList = forwardRef<KeyList, KeyListProps>(({
         </List>
       ) }
     </Card>
-  );
-});
+  )
+})
 
-export default KeyList;
+export default KeyList
