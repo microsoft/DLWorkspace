@@ -562,9 +562,9 @@ def scale_inference_job(username, job_id, mingpu, maxgpu):
             logger.error(msg)
             return msg, 403
 
-        if (job["jobStatus"] != 'queued' and job_params["mingpu"] != mingpu):
-            msg = "Inference job %s has been scheduled, only maxgpu can be changed. \
-                Please pause the job first, change mingpu, then resume the job" % (job_id)
+        if ((job["jobStatus"] == 'scheduling' or job["jobStatus"] == 'running') and job_params["mingpu"] != mingpu):
+            msg = "Inference job %s has been scheduled, only maxgpu can be changed. " % (job_id) + \
+                  "Please pause the job first, change mingpu, then resume the job."
             logger.error(msg)
             return msg, 403
 
