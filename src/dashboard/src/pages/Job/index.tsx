@@ -51,13 +51,9 @@ const JobContent: FunctionComponent = () => {
   const admin = useMemo(() => {
     return accessible && Boolean(teamCluster.admin)
   }, [accessible, teamCluster])
-
-  const manageable = useMemo(() => {
-    if (job === undefined) return false
-    if (admin) return true
-    if (job['userName'] === email) return true
-    return false
-  }, [job, admin, email])
+  const owned = useMemo(() => {
+    return job !== undefined && job['userName'] === email
+  }, [job, email])
 
   useEffect(() => {
     if (jobError !== undefined) {
@@ -105,12 +101,12 @@ const JobContent: FunctionComponent = () => {
   }
 
   return (
-    <Context.Provider value={{ cluster, accessible, admin, job }}>
+    <Context.Provider value={{ cluster, accessible, admin, owned, job }}>
       <Helmet title={`(${capitalize(job['jobStatus'])}) ${job['jobName']}`}/>
       <Container fixed maxWidth="lg">
-        <Header manageable={manageable}/>
+        <Header/>
         {status === 'running' && <Messages/>}
-        <Tabs manageable={manageable}/>
+        <Tabs/>
       </Container>
     </Context.Provider>
   )

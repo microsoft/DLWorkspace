@@ -23,17 +23,17 @@ import JobStatus from '../../components/JobStatus'
 import useRouteParams from './useRouteParams'
 import Context from './Context'
 
-const Header: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
+const Header: FunctionComponent = () => {
   const { clusterId } = useRouteParams()
-  const { accessible, admin, job } = useContext(Context)
+  const { accessible, admin, owned, job } = useContext(Context)
   const { support, approve, kill, pause, resume } = useActions(clusterId)
 
   const availableActions = useMemo(() => {
     const actions = [support]
-    if (manageable && admin) actions.push(approve)
-    if (manageable) actions.push(pause, resume, kill)
+    if (admin) actions.push(approve)
+    if (admin || owned) actions.push(pause, resume, kill)
     return actions
-  }, [manageable, admin, support, approve, kill, pause, resume])
+  }, [admin, owned, support, approve, kill, pause, resume])
 
   const actionButtons = availableActions.map((action, index) => {
     const { hidden, icon, tooltip, onClick } = action(job)

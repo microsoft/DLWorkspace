@@ -3,6 +3,7 @@ import {
   FunctionComponent,
   ComponentType,
   useCallback,
+  useContext,
   useMemo
 } from 'react'
 import {
@@ -13,6 +14,8 @@ import {
 import SwipeableViews from 'react-swipeable-views'
 
 import useHashTab from '../../../hooks/useHashTab'
+
+import Context from '../Context'
 
 import Brief from './Brief'
 import Endpoints from './Endpoints'
@@ -27,11 +30,12 @@ const getComponentName = (Component: ComponentType) => {
   return Component.name
 }
 
-const JobTabs: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
-  const components = useMemo(() => manageable
+const JobTabs: FunctionComponent = () => {
+  const { admin, owned } = useContext(Context)
+  const components = useMemo(() => admin || owned
     ? [Brief, Endpoints, Metrics, Console, Apps]
     : [Brief, Metrics, Console]
-  , [manageable])
+  , [owned, admin])
   const [index, setIndex] = useHashTab(
     ...components.map(
       Component => getComponentName(Component).toLowerCase()))
