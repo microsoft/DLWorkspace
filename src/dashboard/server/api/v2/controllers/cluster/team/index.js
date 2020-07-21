@@ -147,8 +147,10 @@ module.exports = async context => {
   for (const pod of _team.get('pod_status')) {
     const _pod = _.chain(pod)
 
-    const nodeName = _pod.get('node_name')
-    const podName = _pod.get('name')
+    let nodeName = _pod.get('node_name', null).value()
+    if (nodeName == null) nodeName = '(dangling)'
+
+    const podName = _pod.get('name').value()
     _setBody(['workers', nodeName, 'pods', podName, 'jobId'], _pod.get('job_id'))
     _setBody(['workers', nodeName, 'pods', podName, 'team'], _pod.get('vc_name'))
     _setBody(['workers', nodeName, 'pods', podName, 'user'], _pod.get('username'))

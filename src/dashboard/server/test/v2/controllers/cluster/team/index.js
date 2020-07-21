@@ -11,6 +11,7 @@ const TYPE_NAME = 'standard'
 const WORKER_NAME = 'worker'
 const WORKER_1_NAME = 'worker-1'
 const POD_NAME = 'pod'
+const POD_1_NAME = 'pod-1'
 const JOB_ID = 'job'
 
 describe('GET /clusters/:clusterId/teams/:teamId', function () {
@@ -102,6 +103,14 @@ describe('GET /clusters/:clusterId/teams/:teamId', function () {
           cpu: { [TYPE_NAME]: 36 },
           gpu: { [TYPE_NAME]: 37 },
           memory: { [TYPE_NAME]: 38 }
+        }, {
+          name: POD_1_NAME,
+          job_id: JOB_ID,
+          vc_name: TEAM_ID,
+          username: USER_NAME,
+          cpu: { [TYPE_NAME]: 36 },
+          gpu: { [TYPE_NAME]: 37 },
+          memory: { [TYPE_NAME]: 38 }
         }]
       })
 
@@ -168,6 +177,13 @@ describe('GET /clusters/:clusterId/teams/:teamId', function () {
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'pods', POD_NAME, 'cpu').equal(36)
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'pods', POD_NAME, 'gpu').equal(37)
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'pods', POD_NAME, 'memory').equal(38)
+
+    response.data.should.have.propertyByPath('workers', '(dangling)', 'pods', POD_1_NAME, 'jobId').equal(JOB_ID)
+    response.data.should.have.propertyByPath('workers', '(dangling)', 'pods', POD_1_NAME, 'team').equal(TEAM_ID)
+    response.data.should.have.propertyByPath('workers', '(dangling)', 'pods', POD_1_NAME, 'user').equal(USER_NAME)
+    response.data.should.have.propertyByPath('workers', '(dangling)', 'pods', POD_1_NAME, 'cpu').equal(36)
+    response.data.should.have.propertyByPath('workers', '(dangling)', 'pods', POD_1_NAME, 'gpu').equal(37)
+    response.data.should.have.propertyByPath('workers', '(dangling)', 'pods', POD_1_NAME, 'memory').equal(38)
 
     response.data.should.have.propertyByPath('types', TYPE_NAME, 'node', 'total').equal(2)
     response.data.should.have.propertyByPath('types', TYPE_NAME, 'node', 'unschedulable').equal(1)
