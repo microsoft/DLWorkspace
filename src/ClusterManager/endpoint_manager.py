@@ -151,7 +151,7 @@ def infer_role_from_pod_name(pod_name):
         if len(parts) == 5:
             return "master", "0"
         else:
-            p = re.compile("([a-z]+)([0-9])+")
+            p = re.compile("([a-z]+)([0-9]+)")
             match = p.search(parts[-1])
             if match:
                 g = match.groups()
