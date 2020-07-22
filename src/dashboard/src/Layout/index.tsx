@@ -17,6 +17,7 @@ import SignInButton from './Cover/SignInButton'
 import UnauthorizedDialog from './Cover/UnauthorizedDialog'
 import Drawer from './Drawer'
 import NavigationList from './NavigationList'
+import ErrorBoundary from './ErrorBoundary'
 
 const LayoutContent: FunctionComponent = ({ children }) => {
   const { email } = useContext(UserContext)
@@ -52,7 +53,9 @@ const LayoutContent: FunctionComponent = ({ children }) => {
         <NavigationList/>
       </Drawer>
       <Content key={currentTeamId}>
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </Content>
     </LayoutProvider>
   )
