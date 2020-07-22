@@ -103,7 +103,7 @@ const Pods: FunctionComponent<Props> = ({ data: { config, workers } }) => {
   }, {
     title: 'Worker',
     field: 'worker',
-    render: ({ worker }) => worker === '(dangling)' ? (
+    render: ({ worker }) => worker === '(unassigned)' ? (
       <Typography color="error" variant="inherit" component="strong">{worker}</Typography>
     ) : <>{worker}</>,
     width: 'auto'

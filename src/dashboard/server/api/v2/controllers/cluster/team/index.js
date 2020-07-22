@@ -148,7 +148,7 @@ module.exports = async context => {
     const _pod = _.chain(pod)
 
     let nodeName = _pod.get('node_name', null).value()
-    if (nodeName == null) nodeName = '(dangling)'
+    if (nodeName == null) nodeName = '(unassigned)'
 
     const podName = _pod.get('name').value()
     _setBody(['workers', nodeName, 'pods', podName, 'jobId'], _pod.get('job_id'))

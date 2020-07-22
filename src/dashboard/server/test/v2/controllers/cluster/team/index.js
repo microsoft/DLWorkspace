@@ -178,12 +178,12 @@ describe('GET /clusters/:clusterId/teams/:teamId', function () {
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'pods', POD_NAME, 'gpu').equal(37)
     response.data.should.have.propertyByPath('workers', WORKER_NAME, 'pods', POD_NAME, 'memory').equal(38)
 
-    response.data.should.have.propertyByPath('workers', '(dangling)', 'pods', POD_1_NAME, 'jobId').equal(JOB_ID)
-    response.data.should.have.propertyByPath('workers', '(dangling)', 'pods', POD_1_NAME, 'team').equal(TEAM_ID)
-    response.data.should.have.propertyByPath('workers', '(dangling)', 'pods', POD_1_NAME, 'user').equal(USER_NAME)
-    response.data.should.have.propertyByPath('workers', '(dangling)', 'pods', POD_1_NAME, 'cpu').equal(36)
-    response.data.should.have.propertyByPath('workers', '(dangling)', 'pods', POD_1_NAME, 'gpu').equal(37)
-    response.data.should.have.propertyByPath('workers', '(dangling)', 'pods', POD_1_NAME, 'memory').equal(38)
+    response.data.should.have.propertyByPath('workers', '(unassigned)', 'pods', POD_1_NAME, 'jobId').equal(JOB_ID)
+    response.data.should.have.propertyByPath('workers', '(unassigned)', 'pods', POD_1_NAME, 'team').equal(TEAM_ID)
+    response.data.should.have.propertyByPath('workers', '(unassigned)', 'pods', POD_1_NAME, 'user').equal(USER_NAME)
+    response.data.should.have.propertyByPath('workers', '(unassigned)', 'pods', POD_1_NAME, 'cpu').equal(36)
+    response.data.should.have.propertyByPath('workers', '(unassigned)', 'pods', POD_1_NAME, 'gpu').equal(37)
+    response.data.should.have.propertyByPath('workers', '(unassigned)', 'pods', POD_1_NAME, 'memory').equal(38)
 
     response.data.should.have.propertyByPath('types', TYPE_NAME, 'node', 'total').equal(2)
     response.data.should.have.propertyByPath('types', TYPE_NAME, 'node', 'unschedulable').equal(1)

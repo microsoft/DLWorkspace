@@ -116,7 +116,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } })
 
   const data = useMemo(() => {
     let workersData = map(workers, (worker, id) => ({ id, ...worker }))
-    workersData = filter(workersData, ({ id }) => id !== '(dangling)')
+    workersData = filter(workersData, ({ id }) => id !== '(unassigned)')
     if (filterType !== '__all__') {
       workersData = filter(workersData, ({ type }) => type === filterType)
     }
