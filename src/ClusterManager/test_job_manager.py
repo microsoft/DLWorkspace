@@ -3,7 +3,6 @@ import sys
 import os
 import copy
 import logging
-from common import base64decode, base64encode
 import json
 
 import unittest
@@ -11,6 +10,7 @@ import unittest
 sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
+from common import base64decode, base64encode
 from config import config
 config["datasource"] = "MySQL"
 from cluster_resource import ClusterResource
