@@ -105,8 +105,7 @@ def get_infinibands():
                                             "port_xmit_data")))
             except Exception as e:
                 logger.debug("Failed to parse rcv/xmit metric data. %s", e)
-                receive_bytes = None
-                transmit_bytes = None
+                continue
 
             infiniband = Infiniband(device, port, link_layer, rate, state,
                                     phys_state, receive_bytes, transmit_bytes)
