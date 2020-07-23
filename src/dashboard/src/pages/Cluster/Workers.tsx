@@ -20,6 +20,7 @@ import {
   Card,
   CardMedia,
   Chip,
+  IconButton,
   Link,
   MenuItem,
   Select,
@@ -31,6 +32,7 @@ import {
   Build,
   DoneOutline,
   ErrorOutline,
+  FileCopy,
   Help,
   More
 } from '@material-ui/icons'
@@ -88,9 +90,10 @@ interface Props {
 }
 
 const useLinkStyles = makeStyles({
-  button: {
+  root: {
     display: 'block',
-    textAlign: 'left'
+    textAlign: 'left',
+    cursor: 'pointer'
   }
 })
 
@@ -149,7 +152,7 @@ const Workers: FunctionComponent<Props> = ({ data: { config, types, workers } })
         <>
           <Tooltip title={`Show Pods on ${id}`} placement="right">
             <Link
-              component="button"
+              component="a"
               variant="subtitle2"
               classes={linkStyles}
               color="inherit"
