@@ -19,7 +19,6 @@ import { isStatusActive } from '../../../utils/jobs'
 import Context from '../Context'
 
 import Brief from './Brief'
-import Endpoints from './Endpoints'
 import Ssh from './Ssh'
 import Metrics from './Metrics'
 import Console from './Console'
@@ -38,9 +37,9 @@ const JobTabs: FunctionComponent = () => {
   const { job, admin, owned } = useContext(Context)
   const active = isStatusActive(job)
   const components = useMemo(() => owned
-    ? [Brief, Endpoints, Ssh, Metrics, Console, Apps]
+    ? [Brief, Ssh, Metrics, Console, Apps]
     : admin
-      ? [Brief, Endpoints, Metrics, Console, Apps]
+      ? [Brief, Metrics, Console, Apps]
       : [Brief, Metrics, Console]
   , [owned, admin])
   const [index, setIndex] = useHashTab(
