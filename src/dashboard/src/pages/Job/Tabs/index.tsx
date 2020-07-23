@@ -19,6 +19,7 @@ import Context from '../Context'
 
 import Brief from './Brief'
 import Endpoints from './Endpoints'
+import Ssh from './Ssh'
 import Metrics from './Metrics'
 import Console from './Console'
 import Apps from './Apps'
@@ -32,9 +33,11 @@ const getComponentName = (Component: ComponentType) => {
 
 const JobTabs: FunctionComponent = () => {
   const { admin, owned } = useContext(Context)
-  const components = useMemo(() => admin || owned
-    ? [Brief, Endpoints, Metrics, Console, Apps]
-    : [Brief, Metrics, Console]
+  const components = useMemo(() => owned
+    ? [Brief, Endpoints, Ssh, Metrics, Console, Apps]
+    : admin
+      ? [Brief, Endpoints, Metrics, Console, Apps]
+      : [Brief, Metrics, Console]
   , [owned, admin])
   const [index, setIndex] = useHashTab(
     ...components.map(
