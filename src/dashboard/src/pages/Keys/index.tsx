@@ -42,7 +42,7 @@ const Keys: FunctionComponent = () => {
   const handleAdd = useCallback((data: KeyAddFormData) => {
     return post(data).then(() => {
       if (response.ok) {
-        enqueueSnackbar('Deleted key successfully', {
+        enqueueSnackbar('Added key successfully', {
           variant: 'success',
           persist: false
         })
@@ -53,7 +53,7 @@ const Keys: FunctionComponent = () => {
         throw Error(response.data)
       }
     }).catch((error) => {
-      enqueueSnackbar(`Failed to delete key: ${error.message}`,
+      enqueueSnackbar(`Failed to add key: ${error.message}`,
         { variant: 'error' })
     })
   }, [post, enqueueSnackbar, response])
