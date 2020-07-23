@@ -21,6 +21,7 @@ import { Provider as ClustersProvider } from './contexts/Clusters'
 import { Provider as TeamProvider } from './contexts/Team'
 
 import { ConfirmProvider } from './hooks/useConfirm'
+import { UserDialogProvider } from './hooks/useUserDialog'
 
 import Layout from './Layout'
 import Routes from './Routes'
@@ -48,7 +49,9 @@ const Contexts: FunctionComponent<BootstrapProps> = ({ config, user, children })
                 <ThemeProvider theme={theme}>
                   <SnackbarProvider>
                     <ConfirmProvider>
-                      {children}
+                      <UserDialogProvider>
+                        {children}
+                      </UserDialogProvider>
                     </ConfirmProvider>
                   </SnackbarProvider>
                 </ThemeProvider>
