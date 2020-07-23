@@ -172,6 +172,8 @@ def populate_job_resource(params):
             if params.get("jobtrainingtype") == "InferenceJob":
                 params["mingpu"] = job_params.min_gpu
                 params["maxgpu"] = job_params.max_gpu
+            if params.get("jobtrainingtype") == "CPUInferenceJob":
+                params["numOfCPUWorker"] = job_params.num_cpu_workers
             params["cpurequest"] = job_params.cpu_request
             params["cpulimit"] = job_params.cpu_limit
             params["memoryrequest"] = job_params.memory_request
@@ -188,7 +190,7 @@ def SubmitJob(jobParamsJsonStr):
     ret = {}
 
     jobParams = LoadJobParams(jobParamsJsonStr)
-
+    logger.info("leigao, job param: %s", jobParams)
     if "jobName" not in jobParams or len(jobParams["jobName"].strip()) == 0:
         ret["error"] = "ERROR: Job name cannot be empty"
         return ret

@@ -434,6 +434,7 @@ class TestInferenceJobParams(TestRegularJobParams):
         # CPU inference job is not yet supported
         pass
 
+
     def test_backward_compatibility_gpu_job(self):
         # 1 gpu per pod for workers on gpu nodes, total 2 gpus
         self.params["resourcegpu"] = 2
@@ -450,12 +451,41 @@ class TestInferenceJobParams(TestRegularJobParams):
         self.assertEqual("458752Mi", job_params.memory_limit)
 
     def test_cpu_job_on_cpu_node(self):
-        # CPU inference job is not yet supported
-        pass
+        # Cpu job on cpu node
+        self.params["jobtrainingtype"] = "CPUInferenceJob"
+        self.params["numOfCPUWorker"] = '2'
+        self.params["numOfCPUPerWorker"] = '2'
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
+        self.assertIsNotNone(job_params)
+        self.assertTrue(job_params.is_valid())
+        self.assertEqual("Standard_D2s_v3", job_params.sku)
+        self.assertEqual(None, job_params.gpu_type)
+        self.assertEqual(0, job_params.gpu_limit)
+        self.assertEqual("2", job_params.cpu_request)
+        self.assertEqual("2", job_params.cpu_limit)
+        self.assertEqual("0Mi", job_params.memory_request)
+        self.assertEqual("8192Mi", job_params.memory_limit)
+        self.assertEqual(2, job_params.num_cpu_workers)
 
     def test_cpu_job_on_gpu_node(self):
-        # CPU inference job is not yet supported
-        pass
+        # Cpu job on gpu node
+        self.params["jobtrainingtype"] = "CPUInferenceJob"
+        self.params["numOfCPUWorker"] = '2'
+        self.params["numOfCPUPerWorker"] = '2'
+        self.params["sku"] = "Standard_ND24rs"
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
+        self.assertIsNotNone(job_params)
+        self.assertTrue(job_params.is_valid())
+        self.assertEqual("Standard_ND24rs", job_params.sku)
+        self.assertEqual("P40", job_params.gpu_type)
+        self.assertEqual(0, job_params.gpu_limit)
+        self.assertEqual("2", job_params.cpu_request)
+        self.assertEqual("2", job_params.cpu_limit)
+        self.assertEqual("0Mi", job_params.memory_request)
+        self.assertEqual("458752Mi", job_params.memory_limit)
+        self.assertEqual(2, job_params.num_cpu_workers)
 
     def test_gpu_job(self):
         # gpu_limit precedes resourcegpu
@@ -584,3 +614,27 @@ class TestInferenceJobParams(TestRegularJobParams):
         }
         resource = get_resource_params_from_job_params(params)
         self.assertTrue("preemptable_resource" not in resource)
+
+    def test_get_resource_params_cpu(self):
+        self.params["numOfCPUWorker"] = "2"
+        self.params["numOfCPUPerWorker"] = "2"
+        self.params["jobtrainingtype"] = "CPUInferenceJob"
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                    self.config)
+        self.assertIsNotNone(job_params)
+        params = {
+            "sku": job_params.sku,
+            "gpuType": job_params.gpu_type,
+            "jobtrainingtype": "CPUInferenceJob",
+            "resourcegpu": job_params.gpu_limit,
+            "cpurequest": job_params.cpu_request,
+            "cpulimit": job_params.cpu_limit,
+            "memoryrequest": job_params.memory_request,
+            "memorylimit": job_params.memory_limit,
+            "numOfCPUWorker": job_params.num_cpu_workers
+        }
+        resource = get_resource_params_from_job_params(params)
+        self.assertTrue({'Standard_D2s_v3': 6.0} == resource["cpu"])
+        self.assertTrue({'Standard_D2s_v3': 0} == resource["memory"])
+        self.assertTrue({} == resource["gpu"])
+        self.assertTrue({} == resource["gpu_memory"])
