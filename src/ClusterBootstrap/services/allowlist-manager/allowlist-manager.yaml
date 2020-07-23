@@ -36,6 +36,7 @@ spec:
       - name: allowlist-manager
         image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["allowlistmanager"]}}:{{cnf["dockertag"]}}
         command:
+          - "/usr/local/bin/init"
           - "python3"
           - "/allowlist-manager/main.py"
         args:
