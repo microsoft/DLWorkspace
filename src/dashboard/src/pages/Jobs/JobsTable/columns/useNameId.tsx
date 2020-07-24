@@ -8,7 +8,7 @@ import { Link as RouterLink } from 'react-router-dom'
 import { Link as UILink, Switch, Typography } from '@material-ui/core'
 import { Column } from 'material-table'
 
-import { Job } from '../../utils'
+import { Job } from '../../../../utils/jobs'
 
 const useNameId = (): Column<Job> => {
   const [showId, setShowId] = useState(false)

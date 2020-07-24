@@ -11,7 +11,7 @@ import { zipWith } from 'lodash'
 
 import SvgIconsMaterialTable from '../../../components/SvgIconsMaterialTable'
 
-import { Job } from '../utils'
+import { Job } from '../../../utils/jobs'
 
 import DetailPanel from './DetailPanel'
 

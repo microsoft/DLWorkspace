@@ -14,6 +14,7 @@ import {
 import SwipeableViews from 'react-swipeable-views'
 
 import useHashTab from '../../../hooks/useHashTab'
+import { isStatusActive } from '../../../utils/jobs'
 
 import Context from '../Context'
 
@@ -24,6 +25,8 @@ import Metrics from './Metrics'
 import Console from './Console'
 import Apps from './Apps'
 
+const ACTIVE_COMPONENTS = [Ssh, Apps]
+
 const getComponentName = (Component: ComponentType) => {
   if (Component.displayName !== undefined) {
     return Component.displayName
@@ -32,7 +35,8 @@ const getComponentName = (Component: ComponentType) => {
 }
 
 const JobTabs: FunctionComponent = () => {
-  const { admin, owned } = useContext(Context)
+  const { job, admin, owned } = useContext(Context)
+  const active = isStatusActive(job)
   const components = useMemo(() => owned
     ? [Brief, Endpoints, Ssh, Metrics, Console, Apps]
     : admin
@@ -59,7 +63,11 @@ const JobTabs: FunctionComponent = () => {
       >
         {
           components.map((Component, key) => (
-            <Tab key={key} label={getComponentName(Component)}/>
+            <Tab
+              key={key}
+              label={getComponentName(Component)}
+              disabled={ACTIVE_COMPONENTS.indexOf(Component) > -1 && !active}
+            />
           ))
         }
       </Tabs>

@@ -1,7 +1,7 @@
 import { Column } from 'material-table'
 import { get } from 'lodash'
 
-import { Job } from '../../utils'
+import { Job } from '../../../../utils/jobs'
 
 import renderDate from './utils/renderDate'
 

@@ -11,7 +11,7 @@ import { get } from 'lodash'
 
 import CopyableTextListItem from '../../../components/CopyableTextListItem'
 
-import { Job } from '../utils'
+import { Job } from '../../../utils/jobs'
 
 interface Props {
   job: Job
