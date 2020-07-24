@@ -4,7 +4,8 @@ import {
   FunctionComponent,
   useCallback,
   useContext,
-  useEffect
+  useEffect,
+  useMemo
 } from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet'
@@ -19,10 +20,12 @@ import {
   Typography,
   Paper
 } from '@material-ui/core'
+import { find } from 'lodash'
 import useFetch from 'use-http-1'
 import { useSnackbar } from 'notistack'
 
 import TeamContext from '../../contexts/Team'
+import ClustersContext from '../../contexts/Clusters'
 import Loading from '../../components/Loading'
 import useHashTab from '../../hooks/useHashTab'
 
@@ -53,7 +56,17 @@ interface TabViewProps {
 }
 
 const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
-  const [index, setIndex] = useHashTab('users', 'workers', 'storages', 'pods', 'metrics', 'settings')
+  const { clusterId } = useParams()
+  const { clusters } = useContext(ClustersContext)
+
+  const admin = useMemo(() => {
+    const cluster = find(clusters, ({ id }) => id === clusterId)
+    return Boolean(cluster && cluster['admin'])
+  }, [clusters, clusterId])
+
+  const [index, setIndex] = useHashTab(...admin
+    ? ['users', 'workers', 'storages', 'pods', 'metrics', 'settings']
+    : ['users', 'workers', 'storages', 'pods', 'metrics'])
 
   const handleChange = useCallback((event: ChangeEvent<{}>, value: number) => {
     setIndex(value)
@@ -81,7 +94,7 @@ const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
           <Tab label="Storages"/>
           <Tab label="Pods"/>
           <Tab label="Metrics"/>
-          <Tab label="Settings"/>
+          { admin && <Tab label="Settings"/> }
         </Tabs>
         <SwipeableViews
           index={index}
@@ -92,7 +105,7 @@ const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
           {index === 2 ? <Storages data={data}/> : <div/>}
           {index === 3 ? <Pods data={data}/> : <div/>}
           {index === 4 ? <Metrics data={data}/> : <div/>}
-          {index === 5 ? <Settings data={data}/> : <div/>}
+          {admin && (index === 5 ? <Settings data={data}/> : <div/>)}
         </SwipeableViews>
       </Paper>
     </QueryProvider>
