@@ -61,20 +61,27 @@ spec:
             - IPC_LOCK
             - SYS_ADMIN
         resources:
-        {% if job["jobtrainingtype"] == "InferenceJob" %} 
           limits:
+          {% if job["jobtrainingtype"] == "InferenceJob" %}
             nvidia.com/gpu: 1
-        {% if not job["cpurequest"] %}
+          {% else %}
+            nvidia.com/gpu: 0
+          {% endif %}
+          {% if job["cpulimit"] %}
+            cpu: {{ job["cpulimit"]  }}
+          {% endif %}
+          {% if job["memorylimit"] %}
+            memory: {{ job["memorylimit"] }}
+          {% endif %}
           requests:
+          {% if not job["cpurequest"] %}
             cpu: 1.0
-        {% else %}
-          requests:
+          {% else %}
             cpu: {{ job["cpurequest"] }}
-        {% endif %}
-        {% if job["memoryrequest"] %}
-          requests:
+          {% endif %}
+          {% if job["memoryrequest"] %}
             memory: {{ job["memoryrequest"] }}
-        {% endif %}
+          {% endif %}
         volumeMounts:
         - name: "dlws-scripts"
           mountPath: /dlws-scripts

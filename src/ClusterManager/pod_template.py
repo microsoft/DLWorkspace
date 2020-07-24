@@ -258,6 +258,7 @@ class InferenceJobTemplate(JobTemplate):
                 })
             k8s_pods.append(preemptable_deployment_obj)
         else:
+            deployment_params = copy.deepcopy(params)
             deployment_params["deployment_replicas"] = params["numOfCPUWorker"]
             deployment_params["LaunchCMD"] = params["cmd"]
             deployment_params["preemptionAllowed"] = False

@@ -190,7 +190,6 @@ def SubmitJob(jobParamsJsonStr):
     ret = {}
 
     jobParams = LoadJobParams(jobParamsJsonStr)
-    logger.info("leigao, job param: %s", jobParams)
     if "jobName" not in jobParams or len(jobParams["jobName"].strip()) == 0:
         ret["error"] = "ERROR: Job name cannot be empty"
         return ret
