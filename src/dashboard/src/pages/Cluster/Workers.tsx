@@ -20,7 +20,6 @@ import {
   Card,
   CardMedia,
   Chip,
-  IconButton,
   Link,
   MenuItem,
   Select,
@@ -32,7 +31,6 @@ import {
   Build,
   DoneOutline,
   ErrorOutline,
-  FileCopy,
   Help,
   More
 } from '@material-ui/icons'
