@@ -238,6 +238,26 @@ const Brief: FunctionComponent = () => {
           <InferenceGPUsListItem/>
         )
       }
+      {
+        job['jobParams']['jobtrainingtype'] === 'CPUInferenceJob' && (
+          <ListItem>
+            <ListItemText
+              primary="Number of Workers"
+              secondary={job['jobParams']['numOfCPUWorker']}
+            />
+          </ListItem>
+        )
+      }
+      {
+        job['jobParams']['jobtrainingtype'] === 'CPUInferenceJob' && (
+          <ListItem>
+            <ListItemText
+              primary="Number of CPUs per Worker"
+              secondary={job['jobParams']['numOfCPUPerWorker']}
+            />
+          </ListItem>
+        )
+      }
       <ListItem>
         <ListItemText
           primary="Preemptible"

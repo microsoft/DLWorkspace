@@ -346,6 +346,8 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const [gpus, setGpus] = React.useState(0)
   const [mingpu, setMingpu] = React.useState(0)
   const [maxgpu, setMaxgpu] = React.useState(0)
+  const [numOfCPUWorker, setNumOfCPUWorker] = React.useState(0)
+  const [numOfCPUPerWorker, setNumOfCPUPerWorker] = React.useState(0)
   const submittable = React.useMemo(() => {
     if (!gpuModel) return false
     if (!currentTeamId) return false
@@ -565,6 +567,22 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     },
     [setMaxgpu]
   )
+  const onNumOfCPUWorkerChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      let value = event.target.valueAsNumber
+      if (isNaN(value) || value < 0) value = 0
+      setNumOfCPUWorker(value)
+    },
+    [setNumOfCPUWorker]
+  )
+  const onNumOfCPUPerWorkerChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      let value = event.target.valueAsNumber
+      if (isNaN(value) || value < 0) value = 0
+      setNumOfCPUPerWorker(value)
+    },
+    [setNumOfCPUPerWorker]
+  )
   const [open, setOpen] = React.useState(false)
   const onSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -614,6 +632,9 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     } else if (type === 'InferenceJob') {
       job.mingpu = mingpu
       job.maxgpu = maxgpu
+    } else if (type === 'CPUInferenceJob') {
+      job.numOfCPUWorker = numOfCPUWorker
+      job.numOfCPUPerWorker = numOfCPUPerWorker
     } else {
       job.resourcegpu = gpus
     }
@@ -921,6 +942,8 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                     label="Number of Workers"
                     fullWidth
                     variant="filled"
+                    value={numOfCPUWorker}
+                    onChange={onNumOfCPUWorkerChange}
                   />
                 </Grid>
               )}
@@ -931,6 +954,8 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                     label="Number of CPUs per Worker"
                     fullWidth
                     variant="filled"
+                    value={numOfCPUPerWorker}
+                    onChange={onNumOfCPUPerWorkerChange}
                   />
                 </Grid>
               )}
