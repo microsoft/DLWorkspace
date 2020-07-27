@@ -1025,7 +1025,8 @@ class PythonLauncher(Launcher):
                 pod_template = DistributeJobTemplate(
                     job_object.get_template(),
                     secret_templates=secret_templates)
-            elif job_object.params["jobtrainingtype"] == "InferenceJob":
+            elif job_object.params["jobtrainingtype"] == "InferenceJob" or \
+                job_object.params["jobtrainingtype"] == "CPUInferenceJob":
                 pod_template = InferenceJobTemplate(
                     job_object.get_template(),
                     deployment_template=job_object.get_deployment_template(),

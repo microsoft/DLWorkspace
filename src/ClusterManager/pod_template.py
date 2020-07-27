@@ -224,39 +224,55 @@ class InferenceJobTemplate(JobTemplate):
         })
         k8s_pods.append(pod_obj)
 
-        # Since cluster status is caculated based on pod label, we seperate inference workers to 2 deployments:
-        # non-preemptable deployment, and preemptable deployment, with different label and replicas. 
-        deployment_params = copy.deepcopy(params)
+        if params["jobtrainingtype"] == "InferenceJob":
+            # Since cluster status is caculated based on pod label, we seperate inference workers to 2 deployments:
+            # non-preemptable deployment, and preemptable deployment, with different label and replicas.
+            deployment_params = copy.deepcopy(params)
+            deployment_params["deployment_replicas"] = params["mingpu"]
+            deployment_params["LaunchCMD"] = params["cmd"]
+            deployment_params["preemptionAllowed"] = False
+            deployment_params["deploymentIndex"] = "0"
 
-        deployment_params["deployment_replicas"] = params["mingpu"]
-        deployment_params["LaunchCMD"] = params["cmd"]
-        deployment_params["preemptionAllowed"] = False
-        deployment_params["deploymentIndex"] = "0"
+            deployment_yaml = self.deployment_template.render(job=deployment_params)
+            deployment_obj = yaml.full_load(deployment_yaml)
+            # because user's cmd can be multiple lines, should add after yaml load
+            deployment_obj["spec"]["template"]["spec"]["containers"][0][
+                "env"].append({
+                    "name": "DLTS_LAUNCH_CMD",
+                    "value": params["cmd"]
+                })
+            k8s_pods.append(deployment_obj)
 
-        deployment_yaml = self.deployment_template.render(job=deployment_params)
-        deployment_obj = yaml.full_load(deployment_yaml)
-        # because user's cmd can be multiple lines, should add after yaml load
-        deployment_obj["spec"]["template"]["spec"]["containers"][0][
-            "env"].append({
-                "name": "DLTS_LAUNCH_CMD",
-                "value": params["cmd"]
-            })
-        k8s_pods.append(deployment_obj)
+            preemptable_deployment_params = copy.deepcopy(params)
+            preemptable_deployment_params["deployment_replicas"] = params["resourcegpu"] - params["mingpu"]
+            preemptable_deployment_params["LaunchCMD"] = params["cmd"]
+            preemptable_deployment_params["deploymentIndex"] = "1"
 
-        preemptable_deployment_params = copy.deepcopy(params)
-        preemptable_deployment_params["deployment_replicas"] = params["resourcegpu"] - params["mingpu"]
-        preemptable_deployment_params["LaunchCMD"] = params["cmd"]
-        preemptable_deployment_params["deploymentIndex"] = "1"
+            preemptable_deployment_yaml = self.deployment_template.render(job=preemptable_deployment_params)
+            preemptable_deployment_obj = yaml.full_load(preemptable_deployment_yaml)
+            # because user's cmd can be multiple lines, should add after yaml load
+            preemptable_deployment_obj["spec"]["template"]["spec"]["containers"][0][
+                "env"].append({
+                    "name": "DLTS_LAUNCH_CMD",
+                    "value": params["cmd"]
+                })
+            k8s_pods.append(preemptable_deployment_obj)
+        else:
+            deployment_params = copy.deepcopy(params)
+            deployment_params["deployment_replicas"] = params["numOfCPUWorker"]
+            deployment_params["LaunchCMD"] = params["cmd"]
+            deployment_params["preemptionAllowed"] = False
+            deployment_params["deploymentIndex"] = "0"
 
-        preemptable_deployment_yaml = self.deployment_template.render(job=preemptable_deployment_params)
-        preemptable_deployment_obj = yaml.full_load(preemptable_deployment_yaml)
-        # because user's cmd can be multiple lines, should add after yaml load
-        preemptable_deployment_obj["spec"]["template"]["spec"]["containers"][0][
-            "env"].append({
-                "name": "DLTS_LAUNCH_CMD",
-                "value": params["cmd"]
-            })
-        k8s_pods.append(preemptable_deployment_obj)
+            deployment_yaml = self.deployment_template.render(job=deployment_params)
+            deployment_obj = yaml.full_load(deployment_yaml)
+            # because user's cmd can be multiple lines, should add after yaml load
+            deployment_obj["spec"]["template"]["spec"]["containers"][0][
+                "env"].append({
+                    "name": "DLTS_LAUNCH_CMD",
+                    "value": params["cmd"]
+                })
+            k8s_pods.append(deployment_obj)
 
         return k8s_pods, None
 

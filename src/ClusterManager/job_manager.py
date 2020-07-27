@@ -599,7 +599,7 @@ def get_jobs_info(jobs, cluster_schedulable, vc_schedulables):
             preemptible = 1 if preemption_allowed else 0
 
             # job type
-            inference = 1 if job_training_type == "InferenceJob" else 0
+            inference = 1 if job_training_type == "InferenceJob" or job_training_type == "CPUInferenceJob" else 0
 
             # Job status
             job_status_key = 0

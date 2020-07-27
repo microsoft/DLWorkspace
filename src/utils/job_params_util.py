@@ -93,6 +93,15 @@ def get_resource_params_from_job_params(params):
                 "gpu": preemptable_gpu.to_dict(),
                 "gpu_memory": preemptable_gpu_memory.to_dict(),
             }
+    elif job_type == "CPUInferenceJob":
+        # Master
+        cpu += make_resource("cpu", {sku: cpu_request})
+        memory += make_resource("memory", {sku: mem_request})
+
+        # CPU Inference Workers
+        for i in range(params.get("numOfCPUWorker")):
+            cpu += make_resource("cpu", {sku: cpu_request})
+            memory += make_resource("memory", {sku: mem_request})
     else:
         logger.warning("Unrecognized job type %s", job_type)
 
@@ -193,6 +202,7 @@ class JobParams(object):
                                                self.config, self.quota,
                                                self.metadata)
 
+    @override
     def gen_cpu(self):
         self.cpu_request = self.params.get("cpurequest")
         self.cpu_limit = self.params.get("cpulimit")
@@ -357,10 +367,38 @@ class InferenceJobParams(JobParams):
             self.max_gpu = max(self.min_gpu, self.max_gpu)
             self.gpu_limit = self.min_gpu
 
+
+class CPUInferenceJobParams(JobParams):
+    def __init__(self, params, quota, metadata, config, is_admin=False):
+        self.num_cpu_workers = int(params.get("numOfCPUWorker"))
+        super(CPUInferenceJobParams, self).__init__(params, quota, metadata,
+                                                    config, is_admin)
+
+    def get_gpu_limit(self):
+        return 0
+
+    def gen_gpu(self):
+        self.gpu_limit = 0
+
+    def gen_cpu(self):
+        self.cpu_request = self.params.get("numOfCPUPerWorker")
+        self.cpu_limit = self.cpu_request
+        self.cpu_request, self.cpu_limit = \
+            self.normalize("cpu", self.cpu_request, self.cpu_limit)
+
+        request, limit = self.get_default_cpu_request_and_limit()
+        request, limit = self.normalize("cpu", request, limit)
+
+        if self.cpu_request is None:
+            self.cpu_request = request
+            self.cpu_limit = limit
+
+
 JOB_PARAMS_MAPPING = {
     "RegularJob": RegularJobParams,
     "PSDistJob": PSDistJobParams,
     "InferenceJob": InferenceJobParams,
+    "CPUInferenceJob": CPUInferenceJobParams,
 }
 
 
