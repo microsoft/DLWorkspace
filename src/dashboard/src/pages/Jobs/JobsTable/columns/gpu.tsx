@@ -2,7 +2,7 @@ import * as React from 'react'
 import { Column } from 'material-table'
 import { get } from 'lodash'
 
-import { Job } from '../../utils'
+import { Job } from '../../../../utils/jobs'
 
 const CACHE_KEY = '__DLTS_GPU'
 

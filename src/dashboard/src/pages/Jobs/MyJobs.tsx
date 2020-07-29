@@ -31,7 +31,7 @@ import {
 
   useNameId
 } from './JobsTable/columns'
-import { groupByActiveStatus } from './utils'
+import { groupByActiveStatus } from '../../utils/jobs'
 
 type JobsTablePropsWithoutColumnsActions = Omit<ComponentPropsWithoutRef<typeof JobsTable>, 'columns' | 'actions'>
 

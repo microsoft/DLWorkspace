@@ -15,7 +15,7 @@ import { Column } from 'material-table'
 import { useSnackbar } from 'notistack'
 
 import ClusterContext from '../../ClusterContext'
-import { Job } from '../../utils'
+import { Job } from '../../../../utils/jobs'
 
 const DEFAULT_PRIORITY = 100
 

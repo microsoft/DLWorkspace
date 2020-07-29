@@ -5,7 +5,7 @@ import { Column } from 'material-table'
 import JobStatus from '../../../../components/JobStatus'
 import ClusterContext from '../../ClusterContext'
 
-import { Job } from '../../utils'
+import { Job } from '../../../../utils/jobs'
 
 const JobStatusColumn: FunctionComponent<{ job: Job }> = ({ job }) => {
   const { cluster } = useContext(ClusterContext)

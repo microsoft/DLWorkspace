@@ -1,8 +1,9 @@
 import * as React from 'react'
 import {
   FunctionComponent,
-  ChangeEvent,
+  ComponentType,
   useCallback,
+  useContext,
   useMemo
 } from 'react'
 import {
@@ -13,22 +14,38 @@ import {
 import SwipeableViews from 'react-swipeable-views'
 
 import useHashTab from '../../../hooks/useHashTab'
+import { isStatusActive } from '../../../utils/jobs'
+
+import Context from '../Context'
 
 import Brief from './Brief'
-import Endpoints from './Endpoints'
+import Ssh from './Ssh'
 import Metrics from './Metrics'
 import Console from './Console'
+import Apps from './Apps'
 
-const JobTabs: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
-  const components = useMemo(() => manageable
-    ? [Brief, Endpoints, Metrics, Console]
-    : [Brief, Metrics, Console]
-  , [manageable])
+const ACTIVE_COMPONENTS = [Ssh, Apps]
+
+const getComponentName = (Component: ComponentType) => {
+  if (Component.displayName !== undefined) {
+    return Component.displayName
+  }
+  return Component.name
+}
+
+const JobTabs: FunctionComponent = () => {
+  const { job, admin, owned } = useContext(Context)
+  const active = isStatusActive(job)
+  const components = useMemo(() => owned
+    ? [Brief, Ssh, Metrics, Console, Apps]
+    : admin
+      ? [Brief, Metrics, Console, Apps]
+      : [Brief, Metrics, Console]
+  , [owned, admin])
   const [index, setIndex] = useHashTab(
     ...components.map(
-      Component =>
-        String(Component.displayName || Component.name).toLowerCase()))
-  const onChange = useCallback((event: ChangeEvent<{}>, value: any) => {
+      Component => getComponentName(Component).toLowerCase()))
+  const onChange = useCallback((event: unknown, value: any) => {
     setIndex(value as number)
   }, [setIndex])
   const onChangeIndex = useCallback((index: number, prevIndex: number) => {
@@ -45,7 +62,11 @@ const JobTabs: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => 
       >
         {
           components.map((Component, key) => (
-            <Tab key={key} label={Component.displayName || Component.name}/>
+            <Tab
+              key={key}
+              label={getComponentName(Component)}
+              disabled={ACTIVE_COMPONENTS.indexOf(Component) > -1 && !active}
+            />
           ))
         }
       </Tabs>

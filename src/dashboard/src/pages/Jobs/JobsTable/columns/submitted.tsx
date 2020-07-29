@@ -1,6 +1,6 @@
 import { Column } from 'material-table'
 
-import { Job } from '../../utils'
+import { Job } from '../../../../utils/jobs'
 
 import renderDate from './utils/renderDate'
 
