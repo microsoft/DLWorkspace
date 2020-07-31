@@ -9,9 +9,9 @@
   "private": true,
   "scripts": {
     "test": "standard",
-    "dev": "parcel serve src/background.js src/popup.html src/options.html --out-dir public/dist/ --public-url . --hmr-hostname 127.0.0.1 --no-source-maps",
+    "dev": "parcel serve src/popup.html src/options.html --out-dir public/dist/ --public-url . --hmr-hostname 127.0.0.1 --no-source-maps",
     "prebuild": "rimraf public/dist/",
-    "build": "parcel build src/background.js src/popup.html src/options.html --out-dir public/dist/ --public-url . --no-source-maps"
+    "build": "parcel build src/popup.html src/options.html --out-dir public/dist/ --public-url . --no-source-maps"
   },
   "dependencies": {
     "bulma": "^0.9.0",
