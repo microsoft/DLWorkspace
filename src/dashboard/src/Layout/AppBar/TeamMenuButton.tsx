@@ -7,6 +7,8 @@ import {
   useState
 } from 'react';
 
+import { sortBy } from 'lodash'
+
 import {
   Button,
   Menu,
@@ -61,7 +63,7 @@ const TeamMenuButton: FunctionComponent = () => {
         {currentTeamId}
       </Button>
       <Menu anchorEl={button.current} open={open} onClose={handleMenuClose}>
-        {teams.map(({ id }: { id: string }) => (
+        {sortBy(teams, 'id').map(({ id }: { id: string }) => (
           <MenuItem
             key={id}
             disabled={id === currentTeamId}
