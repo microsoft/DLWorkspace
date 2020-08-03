@@ -17,7 +17,12 @@ components:
       description: JSON Web Token
       name: token
       in: cookie
-    token:
+    email:
+      type: apiKey
+      description: '`email=$email&password=md5("$email:$masterToken")`'
+      name: email
+      in: query
+    password:
       type: apiKey
       description: '`email=$email&password=md5("$email:$masterToken")`'
       name: password
@@ -187,7 +192,8 @@ security:
       - openid
       - email
   - cookie: []
-  - token: []
+  - email: []
+    password: []
 
 tags:
   - name: Teams & Clusters

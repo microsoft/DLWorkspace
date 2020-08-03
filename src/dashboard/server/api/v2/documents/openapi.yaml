@@ -17,7 +17,12 @@ components:
       description: JSON Web Token
       name: token
       in: cookie
-    token:
+    email:
+      type: apiKey
+      description: '`email=$email&password=md5("$email:$masterToken")`'
+      name: email
+      in: query
+    password:
       type: apiKey
       description: '`email=$email&password=md5("$email:$masterToken")`'
       name: password
@@ -62,6 +67,14 @@ components:
           enum:
             - FIFO
             - RF
+
+security:
+  - openIdConnect:
+      - openid
+      - email
+  - cookie: []
+  - email: []
+    password: []
 
 paths:
   /:
