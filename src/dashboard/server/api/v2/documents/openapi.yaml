@@ -1,11 +1,67 @@
 openapi: 3.0.0
 
 info:
+  title: DLTS Dashboard API v2
   version: 3.0.0
-  title: DLTS API
 
 servers:
   - url: /api/v2
+
+components:
+  securitySchemes:
+    activeDirectory:
+      type: openIdConnect
+      openIdConnectUrl: 'https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration'
+    cookie:
+      type: apiKey
+      description: JSON Web Token
+      name: token
+      in: cookie
+    token:
+      type: apiKey
+      description: '`email=$email&password=md5("$email:$masterToken")`'
+      name: password
+      in: query
+  parameters:
+    teamId:
+      name: teamId
+      in: path
+      schema:
+        type: string
+      required: true
+    clusterId:
+      name: clusterId
+      in: path
+      schema:
+        type: string
+      required: true
+    jobId:
+      name: jobId
+      in: path
+      schema:
+        type: string
+      required: true
+  schemas:
+    Meta:
+      type: object
+      properties:
+        timeout:
+          description: Timeout value in seconds, or null for no timeouts
+          oneOf:
+            - type: number
+            - enum:
+              - null
+        interactiveGpu:
+          description: Max number of interactive GPUs, or null for no limits
+          oneOf:
+            - type: number
+            - enum:
+              - null
+        schedulingPolicy:
+          description: 'Scheduling policy: First-in-first-out or Runnable-first'
+          enum:
+            - FIFO
+            - RF
 
 paths:
   /:
@@ -20,15 +76,71 @@ paths:
       responses:
         '200':
           description: OK
-  /clusters/:clusterId/teams/:teamId/jobs:
+  /clusters/{clusterId}/teams/{teamId}:
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+      - $ref: '#/components/parameters/teamId'
+    get:
+      summary: Get cluster status (in teams' view)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+  /clusters/{clusterId}/teams/{teamId}/meta:
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+      - $ref: '#/components/parameters/teamId'
+    get:
+      summary: Get team's metadata
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meta'
+    patch:
+      summary: Update team's metadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Meta'
+      responses:
+        '200':
+          description: OK
+  /clusters/{clusterId}/teams/{teamId}/jobs:
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+      - $ref: '#/components/parameters/teamId'
     get:
       summary: Get jobs of spefied cluster & team
       responses:
         '200':
           description: OK
-  /clusters/:clusterId/jobs/:jobId:
+  /clusters/{clusterId}/jobs/{jobId}:
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+      - $ref: '#/components/parameters/jobId'
     get:
       summary: Get spefied job
       responses:
         '200':
           description: OK
+  /clusters/{clusterId}/jobs/{jobId}/log:
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+      - $ref: '#/components/parameters/jobId'
+    get:
+      summary: Get all logs of the job
+      responses:
+        '200':
+          description: OK
+          content:
+            'text/plain':
+              schema:
+                type: string
