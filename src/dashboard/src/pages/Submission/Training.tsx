@@ -396,7 +396,11 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         ssh,
         ipython,
         tensorboard,
-        plugins
+        plugins,
+        mingpu,
+        maxgpu,
+        numOfCPUWorker,
+        numOfCPUPerWorker
       }
       const url = `/teams/${currentTeamId}/templates/${saveTemplateName}?database=${saveTemplateDatabase}`
       await saveTemplate(url, template)
@@ -454,6 +458,10 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         setSsh(false)
         setIpython(false)
         setTensorboard(false)
+        setMingpu(0)
+        setMaxgpu(0)
+        setNumOfCPUWorker(0)
+        setNumOfCPUPerWorker(0)
       } else {
         const {
           name,
@@ -472,7 +480,11 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           ssh,
           ipython,
           tensorboard,
-          plugins
+          plugins,
+          mingpu,
+          maxgpu,
+          numOfCPUWorker,
+          numOfCPUPerWorker
         } = JSON.parse(event.target.value as string)
         console.log('jobpath', plugins)
         if (name !== undefined) setName(name)
@@ -518,6 +530,11 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
             setDockerPassword(imagePullObj['password'])
           }
         }
+
+        if (mingpu !== undefined) setMingpu(mingpu)
+        if (maxgpu !== undefined) setMaxgpu(maxgpu)
+        if (numOfCPUWorker !== undefined) setNumOfCPUWorker(numOfCPUWorker)
+        if (numOfCPUPerWorker !== undefined) setNumOfCPUPerWorker(numOfCPUPerWorker)
       }
     },
     []
