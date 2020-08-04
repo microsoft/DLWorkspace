@@ -1,0 +1,818 @@
+openapi: 3.0.0
+
+info:
+  title: DLTS Dashboard API
+  version: 2.0.0
+
+servers:
+  - url: /api
+
+components:
+  securitySchemes:
+    activeDirectory:
+      type: openIdConnect
+      openIdConnectUrl: 'https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration'
+    cookie:
+      type: apiKey
+      description: JSON Web Token
+      name: token
+      in: cookie
+    email:
+      type: apiKey
+      description: '`email=$email&password=md5("$email:$masterToken")`'
+      name: email
+      in: query
+    password:
+      type: apiKey
+      description: '`email=$email&password=md5("$email:$masterToken")`'
+      name: password
+      in: query
+  parameters:
+    teamId:
+      name: teamId
+      in: path
+      schema:
+        type: string
+      required: true
+    clusterId:
+      name: clusterId
+      in: path
+      schema:
+        type: string
+      required: true
+    jobId:
+      name: jobId
+      in: path
+      schema:
+        type: string
+      required: true
+    userEmail:
+      name: userEmail
+      in: path
+      schema:
+        type: string
+      required: true
+    templateName:
+      name: templateName
+      in: path
+      schema:
+        type: string
+      required: true
+  schemas:
+    JobModel:
+      type: object
+      properties:
+        gpuType:
+          type: string
+        jobtrainingtype:
+          type: string
+          enum:
+            - RegularJob
+            - PSDistJob
+        jobName:
+          type: string
+        resourcegpu:
+          type: number
+        numps:
+          type: number
+        numpsworker:
+          type: number
+        image:
+          type: string
+        cmd:
+          type: string
+        interactivePorts:
+          type: array
+          items:
+            type: number
+        ssh:
+          type: boolean
+        ipython:
+          type: boolean
+        tensorboard:
+          type: boolean
+
+        workPath:
+          type: string
+        enableworkpath:
+          type: boolean
+        dataPath:
+          type: string
+        enabledatapath:
+          type: boolean
+        jobPath:
+          type: string
+        enablejobpath:
+          type: boolean
+        mountpoints:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              enabled:
+                type: boolean
+              containerPath:
+                type: string
+              hostPath:
+                type: string
+            required:
+              - name
+              - enabled
+              - containerPath
+              - hostPath
+
+        env:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              value:
+                type: string
+            required:
+              - name
+              - value
+
+        hostNetwork:
+          type: boolean
+
+        useGPUTopology:
+          type: boolean
+
+        isPrivileged:
+          type: boolean
+        hostIPC:
+          type: boolean
+        dnsPolicy:
+          type: string
+          enum:
+            - Default
+            - ClusterFirstWithHostNet
+            - ClusterFirst
+        cpurequest:
+          type: string
+        memoryrequest:
+          type: string
+
+        preemptionAllowed:
+          type: string
+          enum:
+            - 'True'
+            - 'False'
+
+        do_log:
+          type: boolean
+        is_interactive:
+          type: boolean
+        runningasroot:
+          type: boolean
+
+        plugins:
+          type: object
+          properties:
+            blobfuse:
+              type: array
+              items:
+                type: object
+                properties:
+                  accountName:
+                    type: string
+                  accountKey:
+                    type: string
+                  containerName:
+                    type: string
+                  mountPath:
+                    type: string
+
+security:
+  - openIdConnect:
+      - openid
+      - email
+  - cookie: []
+  - email: []
+    password: []
+
+tags:
+  - name: Teams & Clusters
+  - name: Jobs
+  - name: Job Commands
+  - name: Job Endpoints
+  - name: Users
+  - name: Templates
+
+paths:
+  '/teams':
+    get:
+      summary: List all teams of the user
+      tags:
+        - Teams & Clusters
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              example:
+                [
+                {
+                  "id": "platform",
+                  "clusters": [
+                  {
+                    "id": "Azure-EastUS-P40-Pilot",
+                    "admin": true
+                  },
+                  {
+                    "id": "Azure-EastUS-P40-Platform",
+                    "admin": true
+                  }
+                  ]
+                },
+                {
+                  "id": "relevance",
+                  "clusters": [
+                  {
+                    "id": "Azure-EastUS-P40",
+                    "admin": false
+                  },
+                  {
+                    "id": "Azure-WestEurope-V100",
+                    "admin": false
+                  }
+                  ]
+                }
+                ]
+  '/teams/{teamId}/clusters/{clusterId}':
+    parameters:
+      - $ref: '#/components/parameters/teamId'
+      - $ref: '#/components/parameters/clusterId'
+    get:
+      summary: List all clusters of the team
+      tags:
+        - Teams & Clusters
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              example:
+                {
+                  "activeJobs": 15,
+                  "avaliableGpus": {
+                    "P40": 12
+                  },
+                  "unschedulableGpus": {
+                    "P40": 0
+                  },
+                  "usedGpus": {
+                    "P40": 31
+                  },
+                  "perNodeGpus": {
+                    "P40": 4
+                  }
+                }
+  '/clusters/{clusterId}':
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+    get:
+      summary: Get the configuration of the cluster
+      tags:
+        - Teams & Clusters
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              example:
+                {
+                  "restfulapi": "http://example.com:5000",
+                  "grafana": "http://example.com:3000",
+                  "workStorage": "file://example.com",
+                  "dataStorage": "file://example.com/data"
+                }
+
+  '/teams/{teamId}/jobs':
+    parameters:
+      - $ref: '#/components/parameters/teamId'
+    get:
+      summary: List all jobs of the team
+      description: |
+        If pass `user=all` in query, there will be only jobs of clusters which user has **admin** permission respond.
+      tags:
+        - Jobs
+      parameters:
+        - name: user
+          in: query
+          schema:
+            type: string
+            enum:
+              - me
+              - all
+            default: me
+        - name: offset
+          in: query
+          schema:
+            type: number
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: number
+            maximum: 100
+            minimum: 10
+            default: 10
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              example:
+                [
+                {
+                  "id": "486ea3c1-ca88-413a-865f-cd1849778c53",
+                  "cluster": "Azure-EastUS-P40-Pilot",
+                  "name": "caffe training example - resnet18",
+                  "status": "failed",
+                  "gpu": 1,
+                  "user": "qixcheng@microsoft.com",
+                  "team": "platform",
+                  "submitted": "2019-07-11T07:37:59.000Z",
+                  "finished": "2019-07-11T07:38:26.000Z"
+                },
+                {
+                  "id": "7d20f28b-bec9-4878-85d6-789560004688",
+                  "cluster": "Azure-EastUS-P40-Platform",
+                  "name": "Data+Job+@+2019-07-03T13:51:13.531Z",
+                  "status": "failed",
+                  "gpu": 0,
+                  "user": "qixcheng@microsoft.com",
+                  "team": "platform",
+                  "submitted": "2019-07-04T11:52:17.000Z",
+                  "finished": "2019-07-04T11:52:38.000Z"
+                }
+                ]
+  '/clusters/{clusterId}/jobs':
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+    post:
+      summary: Submit a new job to the cluster
+      tags:
+        - Jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobModel'
+      responses:
+        201:
+          description: Created
+          headers:
+            Location:
+              description: The retrieve URI of the submitted job.
+              schema:
+                type: string
+          content:
+            application/json:
+              example:
+                {
+                  "jobId": "486ea3c1-ca88-413a-865f-cd1849778c53"
+                }
+  '/clusters/{clusterId}/jobs/{jobId}':
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+      - $ref: '#/components/parameters/jobId'
+    get:
+      summary: Get the information of the job
+      tags:
+        - Jobs
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              example:
+                {
+                  "id": "486ea3c1-ca88-413a-865f-cd1849778c53",
+                  "cluster": "Azure-EastUS-P40-Pilot",
+                  "name": "caffe training example - resnet18",
+                  "status": "failed",
+                  "gpu": 1,
+                  "user": "qixcheng@microsoft.com",
+                  "team": "platform",
+                  "submitted": "2019-07-11T07:37:59.000Z",
+                  "finished": "2019-07-11T07:38:26.000Z",
+                  "log": "",
+                  "config": {}
+                }
+  '/clusters/{clusterId}/jobs/{jobId}/status':
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+      - $ref: '#/components/parameters/jobId'
+    put:
+      summary: Approve / kill / pause / resume a job
+      tags:
+        - Jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - approved
+                    - killing
+                    - pausing
+                    - queued
+              required:
+                - status
+            examples:
+              approve:
+                summary: Approve a job
+                value:
+                  {
+                    "status": "approved"
+                  }
+              kill:
+                summary: Kill a job
+                value:
+                  {
+                    "status": "killing"
+                  }
+              pause:
+                summary: Pause a job
+                value:
+                  {
+                    "status": "pausing"
+                  }
+              resume:
+                summary: Resume a job
+                value:
+                  {
+                    "status": "queued"
+                  }
+      responses:
+        204:
+          description: No Content
+  '/clusters/{clusterId}/jobs/{jobId}/priority':
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+      - $ref: '#/components/parameters/jobId'
+    put:
+      summary: Adjust priority of a job
+      tags:
+        - Jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                priority:
+                  type: number
+              required:
+                - priority
+            example:
+              {
+                "priority": 1024
+              }
+      responses:
+        204:
+          description: No Content
+  '/clusters/{clusterId}/jobs/{jobId}/timeout':
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+      - $ref: '#/components/parameters/jobId'
+    put:
+      summary: Adjust timeout of a job
+      tags:
+        - Jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                priority:
+                  type: number
+              required:
+                - timeout
+            example:
+              {
+                "timeout": 86400
+              }
+      responses:
+        204:
+          description: No Content
+  '/clusters/{clusterId}/jobs/{jobId}/log':
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+      - $ref: '#/components/parameters/jobId'
+    get:
+      summary: Get log of a job
+      tags:
+        - Jobs
+      responses:
+        200:
+          description: OK
+
+  '/clusters/{clusterId}/jobs/{jobId}/commands':
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+      - $ref: '#/components/parameters/jobId'
+    get:
+      summary: Get all run commands of the job
+      tags:
+        - Job Commands
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              example:
+                {
+                  "commands": [
+                  {
+                    "command": "ls",
+                    "output": null,
+                    "status": "run",
+                    "submitted": "2019-07-11T07:37:59.000Z"
+                  }
+                  ]
+                }
+    post:
+      summary: Run a command in the job
+      tags:
+        - Job Commands
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                command:
+                  type: string
+              required:
+                - command
+            example:
+              {
+                "command": "bash --version"
+              }
+      responses:
+        204:
+          description: No Content
+
+  '/clusters/{clusterId}/jobs/{jobId}/endpoints':
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+      - $ref: '#/components/parameters/jobId'
+    get:
+      summary: List all endpoints of the job
+      tags:
+        - Job Endpoints
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              example:
+                {
+                  "endpoints": [
+                  {
+                    "name": "ssh",
+                    "domain": "dltsprod-worker-cnrqrv.eastus.cloudapp.azure.com",
+                    "port": 31301,
+                    "podPort": 22,
+                    "status": "running"
+                  }
+                  ]
+                }
+    post:
+      summary: Add an endpoint to the job
+      tags:
+        - Job Endpoints
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                endpoints:
+                  type: array
+                  items:
+                    oneOf:
+                      - type: string
+                        enum:
+                          - ssh
+                          - ipython
+                          - tensorboard
+                          - theia
+                      - type: object
+                        properties:
+                          name:
+                            type: string
+                            maxLength: 16
+                          podPort:
+                            type: number
+                            minimum: 40000
+                            maximum: 49999
+                        required:
+                          - name
+                          - podPort
+                  required:
+                    - endpoints
+            example:
+              {
+                "endpoints":
+                  [
+                    "ssh",
+                    {
+                      "name": "port-40000",
+                      "podPort": 40000
+                    }
+                  ]
+              }
+      responses:
+        204:
+          description: No Content
+
+  '/user':
+    get:
+      summary: Get current user information
+      tags:
+        - Users
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              example:
+                {
+                  "email": "dlts@example.com",
+                  "password": "0123456789abcdef0123456789abcdef"
+                }
+
+  '/templates':
+    get:
+      summary: List all templates, including shared templates and personal templates.
+      tags:
+        - Templates
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              example:
+                {
+                  "templates": [
+
+                  ]
+                }
+  '/templates/{templateName}':
+    parameters:
+      - $ref: '#/components/parameters/templateName'
+      - name: database
+        in: query
+        schema:
+          type: string
+          enum:
+            - user
+            - team
+          default: user
+    put:
+      summary: Create / update a template
+      tags:
+        - Templates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobModel'
+      responses:
+        204:
+          description: No Content
+    delete:
+      summary: Delete a template
+      tags:
+        - Templates
+      responses:
+        204:
+          description: No Content
+
+  '/keys':
+    get:
+      summary: List SSH keys of the current user
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    key:
+                      type: string
+                    added:
+                      type: string
+    post:
+      summary: Add an SSH key to current user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                key:
+                  type: string
+      responses:
+        '200':
+          description: OK
+
+  '/keys/{keyId}':
+    parameters:
+      - name: keyId
+        in: query
+        schema:
+          type: number
+    delete:
+      summary: Delete the SSH key from current user
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad Request
+        '404':
+          description: Not Found
+
+  '/clusters/{clusterId}/allowed-ip':
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+    get:
+      summary: Get the allowed ip of the user in the cluster
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: Not Found
+    post:
+      summary: Set the allowed ip of the user in the cluster
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ip:
+                  type: string
+                  format: ipv4
+      responses:
+        '200':
+          description: OK
+    delete:
+      summary: Remove the allowed ip of the user in the cluster
+      responses:
+        '200':
+          description: OK
+
+  '/clusters/{clusterId}/quota':
+    parameters:
+      - $ref: '#/components/parameters/clusterId'
+    get:
+      summary: Get the quota of the current cluster
+      responses:
+        '200':
+          description: OK
+    patch:
+      summary: Update the quota of the current cluster
+      requestBody:
+        content:
+          application/json:
+            example:
+              Standard_SKU:
+                resourceQuota:
+                  gpu:
+                    teamA: 10
+                    teamB: 20
+                  cpu:
+                    teamA: 10
+                    teamB: 20
+                  memory:
+                    teamA: 10
+                    teamB: 20
+                  gpu_memory:
+                    teamA: 10
+                    teamB: 20
+      responses:
+        '200':
+          description: OK

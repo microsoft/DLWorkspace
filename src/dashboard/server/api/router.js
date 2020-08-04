@@ -4,6 +4,8 @@ const router = module.exports = new Router()
 
 router.get('/',
   require('./controllers'))
+router.get('/openapi.yaml',
+  require('./controllers/openapi'))
 
 router.get('/bootstrap.js',
   require('./middlewares/user')(false),
