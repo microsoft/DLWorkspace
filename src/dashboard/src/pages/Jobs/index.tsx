@@ -25,13 +25,13 @@ import {
   Tooltip,
   Toolbar
 } from '@material-ui/core'
+import { Info } from '@material-ui/icons'
 import SwipeableViews from 'react-swipeable-views'
 
 import ClustersContext from '../../contexts/Clusters'
 import ClusterSelector from '../../components/ClusterSelector'
 
 import useFetch from 'use-http'
-import { Info } from '@material-ui/icons'
 import Loading from '../../components/Loading'
 import useHashTab from '../../hooks/useHashTab'
 import ClusterContext from './ClusterContext'
