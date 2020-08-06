@@ -88,7 +88,7 @@ const useEndpoints = () => {
 
 const Ssh: FunctionComponent = () => {
   const { enqueueSnackbar } = useSnackbar()
-  const { cluster, job } = useContext(Context)
+  const { cluster, job, owned } = useContext(Context)
 
   const [endpoints, enableSSH] = useEndpoints()
 
@@ -189,8 +189,8 @@ const Ssh: FunctionComponent = () => {
       })}
     </List>
     <Box paddingX={2} paddingBottom={2}>
-      <Authentication onAddKeyToCommand={handleAddKeyToCommand}/>
-      { cluster.supportAllowedIp === true && <Network/> }
+      { owned && <Authentication onAddKeyToCommand={handleAddKeyToCommand}/> }
+      { owned && cluster.supportAllowedIp === true && <Network/> }
     </Box>
   </>
 }

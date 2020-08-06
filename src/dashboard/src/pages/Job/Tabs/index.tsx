@@ -36,11 +36,9 @@ const getComponentName = (Component: ComponentType) => {
 const JobTabs: FunctionComponent = () => {
   const { job, admin, owned } = useContext(Context)
   const active = isStatusActive(job)
-  const components = useMemo(() => owned
+  const components = useMemo(() => owned || admin
     ? [Brief, Ssh, Metrics, Console, Apps]
-    : admin
-      ? [Brief, Metrics, Console, Apps]
-      : [Brief, Metrics, Console]
+    : [Brief, Metrics, Console]
   , [owned, admin])
   const [index, setIndex] = useHashTab(
     ...components.map(
