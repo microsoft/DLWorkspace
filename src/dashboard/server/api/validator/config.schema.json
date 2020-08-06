@@ -66,6 +66,11 @@
               "title": "Whether it supports allowed IP",
               "description": "Set to true if it could be listed in allowed ip page",
               "type": "boolean"
+            },
+            "amlPortal": {
+              "title": "AML Portal link ",
+              "description": "Set link if need to show AML link",
+              "type": "string"
             }
           }
         }

@@ -8,10 +8,13 @@ import {
   CardActions,
   Grid,
   Container,
+  Tooltip,
   TextField,
   Button,
   Divider, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions
 } from '@material-ui/core'
+import {Link as AmlLink}  from '@material-ui/core'
+import { Info } from '@material-ui/icons'
 import { makeStyles, createStyles } from '@material-ui/core/styles'
 import ClusterSelectField from './components/ClusterSelectField'
 import { DirectoryPathTextField } from './components/GPUCard'
@@ -54,6 +57,7 @@ const DataJob: React.FC = (props: any) => {
   const [selectedCluster, saveSelectedCluster] = React.useState(() => clusters[0].id)
   const [workStorage, setWorkStorage] = useState('')
   const [dataStorage, setDataStorage] = useState('')
+  const [amlUrl, setAmlUrl ] = useState('');
 
   const cluster = React.useMemo(() => {
     if (selectedCluster == null) return
@@ -75,6 +79,19 @@ const DataJob: React.FC = (props: any) => {
     setDataStorage(data.dataStorage)
     setWorkStorage(`${data.workStorage}/${name}`)
   }
+  const fetchAmlUrl = '/api/clusters'
+  const requestAmlUrl = useFetch(fetchAmlUrl)
+  const fetchAml = async () => {
+    for (var i in clusters) {
+      const { amlPortal } = await requestAmlUrl.get(`/${clusters[i].id}`)
+      if (amlPortal != null && amlPortal != '') {
+        setAmlUrl(amlPortal)
+      }
+    }
+  }
+  React.useEffect(() => {
+    fetchAml()
+  }, [])
   useEffect(() => {
     const { cluster } = props.location.state || ''
     if (cluster) { saveSelectedCluster(cluster) }
@@ -163,6 +180,13 @@ const DataJob: React.FC = (props: any) => {
 
   return (
     <Container maxWidth="md" className={styles.container}>
+      { amlUrl != '' ? 
+        <Grid item xs={12} container justify="flex-end">
+          <Info fontSize="small" color="primary"/>
+          <Tooltip title="New experimental features. Global job scheduler enables running job on underutilized GPU capacity from other teams. Elastic training enables running a training job in a fault-tolernat and elastic manner.">
+            <AmlLink href={amlUrl} target="_blank" underline='none'>Try global job scheduler and elastic training</AmlLink>
+          </Tooltip>
+        </Grid>: null}
       <Card>
         <CardHeader title="Manage Data"/>
         <Divider/>

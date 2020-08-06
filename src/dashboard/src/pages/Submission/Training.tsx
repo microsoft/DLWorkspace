@@ -15,6 +15,7 @@ import {
   Divider,
   Chip,
   Collapse,
+  Link,
   Typography,
   Table,
   TableHead,
@@ -31,6 +32,7 @@ import { withRouter } from 'react-router-dom'
 import IconButton from '@material-ui/core/IconButton'
 import useFetch from 'use-http'
 import { join } from 'path'
+import { withStyles } from "@material-ui/core/styles";
 
 import ClusterSelectField from './components/ClusterSelectField'
 import UserContext from '../../contexts/User'
@@ -65,6 +67,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const [showGPUFragmentation, setShowGPUFragmentation] = React.useState(false)
   const [grafanaUrl, setGrafanaUrl] = React.useState('')
   const [name, setName] = React.useState('')
+  const [amlUrl, setAmlUrl ] = useState('');
   const [gpuFragmentation, setGpuFragmentation] = React.useState<any[]>([])
   const onNameChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -714,6 +717,19 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     const { grafana } = await request.get(`/${selectedCluster}`)
     setGrafanaUrl(grafana)
   }
+  const fetchAmlUrl = '/api/clusters'
+  const requestAmlUrl = useFetch(fetchAmlUrl)
+  const fetchAml = async () => {
+    for (var i in clusters) {
+      const { amlPortal } = await requestAmlUrl.get(`/${clusters[i].id}`)
+      if (amlPortal != null && amlPortal != '') {
+        setAmlUrl(amlPortal)
+      }
+    }
+  }
+  React.useEffect(() => {
+    fetchAml()
+  }, [])
   const handleCloseGPUGramentation = () => {
     setShowGPUFragmentation(false)
   }
@@ -812,6 +828,13 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         </BarChart>
       </DLTSDialog>
       <form onSubmit={onSubmit}>
+        { amlUrl !='' ? 
+        <Grid item xs={12} container justify="flex-end">
+          <Info fontSize="small" color="primary"/>
+          <Tooltip title="New experimental features. Global job scheduler enables running job on underutilized GPU capacity from other teams. Elastic training enables running a training job in a fault-tolernat and elastic manner.">
+            <Link href={amlUrl} target="_blank" underline="none">Try global job scheduler and elastic training</Link>
+          </Tooltip>
+        </Grid>: null}
         <Card>
           <CardHeader title="Submit Training Job"/>
           <Divider/>
