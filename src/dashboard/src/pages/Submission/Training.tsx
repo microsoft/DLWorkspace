@@ -32,7 +32,6 @@ import { withRouter } from 'react-router-dom'
 import IconButton from '@material-ui/core/IconButton'
 import useFetch from 'use-http'
 import { join } from 'path'
-import { withStyles } from "@material-ui/core/styles";
 
 import ClusterSelectField from './components/ClusterSelectField'
 import UserContext from '../../contexts/User'

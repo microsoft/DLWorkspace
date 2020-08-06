@@ -31,7 +31,6 @@ import ClusterSelector from '../../components/ClusterSelector'
 
 import useFetch from 'use-http'
 import { Info } from '@material-ui/icons'
-import { withStyles } from '@material-ui/core/styles'
 import Loading from '../../components/Loading'
 import useHashTab from '../../hooks/useHashTab'
 import ClusterContext from './ClusterContext'
