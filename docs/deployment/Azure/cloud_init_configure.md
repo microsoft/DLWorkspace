@@ -55,13 +55,18 @@ azure_cluster:
         - logging
       number_of_instance: 1
 
-    - number_of_instance: 1
-      name: lustclean-lustre-mdt
+    - number_of_instance: 1  # MGS, also count as 1 of the MDSs
+      name: checkrename-lustre-mds
       vm_size : Standard_B2s
       vm_image: OpenLogic:CentOS-CI:7-CI:7.7.20190920
       role: 
         - lustre
-        - mdt
+        - mds
+        - mgs
+      storage_quota:
+        user_soft: 3G
+        user_hard: 4G
+        user_grace_period: 4d
       managed_disks:
         - sku: Premium_LRS
           is_os: True
@@ -73,7 +78,6 @@ azure_cluster:
       fileshares:
       - server_path: /lustrefs
         client_mount_root: /mntdlws/lustre
-        # if exist, dsts join(linkroot, vc, leaf)
         client_link_root: /dlwslustre
         client_links:
           - src: jobfiles
@@ -91,6 +95,7 @@ azure_cluster:
       role: 
         - lustre
         - oss
+      mds_name: checkrename-lustre-mds
       managed_disks:
         - sku: Premium_LRS
           is_os: True
@@ -98,7 +103,58 @@ azure_cluster:
           disk_num: 1
         - sku: Premium_LRS
           size_gb: 128
-          disk_num: 3
+          disk_num: 2
+
+    - number_of_instance: 1  # MDT2
+      name: checkrename-lustre-mds2
+      vm_size : Standard_B2s
+      vm_image: OpenLogic:CentOS-CI:7-CI:7.7.20190920
+      role: 
+        - lustre
+        - mds
+      storage_quota:
+        user_soft: 2G
+        user_hard: 3G
+        user_grace_period: 1w 
+      managed_disks:
+        - sku: Premium_LRS
+          is_os: True
+          size_gb: 64
+          disk_num: 1
+        - sku: Premium_LRS
+          size_gb: 64
+          disk_num: 1
+      fileshares:
+      - server_path: /lustrefs
+        client_mount_root: /mntdlws/lustre2
+        client_link_root: /dlwslustre2
+        client_links:
+          - src: jobfiles
+            dst: jobfiles
+          - src: storage
+            dst: storage
+          - src: work
+            dst: work
+      data_disk_mnt_path: /lustre
+      private_ip: 192.168.249.2
+
+    - number_of_instance: 2
+      vm_size : Standard_B2s
+      vm_image: OpenLogic:CentOS-CI:7-CI:7.7.20190920
+      role: 
+        - lustre
+        - oss
+      mds_name: checkrename-lustre-mds2
+      managed_disks:
+        - sku: Premium_LRS
+          is_os: True
+          size_gb: 64
+          disk_num: 1
+        - sku: Premium_LRS
+          size_gb: 128
+          disk_num: 2
+          dedicated_vcs: 
+            - multimedia
 
     - number_of_instance: 1  
       name: lustclean-nfs-storage
@@ -348,3 +404,9 @@ NFS service might fail. We use the soft-link trick because it guarantees that wh
 * `nfs_client_CIDR`: specifies a list of IP ranges that can access NFS servers. Private IPs are allowed.
 
 Currently, if Lustre support is desired, the only supported lustre server vm image is `OpenLogic:CentOS-CI:7-CI:7.7.20190920`, and the only supported client image is `Canonical:UbuntuServer:18.04-LTS:18.04.201912180`
+
+# Lustre Storage
+Above example has 4 entries about Lustre: 1 MGS, 1 MDS and 2 OSS.
+`fileshares` are configured similarly as NFS.
+`storage_quota` is configured to setup storage quota, which is a global user storage quota.
+`dedicated_vcs` under `managed_disks` is configured to group OSTs together to secure "throughput quota" for certain group, in our case, VCs.
