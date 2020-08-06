@@ -98,7 +98,7 @@ You may want to save the previous config files in advance.
 
 After reconfiguration, you may use below commands to finish the new deployment of several nodes to the existing cluster:
 
-if you are adding NFS node, need to run these lines in advance:
+NFS/Lustre etc doesn't have common cloudinit script, because private IP, fileshares configuration etc. varies from instance to instance. So if you are adding NFS/Lustre node. you need to run these lines in advance:
 
 ```
 ./cloud_init_deploy.py render
@@ -106,15 +106,25 @@ if you are adding NFS node, need to run these lines in advance:
 ./cloud_init_deploy.py docker push cloudinit
 ```
 
+workers should share the same cloudinit script, rendering is required when the shared cloudinit file is not on the devbox:
 then run below lines. (start from here if you are adding workers only)
 ```
 ./cloud_init_deploy.py render
+```
+
+After rendering steps, add machines and update.
+```
 ./cloud_init_aztools.py -v addmachines
 ./cloud_init_aztools.py listcluster
 ./cloud_init_aztools.py interconnect
 ```
 
-Sometimes you might also want to add a new NFS node, which currently has not been automated. Any change to infra node would be considered a cluster change, as for now, we redeploy the whole cluster instead of adding a infra node. Contact us for more details.
+If NFS/Lustre are added, it's also necessary to update `/opt/autoshare/mounting.yaml` on infra node correspondingly.
+
+Any change to infra node would be considered a cluster change, as for now, we redeploy the whole cluster instead of adding a infra node. Contact us for more details.
+
+## deleting machines
+simply delete them from k8s and corresponding entries in status.yaml.
 
 ## dynamically scaling up/down # or workers
 specify "dynamic_worker_num" in config.yaml, 
@@ -148,7 +158,7 @@ Notice that here the script path cannot be src/ClusterBootstrap since it contain
 ./ctl.py [-s] [-v] [-r <role1> [-r <role2>] ...] [-r <nodename1> [-r <nodename2>]] copy2 <source path> <destination path>
 ```
 
-## start/stop service
+## start/stop/restart service
 If you need to update service config of an already deployed node, edit status.yaml, not config.yaml
 ```
 ./ctl.py svc stop <service1, service2, ...> (e.g., ./ctl.py svc stop monitor)
