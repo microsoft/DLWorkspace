@@ -1,12 +1,13 @@
 import * as React from 'react'
-import { useEffect, useState } from 'react'
 import {
+  useEffect, useState,
   ChangeEvent,
   FunctionComponent,
   useCallback,
   useContext,
   useMemo
 } from 'react'
+
 import {
   useHistory,
   useLocation,
@@ -88,12 +89,12 @@ const Jobs: FunctionComponent = () => {
   const history = useHistory()
   const { hash } = useLocation()
   const { clusterId } = useParams<RouteParams>()
-  const [amlUrl, setAmlUrl ] = useState('');
+  const [amlUrl, setAmlUrl] = useState('')
   const fetchAmlUrl = '/api/clusters'
   const requestAmlUrl = useFetch(fetchAmlUrl)
   const fetchAml = async () => {
-    for (var i in clusters) {
-      const { amlPortal } = await requestAmlUrl.get(`/${clusters[i].id}`)
+    for (const item of clusters) {
+      const { amlPortal } = await requestAmlUrl.get(`/${item.id}`)
       if (amlPortal != null && amlPortal != '') {
         setAmlUrl(amlPortal)
       }
@@ -101,7 +102,7 @@ const Jobs: FunctionComponent = () => {
   }
   useEffect(() => {
     fetchAml()
-  }, [])
+  }, [fetchAml])
 
   const cluster = useMemo(() => {
     return clusters.filter(cluster => cluster.id === clusterId)[0]
@@ -119,13 +120,13 @@ const Jobs: FunctionComponent = () => {
     <Container fixed maxWidth="xl">
       <Toolbar disableGutters>
         <FormControl fullWidth>
-          { amlUrl != '' ? 
-          <Grid item xs={12} container justify="flex-end">
-            <Info fontSize="small" color="primary"/>
-            <Tooltip title="New experimental features. Global job scheduler enables running job on underutilized GPU capacity from other teams. Elastic training enables running a training job in a fault-tolernat and elastic manner.">
-              <Link href={amlUrl} target="_blank" underline='none'>Try global job scheduler and elastic training</Link>
-            </Tooltip>
-          </Grid>: null}
+          { amlUrl != ''
+            ? <Grid item xs={12} container justify="flex-end">
+              <Info fontSize="small" color="primary"/>
+              <Tooltip title="New experimental features. Global job scheduler enables running job on underutilized GPU capacity from other teams. Elastic training enables running a training job in a fault-tolernat and elastic manner.">
+                <Link href={amlUrl} target="_blank" underline='none'>Try global job scheduler and elastic training</Link>
+              </Tooltip>
+            </Grid> : null}
           <InputLabel>Choose Cluster</InputLabel>
           <ClusterSelector defaultId={clusterId} onChange={onClusterChange}/>
         </FormControl>

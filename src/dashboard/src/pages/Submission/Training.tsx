@@ -66,7 +66,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const [showGPUFragmentation, setShowGPUFragmentation] = React.useState(false)
   const [grafanaUrl, setGrafanaUrl] = React.useState('')
   const [name, setName] = React.useState('')
-  const [amlUrl, setAmlUrl ] = useState('');
+  const [amlUrl, setAmlUrl] = useState('')
   const [gpuFragmentation, setGpuFragmentation] = React.useState<any[]>([])
   const onNameChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -719,8 +719,8 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const fetchAmlUrl = '/api/clusters'
   const requestAmlUrl = useFetch(fetchAmlUrl)
   const fetchAml = async () => {
-    for (var i in clusters) {
-      const { amlPortal } = await requestAmlUrl.get(`/${clusters[i].id}`)
+    for (const item of clusters) {
+      const { amlPortal } = await requestAmlUrl.get(`/${item.id}`)
       if (amlPortal != null && amlPortal != '') {
         setAmlUrl(amlPortal)
       }
@@ -827,13 +827,13 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         </BarChart>
       </DLTSDialog>
       <form onSubmit={onSubmit}>
-        { amlUrl !='' ? 
-        <Grid item xs={12} container justify="flex-end">
-          <Info fontSize="small" color="primary"/>
-          <Tooltip title="New experimental features. Global job scheduler enables running job on underutilized GPU capacity from other teams. Elastic training enables running a training job in a fault-tolernat and elastic manner.">
-            <Link href={amlUrl} target="_blank" underline="none">Try global job scheduler and elastic training</Link>
-          </Tooltip>
-        </Grid>: null}
+        { amlUrl != ''
+          ? <Grid item xs={12} container justify="flex-end">
+            <Info fontSize="small" color="primary"/>
+            <Tooltip title="New experimental features. Global job scheduler enables running job on underutilized GPU capacity from other teams. Elastic training enables running a training job in a fault-tolernat and elastic manner.">
+              <Link href={amlUrl} target="_blank" underline="none">Try global job scheduler and elastic training</Link>
+            </Tooltip>
+          </Grid> : null}
         <Card>
           <CardHeader title="Submit Training Job"/>
           <Divider/>
