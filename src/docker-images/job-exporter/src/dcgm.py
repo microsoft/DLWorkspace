@@ -136,18 +136,34 @@ class DCGMHandler(object):
         metrics = {} # minor_number,uuid -> DCGMMetrics
         gauges = {} # gauge_name -> GaugeMetricFamily
 
+        dcgmi_output = None
         try:
-            dcgmi_output = utils.exec_cmd(
-                ["dcgmi", "dmon", "-c", "1", "-d", "1", "-e", self.args],
-                histogram=self.dcgmi_histogram,
-                timeout=self.dcgmi_timeout)
+            dcgmi_output = utils.exec_cmd([
+                "chroot", "/host-fs", "dcgmi", "dmon", "-c", "1", "-d", "1",
+                "-e", self.args
+            ],
+                                          histogram=self.dcgmi_histogram,
+                                          timeout=self.dcgmi_timeout)
         except subprocess.CalledProcessError as e:
-            logger.exception("command '%s' return with error (code %d): %s",
-                             e.cmd, e.returncode, e.output)
-            return metrics, gauges
+            logger.exception(
+                "command '%s' return with error (code %d): %s, try dcgmi in docker",
+                e.cmd, e.returncode, e.output)
         except subprocess.TimeoutExpired:
-            logger.warning("dcgmi timeout")
-            return metrics, gauges
+            logger.warning("dcgmi timeout, try dcgmi in docker")
+
+        if dcgmi_output is None:
+            try:
+                dcgmi_output = utils.exec_cmd(
+                    ["dcgmi", "dmon", "-c", "1", "-d", "1", "-e", self.args],
+                    histogram=self.dcgmi_histogram,
+                    timeout=self.dcgmi_timeout)
+            except subprocess.CalledProcessError as e:
+                logger.exception("command '%s' return with error (code %d): %s",
+                                 e.cmd, e.returncode, e.output)
+                return metrics, gauges
+            except subprocess.TimeoutExpired:
+                logger.warning("dcgmi timeout")
+                return metrics, gauges
 
         try:
             for _, name, desc in mapping[1:]:
