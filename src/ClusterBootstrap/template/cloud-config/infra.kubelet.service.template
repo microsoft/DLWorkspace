@@ -18,6 +18,7 @@ ExecStart=/opt/bin/kubelet \
   --volume-plugin-dir=/etc/kubernetes/volumeplugins \
   --kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml \
   --register-with-taints=node-role.kubernetes.io/master=:NoSchedule \
+  --fail-swap-on=false \
   --pod-infra-container-image={{cnf["dockers"]["container"]["podinfra"]["fullname"]}} \
   --container-runtime=docker \
   --feature-gates="DevicePlugins=true,PodShareProcessNamespace=true" \
