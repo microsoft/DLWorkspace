@@ -66,6 +66,14 @@
               "title": "Whether it supports allowed IP",
               "description": "Set to true if it could be listed in allowed ip page",
               "type": "boolean"
+            },
+            "notifications": {
+              "title": "Notifications for the cluster",
+              "type": "array"
+            },
+            "amlLink":{
+              "title": "Aml portal link",
+              "type": "string"
             }
           }
         }
