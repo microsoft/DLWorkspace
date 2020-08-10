@@ -46,7 +46,7 @@ const useActions = (clusterId: string) => {
   }, [clusterId]);
 
   const onSupport = useCallback((event: any, job: any) => {
-    const subject = `[DLTS Job][${clusterId}][${job['vcName']}]: <Issue Title by User>`;
+    const subject = `[DLTS Job][${clusterId}][${job['vcName']}][${job['jobId']}]: <Issue Title by User>`
     const body = `
 Hi DLTS support team,
 
