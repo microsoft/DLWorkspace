@@ -69,7 +69,10 @@
             },
             "notifications": {
               "title": "Notifications for the cluster",
-              "type": "array"
+              "type": "array",
+                "items": {
+                  "type": "string"
+                }
             }
           }
         }
