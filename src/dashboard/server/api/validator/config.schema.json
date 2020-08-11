@@ -70,10 +70,6 @@
             "notifications": {
               "title": "Notifications for the cluster",
               "type": "array"
-            },
-            "amlLink":{
-              "title": "Aml portal link",
-              "type": "string"
             }
           }
         }
