@@ -26,7 +26,7 @@ const usePaperStyle = makeStyles(theme => createStyles({
   },
 }));
 
-const ClusterNotificationBox: FunctionComponent<{ cluster: any }> = ({ cluster }) => {
+const ClusterNotifications: FunctionComponent<{ cluster: any }> = ({ cluster }) => {
   const { data } = useFetch(`/api/clusters/${cluster.id}`, [cluster.id])
   const notifications = useMemo(() => {
     if (data === undefined) return []
@@ -62,7 +62,7 @@ const NotificationBox: FunctionComponent<BoxProps> = (props) => {
   return (
     <Box {...props}>
       {clusters.map(cluster => (
-        <ClusterNotificationBox key={cluster.id} cluster={cluster}/>
+        <ClusterNotifications key={cluster.id} cluster={cluster}/>
       ))}
     </Box>
   );
