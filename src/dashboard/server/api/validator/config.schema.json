@@ -70,9 +70,9 @@
             "notifications": {
               "title": "Notifications for the cluster",
               "type": "array",
-                "items": {
-                  "type": "string"
-                }
+              "items": {
+                "type": "string"
+              }
             }
           }
         }
