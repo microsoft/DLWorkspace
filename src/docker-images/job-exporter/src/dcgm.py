@@ -174,6 +174,9 @@ class DCGMHandler(object):
             for line in dcgmi_output.split("\n")[2:]:
                 if line == "": # end of output
                     continue
+                line = line.strip()
+                if line.startswith("GPU "): # dcgmi version 2.0.8 has such prefix
+                    line = line[4:]
                 part = line.split()
                 minor_number = part[0]
 
