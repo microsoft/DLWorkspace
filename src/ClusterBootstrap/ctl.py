@@ -257,22 +257,14 @@ def remote_config_update(config, args, check_module=False):
     by default sudo
     '''
     if check_module:
-        assert set(args.nargs[1:]) - set(["storagemanager", "dashboard"]) == set(), "not supported"
+        assert set(args.nargs[1:]) - set(["storagemanager"]) == set(), "not supported"
     # need to get node list for this subcommand of svc, so load status.yaml
     if not os.path.exists(FILE_MAP_PATH):
         utils.render_template("template/cloud-config/file_map.yaml", FILE_MAP_PATH, config)
     with open(FILE_MAP_PATH) as f:
         file_map = yaml.safe_load(f)
     for module in args.nargs[1:]:
-        if module in ["dashboard"]:
-            render_func = eval("render_{}".format(module))
-            render_func(config)
-            infra_nodes, _ = load_node_list_by_role_from_config(config, ["infra"], False)
-            for file_pair in file_map[module]:
-                src_dst_list = [file_pair["src"], file_pair["dst"]]
-                execute_in_parallel(config, infra_nodes, src_dst_list,
-                                    True, copy2_wrapper, noSupressWarning=args.verbose)
-        elif module == "storagemanager":
+        if module == "storagemanager":
             nfs_nodes, _ = load_node_list_by_role_from_config(config, ["nfs"], False)
             for node in nfs_nodes:
                 config["storage_manager"] = config["machines"][node]["storage_manager"]
