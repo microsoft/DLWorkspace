@@ -56,9 +56,15 @@ const sanitizePath = (path: string) => {
   path = join('.', path)
   return path
 }
-const Training: React.ComponentClass = withRouter(({ history }) => {
+const Training: React.ComponentClass = withRouter(({ history, location }) => {
   const { clusters } = React.useContext(ClustersContext)
-  const [selectedCluster, saveSelectedCluster] = React.useState(() => clusters[0].id)
+  const [selectedCluster, saveSelectedCluster] = React.useState(() => {
+    const clusterId = location.state.cluster
+    if (clusters.some(({ id }) => id === clusterId)) {
+      return clusterId
+    }
+    return clusters[0].id
+  })
   const { email } = React.useContext(UserContext)
   const { currentTeamId } = React.useContext(TeamContext)
   // const team = 'platform';
