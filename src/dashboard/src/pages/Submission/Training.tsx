@@ -27,7 +27,7 @@ import {
 } from '@material-ui/core'
 import Tooltip from '@material-ui/core/Tooltip'
 import { Info, Delete, Add } from '@material-ui/icons'
-import { withRouter } from 'react-router-dom'
+import { useHistory, useLocation } from 'react-router-dom'
 import IconButton from '@material-ui/core/IconButton'
 import useFetch from 'use-http'
 import { join } from 'path'
@@ -56,7 +56,9 @@ const sanitizePath = (path: string) => {
   path = join('.', path)
   return path
 }
-const Training: React.ComponentClass = withRouter(({ history, location }) => {
+const Training: React.FunctionComponent = () => {
+  const history = useHistory()
+  const location = useLocation()
   const { clusters } = React.useContext(ClustersContext)
   const [selectedCluster, saveSelectedCluster] = React.useState(() => {
     const clusterId = location.state.cluster
@@ -1338,6 +1340,6 @@ const Training: React.ComponentClass = withRouter(({ history, location }) => {
       />
     </Container>
   )
-})
+}
 
 export default Training
