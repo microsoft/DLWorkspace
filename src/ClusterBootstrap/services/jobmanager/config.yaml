@@ -49,14 +49,14 @@ elasticsearch:
   {% for elasticsearch_node in cnf["elasticsearch_node"] %}
   - 'http://{{elasticsearch_node}}:{{cnf["elasticsearch"]["port"]["http"]}}'
   {% endfor %}
-{% if cnf["__extract_job_log_legacy"] %}
-__extract_job_log_legacy: True
+{% if "__extract_job_log_legacy" in cnf %}
+__extract_job_log_legacy: {{ cnf["__extract_job_log_legacy"] }}
 {% endif %}
-{% if cnf["__get_job_log_legacy"] %}
-__get_job_log_legacy: True
+{% if "__get_job_log_legacy" in cnf %}
+__get_job_log_legacy: {{ cnf["__get_job_log_legacy"] }}
 {% endif %}
-{% if cnf["__get_job_log_fallback"] %}
-__get_job_log_fallback: True
+{% if "__get_job_log_fallback" in cnf %}
+__get_job_log_fallback: {{ cnf["__get_job_log_fallback"] }}
 {% endif %}
 
 {% if cnf["job_resource_policy"] %}
