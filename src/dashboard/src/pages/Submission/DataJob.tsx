@@ -18,7 +18,7 @@ import { DirectoryPathTextField } from './components/GPUCard'
 import ClustersContext from '../../contexts/Clusters'
 import UserContext from '../../contexts/User'
 import TeamContext from '../../contexts/Team'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import Slide from '@material-ui/core/Slide'
 import { green } from '@material-ui/core/colors'
 import useFetch from 'use-http'
@@ -42,6 +42,7 @@ const Transition = React.forwardRef<unknown, TransitionProps & { children?: Reac
 })
 
 const DataJob: React.FC = (props: any) => {
+  const location = useLocation()
   const styles = useStyles()
   const [azureDataStorage, setAzureDataStorage] = useState('')
   const [nfsDataStorage, setNFSDataStorage] = useState('')
@@ -51,7 +52,13 @@ const DataJob: React.FC = (props: any) => {
   const { email } = React.useContext(UserContext)
   const { currentTeamId } = React.useContext(TeamContext)
   const { clusters } = React.useContext(ClustersContext)
-  const [selectedCluster, saveSelectedCluster] = React.useState(() => clusters[0].id)
+  const [selectedCluster, saveSelectedCluster] = React.useState(() => {
+    const clusterId = location.state.cluster
+    if (clusters.some(({ id }) => id === clusterId)) {
+      return clusterId
+    }
+    return clusters[0].id
+  })
   const [workStorage, setWorkStorage] = useState('')
   const [dataStorage, setDataStorage] = useState('')
 
