@@ -14,6 +14,7 @@ import {
   Menu,
   MenuItem,
   Typography,
+  Tooltip,
   createStyles,
   makeStyles,
   ListItemIcon
@@ -52,16 +53,18 @@ const TeamMenuButton: FunctionComponent = () => {
 
   return (
     <>
-      <Button
-        ref={button}
-        variant="outlined"
-        color="inherit"
-        classes={buttonStyles}
-        startIcon={<Group/>}
-        onClick={handleButtonClick}
-      >
-        {currentTeamId}
-      </Button>
+      <Tooltip title="If you cannot see the vc you are authorized, please logout then login." placement="bottom">
+        <Button
+          ref={button}
+          variant="outlined"
+          color="inherit"
+          classes={buttonStyles}
+          startIcon={<Group/>}
+          onClick={handleButtonClick}
+        >
+          {currentTeamId}
+        </Button>
+      </Tooltip>
       <Menu anchorEl={button.current} open={open} onClose={handleMenuClose}>
         {sortBy(teams, 'id').map(({ id }: { id: string }) => (
           <MenuItem
