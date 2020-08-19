@@ -28,7 +28,7 @@ import {
 import Tooltip from '@material-ui/core/Tooltip';
 import { makeStyles, createStyles } from "@material-ui/core/styles";
 import { Info, Delete, Add } from "@material-ui/icons";
-import { withRouter } from "react-router-dom";
+import { useHistory, useLocation } from "react-router-dom";
 import IconButton from '@material-ui/core/IconButton';
 import useFetch from "use-http";
 import { join } from 'path';
@@ -73,9 +73,17 @@ const sanitizePath = (path: string) => {
   path = join('.', path);
   return path;
 }
-const Training: React.ComponentClass = withRouter(({ history }) => {
+const Training: React.FunctionComponent = () => {
+  const history = useHistory()
+  const location = useLocation()
   const { clusters } = React.useContext(ClustersContext);
-  const [ selectedCluster,saveSelectedCluster ] = React.useState(() => clusters[0].id);
+  const [ selectedCluster,saveSelectedCluster ] = React.useState(() => {
+    const clusterId = location.state.cluster
+    if (clusters.some(({ id }) => id === clusterId)) {
+      return clusterId
+    }
+    return clusters[0].id
+  });
   const { email } = React.useContext(UserContext);
   const { currentTeamId }= React.useContext(TeamContext);
   //const team = 'platform';
@@ -1268,6 +1276,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       />
     </Container>
   );
-});
+};
 
 export default Training;
