@@ -442,7 +442,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     (event: React.ChangeEvent<{ value: unknown }>) => {
       setJson(event.target.value as string)
       if (event.target.value === '-1') {
-        setName('')
         setType('RegularJob')
         setGpus(0)
         setWorkers(0)
@@ -486,8 +485,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           numOfCPUWorker,
           numOfCPUPerWorker
         } = JSON.parse(event.target.value as string)
-        console.log('jobpath', plugins)
-        if (name !== undefined) setName(name)
+        if (name !== undefined) setName(currentName => currentName !== '' ? currentName : name)
         if (type !== undefined) setType(type)
         if (gpus !== undefined) setGpus(gpus)
         if (workers !== undefined) setWorkers(workers)
