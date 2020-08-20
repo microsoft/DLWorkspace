@@ -53,7 +53,7 @@ const DataJob: React.FC = (props: any) => {
   const { currentTeamId } = React.useContext(TeamContext)
   const { clusters } = React.useContext(ClustersContext)
   const [selectedCluster, saveSelectedCluster] = React.useState(() => {
-    const clusterId = location.state.cluster
+    const clusterId = location.state != null ? location.state.cluster : undefined
     if (clusters.some(({ id }) => id === clusterId)) {
       return clusterId
     }
