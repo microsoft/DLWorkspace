@@ -2,7 +2,7 @@
   "type": "object",
   "properties": {
     "timeout": {
-      "type": "number"
+      "type": ["number", "null"]
     }
   },
   "required": ["timeout"]
