@@ -16,5 +16,9 @@ module.exports = async context => {
   job['familyToken'] = uuid()
   job['isParent'] = 1
 
+  if (job['preemptionAllowed'] == null && cluster.config['preemptableJobByDefault'] != null) {
+    job['preemptionAllowed'] = cluster.config['preemptableJobByDefault'] ? 'True' : 'False'
+  }
+
   context.body = await cluster.addJob(job)
 }
