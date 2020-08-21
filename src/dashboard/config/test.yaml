@@ -15,6 +15,7 @@ clusters:
     grafana: http://grafana.universe
   Targaryen:
     restfulapi: http://targaryen
+    preemptableJobByDefault: true
 
 frontend:
   key: value
