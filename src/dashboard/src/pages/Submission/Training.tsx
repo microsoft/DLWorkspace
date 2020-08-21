@@ -698,19 +698,20 @@ const Training: React.FunctionComponent = () => {
     } else {
       history.push(`/job/${currentTeamId}/${selectedCluster}/${jobId.current}`);
     }
-  }, [postJobData, ssh, ipython, tensorboard, interactivePorts, history, selectedCluster, postEndpoints, currentTeamId]);
-  const fetchGrafanaUrl = `/api/clusters`;
-  const request = useFetch(fetchGrafanaUrl);
-  const fetchGrafana = async () => {
-    const {grafana} = await request.get(`/${selectedCluster}`);
-    setGrafanaUrl(grafana);
+  }, [postJobData, ssh, ipython, tensorboard, interactivePorts, history, selectedCluster, postEndpoints, currentTeamId])
+  const request = useFetch('/api/clusters')
+  const fetchConfig = async () => {
+    if (typeof selectedCluster !== 'string') return
+    const { grafana, preemptableJobByDefault = false } = await request.get(`/${selectedCluster}`)
+    setGrafanaUrl(grafana)
+    setPreemptible(preemptableJobByDefault)
   }
   const handleCloseGPUGramentation = () => {
     setShowGPUFragmentation(false);
   }
 
   React.useEffect(() => {
-    fetchGrafana()
+    fetchConfig()
     if (postEndpointsData) {
       setOpen(true);
       setTimeout(()=>{
