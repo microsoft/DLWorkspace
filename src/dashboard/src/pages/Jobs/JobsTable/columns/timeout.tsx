@@ -10,7 +10,7 @@ import {
   useRef
 } from 'react';
 
-import { get, isFinite } from 'lodash';
+import { get, isEqual, isFinite, noop } from 'lodash'
 
 import {
   Input,
@@ -45,17 +45,17 @@ const TimeoutField: FunctionComponent<TimeoutFieldProps> = ({ job }) => {
     return EDITABLE_STATUSES.has(job['jobStatus'])
   }, [job])
   const defaultHours = useMemo<number>(() => {
-    return get(job, ['jobParams', 'maxTimeSec'], NaN) / 60 / 60;
-  }, [job]);
+    const seconds = get(job, ['jobParams', 'maxTimeSec'])
+    return seconds != null ? seconds / 60 / 60 : NaN
+  }, [job])
   const setHours = useCallback((hours: number) => {
-    if (isNaN(hours)) return;
-    if (hours === defaultHours) return;
-    enqueueSnackbar('Timeout is being set...');
-    setBusy(true);
+    if (isEqual(hours, defaultHours)) return
+    enqueueSnackbar('Timeout is being set...')
+    setBusy(true)
 
     fetch(`/api/clusters/${cluster.id}/jobs/${job['jobId']}/timeout`, {
       method: 'PUT',
-      body: JSON.stringify({ timeout: hours * 60 * 60 }),
+      body: JSON.stringify({ timeout: isFinite(hours) ? hours * 60 * 60 : null }),
       headers: { 'Content-Type': 'application/json' }
     }).then((response) => {
       if (response.ok) {
@@ -66,9 +66,9 @@ const TimeoutField: FunctionComponent<TimeoutFieldProps> = ({ job }) => {
     }).catch(() => {
       enqueueSnackbar('Failed to set timeout', { variant: 'error' });
     }).then(() => {
-      setBusy(false);
-    });
-  }, [defaultHours, enqueueSnackbar, job, cluster.id]);
+      setBusy(false)
+    }, noop)
+  }, [defaultHours, enqueueSnackbar, job, cluster.id])
   const onBlur = useCallback((event: FocusEvent<HTMLInputElement>) => {
     if (input.current === undefined) return;
     setHours(input.current.valueAsNumber);
@@ -79,7 +79,12 @@ const TimeoutField: FunctionComponent<TimeoutFieldProps> = ({ job }) => {
       setHours(input.current.valueAsNumber);
     }
     if (event.key === 'Escape') {
-      input.current.valueAsNumber = defaultHours;
+      if (isFinite(defaultHours)) {
+        input.current.valueAsNumber = defaultHours
+      } else {
+        input.current.value = ''
+      }
+      input.current.blur()
     }
   }, [setHours, defaultHours]);
 
@@ -90,7 +95,7 @@ const TimeoutField: FunctionComponent<TimeoutFieldProps> = ({ job }) => {
         type="number"
         placeholder="N/A"
         endAdornment={<InputAdornment position="end">h</InputAdornment>}
-        defaultValue={defaultHours}
+        defaultValue={isFinite(defaultHours) ? String(defaultHours) : ''}
         disabled={busy}
         fullWidth
         style={{ color: 'inherit', fontSize: 'inherit' }}
