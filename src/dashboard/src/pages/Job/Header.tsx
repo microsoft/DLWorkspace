@@ -26,14 +26,14 @@ import Context from './Context';
 const Header: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
   const { clusterId } = useRouteParams();
   const { accessible, admin, job } = useContext(Context);
-  const { support, approve, kill, pause, resume } = useActions(clusterId);
+  const { support, approve, kill, pause, resume, exemption } = useActions(clusterId);
 
   const availableActions = useMemo(() => {
     const actions = [support];
-    if (manageable && admin) actions.push(approve);
+    if (manageable && admin) actions.push(approve, exemption);
     if (manageable) actions.push(pause, resume, kill);
     return actions;
-  }, [manageable, admin, support, approve, kill, pause, resume]);
+  }, [manageable, admin, support, approve, kill, pause, resume, exemption]);
 
   const actionButtons = availableActions.map((action, index) => {
     const { hidden, icon, tooltip, onClick } = action(job);
