@@ -225,6 +225,7 @@ class Cluster extends Service {
   async setJobExemption (jobId, isExempted) {
     const { user } = this.context.state
     const params = new URLSearchParams({
+      jobId,
       userName: user.email
     })
     const body = { 'isExempted' : isExempted }
