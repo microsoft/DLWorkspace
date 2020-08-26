@@ -217,6 +217,29 @@ class Cluster extends Service {
     return text
   }
 
+    /**
+   * @param {string} jobId
+   * @param {boolean} isExempted
+   * @return {Promise}
+   */
+  async setJobExemption (jobId, isExempted) {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      jobId,
+      userName: user.email
+    })
+    const body = { 'isExempted' : isExempted }
+    const response = await this.fetch('/GpuIdleKillExemption?' + params, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    const text = await response.text()
+    this.context.log.debug({ text }, 'Set isExempted %s of job "%s"', isExempted.toString(), jobId)
+    this.context.assert(response.ok, 502)
+    return text
+  }
+
   /**
    * @param {string} jobId
    * @param {number} timeout
