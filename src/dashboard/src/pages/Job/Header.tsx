@@ -55,6 +55,7 @@ const Header: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
     }).then((response) => {
       if (response.ok) {
         enqueueSnackbar('Rename successfully', { variant: 'success' })
+        setEditing(false)
       } else {
         throw Error()
       }
