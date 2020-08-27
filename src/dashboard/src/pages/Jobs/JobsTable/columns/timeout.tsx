@@ -10,7 +10,7 @@ import {
   useRef
 } from 'react';
 
-import { get, isEqual, isFinite, noop } from 'lodash'
+import { get, isEqual, isFinite, noop } from 'lodash';
 
 import {
   Input,

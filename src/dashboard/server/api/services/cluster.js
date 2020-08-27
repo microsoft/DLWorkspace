@@ -239,7 +239,7 @@ class Cluster extends Service {
     return text
   }
 
-    /**
+  /**
    * @param {string} jobId
    * @param {boolean} isExempted
    * @return {Promise}
@@ -250,7 +250,7 @@ class Cluster extends Service {
       jobId,
       userName: user.email
     })
-    const body = { 'isExempted' : isExempted }
+    const body = { 'isExempted': isExempted }
     const response = await this.fetch('/GpuIdleKillExemption?' + params, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
