@@ -57,7 +57,7 @@ router.put('/clusters/:clusterId/jobs/:jobId/priority',
   require('./controllers/cluster/job/priority.put'))
 router.put('/clusters/:clusterId/jobs/:jobId/exemption',
   require('./middlewares/user')(),
-  require('./middlewares/body')('isExempted'),
+  require('./middlewares/body')('exemption'),
   require('./controllers/cluster/job/exemption.put'))
 router.put('/clusters/:clusterId/jobs/:jobId/timeout',
   require('./middlewares/user')(),

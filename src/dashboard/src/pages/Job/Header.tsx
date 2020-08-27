@@ -36,7 +36,7 @@ import Context from './Context';
 const Header: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
   const { enqueueSnackbar } = useSnackbar()
   const { clusterId, jobId } = useRouteParams()
-  const { accessible, admin, owned, job } = useContext(Context)
+  const { accessible, admin, job } = useContext(Context)
   const { support, approve, kill, pause, resume, exemption } = useActions(clusterId)
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -119,7 +119,7 @@ const Header: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
             <Typography variant="h6" component={Box} flexShrink={1} overflow="hidden" whiteSpace="nowrap" textOverflow="ellipsis">
               {job['jobName']}
             </Typography>
-            { owned && (
+            { manageable && (
               <Tooltip title="Rename">
                 <IconButton
                   color="inherit"

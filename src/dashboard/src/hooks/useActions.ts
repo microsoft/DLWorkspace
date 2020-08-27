@@ -2,6 +2,7 @@ import { createElement, useCallback, useContext } from 'react';
 import { useSnackbar } from 'notistack';
 import { Check, Clear, ContactSupport, Pause, PlayArrow, Block, RemoveCircle } from '@material-ui/icons';
 import { Action } from 'material-table';
+import { get } from 'lodash';
 
 import ConfigContext from '../contexts/Config';
 import UserContext from '../contexts/User';
@@ -34,8 +35,7 @@ const EXEMPTABLE_STATUSES = [
   'scheduling',
   'running',
   'pausing',
-  'paused',
-  'failed'
+  'paused'
 ];
 
 const useActions = (clusterId: string) => {
@@ -212,8 +212,7 @@ ${givenName} ${familyName}
 
   const exemption = useCallback(Object.assign((job: any): Action<any> => {
     const hidden = EXEMPTABLE_STATUSES.indexOf(job['jobStatus']) === -1;
-    const isExempted = job['jobParams'].hasOwnProperty('policy_exemptions') && Array.isArray(job['jobParams']['policy_exemptions']) && job['jobParams']['policy_exemptions'].length > 0 ;
-
+    const isExempted = get(job, ['jobParams', 'policy_exemptions'], []).length > 0;
     return {
       hidden,
       icon: () => isExempted ? createElement(RemoveCircle) : createElement(Block),
