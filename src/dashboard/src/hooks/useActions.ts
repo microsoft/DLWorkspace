@@ -1,7 +1,8 @@
 import { createElement, useCallback, useContext } from 'react';
 import { useSnackbar } from 'notistack';
-import { Check, Clear, ContactSupport, Pause, PlayArrow } from '@material-ui/icons';
+import { Check, Clear, ContactSupport, Pause, PlayArrow, Block, RemoveCircle } from '@material-ui/icons';
 import { Action } from 'material-table';
+import { get } from 'lodash';
 
 import ConfigContext from '../contexts/Config';
 import UserContext from '../contexts/User';
@@ -28,6 +29,15 @@ const KILLABLE_STATUSES = [
   'paused'
 ];
 
+const EXEMPTABLE_STATUSES = [
+  'unapproved',
+  'queued',
+  'scheduling',
+  'running',
+  'pausing',
+  'paused'
+];
+
 const useActions = (clusterId: string) => {
   const { familyName, givenName } = useContext(UserContext);
   const { support: supportMail } = useContext(ConfigContext);
@@ -42,6 +52,17 @@ const useActions = (clusterId: string) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ status })
+    })
+  }, [clusterId]);
+
+  const updateException = useCallback((jobId: string, isExempted: boolean) => {
+    const url = `/api/clusters/${clusterId}/jobs/${jobId}/exemption`;
+    return fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ isExempted })
     })
   }, [clusterId]);
 
@@ -125,6 +146,22 @@ ${givenName} ${familyName}
     });
   }, [confirm, enqueueSnackbar, updateStatus]);
 
+  const onUpdateExemption = useCallback((event: any, job: any, isExempted: boolean) => {
+    const title = `${job.jobName}(${job.jobId})`;
+    const actionName = isExempted ? "Enable" : "Disable";
+    return confirm(`${actionName} exemption for job ${title} ?`).then((answer) => {
+      if (answer === false) return;
+      enqueueSnackbar(`${title}'s exemption is being updated.`);
+      return updateException(job.jobId, isExempted).then((response) => {
+        if (response.ok) {
+          enqueueSnackbar(`${title}'s exemption request is accepted.`, { variant: 'success' });
+        } else {
+          enqueueSnackbar(`${title} is failed to update exemption.`, { variant: 'error' });
+        }
+      });
+    });
+  }, [confirm, enqueueSnackbar, updateException]);
+
   const support = useCallback(Object.assign((job: any): Action<any> => {
     return {
       icon: () => createElement(ContactSupport),
@@ -173,7 +210,18 @@ ${givenName} ${familyName}
     }
   }, { position: 'row' }), [onKill]);
 
-  return { support, approve, pause, resume, kill };
+  const exemption = useCallback(Object.assign((job: any): Action<any> => {
+    const hidden = EXEMPTABLE_STATUSES.indexOf(job['jobStatus']) === -1;
+    const isExempted = get(job, ['jobParams', 'policy_exemptions'], []).length > 0;
+    return {
+      hidden,
+      icon: () => isExempted ? createElement(RemoveCircle) : createElement(Block),
+      tooltip: isExempted ? 'Disable Exemption': 'Enable Exemption',
+      onClick: (event: any, job: any) => onUpdateExemption(event, job, !isExempted)
+    }
+  }, { position: 'row' }), [onUpdateExemption]);
+
+  return { support, approve, pause, resume, kill, exemption };
 }
 
 export default useActions;

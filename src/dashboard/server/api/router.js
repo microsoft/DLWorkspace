@@ -47,10 +47,18 @@ router.put('/clusters/:clusterId/jobs/:jobId/status',
   require('./middlewares/user')(),
   require('./middlewares/body')('status'),
   require('./controllers/cluster/job/status.put'))
+router.put('/clusters/:clusterId/jobs/:jobId/name',
+  require('./middlewares/user')(),
+  require('./middlewares/body')('name'),
+  require('./controllers/cluster/job/name.put'))
 router.put('/clusters/:clusterId/jobs/:jobId/priority',
   require('./middlewares/user')(),
   require('./middlewares/body')('priority'),
   require('./controllers/cluster/job/priority.put'))
+router.put('/clusters/:clusterId/jobs/:jobId/exemption',
+  require('./middlewares/user')(),
+  require('./middlewares/body')('exemption'),
+  require('./controllers/cluster/job/exemption.put'))
 router.put('/clusters/:clusterId/jobs/:jobId/timeout',
   require('./middlewares/user')(),
   require('./middlewares/body')('timeout'),

@@ -185,6 +185,28 @@ class Cluster extends Service {
   }
 
   /**
+   * @param {string} jobId
+   * @param {string} name
+   */
+  async setJobName (jobId, name) {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      userName: user.email,
+      jobId
+    })
+    const body = { name }
+    const response = await this.fetch('/JobName?' + params, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    const text = await response.text()
+    this.context.log.debug({ text }, 'Set name %d of job "%s"', name, jobId)
+    this.context.assert(response.ok, 502)
+    return text
+  }
+
+  /**
    * @return {Promise<object>}
    */
   async getJobsPriority () {
@@ -219,7 +241,30 @@ class Cluster extends Service {
 
   /**
    * @param {string} jobId
-   * @param {number} timeout
+   * @param {boolean} isExempted
+   * @return {Promise}
+   */
+  async setJobExemption (jobId, isExempted) {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      jobId,
+      userName: user.email
+    })
+    const body = { 'isExempted': isExempted }
+    const response = await this.fetch('/GpuIdleKillExemption?' + params, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    const text = await response.text()
+    this.context.log.debug({ text }, 'Set isExempted %s of job "%s"', isExempted.toString(), jobId)
+    this.context.assert(response.ok, 502)
+    return text
+  }
+
+  /**
+   * @param {string} jobId
+   * @param {number|null} timeout
    * @return {Promise}
    */
   async setJobTimeout (jobId, timeout) {
