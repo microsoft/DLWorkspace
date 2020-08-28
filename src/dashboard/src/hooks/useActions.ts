@@ -149,7 +149,7 @@ ${givenName} ${familyName}
   const onUpdateExemption = useCallback((event: any, job: any, isExempted: boolean) => {
     const title = `${job.jobName}(${job.jobId})`;
     const actionName = isExempted ? "Enable" : "Disable";
-    return confirm(`${actionName} exemption for job ${title} ?`).then((answer) => {
+    return confirm(`${actionName} idle GPU timeout policy exemption for job ${title} ?`).then((answer) => {
       if (answer === false) return;
       enqueueSnackbar(`${title}'s exemption is being updated.`);
       return updateException(job.jobId, isExempted).then((response) => {
@@ -216,7 +216,7 @@ ${givenName} ${familyName}
     return {
       hidden,
       icon: () => isExempted ? createElement(RemoveCircle) : createElement(Block),
-      tooltip: isExempted ? 'Disable Exemption': 'Enable Exemption',
+      tooltip: isExempted ? 'Disable Idle GPU Policy Exemption': 'Enable Idle GPU Policy Exemption',
       onClick: (event: any, job: any) => onUpdateExemption(event, job, !isExempted)
     }
   }, { position: 'row' }), [onUpdateExemption]);
