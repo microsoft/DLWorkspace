@@ -2,6 +2,7 @@ import * as React from 'react';
 import {
   FunctionComponent,
   createContext,
+  ReactNode,
   useCallback,
   useContext,
   useState
@@ -16,7 +17,7 @@ import {
 } from '@material-ui/core';
 
 interface ConfirmContext {
-  setMessage: (message: string | React.ReactNode) => void;
+  setMessage: (message: string | ReactNode) => void;
   setOpen: (open: boolean) => void;
   setResolve: (resolve: (value: boolean) => void) => void;
 }
@@ -28,7 +29,7 @@ const ConfirmContext = createContext<ConfirmContext>({
 });
 
 const ConfirmProvider: FunctionComponent = ({ children }) => {
-  const [message, setMessage] = useState<string | React.ReactNode>();
+  const [message, setMessage] = useState<string | ReactNode>();
   const [open, setOpen] = useState(false);
   const [resolve, setResolve] = useState<(value: boolean) => void>();
 
@@ -63,7 +64,7 @@ const ConfirmProvider: FunctionComponent = ({ children }) => {
 
 const useConfirm = () => {
   const { setMessage, setOpen, setResolve } = useContext(ConfirmContext);
-  const confirm = useCallback((message: string | React.ReactNode) => {
+  const confirm = useCallback((message: string | ReactNode) => {
     setMessage(message);
     setOpen(true);
     return new Promise<boolean>((resolve) => {
