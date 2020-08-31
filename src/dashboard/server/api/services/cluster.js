@@ -435,7 +435,7 @@ class Cluster extends Service {
     }
   }
 
-    /**
+  /**
    * @return {Promise<object>}
    */
   async getQuota () {
@@ -447,7 +447,6 @@ class Cluster extends Service {
     this.context.log.debug({ data }, 'Got cluster quota')
     return data
   }
-
 }
 
 module.exports = Cluster
