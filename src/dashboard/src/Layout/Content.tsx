@@ -16,7 +16,6 @@ import NotificationBox from './NotificationBox';
 
 const useStyles = makeStyles(theme => createStyles({
   root: ({ drawerOpen }: { drawerOpen: boolean }) => ({
-    paddingTop: 0,
     marginLeft: drawerOpen ? theme.spacing(30) : 0,
     transition: theme.transitions.create('margin-left', {
       easing: theme.transitions.easing.easeInOut,
@@ -33,7 +32,7 @@ const Content: FunctionComponent = ({ children }) => {
   const styles = useStyles({ drawerOpen });
 
   return (
-    <Box flex={1} py={3} className={styles.root}>
+    <Box flex={1} py={3} pt={0} className={styles.root}>
       <Toolbar disableGutters/>
       <NotificationBox marginBottom={3}/>
       {children}
