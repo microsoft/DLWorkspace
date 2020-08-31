@@ -3,14 +3,6 @@
  * @property {import('../../services/cluster')} cluster
  */
 
-const tryParseJSON = (json, empty) => {
-  try {
-    return JSON.parse(json)
-  } catch (e) {
-    return empty
-  }
-}
-
 /** @type {import('koa').Middleware<State>} */
 module.exports = async context => {
   const { cluster } = context.state
@@ -18,8 +10,7 @@ module.exports = async context => {
   const quota = await cluster.getQuota()
   if (!quota.hasOwnProperty(teamId)) {
     context.body = 'teamId not found!'
-  } 
-  else {
+  } else {
     const metadataObject = quota[teamId]['resourceMetadata']['gpu']
     const gpus = Object.create(null)
     for (const sku of Object.keys(metadataObject)) {
