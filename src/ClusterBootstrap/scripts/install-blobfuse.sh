@@ -4,7 +4,7 @@ sudo rm -f packages-microsoft-prod.deb
 wget https://packages.microsoft.com/config/ubuntu/16.04/packages-microsoft-prod.deb
 sudo dpkg -i packages-microsoft-prod.deb
 sudo apt-get update
-sudo apt-get --no-install-recommends install -y blobfuse fuse jq
+sudo apt-get --no-install-recommends install -y blobfuse=1.2.4 fuse jq
 sudo rm -f packages-microsoft-prod.deb
 sudo mkdir /etc/kubernetes/volumeplugins
 sed -e 's#ExecStart=/opt/bin/kubelet \\#ExecStart=/opt/bin/kubelet \\\n  --volume-plugin-dir=/etc/kubernetes/volumeplugins \\#g' /etc/systemd/system/kubelet.service > /tmp/newkubelet.service
