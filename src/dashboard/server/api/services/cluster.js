@@ -434,6 +434,20 @@ class Cluster extends Service {
       throw error
     }
   }
+
+    /**
+   * @return {Promise<object>}
+   */
+  async getQuota () {
+    const { user } = this.context.state
+    const params = new URLSearchParams({ userName: user.email })
+    const response = await this.fetch('/ResourceQuota?' + params)
+    this.context.assert(response.ok, response.status)
+    const data = await response.json()
+    this.context.log.debug({ data }, 'Got cluster quota')
+    return data
+  }
+
 }
 
 module.exports = Cluster
