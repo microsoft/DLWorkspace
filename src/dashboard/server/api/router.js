@@ -25,6 +25,9 @@ router.get('/teams/:teamId/clusters/:clusterId',
 router.get('/clusters/:clusterId',
   require('./middlewares/user')(),
   require('./controllers/cluster'))
+router.get('/teams/:teamId/clusters/:clusterId/metadata',
+  require('./middlewares/user')(),
+  require('./controllers/team/cluster/metadata'))
 
 router.get('/teams/:teamId/jobs',
   require('./middlewares/user')(),
