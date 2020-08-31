@@ -1,6 +1,6 @@
 /**
  * @typedef {Object} State
- * @property {import('../../services/cluster')} cluster
+ * @property {import('../../../services/cluster')} cluster
  */
 
 /** @type {import('koa').Middleware<State>} */
