@@ -312,6 +312,10 @@ def gen_containers(job, role):
             "name": "dshm",
             "mountPath": "/dev/shm"
         },
+        {
+            "name": "host-proc",
+            "mountPath": "/host-proc"
+        },
     ]
 
     if job.dns_policy is None:
@@ -488,6 +492,12 @@ def gen_task_role(job, role):
             "name": "dshm",
             "emptyDir": {
                 "medium": "Memory"
+            }
+        },
+        {
+            "name": "host-proc",
+            "hostPath": {
+                "path": "/proc"
             }
         },
     ]

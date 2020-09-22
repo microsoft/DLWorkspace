@@ -79,6 +79,8 @@ spec:
           readOnly: true
         - name: ssh-volume
           mountPath: /home/{{ job["user"] }}/.ssh
+        - mountPath: /host-proc
+          name: host-proc
         {% if not job["dnsPolicy"] %}
         - mountPath: /etc/resolv.conf
           name: resolv
@@ -165,6 +167,9 @@ spec:
         hostPath:
           path: /etc/resolv.conf
       {% endif %}
+      - hostPath:
+          path: /proc
+        name: host-proc
       - name: dshm
         emptyDir:
           medium: Memory
