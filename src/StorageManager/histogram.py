@@ -64,7 +64,8 @@ def main():
     for days_ago, size in histogram.items():
         logger.info("%s\t%s", days_ago, size / (2 ** 30))
         total += size
-    logger.info("\ntotal: %s GB", total / (2 ** 30))
+    logger.info("")
+    logger.info("total: %s GB", total / (2 ** 30))
 
 
 if __name__ == "__main__":
