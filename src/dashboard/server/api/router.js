@@ -135,5 +135,9 @@ router.patch('/clusters/:clusterId/quota',
   require('./middlewares/body')('quota'),
   require('./controllers/cluster/quota.patch'))
 
+router.get('/clusters/:clusterId/jobs/:jobId/pods')
+require('./middlewares/user')()
+require('./controllers/cluster/job/pods.js')
+
 router.get('/error.gif',
   require('./controllers/error'))

@@ -571,6 +571,25 @@ class Cluster extends Service {
   }
 
   /**
+  * @param {string} jobId
+  * @returns {Promise}
+  */
+  async getPods(jobId) {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      jobId,
+      userName: user.email
+    })
+
+    const response = await this.fetch('/ListPods?' + params)
+    this.context.assert(response.ok, 502)
+    const data = await response.json()
+    this.context.log.debug(data, 'Got Pods')
+
+    return data
+  } 
+
+  /**
    * @private
    * @param {string} path
    * @param {import('node-fetch').RequestInit} init
