@@ -54,4 +54,16 @@ describe('POST /clusters/:clusterid/jobs', function () {
       { vcName: 'test', userName: 'foo' }, { params: userParams })
     response.status.should.equal(200)
   })
+
+  it('should set preemtible if preemptableJobByDefault configured in cluster', async function () {
+    nock('http://targaryen')
+      .post('/PostJob', _.matches({ userName: 'dlts@example.com', preemptionAllowed: 'True' }))
+      .reply(200, {
+        message: 'job adding succeeded'
+      })
+
+    const response = await axiosist(api).post('/clusters/Targaryen/jobs',
+      { vcName: 'test', userName: 'foo' }, { params: userParams })
+    response.status.should.equal(200)
+  })
 })

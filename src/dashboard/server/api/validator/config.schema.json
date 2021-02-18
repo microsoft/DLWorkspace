@@ -73,6 +73,11 @@
               "items": {
                 "type": "string"
               }
+            },
+            "preemptableJobByDefault": {
+              "title": "Set job as preemptable by default",
+              "description": "Set to true to make the frontend mark the job as preemptable by default, and set `preemptionAllowed` field of submitted job to true if unset.",
+              "type": "boolean"
             }
           }
         }
