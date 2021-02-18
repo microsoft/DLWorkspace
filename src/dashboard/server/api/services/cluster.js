@@ -219,7 +219,7 @@ class Cluster extends Service {
 
   /**
    * @param {string} jobId
-   * @param {number} timeout
+   * @param {number|null} timeout
    * @return {Promise}
    */
   async setJobTimeout (jobId, timeout) {
