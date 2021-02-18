@@ -185,6 +185,28 @@ class Cluster extends Service {
   }
 
   /**
+   * @param {string} jobId
+   * @param {string} name
+   */
+  async setJobName (jobId, name) {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      userName: user.email,
+      jobId
+    })
+    const body = { name }
+    const response = await this.fetch('/JobName?' + params, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    const text = await response.text()
+    this.context.log.debug({ text }, 'Set name %d of job "%s"', name, jobId)
+    this.context.assert(response.ok, 502)
+    return text
+  }
+
+  /**
    * @return {Promise<object>}
    */
   async getJobsPriority () {
