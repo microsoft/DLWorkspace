@@ -174,9 +174,9 @@ useful when you don't want to actually restart a service, just wander how you ed
 
 ## update remote config file used by a service
 ```
-./ctl.py svc configupdate [dashboard | restfulapi | storagemanager]
+./ctl.py svc configupdate storagemanager
 ```
-this subcommand would retire after we use configmap to configure parameters for the 3 listed services
+this subcommand would retire after we use configmap to configure parameters for the storagemanager service
 
 ## options
 Some advanced tricks are possible if you are familiar with options.
