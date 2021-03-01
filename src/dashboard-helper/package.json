@@ -1,0 +1,26 @@
+{
+  "name": "dashboard-helper",
+  "version": "0.0.0",
+  "description": "Web extension for DLTS dashboard.",
+  "main": "dist/manifest.json",
+  "repository": "git@github.com/microsoft/DLWorkspace.git",
+  "author": "Qixiang Cheng <Qixiang.Cheng@microsoft.com>",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "test": "standard",
+    "dev": "parcel serve src/popup.html src/options.html --out-dir public/dist/ --public-url . --hmr-hostname 127.0.0.1 --no-source-maps",
+    "prebuild": "rimraf public/dist/",
+    "build": "parcel build src/popup.html src/options.html --out-dir public/dist/ --public-url . --no-source-maps"
+  },
+  "dependencies": {
+    "bulma": "^0.9.0",
+    "jsrsasign": "^8.0.20"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.122",
+    "parcel-bundler": "^1.12.4",
+    "rimraf": "^3.0.2",
+    "standard": "^14.3.4"
+  }
+}
