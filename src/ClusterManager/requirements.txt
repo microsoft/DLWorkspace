@@ -11,7 +11,7 @@ marshmallow==2.19.5
 kubernetes==10.0.0
 PyYAML>=5.1.1
 prometheus-client==0.7.1
-twisted==19.7.0
+twisted==22.1.0
 cachetools==3.1.1
 redis==3.2.1
 elasticsearch>=6.0.0,<7.0.0
