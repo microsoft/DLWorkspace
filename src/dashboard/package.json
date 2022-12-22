@@ -12,7 +12,7 @@
     "config": "^3.2.1",
     "date-fns": "^2.9.0",
     "js-yaml": "^3.13.1",
-    "jsonwebtoken": "^8.5.1",
+    "jsonwebtoken": "^9.0.0",
     "koa": "^2.7.0",
     "koa-bodyparser": "^4.2.1",
     "koa-compose": "^4.1.0",
